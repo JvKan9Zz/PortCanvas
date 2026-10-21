@@ -4,7 +4,7 @@
 
 - 项目编号：Project-016；创建日期：2026-10-21。
 - 状态：规划中；本次完成仓库初始文档，尚无软件实现或 EXE。
-- GitHub 计划仓库名：`wheel-combat-studio`；可见性：私有；远端尚未创建。
+- GitHub：[JvKan9Zz/wheel-combat-studio](https://github.com/JvKan9Zz/wheel-combat-studio)；已创建并通过页面确认是私有仓库。
 - 本地 Git：已初始化 `main` 分支并完成初始文档提交。
 - 目标设备：组内称“树莓派”的创意之星 AI 控制器。
 - 用户已确认：需要完整 Linux 桌面及鼠标键盘操作。
