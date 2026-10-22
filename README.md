@@ -5,7 +5,7 @@
 - 项目编号：Project-016；创建日期：2026-10-21。
 - 当前版本：Demo V0.2；设备连接、远程桌面及 SFTP 文件管理传输已完成，Windows EXE 已通过当前设备的功能检查。相机、控制台与实时擂台等继续按长期路线推进。
 - GitHub：[JvKan9Zz/wheel-combat-studio](https://github.com/JvKan9Zz/wheel-combat-studio)；已创建并通过页面确认是私有仓库。
-- 本地 Git：已初始化 `main` 分支并完成初始文档提交。
+- Git 备份：Demo V0.2 源码已推送私有仓库 `main`，固定版本入口为 [demo-v0.2](https://github.com/JvKan9Zz/wheel-combat-studio/tree/demo-v0.2)；过程见 [版本备份记录](07-日志与复盘/GitHub版本备份-2026-10-22.md)。
 - 目标设备：组内称“树莓派”的创意之星 AI 控制器。
 - 用户已确认：需要完整 Linux 桌面及鼠标键盘操作。
 - 视觉场景数据由独立的 `visual-to-3DModel` 工程提供，上位机负责接收和显示。
@@ -34,6 +34,8 @@
 - [本轮开发日志](07-日志与复盘/demo-v0.2-开发日志-2026-10-22.md)
 
 验证包括 16 项自动化测试、真实树莓派双向内容哈希/覆盖/权限/取消/断线检查，以及交付 EXE 的目录操作、上传下载、原生覆盖确认与桌面并行回归。测试数据位于本项目 local 证据目录及板端 wheel-combat-studio 的专用测试目录。
+
+GitHub 备份包含源码、依赖锁文件、测试、设计文档和使用/验收说明。EXE、完整交付 ZIP、依赖目录、设备配置及本机测试证据保留在本机，不进入 Git。
 
 ## Demo V0.1 历史交付
 
