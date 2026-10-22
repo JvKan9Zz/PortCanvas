@@ -3,7 +3,7 @@
 轮式格斗专用 Windows 调试上位机：完整远程桌面、摄像头预览、控制台、赛台场景显示和 SFTP 文件传输。
 
 - 项目编号：Project-016；创建日期：2026-10-21。
-- 当前开发分支版本：Demo V0.3；新增右侧持久终端栏，已通过自动测试和当前设备实测，准备以 PR 合入。main 的已备份版本仍为 Demo V0.2。相机与实时擂台等继续按长期路线推进。
+- 当前开发分支版本：Demo V0.3；新增右侧持久终端栏，已通过自动测试和当前设备实测，[PR #1 待合入](https://github.com/JvKan9Zz/wheel-combat-studio/pull/1)。main 的已备份版本仍为 Demo V0.2。相机与实时擂台等继续按长期路线推进。
 - GitHub：[JvKan9Zz/wheel-combat-studio](https://github.com/JvKan9Zz/wheel-combat-studio)；已创建并通过页面确认是私有仓库。
 - Git 备份：Demo V0.2 源码已推送私有仓库 `main`，固定版本入口为 [demo-v0.2](https://github.com/JvKan9Zz/wheel-combat-studio/tree/demo-v0.2)；过程见 [版本备份记录](07-日志与复盘/GitHub版本备份-2026-10-22.md)。
 - 目标设备：组内称“树莓派”的创意之星 AI 控制器。
