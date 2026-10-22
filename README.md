@@ -26,7 +26,7 @@
 
 ## Demo V0.3.5 交付
 
-- 分支：`feature/local-run-logs`，包含 V0.3 的右侧持久终端基础，以 PR 面向 main 交付。
+- 分支：`feature/local-run-logs`，包含 V0.3 的右侧持久终端基础；[PR #2](https://github.com/JvKan9Zz/wheel-combat-studio/pull/2) 面向 main，合并状态见 PR 页面。
 - [Windows EXE](06-交付物/demo-v0.3.5/win-unpacked/Wheel%20Combat%20Studio.exe)（保留整个目录）
 - [完整交付包](06-交付物/WheelCombatStudio-Demo-V0.3.5-Windows-x64.zip)
 - [使用说明](06-交付物/Demo-V0.3.5-使用说明.md)
