@@ -3,7 +3,7 @@
 轮式格斗专用 Windows 调试上位机：完整远程桌面、摄像头预览、控制台、赛台场景显示和 SFTP 文件传输。
 
 - 项目编号：Project-016；创建日期：2026-10-21。
-- 当前版本：Demo V0.2；设备连接、远程桌面及 SFTP 文件管理传输已完成，Windows EXE 已通过当前设备的功能检查。相机、控制台与实时擂台等继续按长期路线推进。
+- 当前开发分支版本：Demo V0.3；新增右侧持久终端栏，已通过自动测试和当前设备实测，准备以 PR 合入。main 的已备份版本仍为 Demo V0.2。相机与实时擂台等继续按长期路线推进。
 - GitHub：[JvKan9Zz/wheel-combat-studio](https://github.com/JvKan9Zz/wheel-combat-studio)；已创建并通过页面确认是私有仓库。
 - Git 备份：Demo V0.2 源码已推送私有仓库 `main`，固定版本入口为 [demo-v0.2](https://github.com/JvKan9Zz/wheel-combat-studio/tree/demo-v0.2)；过程见 [版本备份记录](07-日志与复盘/GitHub版本备份-2026-10-22.md)。
 - 目标设备：组内称“树莓派”的创意之星 AI 控制器。
@@ -24,7 +24,17 @@
 
 当前实现设备连接管理、嵌入式远程桌面及 SFTP 双栏文件页。实现采用 Electron + ssh2 + noVNC，SFTP 独立于桌面通道；板端私有 x11vnc 经 SSH 转发。文件页支持目录合并传输、进度、取消、可选限速与覆盖确认。实时擂台仍是后续入口。性能对比属于后续验证，不以功能通过替代。
 
-## Demo V0.2 入口
+## Demo V0.3 分支交付
+
+- 分支：`feature/persistent-terminal`，终端在桌面、文件、擂台页面右侧展开，设备页隐藏；收起或切页保持连接，断线后可恢复远端 tmux 会话。
+- [Windows EXE](06-交付物/demo-v0.3/win-unpacked/Wheel%20Combat%20Studio.exe)（保留整个目录）
+- [使用与部署](06-交付物/Demo-V0.3-使用与部署说明.md)
+- [验收记录](06-交付物/Demo-V0.3-验收记录-2026-10-23.md)
+- [终端与擂台接口区设计](02-方案与设计/右侧持久终端与擂台接口区.md)
+
+25 项测试、真实输入/中文输出、侧栏布局和同 PID 断线/重启恢复通过。设备端需要 tmux。擂台左下角的真实接口值区记录为后续设计，当前不显示模拟硬件数值。
+
+## Demo V0.2 已备份版本入口
 
 - [Windows EXE](06-交付物/demo-v0.2/win-unpacked/Wheel%20Combat%20Studio.exe)（整个目录保留在一起）
 - [完整交付包](06-交付物/WheelCombatStudio-Demo-V0.2-Windows-x64.zip)

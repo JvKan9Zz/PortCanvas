@@ -1,11 +1,14 @@
 import RFB from '@novnc/novnc';
 import {FilePage} from './files-page.js';
+import {TerminalDrawer} from './terminal-drawer.js';
 const $ = id => document.getElementById(id);
 let devices = [], selected = null, page = 'devices', rfb = null, desktopAttempt = 0;
 let current = {ssh: 'disconnected', desktop: 'disconnected', message: '就绪'}, fit = true, readonly = false;
 let toastTimer;
 const icon = name => {const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');const use = document.createElementNS(svg.namespaceURI, 'use');use.setAttribute('href', '#i-' + name);svg.append(use);return svg;};
 const filesPage = new FilePage({toast,icon,goDevices:()=>showPage('devices')});
+let terminalExpanded=false;
+const terminalDrawer = new TerminalDrawer({toast,goDevices:()=>showPage('devices')});
 function toast(message) {$('toast').textContent = message;$('toast').hidden = false;clearTimeout(toastTimer);toastTimer = setTimeout(() => $('toast').hidden = true, 6000);}
 function profile() {return {id: selected?.id, name: $('name').value, host: $('host').value, port: Number($('port').value), username: $('username').value, display: $('display').value, xauthority: $('xauthority').value};}
 function fill(device) {
@@ -33,7 +36,18 @@ function showPage(next) {
   for (const button of document.querySelectorAll('[data-page]')) {button.classList.toggle('active', button.dataset.page === next);button.setAttribute('aria-current', button.dataset.page === next ? 'page' : 'false');}
   for (const section of document.querySelectorAll('.page')) section.hidden = section.id !== 'page-' + next;
   if(next==='files')filesPage.show();else filesPage.hide();
+  renderTerminalDrawer();
 }
+function renderTerminalDrawer() {
+  const visible=page!=='devices'&&terminalExpanded;
+  $('toggleTerminal').hidden=page==='devices';
+  $('toggleTerminal').setAttribute('aria-expanded',String(visible));
+  $('terminalDrawer').hidden=!visible;
+  $('appRoot').classList.toggle('terminal-open',visible);
+  if(visible)terminalDrawer.show();else terminalDrawer.hide();
+}
+$('toggleTerminal').onclick=()=>{terminalExpanded=!terminalExpanded;renderTerminalDrawer();};
+$('closeTerminalDrawer').onclick=()=>{terminalExpanded=false;renderTerminalDrawer();$('toggleTerminal').focus();};
 function clearRfb() {
   desktopAttempt++;
   const previous = rfb;rfb = null;
@@ -43,6 +57,7 @@ function clearRfb() {
 function renderState(state) {
   current = state;
   filesPage.setConnection(state,selected?.id);
+  terminalDrawer.setConnection(state);
   const connected = state.ssh === 'connected', connecting = state.ssh === 'connecting';
   const status = connected ? '设备已连接' : connecting ? '正在连接设备' : state.ssh === 'error' ? '连接失败' : '设备未连接';
   $('connectionBadge').className = 'badge ' + state.ssh;
@@ -111,6 +126,7 @@ $('deviceForm').onsubmit = async event => {
   } catch (error) {toast(error.message);}
 };
 $('goDesktop').onclick = () => {showPage('desktop');if (current.desktop !== 'connected') startDesktop();};
+
 $('desktopEmptyAction').onclick = () => current.ssh === 'connected' ? startDesktop() : showPage('devices');
 $('startDesktop').onclick = startDesktop;
 $('stopDesktop').onclick = async () => {clearRfb();await window.studio.stopDesktop();};

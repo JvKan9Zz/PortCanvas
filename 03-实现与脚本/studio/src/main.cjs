@@ -3,6 +3,7 @@ const path = require('node:path');
 const {Profiles, validateProfile} = require('./profiles.cjs');
 const {DeviceSession} = require('./session.cjs');
 const {FileService} = require('./files.cjs');
+const {TerminalSession} = require('./terminal.cjs');
 
 const root = path.resolve(__dirname, '../../..');
 const dataDir = app.isPackaged ? path.join(path.dirname(process.execPath), 'data') : path.join(root, '04-数据与素材/private/studio-data');
@@ -32,7 +33,7 @@ app.whenReady().then(() => {
   }});
   window = new BrowserWindow({
     width: 1360, height: 880, minWidth: 1000, minHeight: 680,
-    title: 'Wheel Combat Studio · Demo V0.2', backgroundColor: '#eef1f3',
+    title: 'Wheel Combat Studio · Demo V0.3', backgroundColor: '#eef1f3',
     webPreferences: {preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true}
   });
   window.setMenuBarVisibility(false);
@@ -63,6 +64,14 @@ app.whenReady().then(() => {
   safeHandler('device:connect', (input, password) => session.connect(validateProfile(input), {password: String(password)}));
   safeHandler('device:disconnect', () => session.disconnect());
   safeHandler('device:state', () => session.state);
+  const terminal = new TerminalSession(session);
+  terminal.on('state', state => {if(!window.isDestroyed())window.webContents.send('terminal-state',state);});
+  terminal.on('data', data => {if(!window.isDestroyed())window.webContents.send('terminal-data',data);});
+  safeHandler('terminal:start', (cols,rows) => terminal.start(cols,rows));
+  safeHandler('terminal:stop', () => terminal.stop());
+  safeHandler('terminal:state', () => terminal.state);
+  safeHandler('terminal:write', (id,data) => terminal.write(id,data));
+  safeHandler('terminal:resize', (id,cols,rows) => terminal.resize(id,cols,rows));
   safeHandler('files:list', (side,directory) => files.list(side,directory));
   safeHandler('files:mkdir', (side,parent,name) => files.mkdir(side,parent,name));
   safeHandler('files:transfer', options => files.transfer(options));
