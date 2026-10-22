@@ -89,3 +89,11 @@ test('attachment has a deadline and repeated starts share one channel',async()=>
 test('session identity survives profile renames and separates accounts',()=>{
   const p={host:'192.0.2.1',port:22,username:'demo'};assert.equal(terminalName(p),terminalName({...p,id:'renamed',name:'new'}));assert.notEqual(terminalName(p),terminalName({...p,username:'other'}));assert.notEqual(terminalName(p),terminalName({...p,port:2222}));
 });
+test('prepared logging attachment reports its actual session identity',async()=>{
+  const x=await setup({sessionName:p=>terminalName(p)+'-logs',prepare:async(_client,p)=>`exec tmux -L wcs-terminal attach-session -t ${terminalName(p)}-logs`});
+  try{const state=await x.terminal.start();assert.equal(state.session,terminalName(x.session.profile)+'-logs');assert.ok(commands.at(-1).endsWith(state.session));}finally{x.session.disconnect();}
+});
+test('canceling asynchronous logging preparation does not attach a stale PTY',async()=>{
+  let ready;const prepared=new Promise(resolve=>{ready=resolve;}),x=await setup({prepare:()=>prepared});
+  try{const count=commands.length,pending=x.terminal.start(),rejected=assert.rejects(pending,/取消/);x.terminal.stop();ready('exec fixture');await rejected;await new Promise(r=>setImmediate(r));assert.equal(commands.length,count);assert.equal(x.terminal.state.phase,'disconnected');}finally{x.session.disconnect();}
+});

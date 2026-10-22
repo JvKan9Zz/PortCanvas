@@ -1,6 +1,6 @@
 {
   "name": "wheel-combat-studio",
-  "version": "0.3.0",
+  "version": "0.3.5",
   "description": "轮式格斗设备连接、远程桌面与 SFTP 文件传输",
   "author": "Wheel Combat Studio",
   "private": true,

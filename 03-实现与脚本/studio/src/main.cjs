@@ -1,14 +1,16 @@
-const {app, BrowserWindow, ipcMain, dialog} = require('electron');
+const {app, BrowserWindow, ipcMain, dialog, shell} = require('electron');
 const path = require('node:path');
+const fs = require('node:fs');
 const {Profiles, validateProfile} = require('./profiles.cjs');
 const {DeviceSession} = require('./session.cjs');
 const {FileService} = require('./files.cjs');
 const {TerminalSession} = require('./terminal.cjs');
+const {RunLogs} = require('./run-logs.cjs');
 
 const root = path.resolve(__dirname, '../../..');
 const dataDir = app.isPackaged ? path.join(path.dirname(process.execPath), 'data') : path.join(root, '04-数据与素材/private/studio-data');
 app.setPath('userData', dataDir);
-let window, store, session, files;
+let window, store, session, files, logs, quitting=false;
 
 function safeHandler(name, handler) {
   ipcMain.handle(name, async (event, ...args) => {
@@ -33,7 +35,7 @@ app.whenReady().then(() => {
   }});
   window = new BrowserWindow({
     width: 1360, height: 880, minWidth: 1000, minHeight: 680,
-    title: 'Wheel Combat Studio · Demo V0.3', backgroundColor: '#eef1f3',
+    title: 'Wheel Combat Studio · Demo V0.3.5', backgroundColor: '#eef1f3',
     webPreferences: {preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true}
   });
   window.setMenuBarVisibility(false);
@@ -64,7 +66,10 @@ app.whenReady().then(() => {
   safeHandler('device:connect', (input, password) => session.connect(validateProfile(input), {password: String(password)}));
   safeHandler('device:disconnect', () => session.disconnect());
   safeHandler('device:state', () => session.state);
-  const terminal = new TerminalSession(session);
+  logs = new RunLogs(session,{root:path.join(app.getPath('documents'),'Wheel Combat Studio','Logs'),settingsFile:path.join(dataDir,'log-settings.json')});
+  logs.on('state',state=>{if(!window.isDestroyed())window.webContents.send('logs-state',state);});
+  logs.on('change',()=>{if(!window.isDestroyed())window.webContents.send('logs-changed');});
+  const terminal = new TerminalSession(session,{prepare:(client,profile)=>logs.prepare(client,profile),sessionName:profile=>logs.sessionName(profile)});
   terminal.on('state', state => {if(!window.isDestroyed())window.webContents.send('terminal-state',state);});
   terminal.on('data', data => {if(!window.isDestroyed())window.webContents.send('terminal-data',data);});
   safeHandler('terminal:start', (cols,rows) => terminal.start(cols,rows));
@@ -72,6 +77,21 @@ app.whenReady().then(() => {
   safeHandler('terminal:state', () => terminal.state);
   safeHandler('terminal:write', (id,data) => terminal.write(id,data));
   safeHandler('terminal:resize', (id,cols,rows) => terminal.resize(id,cols,rows));
+  safeHandler('logs:state',()=>logs.snapshot());
+  safeHandler('logs:list',()=>logs.store.list());
+  safeHandler('logs:read',id=>logs.store.detail(id));
+  safeHandler('logs:project',value=>logs.setProject(value));
+  safeHandler('logs:directory',async()=>{
+    if(logs.store.writers.size||logs.store.pending.size)throw new Error('请等待当前记录完成，或先断开设备再更换日志位置。');
+    const result=await dialog.showOpenDialog(window,{title:'选择电脑本地日志目录',defaultPath:logs.store.root,properties:['openDirectory','createDirectory']});
+    return result.canceled?logs.snapshot():logs.setRoot(result.filePaths[0]);
+  });
+  safeHandler('logs:open-folder',async id=>{const directory=id?logs.store.detail(id).directory:logs.store.root;if(!id)fs.mkdirSync(directory,{recursive:true});const error=await shell.openPath(directory);if(error)throw new Error(error);});
+  safeHandler('logs:remove',async ids=>{
+    const records=logs.store.removable(ids);if(!records.length)return {removed:0};
+    const result=await dialog.showMessageBox(window,{type:'warning',title:'清理本地日志',message:`删除选中的 ${records.length} 份已结束或中断的日志？`,detail:records.slice(0,8).map(r=>`${r.project.name} / ${r.day} / ${r.command.slice(0,70)}`).join('\n')+'\n只处理电脑本地日志，正在写入的记录保留。',buttons:['取消','删除这些日志'],defaultId:0,cancelId:0,noLink:true});
+    return result.response===1?logs.store.remove(ids):{removed:0,canceled:true};
+  });
   safeHandler('files:list', (side,directory) => files.list(side,directory));
   safeHandler('files:mkdir', (side,parent,name) => files.mkdir(side,parent,name));
   safeHandler('files:transfer', options => files.transfer(options));
@@ -89,4 +109,8 @@ app.whenReady().then(() => {
   window.loadFile(path.join(__dirname, '../ui/index.html'));
 });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => session?.disconnect());
+app.on('before-quit', event => {
+  if(quitting)return;
+  event.preventDefault();session?.disconnect();
+  Promise.resolve(logs?.close()).finally(()=>{quitting=true;app.quit();});
+});

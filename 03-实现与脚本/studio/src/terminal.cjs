@@ -9,8 +9,8 @@ function dimensions(cols, rows) {
   return {cols, rows};
 }
 class TerminalSession extends EventEmitter {
-  constructor(session, {timeout = 15000} = {}) {
-    super(); this.session = session; this.timeout = timeout;
+  constructor(session, {timeout = 15000, prepare = null, sessionName = terminalName} = {}) {
+    super(); this.session = session; this.timeout = timeout; this.prepare=prepare; this.sessionName=sessionName;
     this.state = {phase:'disconnected', id:0, message:'连接设备后可打开终端。'};
     session.on('state', state => {
       if (state.ssh !== 'connected' && ['connecting','connected'].includes(this.state.phase)) this.stop('设备连接已断开。重新连接设备后，可恢复远端终端会话。');
@@ -29,7 +29,7 @@ class TerminalSession extends EventEmitter {
     if (!this.session.client || this.session.state.ssh !== 'connected') throw new Error('请先连接设备，再打开终端。');
     if (this.state.phase === 'connected') return {...this.state};
     this.stop();
-    const {client,profile,generation}=this.session, id=this.state.id, name=terminalName(profile);
+    const {client,profile,generation}=this.session, id=this.state.id, name=this.sessionName(profile);
     this.update({phase:'connecting',session:name,message:'正在恢复远端终端会话…'});
     const operation=new Promise((resolve,reject) => {
       let settled=false;
@@ -44,7 +44,9 @@ class TerminalSession extends EventEmitter {
       const timer=setTimeout(() => {fail(new Error('终端连接超时，请重试。'));this.channel?.close();},this.timeout);
       this.cancelStart=() => finish(new Error('终端连接已取消。'));
       try {
-        client.exec(`exec tmux -L wcs-terminal -f /dev/null new-session -A -s ${name}`, {pty:{term:'xterm-256color',cols,rows}}, (error,channel) => {
+        const open=command=>{
+        if(id!==this.state.id||generation!==this.session.generation||settled)return;
+        client.exec(command, {pty:{term:'xterm-256color',cols,rows}}, (error,channel) => {
           if (id !== this.state.id || generation !== this.session.generation || settled) {channel?.close();return;}
           if (error) return fail(error);
           this.channel=channel; channel.setEncoding('utf8'); channel.stderr.setEncoding('utf8');
@@ -59,7 +61,9 @@ class TerminalSession extends EventEmitter {
             this.update({phase:code===0?'disconnected':'error',message:code===127?'设备未安装 tmux，无法保留断线会话。请安装 tmux 后重试。':code===0?'终端已退出，可重新打开。':'终端连接中断，可重新连接恢复会话。'});
           });
           this.update({phase:'connected',message:'终端已连接。切换页面不会断开；关闭软件或断网后可恢复会话。'});finish();
-        });
+        });};
+        if(this.prepare)Promise.resolve().then(()=>this.prepare(client,profile)).then(open).catch(fail);
+        else open(`exec tmux -L wcs-terminal -f /dev/null new-session -A -s ${name}`);
       } catch(error) {fail(error);}
     });
     this.pending=operation;

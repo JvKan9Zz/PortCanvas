@@ -1,6 +1,7 @@
 import RFB from '@novnc/novnc';
 import {FilePage} from './files-page.js';
 import {TerminalDrawer} from './terminal-drawer.js';
+import {LogsPage} from './logs-page.js';
 const $ = id => document.getElementById(id);
 let devices = [], selected = null, page = 'devices', rfb = null, desktopAttempt = 0;
 let current = {ssh: 'disconnected', desktop: 'disconnected', message: '就绪'}, fit = true, readonly = false;
@@ -9,6 +10,7 @@ const icon = name => {const svg = document.createElementNS('http://www.w3.org/20
 const filesPage = new FilePage({toast,icon,goDevices:()=>showPage('devices')});
 let terminalExpanded=false;
 const terminalDrawer = new TerminalDrawer({toast,goDevices:()=>showPage('devices')});
+const logsPage = new LogsPage({toast});
 function toast(message) {$('toast').textContent = message;$('toast').hidden = false;clearTimeout(toastTimer);toastTimer = setTimeout(() => $('toast').hidden = true, 6000);}
 function profile() {return {id: selected?.id, name: $('name').value, host: $('host').value, port: Number($('port').value), username: $('username').value, display: $('display').value, xauthority: $('xauthority').value};}
 function fill(device) {
@@ -36,6 +38,7 @@ function showPage(next) {
   for (const button of document.querySelectorAll('[data-page]')) {button.classList.toggle('active', button.dataset.page === next);button.setAttribute('aria-current', button.dataset.page === next ? 'page' : 'false');}
   for (const section of document.querySelectorAll('.page')) section.hidden = section.id !== 'page-' + next;
   if(next==='files')filesPage.show();else filesPage.hide();
+  if(next==='logs')logsPage.show();else logsPage.hide();
   renderTerminalDrawer();
 }
 function renderTerminalDrawer() {

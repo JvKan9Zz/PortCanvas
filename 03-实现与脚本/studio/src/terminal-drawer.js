@@ -31,7 +31,7 @@ export class TerminalDrawer {
   fitVisible() {if(this.visible&&this.term&&$('terminalOutput').clientWidth>0) this.fit.fit();}
   show() {this.visible=true;this.ensure();requestAnimationFrame(()=>{this.fitVisible();if(this.state.phase==='connected')this.term.focus();});}
   hide() {this.visible=false;}
-  setConnection(state) {this.connected=state.ssh==='connected';this.render(this.state);}
+  setConnection(state) {this.connected=state.ssh==='connected';$('logProjectName').disabled=!this.connected;$('saveLogProject').disabled=!this.connected;this.render(this.state);}
   render(state) {
     this.state=state;
     if(state.phase==='connecting'&&state.id!==this.displayId){this.term?.reset();this.displayId=state.id;}
