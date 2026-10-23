@@ -13,7 +13,7 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 
 | 版本 | 状态 | 实现 |
 | --- | --- | --- |
-| **Demo V0.4.5 · PortCanvas** | 本轮交付版本，包含透明 Logo、可选记住密码、SSH 密钥和盘符切换 | Tauri 2 + Rust + 系统 WebView2 |
+| **Demo V0.4.5 · PortCanvas** | 当前 `main` 版本，[PR #8][v045-pr] 已合并 | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.4** | 完整框架迁移与实机验收基线，[PR #7][v04-pr] | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.3.5** | 保留的历史 Electron 版本 | Electron + ssh2 + noVNC |
 
@@ -89,6 +89,7 @@ V0.4 将运行核心迁移到 Rust，并按需加载桌面和终端组件。完�
 
 [v04-source]: https://github.com/JvKan9Zz/PortCanvas/tree/feature/v04-portcanvas-release
 [v04-pr]: https://github.com/JvKan9Zz/PortCanvas/pull/7
+[v045-pr]: https://github.com/JvKan9Zz/PortCanvas/pull/8
 [v04-guide]: https://github.com/JvKan9Zz/PortCanvas/blob/383dfcade64db0537da845a92ef1d6cd02d8509c/06-%E4%BA%A4%E4%BB%98%E7%89%A9/PortCanvas-Demo-V0.4-%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.md
 [v04-checks]: https://github.com/JvKan9Zz/PortCanvas/blob/383dfcade64db0537da845a92ef1d6cd02d8509c/06-%E4%BA%A4%E4%BB%98%E7%89%A9/PortCanvas-Demo-V0.4-%E9%AA%8C%E6%94%B6%E8%AE%B0%E5%BD%95-2026-10-23.md
 [v04-performance]: https://github.com/JvKan9Zz/PortCanvas/blob/383dfcade64db0537da845a92ef1d6cd02d8509c/06-%E4%BA%A4%E4%BB%98%E7%89%A9/PortCanvas-Demo-V0.4-%E8%B5%84%E6%BA%90%E5%AF%B9%E7%85%A7-2026-10-23.md
