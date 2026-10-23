@@ -10,6 +10,7 @@ const filesPage = new FilePage({toast,icon,goDevices:()=>showPage('devices')});
 let terminalExpanded=false;
 const terminalDrawer = new TerminalDrawer({toast,goDevices:()=>showPage('devices')});
 const logsPage = new LogsPage({toast});
+document.querySelectorAll('.mark,.wordmark').forEach(element=>element.addEventListener('dragstart',event=>event.preventDefault()));
 function toast(message) {$('toast').textContent = message;$('toast').hidden = false;clearTimeout(toastTimer);toastTimer = setTimeout(() => $('toast').hidden = true, 6000);}
 function profile() {return {id: selected?.id, name: $('name').value, host: $('host').value, port: Number($('port').value), username: $('username').value, display: $('display').value, xauthority: $('xauthority').value,authMethod:$('authMethod').value,privateKeyPath:$('privateKeyPath').value,rememberPassword:$('rememberPassword').checked};}
 function savedCredentialMatches() {
@@ -58,7 +59,8 @@ function renderTerminalDrawer() {
   const visible=page!=='devices'&&terminalExpanded;
   $('toggleTerminal').hidden=page==='devices';
   $('toggleTerminal').setAttribute('aria-expanded',String(visible));
-  $('terminalDrawer').hidden=!visible;
+  $('terminalDrawer').inert=!visible;
+  $('terminalDrawer').setAttribute('aria-hidden',String(!visible));
   $('appRoot').classList.toggle('terminal-open',visible);
   if(visible)terminalDrawer.show();else terminalDrawer.hide();
 }
