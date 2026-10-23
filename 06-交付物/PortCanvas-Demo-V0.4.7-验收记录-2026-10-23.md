@@ -24,3 +24,5 @@
 普通安装升级至0.4.7，devices.json和log-settings.json逐字节保留（原先无terminals.json）；桌面快捷方式改用0.4.7透明ICO。旧版最小化状态下CloseMainWindow请求未在15秒退出，停止升级；改由实际标题栏正常关闭后完成，未强杀正常客户端。依赖升级结果的第一次打包校验因仍安装0.4.6而失败，未生成ZIP；确认升级后复用白名单内的暂存文件重新打包通过。
 
 八文件ZIP自检通过，安装/便携代码仅官方包类型标记不同；ICO各尺寸均正方形。便携验收副本首次启动设备为空、日志在自身data/logs，正常退出。安装版已重新打开，测试副本均回收。包内无配置、密钥或用户日志。
+
+PR #11已合入main，merge commit `c129a14979c1b8b211f2fef9fd57a084285b87c7`，功能头`643cf3fea3acade46fc9aae709a7bd24ca82717f`。Code Review后端成功读取该头，checks/statuses/annotations为空；没有外部CI或他人review通过的结论。PR已关联当前Codex聊天；审查面板定位terminal-drawer.js第99行，打开工具返回queued，切回当前聊天后显示。合并使用匹配功能头的merge操作，本地main已快进同步。

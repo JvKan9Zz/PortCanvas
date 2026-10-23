@@ -27,3 +27,5 @@
 正式release/NSIS成功，两个流、单会话status off、真实pointer调宽、收起恢复及清屏统一样式再验证通过。0.4.6最小化客户端CloseMainWindow未在15秒退出，先停止；标题栏实际点击正常退出后升级0.4.7，未强杀。第一次包装过早依赖未成功的升级结果，版本对比校验拒绝并无ZIP；完成升级后核对暂存白名单重新打包。安装配置保持、桌面快捷方式正确；8文件ZIP无用户资料，便携副本空设备与自身data/logs通过并正常退出。
 
 测试证据保存在local/v047，不进入Git。旧版本交付及用户业务会话保留；本次无性能/跨平台/实车验收结论。PR创建和合并结果随后记录。
+
+PR #11已合入main，merge commit `c129a14979c1b8b211f2fef9fd57a084285b87c7`，功能头`643cf3fea3acade46fc9aae709a7bd24ca82717f`。Code Review后端成功读取该头，checks/statuses/annotations为空；没有外部CI或他人review通过的结论。PR已关联当前Codex聊天；审查面板定位terminal-drawer.js第99行，打开工具返回queued，切回当前聊天后显示。合并使用匹配功能头的merge操作，本地main已快进同步。
