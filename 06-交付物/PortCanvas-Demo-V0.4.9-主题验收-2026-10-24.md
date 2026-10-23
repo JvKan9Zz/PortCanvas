@@ -10,3 +10,5 @@
 本机证据：05-测试与验证/local/v049-theme下core-tests.txt、release-build.txt、theme-result.json、theme-confirmation.txt、persistence-result.json和截图。隔离配置只有127.0.0.1的主题预览资料，不含凭据、真实设备连接或伪造实时数据。安装、便携与PR结果收尾补记。
 
 用户要求可见名称直接使用浅蓝/绿色/灰色，最终release-plain-labels.txt构建成功；plain-labels-result.json实读中文三项与Light blue/Green/Gray一致。保存ID保持兼容。普通安装同版本更新已完成，四份已有设备/日志/终端/设置配置逐字节保留；实际安装代码与最终便携代码仅官方UNK/NSS标记不同。8文件补充ZIP无用户data/凭据/日志，原0.4.9交付保留，隔离便携副本默认浅蓝、设备为空，检查后正常关闭。
+
+PR #14已按功能头`1d3beda9f5f3f05620f876686699a959aacadccb`合入main，merge commit `e77d292ead153faa33d67914619a977454390aed`。PR关联当前聊天；审查面板定位新增themes.css第1行，工具返回queued。Code Review后端读取该头，无checks/statuses/annotations，不把空CI视为外部审查通过。本地main已同步，后续仅补充文档。
