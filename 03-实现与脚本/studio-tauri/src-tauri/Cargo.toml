@@ -41,6 +41,7 @@ anyhow = "1"
 futures-util = "0.3"
 tokio-tungstenite = "0.28"
 zeroize = "1"
+dunce = "1"
 windows-sys = { version = "0.61", optional = true, features = ["Win32_UI_WindowsAndMessaging"] }
 
 [build-dependencies]

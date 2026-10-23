@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-const bytes=value=>value<1024?`${value} B`:value<1024**2?`${(value/1024).toFixed(1)} KiB`:value<1024**3?`${(value/1024**2).toFixed(1)} MiB`:`${(value/1024**3).toFixed(2)} GiB`;
+const bytes=value=>value==null?'未知':value<1024?`${value} B`:value<1024**2?`${(value/1024).toFixed(1)} KiB`:value<1024**3?`${(value/1024**2).toFixed(1)} MiB`:`${(value/1024**3).toFixed(2)} GiB`;
 export class FilePage {
   constructor({toast,icon,goDevices}) {
     this.toast=toast;this.icon=icon;this.connected=false;this.visible=false;this.busy=false;
@@ -53,6 +53,7 @@ export class FilePage {
     try {
       const data=await window.studio.listFiles(side,directory);
       if(request!==panel.request)return;
+      data.entries.sort((a,b)=>(a.type==='directory'?0:1)-(b.type==='directory'?0:1)||a.name.localeCompare(b.name,'zh-CN',{numeric:true}));
       Object.assign(panel,data);panel.selected.clear();$(side+'Path').value=data.path;
       if(side==='local')this.localLoaded=true;else this.remoteLoaded=true;
       panel.error=null;this.render(side);
@@ -79,7 +80,7 @@ export class FilePage {
       const name=document.createElement('td'),nameContent=document.createElement('span'),text=document.createElement('span');
       nameContent.className='file-name';text.textContent=entry.name;nameContent.append(this.icon(entry.type==='directory'?'folder':entry.type==='link'?'connect':'file'),text);name.append(nameContent);name.title=entry.name;
       const size=document.createElement('td');size.textContent=entry.type==='directory'?'文件夹':entry.type==='link'?'链接':bytes(entry.size);
-      const date=document.createElement('td');date.textContent=new Date(entry.modified).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+      const date=document.createElement('td');date.textContent=entry.modified==null?'未知':new Date(entry.modified).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
       row.append(checkCell,name,size,date);body.append(row);
     }
     this.renderSelection(side);

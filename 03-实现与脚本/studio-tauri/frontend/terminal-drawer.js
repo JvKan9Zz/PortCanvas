@@ -9,7 +9,7 @@ export class TerminalDrawer {
     $('disconnectTerminal').onclick=()=>window.studio.stopTerminal().catch(e=>toast(e.message));
     $('clearTerminal').onclick=()=>{this.term?.clear();this.term?.focus();};
     window.studio.onTerminalState(state=>this.render(state));
-    window.studio.onTerminalData(({id,data})=>{if(id===this.state.id)this.term?.write(data);});
+    window.studio.onTerminalData(({id,data,ack})=>{if(id===this.state.id&&this.term)this.term.write(data,ack);else ack?.();});
     window.studio.terminalState().then(state=>this.render(state)).catch(e=>toast(e.message));
   }
   ensure() {
@@ -18,9 +18,9 @@ export class TerminalDrawer {
     this.fit=new FitAddon();this.term.loadAddon(this.fit);this.term.open($('terminalOutput'));
     this.term.textarea?.setAttribute('aria-label','树莓派终端输入');
     this.term.onData(data=>{
-      if(this.state.phase!=='connected')return;
+      if(this.state.phase!=='connected'||!this.connected)return;
       const id=this.state.id;
-      window.studio.writeTerminal(id,data).catch(e=>{if(id===this.state.id&&this.state.phase==='connected')this.toast(e.message);});
+      window.studio.writeTerminal(id,data).catch(e=>{if(id===this.state.id&&this.state.phase==='connected'&&this.connected)this.toast(e.message);});
     });
     this.term.onResize(({cols,rows})=>{
       if(this.state.phase==='connected')window.studio.resizeTerminal(this.state.id,cols,rows).catch(()=>{});
@@ -35,7 +35,7 @@ export class TerminalDrawer {
   render(state) {
     this.state=state;
     if(state.phase==='connecting'&&state.id!==this.displayId){this.term?.reset();this.displayId=state.id;}
-    const live=state.phase==='connected',busy=state.phase==='connecting';
+    const live=state.phase==='connected'&&this.connected,busy=state.phase==='connecting'&&this.connected;
     if(this.term)this.term.options.disableStdin=!live;
     $('connectTerminal').disabled=busy||live;
     $('connectTerminal').textContent=busy?'正在连接…':live?'终端已连接':this.connected?'连接 / 恢复终端':'前往连接设备';

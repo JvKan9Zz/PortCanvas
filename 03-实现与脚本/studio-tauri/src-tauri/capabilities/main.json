@@ -1,1 +1,11 @@
-{"identifier":"main-window","windows":["main"],"permissions":["core:default","allow-studio-call"]}
+{
+  "identifier": "main-window",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "allow-studio-call",
+    "allow-terminal-subscribe"
+  ]
+}

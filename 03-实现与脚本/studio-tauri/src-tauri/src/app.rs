@@ -1,8 +1,10 @@
 use crate::{
     desktop::DesktopService,
+    files::{Confirmation, FileService, Side, Transfer},
     profiles::{Profile, ProfileStore},
     session::{DeviceManager, EventSink},
     ssh::HostCheck,
+    terminal::{OutputSink, TerminalService},
 };
 use anyhow::{bail, Context, Result};
 use serde::de::DeserializeOwned;
@@ -20,12 +22,50 @@ pub struct AppState {
     pub devices: DeviceManager,
     pub desktop: DesktopService,
     pub quitting: AtomicBool,
+    pub files: FileService,
+    pub terminal: TerminalService,
 }
 pub fn argument<T: DeserializeOwned>(args: &[Value], index: usize) -> Result<T> {
     serde_json::from_value(args.get(index).cloned().unwrap_or(Value::Null))
         .context("操作参数无效。")
 }
 
+fn validate_window(window: &tauri::WebviewWindow) -> Result<String> {
+    anyhow::ensure!(window.label() == "main", "Invalid caller");
+    let url = window.url()?;
+    anyhow::ensure!(
+        matches!(url.scheme(), "tauri" | "http" | "https")
+            && matches!(url.host_str(), Some("localhost" | "tauri.localhost")),
+        "Invalid origin"
+    );
+    Ok(url.origin().ascii_serialization())
+}
+fn optional_text(args: &[Value], index: usize) -> Result<String> {
+    match args.get(index) {
+        None | Some(Value::Null) => Ok(String::new()),
+        Some(Value::String(value)) => Ok(value.clone()),
+        _ => bail!("路径必须为文字。"),
+    }
+}
+#[tauri::command]
+async fn terminal_subscribe(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, AppState>,
+    cols: u32,
+    rows: u32,
+    channel: tauri::ipc::Channel<tauri::ipc::Response>,
+) -> std::result::Result<Value, String> {
+    let operation: Result<Value> = async {
+        validate_window(&window)?;
+        let sink: OutputSink = Arc::new(move |bytes| {
+            channel.send(tauri::ipc::Response::new(bytes))?;
+            Ok(())
+        });
+        state.terminal.start(cols, rows, sink).await
+    }
+    .await;
+    operation.map_err(|e| e.to_string())
+}
 pub async fn confirm(window: tauri::WebviewWindow, title: String, message: String) -> Result<bool> {
     tokio::task::spawn_blocking(move || {
         #[cfg(windows)]
@@ -72,7 +112,7 @@ async fn studio_call(
     mut args: Vec<Value>,
 ) -> std::result::Result<Value, String> {
     let result:Result<Value>=async{
-        anyhow::ensure!(window.label()=="main","Invalid caller");let url=window.url()?;anyhow::ensure!(matches!(url.scheme(),"tauri"|"http"|"https")&&matches!(url.host_str(),Some("localhost"|"tauri.localhost")),"Invalid origin");
+        let origin=validate_window(&window)?;
         match action.as_str(){
             "profiles:list"=>Ok(serde_json::to_value(state.profiles.lock().unwrap().read()?.devices)?),
             "profiles:save"=>{anyhow::ensure!(state.devices.snapshot()["ssh"]!="connected","请先断开设备再修改配置。");Ok(serde_json::to_value(state.profiles.lock().unwrap().save(argument(&args,0)?)?)?)},
@@ -90,10 +130,21 @@ async fn studio_call(
                     if !accepted||cancel.is_cancelled(){return Ok(false);}store.lock().unwrap().trust(&address,&fingerprint)?;Ok(true)
                 })});callback}).await
             },
-            "desktop:start"=>state.desktop.start(url.origin().ascii_serialization()).await,
+            "desktop:start"=>state.desktop.start(origin).await,
             "desktop:stop"=>{state.desktop.stop(None).await;Ok(Value::Null)},
             "desktop:ready"=>{state.desktop.ready(argument(&args,0)?);Ok(Value::Null)},
             "desktop:lost"=>{let id:u64=argument(&args,0)?;state.desktop.stop(Some(id)).await;Ok(Value::Null)},
+            "terminal:state"=>Ok(state.terminal.snapshot()),
+            "terminal:stop"=>{state.terminal.stop();Ok(Value::Null)},
+            "terminal:write"=>{state.terminal.write(argument(&args,0)?,argument(&args,1)?).await?;Ok(Value::Null)},
+            "terminal:resize"=>{state.terminal.resize(argument(&args,0)?,argument(&args,1)?,argument(&args,2)?).await?;Ok(Value::Null)},
+            "terminal:ack"=>{state.terminal.ack(argument(&args,0)?,argument(&args,1)?);Ok(Value::Null)},
+            "files:state"=>Ok(state.files.snapshot()),
+            "files:cancel"=>{state.files.cancel();Ok(Value::Null)},
+            "files:list"=>state.files.list(argument::<Side>(&args,0)?,optional_text(&args,1)?).await,
+            "files:mkdir"=>Ok(json!(state.files.mkdir(argument(&args,0)?,argument(&args,1)?,argument(&args,2)?).await?)),
+            "files:choose-local"=>{let directory=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title("选择本地文件夹").pick_folder()).await?;Ok(json!(directory.map(|p|p.to_string_lossy().into_owned())))},
+            "files:transfer"=>{let options:Transfer=argument(&args,0)?;let callback:Confirmation=Arc::new(move|paths|{let window=window.clone();Box::pin(async move{confirm(window,"确认覆盖文件".into(),format!("目标已有 {} 个同名文件，是否覆盖？\n{}\n取消将保留原文件。",paths.len(),paths.iter().take(8).cloned().collect::<Vec<_>>().join("\n"))).await})});state.files.transfer(options,callback).await},
             "window:fullscreen"=>{let full=!window.is_fullscreen()?;window.set_fullscreen(full)?;Ok(json!(full))},
             _=>bail!("此操作仍在后续迁移工作包中，正式操作请使用 V0.3.5。")
         }
@@ -115,14 +166,27 @@ pub fn run() {
             }
             let handle = app.handle().clone();
             let events: EventSink = Arc::new(move |name, data| {
+                if name == "device-state" && data["ssh"] != "connected" {
+                    if let Some(state) = handle.try_state::<AppState>() {
+                        state.files.invalidate();
+                        state.terminal.stop();
+                    }
+                }
                 let _ = handle.emit(name, data);
             });
             let devices = DeviceManager::new(events);
             let desktop = DesktopService::new(devices.clone());
+            let files = FileService::new(devices.clone(), app.path().document_dir()?);
+            let namespace = std::env::var("WCS_SESSION_NAMESPACE")
+                .ok()
+                .filter(|s| !s.is_empty());
+            let terminal = TerminalService::new(devices.clone(), namespace);
             app.manage(AppState {
                 profiles: Arc::new(Mutex::new(ProfileStore { directory })),
                 devices,
                 desktop,
+                files,
+                terminal,
                 quitting: AtomicBool::new(false),
             });
             Ok(())
@@ -138,6 +202,8 @@ pub fn run() {
                 {
                     tauri::async_runtime::spawn(async move {
                         let state = app.state::<AppState>();
+                        state.terminal.stop();
+                        state.files.cancel();
                         state.desktop.stop(None).await;
                         state.devices.disconnect().await;
                         app.exit(0);
@@ -145,7 +211,7 @@ pub fn run() {
                 }
             }
         })
-        .invoke_handler(tauri::generate_handler![studio_call])
+        .invoke_handler(tauri::generate_handler![studio_call, terminal_subscribe])
         .run(tauri::generate_context!())
         .expect("Tauri desktop application");
 }
