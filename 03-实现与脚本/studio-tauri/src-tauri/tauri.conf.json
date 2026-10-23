@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "PortCanvas",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "identifier": "io.portcanvas.app",
   "build": {
     "beforeBuildCommand": "npm run build",
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "PortCanvas · Demo V0.4.7",
+        "title": "PortCanvas · Demo V0.4.8",
         "width": 1360,
         "height": 880,
         "minWidth": 1000,
@@ -28,7 +28,7 @@
     "active": true,
     "resources": {
       "../THIRD-PARTY-NOTICES.txt": "THIRD-PARTY-NOTICES.txt",
-      "icons/icon.ico": "portcanvas-0.4.7.ico"
+      "icons/icon.ico": "portcanvas-0.4.8.ico"
     },
     "targets": [
       "nsis"

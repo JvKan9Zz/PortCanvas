@@ -275,11 +275,25 @@ pub struct FileService {
 #[serde(rename_all = "camelCase")]
 pub struct Transfer {
     direction: String,
+    #[serde(default)]
     names: Vec<String>,
+    #[serde(default)]
+    local_items: Vec<String>,
+    #[serde(default)]
     local_path: String,
     remote_path: String,
     #[serde(default)]
     rate_limit: u64,
+}
+fn dropped_sources(options:&Transfer)->Result<Vec<(String,String)>> {
+    if options.local_items.is_empty(){return Ok(vec![]);}
+    anyhow::ensure!(options.direction=="upload"&&options.names.is_empty(),"拖入文件仅支持上传，不能混合两种源列表。");
+    let mut selected=HashSet::new();let mut sources=Vec::new();
+    for input in &options.local_items {
+        let path=Path::new(input);anyhow::ensure!(path.is_absolute(),"拖入文件须为本机绝对路径。");
+        let name=path.file_name().and_then(|s|s.to_str()).context("不能直接传输磁盘根目录。")?;leaf(name,cfg!(windows))?;
+        if selected.insert(path.to_path_buf()){sources.push((input.clone(),name.to_string()));}
+    }Ok(sources)
 }
 struct Item {
     source: String,
@@ -488,13 +502,14 @@ impl FileService {
         Ok(path)
     }
     pub async fn transfer(&self, options: Transfer, confirm: Confirmation) -> Result<Value> {
-        if !["upload", "download"].contains(&options.direction.as_str()) || options.names.is_empty()
+        if !["upload", "download"].contains(&options.direction.as_str()) || (options.names.is_empty()&&options.local_items.is_empty())
         {
             bail!("请选择有效的传输方向和文件。");
         }
         if ![0, 1048576, 5242880, 10485760].contains(&options.rate_limit) {
             bail!("无效的限速设置。");
         }
+        let dropped=dropped_sources(&options)?;
         let (_, connection) = self.devices.connection_with_generation()?;
         let job = Arc::new(Job {
             cancel: connection.cancel.child_token(),
@@ -515,8 +530,9 @@ impl FileService {
         let operation=async{
             let(_,sftp,home,connection)=self.sftp().await?;check(&job)?;let remote=Self::remote_path(&options.remote_path,&home)?;let local=self.local_path(&options.local_path)?;let upload=options.direction=="upload";
             let(source,dest,from,to)=if upload{(Access::Local,Access::Remote(sftp.clone()),local,remote)}else{(Access::Remote(sftp.clone()),Access::Local,remote,local)};
-            if source.stat(&from).await?.kind!=Kind::Directory||dest.stat(&to).await?.kind!=Kind::Directory{bail!("传输两端必须是已存在的文件夹。");}
+            if (dropped.is_empty()&&source.stat(&from).await?.kind!=Kind::Directory)||dest.stat(&to).await?.kind!=Kind::Directory{bail!("传输两端必须是已存在的文件夹。");}
             let mut stack=Vec::new();let mut selected=HashSet::new();for name in &options.names{leaf(name,upload&&cfg!(windows))?;if selected.insert(name.clone()){stack.push((source.join(&from,name),dest.join(&to,name),name.clone()));}}
+            for(src,name)in &dropped{stack.push((src.clone(),dest.join(&to,name),name.clone()));}
             let mut planned=HashSet::new();let mut directories=Vec::new();let mut files=Vec::new();let mut conflicts=Vec::new();let mut total=0u64;
             while let Some((src,dst,name))=stack.pop(){check(&job)?;leaf(&name,!upload&&cfg!(windows))?;let key=if !upload&&cfg!(windows){dst.to_lowercase()}else{dst.clone()};if !planned.insert(key){bail!("多个源项目对应同一目标：{dst}");}let meta=source.stat(&src).await?;if matches!(meta.kind,Kind::Link|Kind::Other){bail!("暂不传输符号链接或特殊文件：{src}");}let existing=dest.optional(&dst).await?;if existing.as_ref().is_some_and(|m|m.kind!=meta.kind){bail!("目标存在不同类型的同名项目：{dst}");}
                 if meta.kind==Kind::Directory{directories.push((dst.clone(),existing.is_some()));for(child,_)in source.list(&src).await?{stack.push((source.join(&src,&child),dest.join(&dst,&child),child));}}else{let size=meta.size.context("源文件缺少大小属性，无法校验传输。")?;meta.modified.context("源文件缺少修改时间，无法校验传输。")?;total=total.checked_add(size).context("传输总大小超出范围。")?;if existing.is_some(){conflicts.push(dst.clone());}files.push(Item{source:src,target:dst,meta,existing});}}
@@ -585,6 +601,18 @@ fn check(job: &Job) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn dropped_uploads_keep_each_source_parent_and_reject_ambiguous_input(){
+        let root=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap());
+        let a=root.join("one/中文.txt").to_string_lossy().into_owned();let b=root.join("two/second.txt").to_string_lossy().into_owned();
+        let parse=|value|serde_json::from_value::<Transfer>(value).unwrap();
+        let options=parse(json!({"direction":"upload","localItems":[a,b,a],"remotePath":"/tmp"}));
+        let sources=dropped_sources(&options).unwrap();assert_eq!(sources.len(),2);assert_eq!(sources[0],(a.clone(),"中文.txt".into()));assert_eq!(sources[1].0,b);
+        assert!(dropped_sources(&parse(json!({"direction":"download","localItems":[a],"remotePath":"/tmp"}))).is_err());
+        assert!(dropped_sources(&parse(json!({"direction":"upload","names":["x"],"localItems":[a],"remotePath":"/tmp"}))).is_err());
+        assert!(dropped_sources(&parse(json!({"direction":"upload","localItems":["relative.txt"],"remotePath":"/tmp"}))).is_err());
+        assert!(dropped_sources(&parse(json!({"direction":"upload","localItems":[if cfg!(windows){"C:\\"}else{"/"}],"remotePath":"/tmp"}))).is_err());
+    }
     #[test]
     fn names_and_remote_paths_preserve_supported_scope() {
         assert!(leaf("../x", false).is_err());
