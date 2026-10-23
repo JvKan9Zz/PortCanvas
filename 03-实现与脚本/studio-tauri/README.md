@@ -1,6 +1,8 @@
-# PortCanvas Demo V0.4
+# PortCanvas Demo V0.4.5
 
 已完成M0–M5：Tauri 2 / WebView2前端，Rust承担SSH、桌面转发、SFTP、PTY/tmux、电脑本地日志与可逆资料导入。旧../studio和V0.3.5保留。正式支持当前Windows交付，其他平台没有实机验收结论。
+
+V0.4.5增加密码/密钥认证切换（OpenSSH、PEM、PPK）、可选Windows DPAPI加密记住密码/密钥口令、本地盘符选择，并统一使用用户指定的透明Logo。私钥只保存本地路径，内容不复制到配置；取消勾选后保存即可移除已记住凭据。配置中的密文仅当前Windows账户可解密，API不向前端返回密文或明文。
 
 运行时无需常驻Node/Python；远端沿用Bash、tmux、Python3和X11/x11vnc辅助协议。Node只用于前端构建。默认恢复旧wcs日志会话、保留设备/指纹和wcs.run/1。WCS_SESSION_NAMESPACE仅用于隔离测试，不设置时兼容用户旧会话。
 

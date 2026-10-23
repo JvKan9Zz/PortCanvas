@@ -288,14 +288,17 @@ async fn studio_call(
         let origin=validate_window(&window)?;
         if state.migrating.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"profiles:save"|"profiles:remove"|"files:transfer"|"logs:directory"|"logs:project"){bail!("资料迁移中，请稍后重试。");}
         match action.as_str(){
-            "profiles:list"=>Ok(serde_json::to_value(state.profiles.lock().unwrap().read()?.devices)?),
-            "profiles:save"=>{anyhow::ensure!(state.devices.snapshot()["ssh"]!="connected","请先断开设备再修改配置。");Ok(serde_json::to_value(state.profiles.lock().unwrap().save(argument(&args,0)?)?)?)},
+            "profiles:list"=>Ok(json!(state.profiles.lock().unwrap().read()?.devices.iter().map(Profile::public_value).collect::<Vec<_>>())),
+            "profiles:save"=>{anyhow::ensure!(!matches!(state.devices.snapshot()["ssh"].as_str(),Some("connected"|"connecting")),"请先断开设备再修改配置。");let profile:Profile=argument(&args,0)?;let secret=match args.get_mut(1).map(Value::take){Some(Value::String(p))=>zeroize::Zeroizing::new(p),None|Some(Value::Null)=>zeroize::Zeroizing::new(String::new()),_=>bail!("凭据参数无效。")};Ok(state.profiles.lock().unwrap().save(profile,&secret)?.public_value())},
+            "profiles:choose-key"=>{let file=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title("选择SSH私钥（OpenSSH / PEM / PPK）").add_filter("所有私钥文件",&["*"]).pick_file()).await?;Ok(json!(file.map(|p|p.to_string_lossy().into_owned())))},
             "profiles:remove"=>{let id:String=argument(&args,0)?;if !confirm(window.clone(),"移除设备配置".into(),"仅移除本机连接配置，是否继续？".into()).await?{return Ok(json!(false));}if state.devices.snapshot()["deviceId"]==id{state.devices.disconnect().await;}
                 let store=state.profiles.lock().unwrap();let mut data=store.read()?;let removed=data.devices.iter().find(|p|p.id==id).cloned();data.devices.retain(|p|p.id!=id);if let Some(removed)=removed{if !data.devices.iter().any(|p|p.address()==removed.address()){data.host_keys.remove(&removed.address());}}store.write(&data)?;Ok(json!(true))},
             "device:state"=>Ok(state.devices.snapshot()),
             "device:disconnect"=>{state.devices.disconnect().await;state.desktop.stop(None).await;Ok(state.devices.snapshot())},
             "device:connect"=>{
-                let profile:Profile=argument(&args,0)?;let password=match args.get_mut(1).map(Value::take){Some(Value::String(p)) if !p.is_empty()=>zeroize::Zeroizing::new(p),_=>bail!("请输入本次连接密码。")};
+                let mut profile:Profile=argument::<Profile>(&args,0)?.validate()?;profile.encrypted_secret=None;
+                let supplied=match args.get_mut(1).map(Value::take){Some(Value::String(p))=>zeroize::Zeroizing::new(p),None|Some(Value::Null)=>zeroize::Zeroizing::new(String::new()),_=>bail!("凭据参数无效。")};
+                let password=state.profiles.lock().unwrap().connection_secret(&profile,supplied)?;
                 let store=state.profiles.clone();let address=profile.address();let dialog=window.clone();
                 state.devices.connect(profile,password,move|cancel|{let callback:HostCheck=Arc::new(move|fingerprint|{let store=store.clone();let address=address.clone();let dialog=dialog.clone();let cancel=cancel.clone();Box::pin(async move{
                     let known=store.lock().unwrap().read()?.host_keys.get(&address).cloned();
@@ -316,6 +319,7 @@ async fn studio_call(
             "files:state"=>Ok(state.files.snapshot()),
             "files:cancel"=>{state.files.cancel();Ok(Value::Null)},
             "files:list"=>state.files.list(argument::<Side>(&args,0)?,optional_text(&args,1)?).await,
+            "files:drives"=>crate::files::local_drives(),
             "files:mkdir"=>Ok(json!(state.files.mkdir(argument(&args,0)?,argument(&args,1)?,argument(&args,2)?).await?)),
             "files:choose-local"=>{let directory=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title("选择本地文件夹").pick_folder()).await?;Ok(json!(directory.map(|p|p.to_string_lossy().into_owned())))},
             "files:transfer"=>{let options:Transfer=argument(&args,0)?;let callback:Confirmation=Arc::new(move|paths|{let window=window.clone();Box::pin(async move{confirm(window,"确认覆盖文件".into(),format!("目标已有 {} 个同名文件，是否覆盖？\n{}\n取消将保留原文件。",paths.len(),paths.iter().take(8).cloned().collect::<Vec<_>>().join("\n"))).await})});state.files.transfer(options,callback).await},

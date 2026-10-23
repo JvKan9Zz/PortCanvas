@@ -1,4 +1,4 @@
-use crate::profiles::Profile;
+use crate::profiles::{AuthMethod, Profile};
 use anyhow::{bail, Context, Result};
 use russh::{client, Channel, ChannelMsg};
 use std::{
@@ -56,11 +56,21 @@ pub struct SshConnection {
 impl SshConnection {
     pub async fn connect(
         profile: Profile,
-        password: Zeroizing<String>,
+        secret: Zeroizing<String>,
         check: HostCheck,
         cancel: CancellationToken,
     ) -> Result<Self> {
         let profile = profile.validate()?;
+        let key = if profile.auth_method == AuthMethod::Key {
+            let path = profile.private_key_path.clone();
+            let passphrase = secret.clone();
+            Some(tokio::task::spawn_blocking(move || {
+                let meta=std::fs::metadata(&path).context("无法读取私钥文件，请检查路径和权限。")?;
+                anyhow::ensure!(meta.is_file() && meta.len()<=1024*1024,"请选择最多1MiB的SSH私钥文件。");
+                russh::keys::load_secret_key(&path, if passphrase.is_empty(){None}else{Some(passphrase.as_str())})
+                    .map_err(|_|anyhow::anyhow!("无法解析私钥，请确认密钥格式及口令；支持OpenSSH、PEM和PuTTY PPK。"))
+            }).await.context("私钥读取线程异常。")??)
+        } else {None};
         let config = client::Config {
             keepalive_interval: Some(Duration::from_secs(5)),
             keepalive_max: 2,
@@ -89,13 +99,11 @@ impl SshConnection {
                     .clone()
                     .unwrap_or_else(|| friendly(&e.to_string())))
             })?;
-            if !handle
-                .authenticate_password(&profile.username, password.as_str())
-                .await?
-                .success()
-            {
-                bail!("认证失败：请检查用户名和密码。");
-            }
+            let authenticated=if let Some(key)=key {
+                let hash=handle.best_supported_rsa_hash().await?.flatten();
+                handle.authenticate_publickey(&profile.username,russh::keys::PrivateKeyWithHashAlg::new(Arc::new(key),hash)).await?.success()
+            } else {handle.authenticate_password(&profile.username,secret.as_str()).await?.success()};
+            if !authenticated { bail!("{}", if profile.auth_method==AuthMethod::Key {"密钥认证失败：请检查用户名、公钥授权和私钥。"}else{"认证失败：请检查用户名和密码。"}); }
             Ok(Self {
                 handle: Arc::new(handle),
                 profile,

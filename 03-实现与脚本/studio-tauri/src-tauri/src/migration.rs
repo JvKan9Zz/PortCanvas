@@ -56,6 +56,10 @@ fn profiles(bytes: &[u8]) -> Result<ProfileData> {
                 "username",
                 "display",
                 "xauthority",
+                "authMethod",
+                "privateKeyPath",
+                "rememberPassword",
+                "encryptedSecret",
             ],
         )?;
     }
