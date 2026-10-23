@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PortCanvas · Demo V0.4</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="files.css">
+  <link rel="stylesheet" href="xterm.css">
+  <link rel="stylesheet" href="terminal.css">
+  <link rel="stylesheet" href="logs.css">
+</head>
+<body>
+<svg class="icon-defs" aria-hidden="true"><defs>
+  <symbol id="i-device" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M8 21h8m-4-4v4M8 9h3m-3 4h6"/></symbol>
+  <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4m-5-13h5m-5 3h8"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m6 0h4"/></symbol>
+  <symbol id="i-log" viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8m-8 5h8m-8 5h5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7h18"/></symbol>
+  <symbol id="i-arena" viewBox="0 0 24 24"><path d="m3 8 9-5 9 5v9l-9 5-9-5V8Zm0 0 9 5 9-5m-9 5v9"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-connect" viewBox="0 0 24 24"><path d="m7 7-4 4a4 4 0 0 0 6 6l4-4m4 4 4-4a4 4 0 0 0-6-6l-4 4M8 16l8-8"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 8h8v8H8z"/></symbol>
+  <symbol id="i-full" viewBox="0 0 24 24"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><path d="M20 8a5 5 0 1 1-9 3l-8 8v3h3v-3h3l4-4a5 5 0 0 1 7-7Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 9a8 8 0 1 0 0 6m0-12v6h-6"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Zm0 0v6h6M8 13h8m-8 4h6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 20V4m-6 6 6-6 6 6"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10H3V10Zm6 10v-7h6v7"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 15v6h16v-6"/></symbol>
+</defs></svg>
+<aside class="rail">
+  <div class="mark"><img src="portcanvas.png" alt="PortCanvas" width="48" height="48"></div>
+  <nav aria-label="主要页面">
+    <button class="nav-item active" data-page="devices" title="设备连接与管理"><svg><use href="#i-device"/></svg><span>设备</span></button>
+    <button class="nav-item" data-page="desktop" title="远程桌面"><svg><use href="#i-desktop"/></svg><span>桌面</span></button>
+    <button class="nav-item" data-page="files" title="文件管理与传输"><svg><use href="#i-folder"/></svg><span>文件</span></button>
+    <button class="nav-item" data-page="logs" title="本地运行日志"><svg><use href="#i-log"/></svg><span>日志</span></button>
+    <button class="nav-item future" data-page="arena" title="实时擂台 · 后续版本"><svg><use href="#i-arena"/></svg><span>擂台</span></button>
+  </nav>
+  <div class="rail-version">DEMO<br>V0.4</div>
+</aside>
+<div id="appRoot" class="app">
+  <header class="app-header"><div class="wordmark">Port<strong>Canvas</strong></div><div class="header-actions"><button id="toggleTerminal" class="button secondary" type="button" aria-expanded="false" aria-controls="terminalDrawer" hidden><svg><use href="#i-terminal"/></svg>终端</button><div id="connectionBadge" class="badge"><span class="dot"></span><span>设备未连接</span></div></div></header>
+  <main>
+    <section id="page-devices" class="page device-page">
+      <div class="page-heading"><div><h1>设备连接与管理</h1><p>连接你的远端设备，进入同一个开发现场。</p></div><div class="device-manage-actions"><button id="importProfiles" class="button secondary" type="button">导入旧版资料</button><button id="rollbackProfiles" class="button secondary" type="button">恢复导入前资料</button><button id="newDevice" class="button secondary"><svg><use href="#i-plus"/></svg>添加设备</button></div></div>
+      <div class="device-workspace">
+        <aside class="device-list-panel"><div class="panel-label">已保存的设备 <span id="deviceCount">0</span></div><div id="deviceList" class="device-list"></div><p class="list-note">配置保存在本机。<br>密码仅用于本次连接。</p></aside>
+        <div class="connection-editor">
+          <div class="editor-heading"><div class="device-emblem"><svg><use href="#i-device"/></svg></div><div><h2 id="editorTitle">添加你的第一台设备</h2><p>通过 SSH 建立加密连接</p></div><span id="profileState" class="small-label">未连接</span></div>
+          <form id="deviceForm" novalidate>
+            <div class="fields"><label class="wide">设备名称<input id="name" name="name" maxlength="80" placeholder="例如：开发控制器" required></label><label>设备地址<input id="host" name="host" placeholder="例如：192.168.1.100" autocomplete="off" spellcheck="false" required></label><label class="port-field">SSH 端口<input id="port" name="port" type="number" value="22" min="1" max="65535" required></label><label>用户名<input id="username" name="username" placeholder="Linux 登录用户" autocomplete="off" spellcheck="false" required></label><label>密码<span class="label-note">不保存</span><input id="password" name="password" type="password" autocomplete="off" placeholder="输入设备登录密码"></label></div>
+            <details id="advanced"><summary>桌面连接设置</summary><div class="advanced-fields"><label>显示编号<input id="display" value=":0" spellcheck="false"></label><label>桌面授权文件<span class="label-note">可留空</span><input id="xauthority" placeholder="自动选择当前用户的 Xauthority" spellcheck="false"></label></div></details>
+            <div class="form-actions"><button id="connectDevice" class="button primary" type="submit"><svg><use href="#i-connect"/></svg><span>连接设备</span></button><button id="saveDevice" class="button secondary" type="button">保存配置</button><button id="removeDevice" class="text-button danger" type="button" hidden>移除配置</button></div>
+          </form>
+          <div class="connection-result" aria-live="polite"><div id="resultIcon" class="result-icon"><svg><use href="#i-connect"/></svg></div><div><h3 id="resultTitle">准备连接</h3><p id="resultMessage">确认远端设备已开机，并与电脑处于可互通的网络。</p></div><button id="goDesktop" class="button primary" hidden>进入远程桌面<svg><use href="#i-arrow"/></svg></button></div>
+        </div>
+      </div>
+    </section>
+    <section id="page-desktop" class="page desktop-page" hidden>
+      <div class="desktop-heading"><div><h1>远程桌面</h1><p id="desktopSubtitle">远端设备现有桌面会话</p></div><div class="desktop-actions"><button id="startDesktop" class="button primary"><svg><use href="#i-connect"/></svg><span>连接桌面</span></button><button id="stopDesktop" class="button secondary" disabled>断开桌面</button></div></div>
+      <div class="desktop-toolbar"><div class="toolbar-group"><button id="fitDesktop" class="tool-button selected" title="适配画布"><svg><use href="#i-fit"/></svg><span>适配</span></button><button id="actualSize" class="tool-button" title="原始像素尺寸">1:1</button></div><div class="toolbar-group"><button id="viewOnly" class="tool-button" title="切换只读模式" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>只读</span></button><button id="sendCAD" class="tool-button" title="向远端发送 Ctrl+Alt+Del" disabled><svg><use href="#i-key"/></svg><span>Ctrl+Alt+Del</span></button><button id="fullscreen" class="tool-button" title="切换全屏"><svg><use href="#i-full"/></svg></button></div></div>
+      <div class="desktop-stage"><div id="desktopCanvas" class="desktop-canvas"></div><div id="desktopEmpty" class="desktop-empty"><div class="empty-display"><svg><use href="#i-desktop"/></svg></div><h2 id="desktopEmptyTitle">把远端设备桌面带到这里</h2><p id="desktopEmptyText">先连接设备，再打开远程桌面。<br>连接后可直接使用鼠标和键盘操作。</p><button id="desktopEmptyAction" class="button secondary">前往连接设备<svg><use href="#i-arrow"/></svg></button></div></div>
+      <div class="desktop-caption"><span id="desktopStatus"><span class="dot"></span>桌面未连接</span><span id="desktopMode">点击画面后输入 · SSH 加密通道</span></div>
+    </section>
+    <section id="page-files" class="page files-page" hidden>
+      <div class="files-heading"><div><h1>文件管理与传输</h1><p>在电脑与远端设备之间传输文件和文件夹。</p></div><div id="sftpBadge" class="badge"><span class="dot"></span><span>SFTP 未连接</span></div></div>
+      <div class="transfer-actions"><div><button id="uploadFiles" class="button primary" disabled><svg><use href="#i-upload"/></svg>上传至远端设备</button><button id="downloadFiles" class="button secondary" disabled><svg><use href="#i-download"/></svg>下载至电脑</button></div><label class="rate-label">传输限速<select id="transferRate" aria-label="传输限速"><option value="0">不限速</option><option value="1048576">1 MiB/s</option><option value="5242880">5 MiB/s</option><option value="10485760">10 MiB/s</option></select></label></div>
+      <div class="file-panes">
+        <section class="file-pane" aria-label="本地文件面板">
+          <div class="file-pane-heading"><h2><svg><use href="#i-device"/></svg>本地电脑</h2><button id="localChoose" class="text-button">选择目录</button></div>
+          <div class="file-pane-tools"><button id="localUp" class="tool-button" title="本地上一级" aria-label="本地上一级"><svg><use href="#i-up"/></svg></button><button id="localHome" class="tool-button" title="本地主目录" aria-label="本地主目录"><svg><use href="#i-home"/></svg></button><button id="localRefresh" class="tool-button" title="刷新本地目录" aria-label="刷新本地目录"><svg><use href="#i-refresh"/></svg></button><button id="localNew" class="tool-button" title="本地新建文件夹"><svg><use href="#i-plus"/></svg><span>新建文件夹</span></button></div>
+          <form id="localPathForm" class="file-path-form"><input id="localPath" aria-label="本地目录路径" placeholder="输入本地目录路径" autocomplete="off" spellcheck="false"><button class="tool-button" type="submit" title="打开本地路径" aria-label="打开本地路径"><svg><use href="#i-arrow"/></svg></button></form>
+          <div class="file-table-scroll"><table class="file-table" aria-label="本地文件列表"><colgroup><col class="file-check-col"><col><col class="file-size-col"><col class="file-date-col"></colgroup><thead><tr><th><input id="localAll" type="checkbox" aria-label="全选本地文件"></th><th>名称</th><th>大小</th><th>修改时间</th></tr></thead><tbody id="localFiles"></tbody></table></div>
+          <div id="localMessage" class="file-pane-message" role="status">正在读取本地目录…</div>
+        </section>
+        <section class="file-pane" aria-label="远端文件面板">
+          <div class="file-pane-heading"><h2><svg><use href="#i-folder"/></svg>远端设备</h2><button id="filesConnect" class="text-button">连接设备</button></div>
+          <div class="file-pane-tools"><button id="remoteUp" class="tool-button" title="远端上一级" aria-label="远端上一级" disabled><svg><use href="#i-up"/></svg></button><button id="remoteHome" class="tool-button" title="远端主目录" aria-label="远端主目录" disabled><svg><use href="#i-home"/></svg></button><button id="remoteRefresh" class="tool-button" title="刷新远端目录" aria-label="刷新远端目录" disabled><svg><use href="#i-refresh"/></svg></button><button id="remoteNew" class="tool-button" title="远端新建文件夹" disabled><svg><use href="#i-plus"/></svg><span>新建文件夹</span></button></div>
+          <form id="remotePathForm" class="file-path-form"><input id="remotePath" aria-label="远端目录路径" placeholder="连接设备后可浏览远端目录" autocomplete="off" spellcheck="false" disabled><button id="remoteGo" class="tool-button" type="submit" title="打开远端路径" aria-label="打开远端路径" disabled><svg><use href="#i-arrow"/></svg></button></form>
+          <div class="file-table-scroll"><table class="file-table" aria-label="远端文件列表"><colgroup><col class="file-check-col"><col><col class="file-size-col"><col class="file-date-col"></colgroup><thead><tr><th><input id="remoteAll" type="checkbox" aria-label="全选远端文件" disabled></th><th>名称</th><th>大小</th><th>修改时间</th></tr></thead><tbody id="remoteFiles"></tbody></table></div>
+          <div id="remoteMessage" class="file-pane-message" role="status">请先在设备页面连接远端设备。</div>
+        </section>
+      </div>
+      <section class="transfer-status" aria-label="传输状态"><div class="transfer-status-top"><strong id="transferTitle">准备传输</strong><span id="transferNumbers">选择左侧上传，或右侧下载</span><button id="cancelTransfer" class="text-button" disabled>取消传输</button></div><progress id="transferProgress" max="100" value="0" aria-label="文件传输进度"></progress><p id="transferMessage" role="status">选择文件或文件夹，开始双向传输。</p><div id="transferCurrent" class="transfer-current"></div></section>
+      <dialog id="folderDialog" class="folder-dialog"><form id="folderForm"><h2 id="folderDialogTitle">新建文件夹</h2><label>文件夹名称<input id="folderName" autocomplete="off" required></label><p id="folderError" class="folder-error" role="alert"></p><div class="dialog-actions"><button id="folderCancel" type="button" class="button secondary">取消</button><button id="folderCreate" type="submit" class="button primary">创建文件夹</button></div></form></dialog>
+    </section>
+    <section id="page-logs" class="page logs-page" hidden>
+      <div class="files-heading"><div><h1>本地运行日志</h1><p>按项目与电脑日期归档，设备离线时也可查看。</p></div><button id="refreshLogs" class="button secondary">刷新</button></div>
+      <div class="log-location"><div><span>电脑保存位置</span><p id="logRootPath"></p></div><button id="openLogDirectory" class="text-button">打开目录</button><button id="chooseLogDirectory" class="text-button">更换位置</button></div>
+      <div class="log-filters"><label>项目<select id="logFilterProject"><option value="">全部项目</option></select></label><label>日期<select id="logFilterDay"><option value="">全部日期</option></select></label><label>状态<select id="logFilterStatus"><option value="">全部状态</option><option value="running">记录中</option><option value="succeeded">命令成功</option><option value="failed">命令失败</option><option value="interrupted">记录中断</option><option value="write_error">写入失败</option><option value="session">会话记录</option></select></label><button id="deleteLogs" class="button secondary danger" disabled>清理所选</button></div>
+      <p id="logRecordingStatus" class="log-recording" role="status">连接终端后自动记录。</p>
+      <div class="logs-layout">
+        <section class="log-list-panel" aria-label="运行记录列表"><div class="log-list-heading"><label><input id="selectLogs" type="checkbox" aria-label="全选本页已结束的日志"><span id="logCount">0 份记录</span></label></div><ul id="logRunList" class="log-run-list"></ul><div class="log-pagination"><button id="logPageBack" class="text-button" disabled>上一页</button><span id="logPageNumber">第1页</span><button id="logPageNext" class="text-button" disabled>下一页</button></div><p id="logsEmpty" class="log-empty">还没有本地日志。连接终端后运行指令即可开始记录。</p></section>
+        <section class="log-detail" aria-label="日志详情"><p id="logDetailEmpty" class="log-empty">选择一份记录查看命令、运行信息与文本输出。</p><div id="logDetailBody" class="log-detail-body" hidden>
+          <div class="log-detail-heading"><h2>运行详情</h2><button id="openRunDirectory" class="text-button">打开所在目录</button></div><pre id="logCommand" class="log-command"></pre>
+          <dl class="log-meta"><div><dt>项目</dt><dd id="logProjectDetail"></dd></div><div><dt>退出码</dt><dd id="logExit"></dd></div><div><dt>开始</dt><dd id="logStart"></dd></div><div><dt>结束确认</dt><dd id="logEnd"></dd></div><div><dt>运行目录</dt><dd id="logCwd"></dd></div><div><dt>耗时</dt><dd id="logDuration"></dd></div></dl>
+          <p id="logCompleteness" class="log-notice" hidden></p><p id="logBackgroundNotice" class="log-notice" hidden>存在后台任务，退出码表示前台命令已返回。后续混合输出可查看同项目的“会话记录”。</p><p id="logTailNotice" class="log-notice" hidden>仅预览最后 256 KB；完整文本保存在下方文件中。</p>
+          <pre id="logOutput" class="log-output" tabindex="0" aria-label="日志文本输出"></pre><p id="logFilePath" class="log-file-path"></p>
+        </div></section>
+      </div>
+    </section>
+    <section id="page-arena" class="page future-page" hidden><svg class="future-icon"><use href="#i-arena"/></svg><h1>实时擂台</h1><p>等待视觉定位与场景数据接入。</p><span class="future-label">当前没有实时擂台数据</span></section>
+  </main>
+  <aside id="terminalDrawer" class="terminal-drawer" aria-label="远程终端侧栏" hidden>
+    <div class="terminal-heading"><div><h2>远程终端</h2><p>指令输入与会话恢复</p></div><button id="closeTerminalDrawer" class="text-button" type="button" aria-label="收起终端侧栏">收起</button></div>
+    <div id="terminalStatus" class="badge"><span class="dot"></span><span>终端未连接</span></div>
+    <div class="terminal-toolbar"><button id="connectTerminal" class="button primary">前往连接设备</button><button id="disconnectTerminal" class="button secondary" disabled>断开</button><button id="clearTerminal" class="text-button" disabled>清屏</button></div>
+    <div class="terminal-project"><label>日志项目 <span>留空自动识别</span><input id="logProjectName" maxlength="100" placeholder="自动识别当前项目/目录"></label><button id="saveLogProject" class="text-button" type="button">应用</button></div>
+    <p id="terminalLogStatus" class="terminal-log-status" role="status">本地自动记录</p>
+    <div id="terminalOutput" class="terminal-output" role="region" aria-label="远端设备 SSH 终端"></div>
+    <p id="terminalMessage" class="terminal-message" role="status">连接设备后可打开终端。</p>
+    <p id="terminalSession" class="terminal-session"></p>
+    <p class="terminal-help">切换页面会保持连接。断线或关闭软件后可恢复远端会话；Ctrl+C 会中断前台程序，exit 会结束当前 Shell。</p>
+  </aside>
+  <footer class="status-bar"><span id="globalStatus" role="status">就绪</span><span>PortCanvas <b>Demo V0.4</b></span></footer>
+</div>
+<div id="toast" class="toast" role="alert" hidden></div>
+<script type="module" src="app.js"></script>
+</body></html>

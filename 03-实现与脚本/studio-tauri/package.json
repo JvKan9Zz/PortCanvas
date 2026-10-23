@@ -1,0 +1,24 @@
+{
+  "name": "portcanvas",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "dev": "tauri dev",
+    "pack": "tauri build",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml"
+  },
+  "dependencies": {
+    "@novnc/novnc": "1.7.0",
+    "@tauri-apps/api": "2.12.4",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.4",
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3",
+    "ws": "8.22.0"
+  }
+}

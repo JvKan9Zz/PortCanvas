@@ -1,0 +1,80 @@
+{
+  "fixture": true,
+  "sourceVersion": "0.3.5",
+  "valid": [
+    "begin;123-456;1;;cHJpbnRmICfnpLrkvovovpPlh7pcbic=;L2hvbWUvZXhhbXBsZS9wcm9qZWN0LWRlbW8vZGVidWc=;L2hvbWUvZXhhbXBsZS9wcm9qZWN0LWRlbW8=;;",
+    "end;123-456;1;1;cHJpbnRmICfnpLrkvovovpPlh7pcbic=;L2hvbWUvZXhhbXBsZS9wcm9qZWN0LWRlbW8vZGVidWc=;L2hvbWUvZXhhbXBsZS9wcm9qZWN0LWRlbW8=;L2hvbWUvZXhhbXBsZS9wcm9qZWN0LWRlbW8vZGVidWc=;1234,5678"
+  ],
+  "parsed": [
+    {
+      "kind": "begin",
+      "shell": "123-456",
+      "sequence": "1",
+      "code": null,
+      "command": "printf '示例输出\\n'",
+      "cwd": "/home/example/project-demo/debug",
+      "projectRoot": "/home/example/project-demo",
+      "endCwd": "",
+      "backgroundJobs": []
+    },
+    {
+      "kind": "end",
+      "shell": "123-456",
+      "sequence": "1",
+      "code": 1,
+      "command": "printf '示例输出\\n'",
+      "cwd": "/home/example/project-demo/debug",
+      "projectRoot": "/home/example/project-demo",
+      "endCwd": "/home/example/project-demo/debug",
+      "backgroundJobs": [
+        "1234",
+        "5678"
+      ]
+    }
+  ],
+  "invalid": [
+    "end;bad;1;0;;;;;",
+    "begin;123-456;1;;%%%;;;;"
+  ],
+  "stream": "G103Nzc7V0NTTE9HO2JlZ2luOzEyMy00NTY7MTs7Y0hKcGJuUm1JQ2ZucExya3Zvdm92cFBsaDdwY2JpYz07TDJodmJXVXZaWGhoYlhCc1pTOXdjbTlxWldOMExXUmxiVzh2WkdWaWRXYz07TDJodmJXVXZaWGhoYlhCc1pTOXdjbTlxWldOMExXUmxiVzg9OzsHG1szMW3npLrkvovovpPlh7obWzBtDQoxMCUNMjAlChtdNzc3O1dDU0xPRztlbmQ7MTIzLTQ1NjsxOzE7Y0hKcGJuUm1JQ2ZucExya3Zvdm92cFBsaDdwY2JpYz07TDJodmJXVXZaWGhoYlhCc1pTOXdjbTlxWldOMExXUmxiVzh2WkdWaWRXYz07TDJodmJXVXZaWGhoYlhCc1pTOXdjbTlxWldOMExXUmxiVzg9O0wyaHZiV1V2WlhoaGJYQnNaUzl3Y205cVpXTjBMV1JsYlc4dlpHVmlkV2M9OzEyMzQsNTY3OAc=",
+  "text": "示例输出\n10%\n20%\n",
+  "markers": [
+    {
+      "kind": "begin",
+      "shell": "123-456",
+      "sequence": "1",
+      "code": null,
+      "command": "printf '示例输出\\n'",
+      "cwd": "/home/example/project-demo/debug",
+      "projectRoot": "/home/example/project-demo",
+      "endCwd": "",
+      "backgroundJobs": []
+    },
+    {
+      "kind": "end",
+      "shell": "123-456",
+      "sequence": "1",
+      "code": 1,
+      "command": "printf '示例输出\\n'",
+      "cwd": "/home/example/project-demo/debug",
+      "projectRoot": "/home/example/project-demo",
+      "endCwd": "/home/example/project-demo/debug",
+      "backgroundJobs": [
+        "1234",
+        "5678"
+      ]
+    }
+  ],
+  "project": {
+    "name": "project-demo",
+    "source": "auto:/home/example/project-demo",
+    "key": "28b77680acdd",
+    "folder": "project-project-demo-28b77680acdd"
+  },
+  "manualProject": {
+    "name": "测试项目",
+    "source": "manual:测试项目",
+    "key": "fe3e66209600",
+    "folder": "project-测试项目-fe3e66209600"
+  }
+}
