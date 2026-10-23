@@ -20,4 +20,6 @@
 
 本机原始证据：`05-测试与验证/local/v046/` 下core-tests.txt、final-build-capture.txt、layout-capture-final.txt、layout-result.json、small-final.png、pty-capture-tests.txt、pty-result.json、terminal-final.png及T023回收资料。证据与测试日志不进入仓库或交付包。完整SSH/传输/日志的既有回归见V0.4/V0.4.5验收；本次未重复全部历史压力或全平台测试。
 
-PR #10已关联当前Codex聊天，Code Review后端成功读取功能提交294dd31，返回无CI检查项；这不代表自动代码审查或其他人review通过。按本机实测和本次自查作为合并依据。打开面板需要合法PR链接、差异中的文件和正行号；本次定位terminal-drawer.js第57行，工具返回queued，切回当前聊天时显示。
+PR #10已关联当前Codex聊天，Code Review后端成功读取功能提交294dd31及最终59f1ec8，返回无CI检查项；这不代表自动代码审查或其他人review通过。按本机实测和本次自查作为合并依据。打开面板需要合法PR链接、差异中的文件和正行号；本次定位terminal-drawer.js第57行，工具返回queued，切回当前聊天时显示。
+
+PR #10 已按用户授权合入 main，merge commit `808a40d2fb0dc893020ea7f51f2ea3db9748faac`。当前主分支与已安装/打包的功能实现一致；合并后的补充仅为交付记录。

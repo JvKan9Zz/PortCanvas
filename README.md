@@ -13,7 +13,7 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 
 | 版本 | 状态 | 实现 |
 | --- | --- | --- |
-| **Demo V0.4.6 · PortCanvas** | 本轮版本：[PR #10][v046-pr]，终端本地滚轮、侧栏调宽/动画、品牌禁选禁拖 | Tauri 2 + Rust + 系统 WebView2 |
+| **Demo V0.4.6 · PortCanvas** | 当前 `main` 版本：[PR #10][v046-pr] 已合并，终端本地滚轮、侧栏调宽/动画、品牌禁选禁拖 | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.4.5** | 透明品牌、可选凭据和密钥认证基线，[PR #8][v045-pr] 已合并 | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.4** | 完整框架迁移与实机验收基线，[PR #7][v04-pr] | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.3.5** | 保留的历史 Electron 版本 | Electron + ssh2 + noVNC |
