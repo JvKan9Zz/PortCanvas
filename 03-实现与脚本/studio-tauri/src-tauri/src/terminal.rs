@@ -339,6 +339,17 @@ impl TerminalService {
         .context("终端输入队列繁忙。")??;
         Ok(())
     }
+    pub async fn complete(&self,id:u64,prefix:String,commands:bool,directories:bool)->Result<Value>{
+        let _=self.sender(id)?;
+        anyhow::ensure!(prefix.len()<=2048&&!prefix.chars().any(|c|c<' '),"补全前缀无效或过长。");
+        let(generation,connection)=self.devices.connection_with_generation()?;
+        anyhow::ensure!(connection.profile.terminal_name()==self.device_key,"设备连接已变化。");
+        let config=json!({"session":self.name(&connection.profile),"prefix":prefix,"commands":commands,"directories":directories});
+        let command=python(include_str!("../resources/completion.py"),json!(["completion",config.to_string()]))?;
+        let(output,_)=connection.exec(&command,250000,Duration::from_secs(8)).await?;
+        let _=self.sender(id)?;anyhow::ensure!(generation==self.devices.generation(),"终端连接已变化。");
+        Ok(serde_json::from_str(output.trim()).context("无法读取补全结果。")?)
+    }
     pub async fn resize(&self, id: u64, cols: u32, rows: u32) -> Result<()> {
         dimensions(cols, rows)?;
         tokio::time::timeout(

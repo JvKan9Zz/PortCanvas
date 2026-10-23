@@ -31,6 +31,7 @@ pub struct AppState {
     pub logs: LogService,
     pub migrating: AtomicBool,
     pub default_log_root: PathBuf,
+    pub preferences: Mutex<crate::preferences::PreferenceStore>,
 }
 pub fn argument<T: DeserializeOwned>(args: &[Value], index: usize) -> Result<T> {
     serde_json::from_value(args.get(index).cloned().unwrap_or(Value::Null))
@@ -92,7 +93,7 @@ async fn import_profiles(window: tauri::WebviewWindow, state: &AppState) -> Resu
     let source = tokio::task::spawn_blocking(move || {
         rfd::FileDialog::new()
             .set_parent(&picker)
-            .set_title("选择旧版软件的data目录（含devices.json）")
+            .set_title(local_text(&picker,"选择旧版软件的data目录（含devices.json）"))
             .pick_folder()
     })
     .await?;
@@ -135,7 +136,7 @@ async fn rollback_profiles(window: tauri::WebviewWindow, state: &AppState) -> Re
     let backup = tokio::task::spawn_blocking(move || {
         rfd::FileDialog::new()
             .set_parent(&picker)
-            .set_title("选择迁移备份目录（含report.json）")
+            .set_title(local_text(&picker,"选择迁移备份目录（含report.json）"))
             .set_directory(initial)
             .pick_folder()
     })
@@ -174,6 +175,18 @@ async fn rollback_profiles(window: tauri::WebviewWindow, state: &AppState) -> Re
     };
     state.logs.replace_settings(settings, false).await?;
     Ok(result)
+}
+fn local_text(window:&tauri::WebviewWindow,text:&str)->String {
+    crate::i18n::text(text,window.state::<AppState>().preferences.lock().unwrap().language())
+}
+async fn open_repository(window:tauri::WebviewWindow)->Result<()> {
+    tokio::task::spawn_blocking(move||{
+        #[cfg(windows)]{use windows_sys::Win32::UI::{Shell::ShellExecuteW,WindowsAndMessaging::SW_SHOWNORMAL};
+        let verb="open".encode_utf16().chain(Some(0)).collect::<Vec<_>>();let url=crate::preferences::REPOSITORY.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
+        let parent=window.hwnd().map(|h|h.0 as *mut std::ffi::c_void).unwrap_or(std::ptr::null_mut());let result=unsafe{ShellExecuteW(parent,verb.as_ptr(),url.as_ptr(),std::ptr::null(),std::ptr::null(),SW_SHOWNORMAL)};anyhow::ensure!(result as isize>32,"无法打开GitHub仓库。");}
+        #[cfg(not(windows))]{let _=window;anyhow::bail!("当前平台暂不支持打开仓库。");}
+        Ok::<_,anyhow::Error>(())
+    }).await?
 }
 async fn open_directory(window: tauri::WebviewWindow, path: PathBuf) -> Result<()> {
     tokio::task::spawn_blocking(move || {
@@ -246,6 +259,8 @@ async fn terminal_subscribe(
     operation.map_err(|e| e.to_string())
 }
 pub async fn confirm(window: tauri::WebviewWindow, title: String, message: String) -> Result<bool> {
+    let language=window.state::<AppState>().preferences.lock().unwrap().language();
+    let title=crate::i18n::text(&title,language);let message=crate::i18n::text(&message,language);
     tokio::task::spawn_blocking(move || {
         #[cfg(windows)]
         {
@@ -294,9 +309,13 @@ async fn studio_call(
         let origin=validate_window(&window)?;
         if state.migrating.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"profiles:save"|"profiles:remove"|"files:transfer"|"logs:directory"|"logs:project"|"terminal:new"|"terminal:restart"|"terminal:close"){bail!("资料迁移中，请稍后重试。");}
         match action.as_str(){
+            "settings:read"=>state.preferences.lock().unwrap().info(),
+            "settings:language"=>state.preferences.lock().unwrap().save_language(argument(&args,0)?),
+            "settings:updates"=>tokio::task::spawn_blocking(crate::preferences::check_update).await?,
+            "settings:repository"=>{open_repository(window).await?;Ok(Value::Null)},
             "profiles:list"=>Ok(json!(state.profiles.lock().unwrap().read()?.devices.iter().map(Profile::public_value).collect::<Vec<_>>())),
             "profiles:save"=>{anyhow::ensure!(!matches!(state.devices.snapshot()["ssh"].as_str(),Some("connected"|"connecting")),"请先断开设备再修改配置。");let profile:Profile=argument(&args,0)?;let secret=match args.get_mut(1).map(Value::take){Some(Value::String(p))=>zeroize::Zeroizing::new(p),None|Some(Value::Null)=>zeroize::Zeroizing::new(String::new()),_=>bail!("凭据参数无效。")};Ok(state.profiles.lock().unwrap().save(profile,&secret)?.public_value())},
-            "profiles:choose-key"=>{let file=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title("选择SSH私钥（OpenSSH / PEM / PPK）").add_filter("所有私钥文件",&["*"]).pick_file()).await?;Ok(json!(file.map(|p|p.to_string_lossy().into_owned())))},
+            "profiles:choose-key"=>{let file=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title(local_text(&window,"选择SSH私钥（OpenSSH / PEM / PPK）")).add_filter(local_text(&window,"所有私钥文件"),&["*"]).pick_file()).await?;Ok(json!(file.map(|p|p.to_string_lossy().into_owned())))},
             "profiles:remove"=>{let id:String=argument(&args,0)?;if !confirm(window.clone(),"移除设备配置".into(),"仅移除本机连接配置，是否继续？".into()).await?{return Ok(json!(false));}if state.devices.snapshot()["deviceId"]==id{state.devices.disconnect().await;}
                 let store=state.profiles.lock().unwrap();let mut data=store.read()?;let removed=data.devices.iter().find(|p|p.id==id).cloned();data.devices.retain(|p|p.id!=id);if let Some(removed)=removed{if !data.devices.iter().any(|p|p.address()==removed.address()){data.host_keys.remove(&removed.address());}}store.write(&data)?;Ok(json!(true))},
             "device:state"=>Ok(state.devices.snapshot()),
@@ -322,6 +341,7 @@ async fn studio_call(
             "terminal:state"=>state.terminal.snapshot(&terminal_key(&args,0)?),
             "terminal:stop"=>{state.terminal.stop(&terminal_key(&args,0)?)?;Ok(Value::Null)},
             "terminal:write"=>{state.terminal.get(&terminal_key(&args,2)?,None)?.write(argument(&args,0)?,argument(&args,1)?).await?;Ok(Value::Null)},
+            "terminal:complete"=>state.terminal.get(&terminal_key(&args,0)?,None)?.complete(argument(&args,1)?,argument(&args,2)?,argument(&args,3)?,argument(&args,4)?).await,
             "terminal:resize"=>{state.terminal.get(&terminal_key(&args,3)?,None)?.resize(argument(&args,0)?,argument(&args,1)?,argument(&args,2)?).await?;Ok(Value::Null)},
             "terminal:ack"=>{state.terminal.ack(&terminal_key(&args,2)?,argument(&args,0)?,argument(&args,1)?);Ok(Value::Null)},
             "terminal:restart"|"terminal:close"=>{
@@ -339,7 +359,7 @@ async fn studio_call(
             "files:list"=>state.files.list(argument::<Side>(&args,0)?,optional_text(&args,1)?).await,
             "files:drives"=>crate::files::local_drives(),
             "files:mkdir"=>Ok(json!(state.files.mkdir(argument(&args,0)?,argument(&args,1)?,argument(&args,2)?).await?)),
-            "files:choose-local"=>{let directory=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title("选择本地文件夹").pick_folder()).await?;Ok(json!(directory.map(|p|p.to_string_lossy().into_owned())))},
+            "files:choose-local"=>{let directory=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title(local_text(&window,"选择本地文件夹")).pick_folder()).await?;Ok(json!(directory.map(|p|p.to_string_lossy().into_owned())))},
             "files:transfer"=>{let options:Transfer=argument(&args,0)?;let callback:Confirmation=Arc::new(move|paths|{let window=window.clone();Box::pin(async move{confirm(window,"确认覆盖文件".into(),format!("目标已有 {} 个同名文件，是否覆盖？\n{}\n取消将保留原文件。",paths.len(),paths.iter().take(8).cloned().collect::<Vec<_>>().join("\n"))).await})});state.files.transfer(options,callback).await},
             "profiles:import"=>import_profiles(window,&state).await,
             "profiles:rollback"=>rollback_profiles(window,&state).await,
@@ -347,7 +367,7 @@ async fn studio_call(
             "logs:page"=>state.logs.page(argument::<LogQuery>(&args,0)?).await,
             "logs:read"=>state.logs.detail(argument(&args,0)?).await,
             "logs:project"=>{let key=terminal_key(&args,1)?;state.terminal.get(&key,None)?;state.logs.set_project_for(&key,argument(&args,0)?).await},
-            "logs:directory"=>{state.logs.can_change_root()?;let initial=state.logs.settings().root;let picker=window.clone();let folder=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&picker).set_title("选择电脑本地日志目录").set_directory(initial).pick_folder()).await?;if let Some(folder)=folder{state.logs.set_root(folder).await}else{Ok(state.logs.snapshot())}},
+            "logs:directory"=>{state.logs.can_change_root()?;let initial=state.logs.settings().root;let picker=window.clone();let folder=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&picker).set_title(local_text(&picker,"选择电脑本地日志目录")).set_directory(initial).pick_folder()).await?;if let Some(folder)=folder{state.logs.set_root(folder).await}else{Ok(state.logs.snapshot())}},
             "logs:open-folder"=>{let id=optional_text(&args,0)?;let path=if id.is_empty(){state.logs.settings().root}else{let record=state.logs.detail(id).await?;PathBuf::from(record["directory"].as_str().context("日志目录无效")?)};open_directory(window,path).await?;Ok(Value::Null)},
             "logs:remove"=>{let ids:Vec<String>=argument(&args,0)?;let records=state.logs.removable(ids.clone()).await?;if records.is_empty(){return Ok(json!({"removed":0}));}let detail=records.iter().take(8).map(|r|format!("{} / {} / {}",r["project"]["name"].as_str().unwrap_or_default(),r["day"].as_str().unwrap_or_default(),r["command"].as_str().unwrap_or_default().chars().take(70).collect::<String>())).collect::<Vec<_>>().join("\n");if !confirm(window,"清理本地日志".into(),format!("删除选中的{}份已结束或中断日志？\n{}\n仅处理电脑本地记录，运行中的日志保留。",records.len(),detail)).await?{return Ok(json!({"removed":0,"canceled":true}));}state.logs.remove(ids).await},
             "window:fullscreen"=>{let full=!window.is_fullscreen()?;window.set_fullscreen(full)?;Ok(json!(full))},
@@ -418,6 +438,7 @@ pub fn run() {
             )?;
             let terminal = TerminalPool::new(devices.clone(),logs.clone(),namespace,directory.join("terminals.json"));
             app.manage(AppState {
+                preferences: Mutex::new(crate::preferences::PreferenceStore{file:directory.join("settings.json")}),
                 profiles: Arc::new(Mutex::new(ProfileStore { directory })),
                 devices,
                 desktop,

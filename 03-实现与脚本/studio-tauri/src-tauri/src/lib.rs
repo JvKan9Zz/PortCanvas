@@ -1,3 +1,5 @@
+pub mod preferences;
+pub mod i18n;
 pub mod profiles;
 pub mod credentials;
 pub mod ssh;
