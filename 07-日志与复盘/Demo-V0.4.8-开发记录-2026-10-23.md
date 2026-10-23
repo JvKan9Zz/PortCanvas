@@ -21,3 +21,5 @@ Windows下Tauri原生拖入会接管WebView2的HTML5 DnD，因此保留原生OS�
 用户指定文案原则已写入D:/Codex-WorkSpace/全局工作台.md，原三份全局文档备份在本项目ignored目录；AGENTS/SOP职责和规则无冲突，未无故重复追加。真实测试目录及23个条目已逐项名单核对后回收。安装、交付和PR结果随后追加。
 
 普通安装已升级0.4.8并重新打开；devices.json/log-settings.json逐字节保留（原无terminals.json），桌面快捷方式指向0.4.8 ICO。8文件ZIP自检通过，无data/用户资料；安装与便携代码仅官方包类型标记不同。便携副本首次设备为空、日志在自身data/logs，正常关闭。旧版0.4.7交付保留。
+
+PR #12已合入main，merge commit `f44d5397bf6d53352d34416604d1ba1d5fefd440`，功能头`60d1f31b4ae2af6ee214d58f74984219290a75b0`。Code Review后端读取该头，checks/statuses/annotations为空；不代表外部CI或他人review通过。PR已关联当前Codex聊天，审查面板定位file-drag.js第55行，工具返回queued。合并匹配功能头，本地main已同步；后续仅补充交付记录。
