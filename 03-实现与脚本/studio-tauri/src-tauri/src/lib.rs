@@ -4,6 +4,7 @@ pub mod ssh;
 pub mod session;
 pub mod desktop;
 pub mod terminal;
+pub mod terminal_pool;
 pub mod files;
 pub mod log_protocol;
 pub mod log_store;

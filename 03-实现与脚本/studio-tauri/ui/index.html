@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PortCanvas · Demo V0.4.6</title>
+  <title>PortCanvas · Demo V0.4.7</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="files.css">
   <link rel="stylesheet" href="xterm.css">
@@ -42,7 +42,7 @@
     <button class="nav-item" data-page="logs" title="本地运行日志"><svg><use href="#i-log"/></svg><span>日志</span></button>
     <button class="nav-item future" data-page="arena" title="实时擂台 · 后续版本"><svg><use href="#i-arena"/></svg><span>擂台</span></button>
   </nav>
-  <div class="rail-version">DEMO<br>V0.4.6</div>
+  <div class="rail-version">DEMO<br>V0.4.7</div>
 </aside>
 <div id="appRoot" class="app">
   <header class="app-header"><div class="wordmark">Port<strong>Canvas</strong></div><div class="header-actions"><button id="toggleTerminal" class="button secondary" type="button" aria-expanded="false" aria-controls="terminalDrawer" hidden><svg><use href="#i-terminal"/></svg>终端</button><div id="connectionBadge" class="badge"><span class="dot"></span><span>设备未连接</span></div></div></header>
@@ -110,16 +110,17 @@
   <aside id="terminalDrawer" class="terminal-drawer" aria-label="远程终端侧栏" aria-hidden="true" inert>
     <div id="terminalResize" class="terminal-resize" role="separator" aria-orientation="vertical" aria-label="调整终端侧栏宽度" aria-controls="terminalDrawer" tabindex="0" title="左右拖动调整宽度；方向键调整，双击恢复默认"></div>
     <div class="terminal-heading"><div><h2>远程终端</h2><p>指令输入与会话恢复</p></div><button id="closeTerminalDrawer" class="text-button" type="button" aria-label="收起终端侧栏">收起</button></div>
+    <div class="terminal-tabs-row"><div id="terminalTabs" class="terminal-tabs" role="tablist" aria-label="远程终端标签页"></div><button id="newTerminal" class="button secondary" type="button" title="新建独立终端" disabled>＋ 新建</button></div>
+    <div class="terminal-metadata"><p id="terminalSession" class="terminal-session">会话信息将在连接后显示</p><time id="terminalConnectionTime"></time></div>
     <div id="terminalStatus" class="badge"><span class="dot"></span><span>终端未连接</span></div>
-    <div class="terminal-toolbar"><button id="connectTerminal" class="button primary">前往连接设备</button><button id="disconnectTerminal" class="button secondary" disabled>断开</button><button id="clearTerminal" class="text-button" disabled>清屏</button></div>
+    <div class="terminal-toolbar"><button id="connectTerminal" class="button primary">前往连接设备</button><button id="disconnectTerminal" class="button secondary" disabled>断开</button><button id="restartTerminal" class="button secondary" type="button" disabled>重启</button><button id="clearTerminal" class="button secondary" type="button" disabled>清屏</button></div>
     <div class="terminal-project"><label>日志项目 <span>留空自动识别</span><input id="logProjectName" maxlength="100" placeholder="自动识别当前项目/目录"></label><button id="saveLogProject" class="text-button" type="button">应用</button></div>
     <p id="terminalLogStatus" class="terminal-log-status" role="status">本地自动记录</p>
-    <div id="terminalOutput" class="terminal-output" role="region" aria-label="远端设备 SSH 终端"></div>
+    <div id="terminalOutput" class="terminal-output" role="region" aria-label="远端设备 SSH 终端"><p id="terminalEmpty" class="terminal-empty" role="status" hidden>没有打开的终端。点击“新建”开始。</p></div>
     <p id="terminalMessage" class="terminal-message" role="status">连接设备后可打开终端。</p>
-    <p id="terminalSession" class="terminal-session"></p>
-    <p class="terminal-help">切换页面会保持连接。断线或关闭软件后可恢复远端会话；Ctrl+C 会中断前台程序，exit 会结束当前 Shell。</p>
+    <p class="terminal-help">切页和切换标签不会结束程序。断线或重开后可恢复各自会话；Ctrl+C 会中断前台程序，exit 会结束当前 Shell。</p>
   </aside>
-  <footer class="status-bar"><span id="globalStatus" role="status">就绪</span><span>PortCanvas <b>Demo V0.4.6</b></span></footer>
+  <footer class="status-bar"><span id="globalStatus" role="status">就绪</span><span>PortCanvas <b>Demo V0.4.7</b></span></footer>
 </div>
 <div id="toast" class="toast" role="alert" hidden></div>
 <script type="module" src="app.js"></script>

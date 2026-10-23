@@ -7,7 +7,8 @@ use crate::{
     profiles::{Profile, ProfileStore},
     session::{DeviceManager, EventSink},
     ssh::HostCheck,
-    terminal::{OutputSink, TerminalService},
+    terminal::OutputSink,
+    terminal_pool::TerminalPool,
 };
 use anyhow::{bail, Context, Result};
 use serde::de::DeserializeOwned;
@@ -26,7 +27,7 @@ pub struct AppState {
     pub desktop: DesktopService,
     pub quitting: AtomicBool,
     pub files: FileService,
-    pub terminal: TerminalService,
+    pub terminal: TerminalPool,
     pub logs: LogService,
     pub migrating: AtomicBool,
     pub default_log_root: PathBuf,
@@ -52,6 +53,9 @@ fn optional_text(args: &[Value], index: usize) -> Result<String> {
         Some(Value::String(value)) => Ok(value.clone()),
         _ => bail!("路径必须为文字。"),
     }
+}
+fn terminal_key(args:&[Value],index:usize)->Result<String>{
+    let value=optional_text(args,index)?;let key=if value.is_empty(){"main".into()}else{value};crate::terminal_pool::validate_key(&key)?;Ok(key)
 }
 struct MigrationGuard<'a>(&'a AtomicBool);
 impl Drop for MigrationGuard<'_> {
@@ -222,6 +226,8 @@ async fn terminal_subscribe(
     state: tauri::State<'_, AppState>,
     cols: u32,
     rows: u32,
+    terminal_key: Option<String>,
+    device_key: Option<String>,
     channel: tauri::ipc::Channel<tauri::ipc::Response>,
 ) -> std::result::Result<Value, String> {
     let operation: Result<Value> = async {
@@ -234,7 +240,7 @@ async fn terminal_subscribe(
             channel.send(tauri::ipc::Response::new(bytes))?;
             Ok(())
         });
-        state.terminal.start(cols, rows, sink).await
+        state.terminal.get(terminal_key.as_deref().unwrap_or("main"),device_key.as_deref())?.start(cols, rows, sink).await
     }
     .await;
     operation.map_err(|e| e.to_string())
@@ -286,7 +292,7 @@ async fn studio_call(
 ) -> std::result::Result<Value, String> {
     let result:Result<Value>=async{
         let origin=validate_window(&window)?;
-        if state.migrating.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"profiles:save"|"profiles:remove"|"files:transfer"|"logs:directory"|"logs:project"){bail!("资料迁移中，请稍后重试。");}
+        if state.migrating.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"profiles:save"|"profiles:remove"|"files:transfer"|"logs:directory"|"logs:project"|"terminal:new"|"terminal:restart"|"terminal:close"){bail!("资料迁移中，请稍后重试。");}
         match action.as_str(){
             "profiles:list"=>Ok(json!(state.profiles.lock().unwrap().read()?.devices.iter().map(Profile::public_value).collect::<Vec<_>>())),
             "profiles:save"=>{anyhow::ensure!(!matches!(state.devices.snapshot()["ssh"].as_str(),Some("connected"|"connecting")),"请先断开设备再修改配置。");let profile:Profile=argument(&args,0)?;let secret=match args.get_mut(1).map(Value::take){Some(Value::String(p))=>zeroize::Zeroizing::new(p),None|Some(Value::Null)=>zeroize::Zeroizing::new(String::new()),_=>bail!("凭据参数无效。")};Ok(state.profiles.lock().unwrap().save(profile,&secret)?.public_value())},
@@ -311,11 +317,23 @@ async fn studio_call(
             "desktop:stop"=>{state.desktop.stop(None).await;Ok(Value::Null)},
             "desktop:ready"=>{state.desktop.ready(argument(&args,0)?);Ok(Value::Null)},
             "desktop:lost"=>{let id:u64=argument(&args,0)?;state.desktop.stop(Some(id)).await;Ok(Value::Null)},
-            "terminal:state"=>Ok(state.terminal.snapshot()),
-            "terminal:stop"=>{state.terminal.stop();Ok(Value::Null)},
-            "terminal:write"=>{state.terminal.write(argument(&args,0)?,argument(&args,1)?).await?;Ok(Value::Null)},
-            "terminal:resize"=>{state.terminal.resize(argument(&args,0)?,argument(&args,1)?,argument(&args,2)?).await?;Ok(Value::Null)},
-            "terminal:ack"=>{state.terminal.ack(argument(&args,0)?,argument(&args,1)?);Ok(Value::Null)},
+            "terminal:list"=>state.terminal.list(),
+            "terminal:new"=>state.terminal.create(Some(&optional_text(&args,0)?)),
+            "terminal:state"=>state.terminal.snapshot(&terminal_key(&args,0)?),
+            "terminal:stop"=>{state.terminal.stop(&terminal_key(&args,0)?)?;Ok(Value::Null)},
+            "terminal:write"=>{state.terminal.get(&terminal_key(&args,2)?,None)?.write(argument(&args,0)?,argument(&args,1)?).await?;Ok(Value::Null)},
+            "terminal:resize"=>{state.terminal.get(&terminal_key(&args,3)?,None)?.resize(argument(&args,0)?,argument(&args,1)?,argument(&args,2)?).await?;Ok(Value::Null)},
+            "terminal:ack"=>{state.terminal.ack(&terminal_key(&args,2)?,argument(&args,0)?,argument(&args,1)?);Ok(Value::Null)},
+            "terminal:restart"|"terminal:close"=>{
+                let key=terminal_key(&args,0)?;let expected=optional_text(&args,1)?;let generation=state.devices.generation();
+                let service=state.terminal.get(&key,Some(&expected))?;let removing=action=="terminal:close";
+                let tab_title=state.terminal.title(&key)?;let title=format!("{}{tab_title}",if removing{"关闭"}else{"重启"});
+                let message=format!("结束「{tab_title}」的Shell和前台程序，并{}？本地日志保留，其他终端不受影响。",if removing{"关闭此标签页"}else{"重新启动Shell"});
+                if !confirm(window,title,message).await?{return Ok(json!({"canceled":true}));}
+                anyhow::ensure!(generation==state.devices.generation(),"设备连接已变化，请重新操作。");
+                if removing{Ok(json!({"canceled":false,"catalog":state.terminal.remove(&key,Some(&expected)).await?}))}
+                else{Ok(json!({"canceled":false,"state":service.reset(false).await?}))}
+            },
             "files:state"=>Ok(state.files.snapshot()),
             "files:cancel"=>{state.files.cancel();Ok(Value::Null)},
             "files:list"=>state.files.list(argument::<Side>(&args,0)?,optional_text(&args,1)?).await,
@@ -325,10 +343,10 @@ async fn studio_call(
             "files:transfer"=>{let options:Transfer=argument(&args,0)?;let callback:Confirmation=Arc::new(move|paths|{let window=window.clone();Box::pin(async move{confirm(window,"确认覆盖文件".into(),format!("目标已有 {} 个同名文件，是否覆盖？\n{}\n取消将保留原文件。",paths.len(),paths.iter().take(8).cloned().collect::<Vec<_>>().join("\n"))).await})});state.files.transfer(options,callback).await},
             "profiles:import"=>import_profiles(window,&state).await,
             "profiles:rollback"=>rollback_profiles(window,&state).await,
-            "logs:state"=>Ok(state.logs.snapshot()),
+            "logs:state"=>{let key=optional_text(&args,0)?;Ok(if key.is_empty(){state.logs.snapshot()}else{crate::terminal_pool::validate_key(&key)?;state.logs.terminal_snapshot(&key)})},
             "logs:page"=>state.logs.page(argument::<LogQuery>(&args,0)?).await,
             "logs:read"=>state.logs.detail(argument(&args,0)?).await,
-            "logs:project"=>state.logs.set_project(argument(&args,0)?).await,
+            "logs:project"=>{let key=terminal_key(&args,1)?;state.terminal.get(&key,None)?;state.logs.set_project_for(&key,argument(&args,0)?).await},
             "logs:directory"=>{state.logs.can_change_root()?;let initial=state.logs.settings().root;let picker=window.clone();let folder=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&picker).set_title("选择电脑本地日志目录").set_directory(initial).pick_folder()).await?;if let Some(folder)=folder{state.logs.set_root(folder).await}else{Ok(state.logs.snapshot())}},
             "logs:open-folder"=>{let id=optional_text(&args,0)?;let path=if id.is_empty(){state.logs.settings().root}else{let record=state.logs.detail(id).await?;PathBuf::from(record["directory"].as_str().context("日志目录无效")?)};open_directory(window,path).await?;Ok(Value::Null)},
             "logs:remove"=>{let ids:Vec<String>=argument(&args,0)?;let records=state.logs.removable(ids.clone()).await?;if records.is_empty(){return Ok(json!({"removed":0}));}let detail=records.iter().take(8).map(|r|format!("{} / {} / {}",r["project"]["name"].as_str().unwrap_or_default(),r["day"].as_str().unwrap_or_default(),r["command"].as_str().unwrap_or_default().chars().take(70).collect::<String>())).collect::<Vec<_>>().join("\n");if !confirm(window,"清理本地日志".into(),format!("删除选中的{}份已结束或中断日志？\n{}\n仅处理电脑本地记录，运行中的日志保留。",records.len(),detail)).await?{return Ok(json!({"removed":0,"canceled":true}));}state.logs.remove(ids).await},
@@ -367,7 +385,7 @@ pub fn run() {
                     if let Some(state) = handle.try_state::<AppState>() {
                         if data["ssh"] != "connected" {
                             state.files.invalidate();
-                            state.terminal.stop();
+                            state.terminal.stop_all();
                             state
                                 .logs
                                 .detach("设备连接已关闭，未收到的输出保留为缺失。");
@@ -398,7 +416,7 @@ pub fn run() {
                 directory.join("log-settings.json"),
                 default_log_root.clone(),
             )?;
-            let terminal = TerminalService::new(devices.clone(), namespace, Some(logs.clone()));
+            let terminal = TerminalPool::new(devices.clone(),logs.clone(),namespace,directory.join("terminals.json"));
             app.manage(AppState {
                 profiles: Arc::new(Mutex::new(ProfileStore { directory })),
                 devices,
@@ -423,7 +441,7 @@ pub fn run() {
                 {
                     tauri::async_runtime::spawn(async move {
                         let state = app.state::<AppState>();
-                        state.terminal.stop();
+                        state.terminal.stop_all();
                         state.files.cancel();
                         state.desktop.stop(None).await;
                         state.devices.disconnect().await;
