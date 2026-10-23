@@ -47,8 +47,9 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 
 ### Windows 安装与便携运行
 
-V0.4.9 提供 Windows x64 安装包和便携包的本地交付。当前仓库保存源码与文档，不将本地 EXE、ZIP 或用户数据当作仓库下载链接。
+V0.4.9 提供 Windows x64 安装包和便携包。本地仅保留最新主题补充版；V0.1–V0.4.9 的 11 份发布包已放入 [GitHub Releases 历史归档](https://github.com/JvKan9Zz/PortCanvas/releases/tag/history-backup-2026-10-24)，下载后可按随附 SHA256SUMS.txt 校验。源码与验收文档保留在 Git 历史中，用户配置和日志不上传。
 
+- [本地历史版本清理记录](07-日志与复盘/本地历史版本清理-2026-10-24.md)
 - [V0.4.9 主题补充](06-交付物/PortCanvas-Demo-V0.4.9-主题补充说明.md)
 - [V0.4.9 主题验收](06-交付物/PortCanvas-Demo-V0.4.9-主题验收-2026-10-24.md)
 - [V0.4.9 使用说明](06-交付物/PortCanvas-Demo-V0.4.9-使用说明.md)
