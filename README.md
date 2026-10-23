@@ -1,69 +1,91 @@
-# Wheel Combat Studio
+<p align="center">
+  <img src="04-数据与素材/brand/portcanvas-readme.png" width="96" height="96" alt="PortCanvas Logo">
+</p>
 
-轮式格斗专用 Windows 调试上位机：完整远程桌面、摄像头预览、控制台、赛台场景显示和 SFTP 文件传输。
+<h1 align="center">PortCanvas</h1>
 
-- 项目编号：Project-016；创建日期：2026-10-21。
-- 当前交付版本：Demo V0.3.5；右侧持久终端、本地运行日志、自动项目/日期分类、离线读取和清理已实现。38 项测试、真实设备断线恢复和打包 EXE 操作检查通过。相机与实时擂台等继续按长期路线推进。
-- GitHub：[JvKan9Zz/wheel-combat-studio](https://github.com/JvKan9Zz/wheel-combat-studio)；已创建并通过页面确认是私有仓库。
-- 历史备份：Demo V0.2 源码已推送私有仓库，固定版本入口为 [demo-v0.2](https://github.com/JvKan9Zz/wheel-combat-studio/tree/demo-v0.2)；过程见 [版本备份记录](07-日志与复盘/GitHub版本备份-2026-10-22.md)。
-- 目标设备：组内称“树莓派”的创意之星 AI 控制器。
-- 用户已确认：需要完整 Linux 桌面及鼠标键盘操作。
-- 视觉场景数据由独立的 `visual-to-3DModel` 工程提供，上位机负责接收和显示。
+<p align="center">统一远程设备工作台</p>
+<p align="center">SSH 连接 · 远程桌面 · 文件传输 · 持久终端 · 本地运行日志</p>
 
-## 文档入口
+PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连接、桌面操作、文件管理和运行调试放进同一个 Windows 客户端。项目从轮式格斗调试场景起步，正在将通用连接能力与竞赛业务分开，面向更多设备开发与远程调试场景。
 
-- [项目简报](00-项目管理/项目简报.md)
-- [开发需求](01-需求与研究/开发需求.md)
-- [阶段路线与验收](02-方案与设计/阶段路线与验收.md)
-- [视觉接口对接](02-方案与设计/视觉接口对接.md)
-- [建仓日志](07-日志与复盘/建仓日志-2026-10-21.md)
+## 版本状态
 
-## 目录
+| 版本 | 状态 | 实现 |
+| --- | --- | --- |
+| **Demo V0.4 · PortCanvas** | 已完成开发与本地实机验收，[PR #7][v04-pr] 待合并 | Tauri 2 + Rust + 系统 WebView2 |
+| **Demo V0.3.5** | 当前 `main` 的稳定代码基线 | Electron + ssh2 + noVNC |
 
-00-项目管理记录范围与决策；01-需求与研究存放需求；02-方案与设计存放路线与接口；03-实现与脚本/studio 为 Electron 应用；05-测试与验证/local 为本机证据与缓存（不提交）；06-交付物 为 EXE 与使用说明；07-日志与复盘记录过程。
+V0.4 的完整源码位于 [`feature/v04-portcanvas-release`][v04-source]。在 PR 合并前，直接克隆默认分支获得的仍是 V0.3.5；本页已先同步新的项目名称与文档入口。
 
-当前实现设备连接管理、嵌入式远程桌面及 SFTP 双栏文件页。实现采用 Electron + ssh2 + noVNC，SFTP 独立于桌面通道；板端私有 x11vnc 经 SSH 转发。文件页支持目录合并传输、进度、取消、可选限速与覆盖确认。实时擂台仍是后续入口。性能对比属于后续验证，不以功能通过替代。
+## 已实现的功能
 
-## Demo V0.3.5 交付
+| 功能 | 能力 |
+| --- | --- |
+| 设备连接与管理 | 保存设备配置，SSH 密码认证、主机指纹确认、取消连接与连接状态管理；密码不保存 |
+| 远程桌面 | 进入设备已有的 X11 桌面，支持鼠标键盘、只读、缩放适配和全屏；桌面经 SSH 加密转发 |
+| 文件管理与传输 | 本地/远端双栏浏览，文件及目录双向传输、新建目录、进度、限速、取消与覆盖确认 |
+| 右侧持久终端 | 在设备页以外展开，直接输入命令；收起侧栏或切页不结束程序，断线后恢复远端 tmux 会话 |
+| 电脑本地日志 | 按项目和日期记录命令、输出、退出码与中断状态；项目自动识别并允许手动指定，支持离线查看、筛选与清理 |
+| 旧版资料迁移（V0.4） | 导入设备、受信指纹和日志设置；提供预览、冲突检查、备份及回退，保留原设备 ID |
 
-- 分支：`feature/local-run-logs`，包含 V0.3 的右侧持久终端基础；[PR #2](https://github.com/JvKan9Zz/wheel-combat-studio/pull/2) 面向 main，合并状态见 PR 页面。
-- [Windows EXE](06-交付物/demo-v0.3.5/win-unpacked/Wheel%20Combat%20Studio.exe)（保留整个目录）
-- [完整交付包](06-交付物/WheelCombatStudio-Demo-V0.3.5-Windows-x64.zip)
-- [使用说明](06-交付物/Demo-V0.3.5-使用说明.md)
-- [验收记录](06-交付物/Demo-V0.3.5-验收记录-2026-10-23.md)
-- [日志方案](02-方案与设计/Demo-V0.3.5-本地日志方案.md)
+桌面、SFTP 和终端使用独立通道。断开桌面不影响其他通道；终端中的程序由远端 tmux 承载，关闭客户端后可重新附着。设备断电、重启或程序自身退出不属于会话存活范围。
 
-日志默认保存在电脑“文档”下 `Wheel Combat Studio/Logs`，按项目/日期分组，每次运行有 UTF-8 `run.json` 与 `output.log`。支持自动识别或手动指定项目，程序失败和缺失输出明确标识；离线可读，清理会保留运行中的记录。后台及交错文本另存会话记录。树莓派不创建本功能的日志文件，断线期间未采集的输出不补造。
+日志保存在**电脑本地**，采用 UTF-8 `run.json` 与 `output.log`，便于调试者或 AI 直接读取。终端脱离后，独立日志通道可继续采集；网络断开期间未收到的输出会明确标为缺失，不补造完整记录。V0.4 保持旧版 `wcs.run/1` 格式兼容。
 
-## Demo V0.3 历史分支交付
+## 开始使用
 
-- 分支：`feature/persistent-terminal`，终端在桌面、文件、擂台页面右侧展开，设备页隐藏；收起或切页保持连接，断线后可恢复远端 tmux 会话。
-- [Windows EXE](06-交付物/demo-v0.3/win-unpacked/Wheel%20Combat%20Studio.exe)（保留整个目录）
-- [使用与部署](06-交付物/Demo-V0.3-使用与部署说明.md)
-- [验收记录](06-交付物/Demo-V0.3-验收记录-2026-10-23.md)
-- [终端与擂台接口区设计](02-方案与设计/右侧持久终端与擂台接口区.md)
+### Windows 安装与便携运行
 
-25 项测试、真实输入/中文输出、侧栏布局和同 PID 断线/重启恢复通过。设备端需要 tmux。擂台左下角的真实接口值区记录为后续设计，当前不显示模拟硬件数值。
+V0.4 已完成 Windows x64 安装包和便携包的本地交付。当前仓库保存源码与文档，不将本地 EXE、ZIP 或用户数据当作仓库下载链接。
 
-## Demo V0.2 已备份版本入口
+- [安装、连接与旧资料迁移说明][v04-guide]
+- [V0.4 完整验收记录][v04-checks]
+- [V0.3.5 使用说明](06-交付物/Demo-V0.3.5-使用说明.md)
 
-- [Windows EXE](06-交付物/demo-v0.2/win-unpacked/Wheel%20Combat%20Studio.exe)（整个目录保留在一起）
-- [完整交付包](06-交付物/WheelCombatStudio-Demo-V0.2-Windows-x64.zip)
-- [使用说明](06-交付物/Demo-V0.2-使用与部署说明.md)
-- [验收记录](06-交付物/Demo-V0.2-验收记录-2026-10-22.md)
-- [文件传输方案](02-方案与设计/demo-v0.2-文件传输方案.md)
-- [本轮开发日志](07-日志与复盘/demo-v0.2-开发日志-2026-10-22.md)
+V0.4 打包客户端使用系统 WebView2，电脑端无需另外安装 Node.js、Rust 或 Python。普通安装使用当前用户的应用数据目录；便携模式将资料、缓存及默认日志放在 EXE 同目录的 `data/` 中。日志页显示实际保存位置，并支持更换。
 
-验证包括 16 项自动化测试、真实树莓派双向内容哈希/覆盖/权限/取消/断线检查，以及交付 EXE 的目录操作、上传下载、原生覆盖确认与桌面并行回归。测试数据位于本项目 local 证据目录及板端 wheel-combat-studio 的专用测试目录。
+### 从源码运行 V0.4
 
-GitHub 备份包含源码、依赖锁文件、测试、设计文档和使用/验收说明。EXE、完整交付 ZIP、依赖目录、设备配置及本机测试证据保留在本机，不进入 Git。
+开发需要 Node.js、Rust MSVC、Visual Studio C++ 工具链、Windows SDK 和 WebView2。在已配置工具链的开发终端执行：
 
-## Demo V0.1 历史交付
+```bash
+git clone https://github.com/JvKan9Zz/PortCanvas.git
+cd PortCanvas
+git switch feature/v04-portcanvas-release
+cd "03-实现与脚本/studio-tauri"
+npm ci
+npm run dev
+```
 
-- [Windows EXE](06-交付物/demo-v0.1/win-unpacked/Wheel%20Combat%20Studio.exe)（整个目录保留在一起）
-- [使用与部署说明](06-交付物/Demo-V0.1-使用与部署说明.md)
-- [验收记录](06-交付物/Demo-V0.1-验收记录-2026-10-22.md)
-- [范围与实现](02-方案与设计/demo-v0.1-范围与实现.md)
-- [开发日志](07-日志与复盘/demo-v0.1-开发日志-2026-10-22.md)
+构建 Windows 安装包使用 `npm run pack`。工具链版本、测试命令和实现约定见 [V0.4 构建说明][v04-build]。
 
-源码运行：在 `03-实现与脚本/studio` 执行 `npm ci`、`npm run runtime`、`npm start`；测试 `npm test`；打包 `npm run pack`。所有开发命令仍遵守工作区的 PowerShell 7 / Bash 入口。
+## 兼容与资源实测
+
+本轮实测为 **Windows 11 x64** 客户端，以及基于 Ubuntu 20.04.6 / ARM64 的创意之星 AI 控制器（组内称“树莓派”）。远端需要 SSH/SFTP、Bash、tmux 与 Python 3；远程桌面还需要已有的 X11 会话、授权和 x11vnc。其他 Linux 设备需满足相应条件，尚未完成全平台实机验收。
+
+V0.4 将运行核心迁移到 Rust，并按需加载桌面和终端组件。完整发布包对照中，便携运行文件由约 **368.64 MiB** 降到 **11.32 MiB**（EXE 与许可说明，系统共享 WebView2 另计）；测试场景的私有内存中位数降低约 **5%–17%**。总工作集、CPU 和启动时间并非全面改善，测量方法、各场景数据与边界见 [资源实测报告][v04-performance]。
+
+## 后续路线
+
+实时擂台目前保留页面入口；摄像头、设备接口实时数值、AI 和插件运行时属于后续开发内容。完整路线见 [统一远程工作台规划][roadmap]。
+
+## 历史版本与资料
+
+| 阶段 | 主要内容 | 文档 |
+| --- | --- | --- |
+| Demo V0.1 | 设备连接、嵌入式远程桌面 | [使用说明](06-交付物/Demo-V0.1-使用与部署说明.md) |
+| Demo V0.2 | 双栏 SFTP 文件管理与传输 | [使用说明](06-交付物/Demo-V0.2-使用与部署说明.md) |
+| Demo V0.3 | 右侧持久终端、断线恢复 | [使用说明](06-交付物/Demo-V0.3-使用与部署说明.md) |
+| Demo V0.3.5 | 本地日志、项目/日期分类和清理 | [验收记录](06-交付物/Demo-V0.3.5-验收记录-2026-10-23.md) |
+| Demo V0.4 | Rust/Tauri 重构、PortCanvas 品牌、可逆资料迁移 | [PR #7][v04-pr] |
+
+项目编号为 `Project-016`，沿用 `00–07` 的管理、需求、设计、实现、素材、验证、交付和复盘目录。旧版 `03-实现与脚本/studio` 与 V0.4 的 `studio-tauri` 分开保留。设备凭据、私钥、用户日志、本地测试数据和依赖目录不提交到 Git。
+
+[v04-source]: https://github.com/JvKan9Zz/PortCanvas/tree/feature/v04-portcanvas-release
+[v04-pr]: https://github.com/JvKan9Zz/PortCanvas/pull/7
+[v04-guide]: https://github.com/JvKan9Zz/PortCanvas/blob/383dfcade64db0537da845a92ef1d6cd02d8509c/06-%E4%BA%A4%E4%BB%98%E7%89%A9/PortCanvas-Demo-V0.4-%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.md
+[v04-checks]: https://github.com/JvKan9Zz/PortCanvas/blob/383dfcade64db0537da845a92ef1d6cd02d8509c/06-%E4%BA%A4%E4%BB%98%E7%89%A9/PortCanvas-Demo-V0.4-%E9%AA%8C%E6%94%B6%E8%AE%B0%E5%BD%95-2026-10-23.md
+[v04-performance]: https://github.com/JvKan9Zz/PortCanvas/blob/383dfcade64db0537da845a92ef1d6cd02d8509c/06-%E4%BA%A4%E4%BB%98%E7%89%A9/PortCanvas-Demo-V0.4-%E8%B5%84%E6%BA%90%E5%AF%B9%E7%85%A7-2026-10-23.md
+[v04-build]: https://github.com/JvKan9Zz/PortCanvas/blob/383dfcade64db0537da845a92ef1d6cd02d8509c/03-%E5%AE%9E%E7%8E%B0%E4%B8%8E%E8%84%9A%E6%9C%AC/studio-tauri/README.md
+[roadmap]: https://github.com/JvKan9Zz/PortCanvas/blob/383dfcade64db0537da845a92ef1d6cd02d8509c/01-%E9%9C%80%E6%B1%82%E4%B8%8E%E7%A0%94%E7%A9%B6/%E7%BB%9F%E4%B8%80%E8%BF%9C%E7%A8%8B%E5%B7%A5%E4%BD%9C%E5%8F%B0-%E5%AE%8C%E6%95%B4%E5%BC%80%E5%8F%91%E9%9C%80%E6%B1%82%E4%B8%8E%E6%8A%80%E6%9C%AF%E8%B7%AF%E7%BA%BF%E8%A7%84%E5%88%92.md
