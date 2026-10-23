@@ -23,3 +23,5 @@
 最终release的9项补全检查通过，包含空格主目录路径，记录于`completion-release-final.txt`。仓库入口由应用实际调用并成功打开Chrome中的当前仓库。本机普通安装已升级0.4.9并重新打开，devices.json/log-settings.json/terminals.json逐字节保留（原无settings.json），桌面快捷方式指向0.4.9图标。
 
 8文件ZIP自检通过，约7.0MiB，无用户data/日志/配置；安装与便携程序仅官方包类型标记不同。便携副本首次中文、设备为空、日志在自身data/logs，语言写入自身settings.json，正常关闭。ICO六个尺寸均为正方形，透明品牌资源沿用；旧版0.4.8交付保留。Windows11 x64验收不代表其他平台或全部历史功能压力测试通过。
+
+PR #13已合入main，merge commit `1590408b74edb805faf6d667828b97fecba6fe02`，功能头`2074f384c27538ad82ef1f3b77f3ad96f2b4e624`。Code Review后端读取该头，checks/statuses/annotations为空，不代表外部CI或他人review通过。PR已关联当前聊天；审查面板定位新增command-completion.js第1行，工具返回queued。GitHub连接器按匹配功能头合并，本地main已同步，后续仅补充交付记录。
