@@ -1,0 +1,52 @@
+[package]
+name = "wheel-combat-studio-tauri"
+version = "0.4.0"
+edition = "2021"
+rust-version = "1.88"
+default-run = "wheel-combat-studio"
+
+[lib]
+name = "studio_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "wheel-combat-studio"
+path = "src/main.rs"
+required-features = ["desktop"]
+
+[[bin]]
+name = "compat-probe"
+path = "src/bin/compat_probe.rs"
+
+[features]
+default = ["desktop"]
+desktop = ["dep:tauri", "dep:rfd", "dep:open"]
+
+[dependencies]
+tauri = { version = "2", optional = true, features = [] }
+rfd = { version = "0.15", optional = true }
+open = { version = "5", optional = true }
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+russh = { version = "=0.64.1", default-features = false, features = ["ring", "rsa"] }
+russh-sftp = "=3.0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+sha2 = "0.10"
+base64 = "0.22"
+regex = "1"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
+futures-util = "0.3"
+tokio-tungstenite = "0.28"
+zeroize = "1"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[profile.release]
+opt-level = "s"
+lto = "thin"
+codegen-units = 1
+strip = true

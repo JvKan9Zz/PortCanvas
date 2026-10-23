@@ -1,0 +1,17 @@
+{
+  "fixture": true,
+  "devices": [
+    {
+      "id": "example-device",
+      "name": "示例设备",
+      "host": "192.0.2.1",
+      "port": 22,
+      "username": "demo",
+      "display": ":0",
+      "xauthority": ""
+    }
+  ],
+  "hostKeys": {
+    "192.0.2.1:22": "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  }
+}

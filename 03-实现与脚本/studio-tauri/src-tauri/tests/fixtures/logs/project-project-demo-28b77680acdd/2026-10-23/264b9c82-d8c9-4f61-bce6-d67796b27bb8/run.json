@@ -1,0 +1,27 @@
+{
+  "schema": "wcs.run/1",
+  "id": "264b9c82-d8c9-4f61-bce6-d67796b27bb8",
+  "sourceKey": "fixture:123-456:1",
+  "kind": "command",
+  "project": {
+    "name": "project-demo",
+    "source": "auto:/home/example/project-demo",
+    "key": "28b77680acdd",
+    "folder": "project-project-demo-28b77680acdd"
+  },
+  "day": "2026-10-23",
+  "command": "printf '示例输出\\n'",
+  "cwd": "/home/example/project-demo/debug",
+  "device": "fixture",
+  "startedAt": "2026-10-23T01:00:00.000Z",
+  "gaps": [],
+  "complete": true,
+  "status": "failed",
+  "ownerPid": null,
+  "endedAt": "2026-10-23T01:00:01.000Z",
+  "exitCode": 1,
+  "endTimeSource": "computer_observed",
+  "backgroundJobs": [],
+  "durationMs": 1000,
+  "fixture": true
+}
