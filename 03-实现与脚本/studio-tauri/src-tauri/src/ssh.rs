@@ -34,7 +34,7 @@ impl SshConnection {
         tokio::select!{_ = cancel.cancelled()=>bail!("连接已取消。"),result=tokio::time::timeout(Duration::from_secs(30),operation)=>result.context("连接超时：请检查网络和设备。")?}
     }
     pub async fn channel(&self)->Result<SshChannel>{
-        tokio::select!{_ = self.cancel.cancelled()=>bail!("设备已断开。"),result=self.handle.channel_open_session()=>Ok(result?)}
+        tokio::select!{_ = self.cancel.cancelled()=>bail!("设备已断开。"),result=tokio::time::timeout(Duration::from_secs(10),self.handle.channel_open_session())=>Ok(result.context("SSH通道打开超时。")??)}
     }
     pub async fn exec(&self,command:&str,limit:usize,timeout:Duration)->Result<(String,i32)>{
         let mut channel=self.channel().await?;channel.exec(true,command).await?;

@@ -4,4 +4,8 @@ pub mod session;
 pub mod desktop;
 pub mod terminal;
 pub mod files;
+pub mod log_protocol;
+pub mod log_store;
+pub mod logs;
+pub mod migration;
 #[cfg(feature="desktop")]pub mod app;

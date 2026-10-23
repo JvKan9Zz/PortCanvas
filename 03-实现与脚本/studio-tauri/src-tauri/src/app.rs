@@ -1,6 +1,9 @@
 use crate::{
     desktop::DesktopService,
     files::{Confirmation, FileService, Side, Transfer},
+    log_store::Query as LogQuery,
+    logs::{LogService, Settings as LogSettings},
+    migration::Plan as MigrationPlan,
     profiles::{Profile, ProfileStore},
     session::{DeviceManager, EventSink},
     ssh::HostCheck,
@@ -24,6 +27,9 @@ pub struct AppState {
     pub quitting: AtomicBool,
     pub files: FileService,
     pub terminal: TerminalService,
+    pub logs: LogService,
+    pub migrating: AtomicBool,
+    pub default_log_root: PathBuf,
 }
 pub fn argument<T: DeserializeOwned>(args: &[Value], index: usize) -> Result<T> {
     serde_json::from_value(args.get(index).cloned().unwrap_or(Value::Null))
@@ -47,6 +53,169 @@ fn optional_text(args: &[Value], index: usize) -> Result<String> {
         _ => bail!("路径必须为文字。"),
     }
 }
+struct MigrationGuard<'a>(&'a AtomicBool);
+impl Drop for MigrationGuard<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+fn migration_guard(state: &AppState) -> Result<MigrationGuard<'_>> {
+    if state
+        .migrating
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        bail!("资料迁移正在进行，请稍后重试。");
+    }
+    Ok(MigrationGuard(&state.migrating))
+}
+fn migration_idle(state: &AppState) -> Result<()> {
+    if state.quitting.load(Ordering::SeqCst)
+        || matches!(
+            state.devices.snapshot()["ssh"].as_str(),
+            Some("connected" | "connecting")
+        )
+        || state.files.snapshot()["busy"] == true
+    {
+        bail!("请先断开设备并等待任务结束，再迁移资料。");
+    }
+    state.logs.can_change_root()
+}
+async fn import_profiles(window: tauri::WebviewWindow, state: &AppState) -> Result<Value> {
+    let _guard = migration_guard(state)?;
+    migration_idle(state)?;
+    let picker = window.clone();
+    let source = tokio::task::spawn_blocking(move || {
+        rfd::FileDialog::new()
+            .set_parent(&picker)
+            .set_title("选择旧版软件的data目录（含devices.json）")
+            .pick_folder()
+    })
+    .await?;
+    let Some(source) = source else {
+        return Ok(json!({"canceled":true}));
+    };
+    let target = state.profiles.lock().unwrap().directory.clone();
+    let current = state.logs.settings();
+    let legacy = window
+        .app_handle()
+        .path()
+        .document_dir()?
+        .join("Wheel Combat Studio/Logs");
+    let plan = tokio::task::spawn_blocking(move || {
+        MigrationPlan::prepare(source, target, current, legacy)
+    })
+    .await??;
+    let summary = &plan.preview;
+    let message=format!("导入旧版资料？\n来源：{}\n目标：{}\n新增设备：{}；受信指纹：{}\n日志位置：{}\n{}\n将备份目标资料；不移动日志，不修改旧版目录。",summary["source"].as_str().unwrap_or_default(),summary["target"].as_str().unwrap_or_default(),summary["addedDevices"],summary["addedHostKeys"],summary["logRoot"].as_str().unwrap_or_default(),summary["warning"].as_str().unwrap_or_default());
+    if !confirm(window, "导入旧版资料".into(), message).await? {
+        return Ok(json!({"canceled":true}));
+    }
+    migration_idle(state)?;
+    let settings = plan.settings.clone();
+    let profiles = state.profiles.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let _lock = profiles.lock().unwrap();
+        plan.apply()
+    })
+    .await??;
+    state.logs.replace_settings(settings, false).await?;
+    Ok(result)
+}
+async fn rollback_profiles(window: tauri::WebviewWindow, state: &AppState) -> Result<Value> {
+    let _guard = migration_guard(state)?;
+    migration_idle(state)?;
+    let target = state.profiles.lock().unwrap().directory.clone();
+    let initial = target.join("migration-backups");
+    let picker = window.clone();
+    let backup = tokio::task::spawn_blocking(move || {
+        rfd::FileDialog::new()
+            .set_parent(&picker)
+            .set_title("选择迁移备份目录（含report.json）")
+            .set_directory(initial)
+            .pick_folder()
+    })
+    .await?;
+    let Some(backup) = backup else {
+        return Ok(json!({"canceled":true}));
+    };
+    if !confirm(
+        window,
+        "恢复导入前资料".into(),
+        format!(
+            "恢复所选迁移之前的PortCanvas配置？\n{}\n当前配置会另存备份；日志文件不会删除。",
+            backup.display()
+        ),
+    )
+    .await?
+    {
+        return Ok(json!({"canceled":true}));
+    }
+    migration_idle(state)?;
+    let current = target.clone();
+    let profiles = state.profiles.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let _lock = profiles.lock().unwrap();
+        crate::migration::rollback(current, backup)
+    })
+    .await??;
+    let file = target.join("log-settings.json");
+    let settings = if file.exists() {
+        serde_json::from_slice::<LogSettings>(&std::fs::read(file)?)?.validate()?
+    } else {
+        LogSettings {
+            root: state.default_log_root.clone(),
+            projects: Default::default(),
+        }
+    };
+    state.logs.replace_settings(settings, false).await?;
+    Ok(result)
+}
+async fn open_directory(window: tauri::WebviewWindow, path: PathBuf) -> Result<()> {
+    tokio::task::spawn_blocking(move || {
+        std::fs::create_dir_all(&path)?;
+        if !path.is_dir() {
+            bail!("该路径不是目录。");
+        }
+        #[cfg(windows)]
+        {
+            use windows_sys::Win32::UI::{
+                Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL,
+            };
+            let operation = "open".encode_utf16().chain(Some(0)).collect::<Vec<_>>();
+            let file = path
+                .as_os_str()
+                .to_string_lossy()
+                .encode_utf16()
+                .chain(Some(0))
+                .collect::<Vec<_>>();
+            let parent = window
+                .hwnd()
+                .map(|h| h.0 as *mut std::ffi::c_void)
+                .unwrap_or(std::ptr::null_mut());
+            let result = unsafe {
+                ShellExecuteW(
+                    parent,
+                    operation.as_ptr(),
+                    file.as_ptr(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    SW_SHOWNORMAL,
+                )
+            };
+            if result as isize <= 32 {
+                bail!("无法打开目录（系统状态{}）。", result as isize);
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = window;
+            bail!("当前交付仅支持Windows目录打开。");
+        }
+        Ok::<_, anyhow::Error>(())
+    })
+    .await?
+}
 #[tauri::command]
 async fn terminal_subscribe(
     window: tauri::WebviewWindow,
@@ -57,6 +226,10 @@ async fn terminal_subscribe(
 ) -> std::result::Result<Value, String> {
     let operation: Result<Value> = async {
         validate_window(&window)?;
+        anyhow::ensure!(
+            !state.migrating.load(Ordering::SeqCst),
+            "资料迁移中，请稍后。"
+        );
         let sink: OutputSink = Arc::new(move |bytes| {
             channel.send(tauri::ipc::Response::new(bytes))?;
             Ok(())
@@ -113,6 +286,7 @@ async fn studio_call(
 ) -> std::result::Result<Value, String> {
     let result:Result<Value>=async{
         let origin=validate_window(&window)?;
+        if state.migrating.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"profiles:save"|"profiles:remove"|"files:transfer"|"logs:directory"|"logs:project"){bail!("资料迁移中，请稍后重试。");}
         match action.as_str(){
             "profiles:list"=>Ok(serde_json::to_value(state.profiles.lock().unwrap().read()?.devices)?),
             "profiles:save"=>{anyhow::ensure!(state.devices.snapshot()["ssh"]!="connected","请先断开设备再修改配置。");Ok(serde_json::to_value(state.profiles.lock().unwrap().save(argument(&args,0)?)?)?)},
@@ -145,6 +319,15 @@ async fn studio_call(
             "files:mkdir"=>Ok(json!(state.files.mkdir(argument(&args,0)?,argument(&args,1)?,argument(&args,2)?).await?)),
             "files:choose-local"=>{let directory=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title("选择本地文件夹").pick_folder()).await?;Ok(json!(directory.map(|p|p.to_string_lossy().into_owned())))},
             "files:transfer"=>{let options:Transfer=argument(&args,0)?;let callback:Confirmation=Arc::new(move|paths|{let window=window.clone();Box::pin(async move{confirm(window,"确认覆盖文件".into(),format!("目标已有 {} 个同名文件，是否覆盖？\n{}\n取消将保留原文件。",paths.len(),paths.iter().take(8).cloned().collect::<Vec<_>>().join("\n"))).await})});state.files.transfer(options,callback).await},
+            "profiles:import"=>import_profiles(window,&state).await,
+            "profiles:rollback"=>rollback_profiles(window,&state).await,
+            "logs:state"=>Ok(state.logs.snapshot()),
+            "logs:page"=>state.logs.page(argument::<LogQuery>(&args,0)?).await,
+            "logs:read"=>state.logs.detail(argument(&args,0)?).await,
+            "logs:project"=>state.logs.set_project(argument(&args,0)?).await,
+            "logs:directory"=>{state.logs.can_change_root()?;let initial=state.logs.settings().root;let picker=window.clone();let folder=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&picker).set_title("选择电脑本地日志目录").set_directory(initial).pick_folder()).await?;if let Some(folder)=folder{state.logs.set_root(folder).await}else{Ok(state.logs.snapshot())}},
+            "logs:open-folder"=>{let id=optional_text(&args,0)?;let path=if id.is_empty(){state.logs.settings().root}else{let record=state.logs.detail(id).await?;PathBuf::from(record["directory"].as_str().context("日志目录无效")?)};open_directory(window,path).await?;Ok(Value::Null)},
+            "logs:remove"=>{let ids:Vec<String>=argument(&args,0)?;let records=state.logs.removable(ids.clone()).await?;if records.is_empty(){return Ok(json!({"removed":0}));}let detail=records.iter().take(8).map(|r|format!("{} / {} / {}",r["project"]["name"].as_str().unwrap_or_default(),r["day"].as_str().unwrap_or_default(),r["command"].as_str().unwrap_or_default().chars().take(70).collect::<String>())).collect::<Vec<_>>().join("\n");if !confirm(window,"清理本地日志".into(),format!("删除选中的{}份已结束或中断日志？\n{}\n仅处理电脑本地记录，运行中的日志保留。",records.len(),detail)).await?{return Ok(json!({"removed":0,"canceled":true}));}state.logs.remove(ids).await},
             "window:fullscreen"=>{let full=!window.is_fullscreen()?;window.set_fullscreen(full)?;Ok(json!(full))},
             _=>bail!("此操作仍在后续迁移工作包中，正式操作请使用 V0.3.5。")
         }
@@ -166,10 +349,17 @@ pub fn run() {
             }
             let handle = app.handle().clone();
             let events: EventSink = Arc::new(move |name, data| {
-                if name == "device-state" && data["ssh"] != "connected" {
+                if name == "device-state" {
                     if let Some(state) = handle.try_state::<AppState>() {
-                        state.files.invalidate();
-                        state.terminal.stop();
+                        if data["ssh"] != "connected" {
+                            state.files.invalidate();
+                            state.terminal.stop();
+                            state
+                                .logs
+                                .detach("设备连接已关闭，未收到的输出保留为缺失。");
+                        } else {
+                            state.logs.refresh_status();
+                        }
                     }
                 }
                 let _ = handle.emit(name, data);
@@ -180,13 +370,28 @@ pub fn run() {
             let namespace = std::env::var("WCS_SESSION_NAMESPACE")
                 .ok()
                 .filter(|s| !s.is_empty());
-            let terminal = TerminalService::new(devices.clone(), namespace);
+            let documents = app.path().document_dir()?;
+            let legacy = documents.join("Wheel Combat Studio/Logs");
+            let default_log_root = if legacy.is_dir() {
+                legacy
+            } else {
+                documents.join("PortCanvas/Logs")
+            };
+            let logs = LogService::new(
+                devices.clone(),
+                directory.join("log-settings.json"),
+                default_log_root.clone(),
+            )?;
+            let terminal = TerminalService::new(devices.clone(), namespace, Some(logs.clone()));
             app.manage(AppState {
                 profiles: Arc::new(Mutex::new(ProfileStore { directory })),
                 devices,
                 desktop,
                 files,
                 terminal,
+                logs,
+                migrating: AtomicBool::new(false),
+                default_log_root,
                 quitting: AtomicBool::new(false),
             });
             Ok(())
@@ -206,6 +411,7 @@ pub fn run() {
                         state.files.cancel();
                         state.desktop.stop(None).await;
                         state.devices.disconnect().await;
+                        let _ = state.logs.close().await;
                         app.exit(0);
                     });
                 }

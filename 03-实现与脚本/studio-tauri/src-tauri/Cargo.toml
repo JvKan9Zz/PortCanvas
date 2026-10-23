@@ -20,12 +20,11 @@ path = "src/bin/compat_probe.rs"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:tauri", "dep:rfd", "dep:open", "dep:windows-sys"]
+desktop = ["dep:tauri", "dep:rfd", "windows-sys/Win32_UI_WindowsAndMessaging", "windows-sys/Win32_UI_Shell"]
 
 [dependencies]
 tauri = { version = "2", optional = true, features = [] }
 rfd = { version = "0.15", optional = true }
-open = { version = "5", optional = true }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 russh = { version = "=0.64.1", default-features = false, features = ["ring", "rsa"] }
@@ -42,7 +41,10 @@ futures-util = "0.3"
 tokio-tungstenite = "0.28"
 zeroize = "1"
 dunce = "1"
-windows-sys = { version = "0.61", optional = true, features = ["Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

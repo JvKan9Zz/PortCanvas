@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Wheel Combat Studio · Demo V0.4 · M3</title>
+  <title>Wheel Combat Studio · Demo V0.4 · M4</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="files.css">
   <link rel="stylesheet" href="xterm.css">
@@ -42,13 +42,13 @@
     <button class="nav-item" data-page="logs" title="本地运行日志"><svg><use href="#i-log"/></svg><span>日志</span></button>
     <button class="nav-item future" data-page="arena" title="实时擂台 · 后续版本"><svg><use href="#i-arena"/></svg><span>擂台</span></button>
   </nav>
-  <div class="rail-version">DEMO<br>V0.4 M3</div>
+  <div class="rail-version">DEMO<br>V0.4 M4</div>
 </aside>
 <div id="appRoot" class="app">
   <header class="app-header"><div class="wordmark">WHEEL COMBAT <strong>STUDIO</strong></div><div class="header-actions"><button id="toggleTerminal" class="button secondary" type="button" aria-expanded="false" aria-controls="terminalDrawer" hidden><svg><use href="#i-terminal"/></svg>终端</button><div id="connectionBadge" class="badge"><span class="dot"></span><span>设备未连接</span></div></div></header>
   <main>
     <section id="page-devices" class="page device-page">
-      <div class="page-heading"><div><h1>设备连接与管理</h1><p>连接你的树莓派，进入同一个开发现场。</p></div><button id="newDevice" class="button secondary"><svg><use href="#i-plus"/></svg>添加设备</button></div>
+      <div class="page-heading"><div><h1>设备连接与管理</h1><p>连接你的树莓派，进入同一个开发现场。</p></div><div class="device-manage-actions"><button id="importProfiles" class="button secondary" type="button">导入旧版资料</button><button id="rollbackProfiles" class="button secondary" type="button">恢复导入前资料</button><button id="newDevice" class="button secondary"><svg><use href="#i-plus"/></svg>添加设备</button></div></div>
       <div class="device-workspace">
         <aside class="device-list-panel"><div class="panel-label">已保存的设备 <span id="deviceCount">0</span></div><div id="deviceList" class="device-list"></div><p class="list-note">配置保存在本机。<br>密码仅用于本次连接。</p></aside>
         <div class="connection-editor">
@@ -96,7 +96,7 @@
       <div class="log-filters"><label>项目<select id="logFilterProject"><option value="">全部项目</option></select></label><label>日期<select id="logFilterDay"><option value="">全部日期</option></select></label><label>状态<select id="logFilterStatus"><option value="">全部状态</option><option value="running">记录中</option><option value="succeeded">命令成功</option><option value="failed">命令失败</option><option value="interrupted">记录中断</option><option value="write_error">写入失败</option><option value="session">会话记录</option></select></label><button id="deleteLogs" class="button secondary danger" disabled>清理所选</button></div>
       <p id="logRecordingStatus" class="log-recording" role="status">连接终端后自动记录。</p>
       <div class="logs-layout">
-        <section class="log-list-panel" aria-label="运行记录列表"><div class="log-list-heading"><label><input id="selectLogs" type="checkbox" aria-label="全选已结束的日志"><span id="logCount">0 份记录</span></label></div><ul id="logRunList" class="log-run-list"></ul><p id="logsEmpty" class="log-empty">还没有本地日志。连接终端后运行指令即可开始记录。</p></section>
+        <section class="log-list-panel" aria-label="运行记录列表"><div class="log-list-heading"><label><input id="selectLogs" type="checkbox" aria-label="全选本页已结束的日志"><span id="logCount">0 份记录</span></label></div><ul id="logRunList" class="log-run-list"></ul><div class="log-pagination"><button id="logPageBack" class="text-button" disabled>上一页</button><span id="logPageNumber">第1页</span><button id="logPageNext" class="text-button" disabled>下一页</button></div><p id="logsEmpty" class="log-empty">还没有本地日志。连接终端后运行指令即可开始记录。</p></section>
         <section class="log-detail" aria-label="日志详情"><p id="logDetailEmpty" class="log-empty">选择一份记录查看命令、运行信息与文本输出。</p><div id="logDetailBody" class="log-detail-body" hidden>
           <div class="log-detail-heading"><h2>运行详情</h2><button id="openRunDirectory" class="text-button">打开所在目录</button></div><pre id="logCommand" class="log-command"></pre>
           <dl class="log-meta"><div><dt>项目</dt><dd id="logProjectDetail"></dd></div><div><dt>退出码</dt><dd id="logExit"></dd></div><div><dt>开始</dt><dd id="logStart"></dd></div><div><dt>结束确认</dt><dd id="logEnd"></dd></div><div><dt>运行目录</dt><dd id="logCwd"></dd></div><div><dt>耗时</dt><dd id="logDuration"></dd></div></dl>
@@ -118,7 +118,7 @@
     <p id="terminalSession" class="terminal-session"></p>
     <p class="terminal-help">切换页面会保持连接。断线或关闭软件后可恢复远端会话；Ctrl+C 会中断前台程序，exit 会结束当前 Shell。</p>
   </aside>
-  <footer class="status-bar"><span id="globalStatus" role="status">就绪</span><span>Wheel Combat Studio <b>Demo V0.4 · M3</b></span></footer>
+  <footer class="status-bar"><span id="globalStatus" role="status">就绪</span><span>Wheel Combat Studio <b>Demo V0.4 · M4</b></span></footer>
 </div>
 <div id="toast" class="toast" role="alert" hidden></div>
 <script type="module" src="app.js"></script>

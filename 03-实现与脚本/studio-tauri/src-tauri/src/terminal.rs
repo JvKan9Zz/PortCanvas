@@ -95,9 +95,14 @@ pub struct TerminalService {
     inner: Arc<Mutex<Inner>>,
     devices: DeviceManager,
     namespace: Option<String>,
+    logs: Option<crate::logs::LogService>,
 }
 impl TerminalService {
-    pub fn new(devices: DeviceManager, namespace: Option<String>) -> Self {
+    pub fn new(
+        devices: DeviceManager,
+        namespace: Option<String>,
+        logs: Option<crate::logs::LogService>,
+    ) -> Self {
         Self {
             inner: Arc::new(Mutex::new(Inner {
                 id: 0,
@@ -109,6 +114,7 @@ impl TerminalService {
             })),
             devices,
             namespace,
+            logs,
         }
     }
     pub fn snapshot(&self) -> Value {
@@ -260,6 +266,9 @@ impl TerminalService {
         let (output, _) = tokio::select! {_=cancel.cancelled()=>bail!("终端连接已取消。"),result=connection.exec(&command,250000,Duration::from_secs(12))=>result?};
         let info: Value = serde_json::from_str(output.trim())?;
         anyhow::ensure!(info["session"] == name, "远端终端身份不匹配。");
+        if let Some(logs) = &self.logs {
+            let _ = logs.attach(connection.clone(), generation, info).await;
+        }
         if cancel.is_cancelled() {
             bail!("终端连接已取消。");
         }

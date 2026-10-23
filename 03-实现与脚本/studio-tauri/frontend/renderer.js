@@ -67,7 +67,7 @@ function renderState(state) {
   $('connectionBadge').lastElementChild.textContent = status;
   $('profileState').textContent = connected ? '已连接' : connecting ? '连接中' : '未连接';
   $('connectDevice').querySelector('span').textContent = connecting ? '取消连接' : connected ? '断开设备' : '连接设备';
-  for (const id of ['name', 'host', 'port', 'username', 'password', 'display', 'xauthority', 'saveDevice', 'newDevice', 'removeDevice']) $(id).disabled = connected || connecting;
+  for (const id of ['name', 'host', 'port', 'username', 'password', 'display', 'xauthority', 'saveDevice', 'newDevice', 'removeDevice', 'importProfiles', 'rollbackProfiles']) $(id).disabled = connected || connecting;
   $('resultTitle').textContent = connected ? '设备连接成功' : connecting ? '正在建立连接' : state.ssh === 'error' ? '连接失败' : '准备连接';
   $('resultMessage').textContent = state.message;
   $('globalStatus').textContent = state.message;
@@ -115,6 +115,11 @@ async function startDesktop() {
   }
 }
 document.querySelectorAll('[data-page]').forEach(button => button.onclick = () => showPage(button.dataset.page));
+async function migrateProfiles(rollback=false){
+ for(const id of ['connectDevice','saveDevice','newDevice','removeDevice','importProfiles','rollbackProfiles'])$(id).disabled=true;
+ try{const result=await (rollback?window.studio.rollbackProfiles():window.studio.migrateProfiles());if(result.canceled){toast('已取消资料操作。');return;}devices=await window.studio.profiles();fill(devices[0]||null);toast(rollback?'已恢复导入前资料，日志文件保留。':`资料导入完成，新增 ${result.addedDevices} 台设备。备份：${result.backup}`);}catch(error){toast(error.message);}finally{renderState(await window.studio.state());}
+}
+$('importProfiles').onclick=()=>migrateProfiles(false);$('rollbackProfiles').onclick=()=>migrateProfiles(true);
 $('newDevice').onclick = () => {fill(null);$('name').focus();};
 $('saveDevice').onclick = async () => {try {const saved = await window.studio.save(profile());devices = await window.studio.profiles();fill(saved);toast('设备配置已保存，密码不会保存。');} catch (error) {toast(error.message);}};
 $('removeDevice').onclick = async () => {if (selected && await window.studio.remove(selected.id)) {devices = await window.studio.profiles();fill(devices[0] || null);}};
