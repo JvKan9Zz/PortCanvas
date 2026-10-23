@@ -13,18 +13,19 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 
 | 版本 | 状态 | 实现 |
 | --- | --- | --- |
-| **Demo V0.4 · PortCanvas** | 已完成开发与本地实机验收，[PR #7][v04-pr] 待合并 | Tauri 2 + Rust + 系统 WebView2 |
-| **Demo V0.3.5** | 当前 `main` 的稳定代码基线 | Electron + ssh2 + noVNC |
+| **Demo V0.4.5 · PortCanvas** | 本轮交付版本，包含透明 Logo、可选记住密码、SSH 密钥和盘符切换 | Tauri 2 + Rust + 系统 WebView2 |
+| **Demo V0.4** | 完整框架迁移与实机验收基线，[PR #7][v04-pr] | Tauri 2 + Rust + 系统 WebView2 |
+| **Demo V0.3.5** | 保留的历史 Electron 版本 | Electron + ssh2 + noVNC |
 
-V0.4 的完整源码位于 [`feature/v04-portcanvas-release`][v04-source]。在 PR 合并前，直接克隆默认分支获得的仍是 V0.3.5；本页已先同步新的项目名称与文档入口。
+当前工程位于 [`03-实现与脚本/studio-tauri`](03-实现与脚本/studio-tauri)，旧版 `studio` 和历史交付单独保留。
 
 ## 已实现的功能
 
 | 功能 | 能力 |
 | --- | --- |
-| 设备连接与管理 | 保存设备配置，SSH 密码认证、主机指纹确认、取消连接与连接状态管理；密码不保存 |
+| 设备连接与管理 | SSH 密码或私钥认证（OpenSSH / PEM / PPK），可选 Windows DPAPI 加密记住密码/密钥口令；主机指纹确认、取消连接与状态管理 |
 | 远程桌面 | 进入设备已有的 X11 桌面，支持鼠标键盘、只读、缩放适配和全屏；桌面经 SSH 加密转发 |
-| 文件管理与传输 | 本地/远端双栏浏览，文件及目录双向传输、新建目录、进度、限速、取消与覆盖确认 |
+| 文件管理与传输 | 本地/远端双栏浏览，本地盘符快速切换，文件及目录双向传输、新建目录、进度、限速、取消与覆盖确认 |
 | 右侧持久终端 | 在设备页以外展开，直接输入命令；收起侧栏或切页不结束程序，断线后恢复远端 tmux 会话 |
 | 电脑本地日志 | 按项目和日期记录命令、输出、退出码与中断状态；项目自动识别并允许手动指定，支持离线查看、筛选与清理 |
 | 旧版资料迁移（V0.4） | 导入设备、受信指纹和日志设置；提供预览、冲突检查、备份及回退，保留原设备 ID |
@@ -37,22 +38,25 @@ V0.4 的完整源码位于 [`feature/v04-portcanvas-release`][v04-source]。在 
 
 ### Windows 安装与便携运行
 
-V0.4 已完成 Windows x64 安装包和便携包的本地交付。当前仓库保存源码与文档，不将本地 EXE、ZIP 或用户数据当作仓库下载链接。
+V0.4.5 提供 Windows x64 安装包和便携包的本地交付。当前仓库保存源码与文档，不将本地 EXE、ZIP 或用户数据当作仓库下载链接。
 
-- [安装、连接与旧资料迁移说明][v04-guide]
+- [V0.4.5 使用说明](06-交付物/PortCanvas-Demo-V0.4.5-使用说明.md)
+- [V0.4.5 验收记录](06-交付物/PortCanvas-Demo-V0.4.5-验收记录-2026-10-23.md)
+- [框架迁移与旧资料导入说明][v04-guide]
 - [V0.4 完整验收记录][v04-checks]
 - [V0.3.5 使用说明](06-交付物/Demo-V0.3.5-使用说明.md)
 
-V0.4 打包客户端使用系统 WebView2，电脑端无需另外安装 Node.js、Rust 或 Python。普通安装使用当前用户的应用数据目录；便携模式将资料、缓存及默认日志放在 EXE 同目录的 `data/` 中。日志页显示实际保存位置，并支持更换。
+打包客户端使用系统 WebView2，电脑端无需另外安装 Node.js、Rust 或 Python。普通安装使用当前用户的应用数据目录；便携模式将资料、缓存及默认日志放在 EXE 同目录的 `data/` 中。日志页显示实际保存位置，并支持更换。
 
-### 从源码运行 V0.4
+记住凭据默认关闭。勾选后使用当前 Windows 账户加密；取消勾选并保存可移除。私钥文件只记录本地路径，内容不进入配置。跨电脑或 Windows 账户复制资料后需重新输入凭据。
+
+### 从源码运行
 
 开发需要 Node.js、Rust MSVC、Visual Studio C++ 工具链、Windows SDK 和 WebView2。在已配置工具链的开发终端执行：
 
 ```bash
 git clone https://github.com/JvKan9Zz/PortCanvas.git
 cd PortCanvas
-git switch feature/v04-portcanvas-release
 cd "03-实现与脚本/studio-tauri"
 npm ci
 npm run dev
@@ -79,6 +83,7 @@ V0.4 将运行核心迁移到 Rust，并按需加载桌面和终端组件。完�
 | Demo V0.3 | 右侧持久终端、断线恢复 | [使用说明](06-交付物/Demo-V0.3-使用与部署说明.md) |
 | Demo V0.3.5 | 本地日志、项目/日期分类和清理 | [验收记录](06-交付物/Demo-V0.3.5-验收记录-2026-10-23.md) |
 | Demo V0.4 | Rust/Tauri 重构、PortCanvas 品牌、可逆资料迁移 | [PR #7][v04-pr] |
+| Demo V0.4.5 | 透明标志、可选保存凭据、密钥认证、本地盘符 | [使用说明](06-交付物/PortCanvas-Demo-V0.4.5-使用说明.md) |
 
 项目编号为 `Project-016`，沿用 `00–07` 的管理、需求、设计、实现、素材、验证、交付和复盘目录。旧版 `03-实现与脚本/studio` 与 V0.4 的 `studio-tauri` 分开保留。设备凭据、私钥、用户日志、本地测试数据和依赖目录不提交到 Git。
 

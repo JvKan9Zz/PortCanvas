@@ -6,4 +6,6 @@
 
 用户随后要求视觉比例改为正方形，并用Logo替换侧栏W。portcanvas-icon-square.png由内置imagegen基于提取图修正外框比例、清理透明边缘，保留银白P/冰蓝C和接口圆环；两份原始资源均保留。正式PNG/ICO由官方Tauri icon转换，侧栏128×128资源按48×48显示，窗口/任务栏使用多尺寸ICO。
 
-最终应用资源为portcanvas-icon-final.png：内置imagegen保留PC接口图形，移除偏宽的内框，用深色底板铺满1:1画布，避免小尺寸仍呈矩形。正式PNG/ICO均从此资源转换，前述提取/修正版本保留作来源记录；没有用脚本修改图像像素。
+V0.4曾使用portcanvas-icon-final.png：内置imagegen保留PC接口图形，移除偏宽的内框，用深色底板铺满1:1画布。该版本现仅作历史来源保留。
+
+Demo V0.4.5以用户最终指定的透明底图portcanvas-transparent.png为统一来源，原样复制自本机generated_images中的exec-e9a5ddf9-2d5b-4005-af5b-404e531ec692.png。源文件1254×1254、RGBA，四角透明；没有重新绘制或改变PC图形。官方Tauri icon工具等比生成32/128/256 PNG及多尺寸ICO，应用侧栏、窗口、任务栏、安装包、桌面快捷方式和README统一使用此版本。外画布保持1:1，图形自身比例按用户选图保留。安装快捷方式引用带版本号的独立ICO，避免旧EXE路径图标缓存；不清理全局Windows缓存。

@@ -25,6 +25,23 @@ pub type Confirmation = Arc<
         + Send
         + Sync,
 >;
+pub fn local_drives() -> Result<Value> {
+    #[cfg(windows)] {
+        use windows_sys::Win32::Storage::FileSystem::{GetDriveTypeW,GetLogicalDrives};
+        let mask=unsafe{GetLogicalDrives()};
+        if mask==0 { return Err(std::io::Error::last_os_error()).context("无法列出本机盘符。"); }
+        let mut drives=Vec::new();
+        for index in 0..26 {
+            if mask & (1<<index)==0 { continue; }
+            let path=format!("{}:\\",(b'A'+index as u8) as char);
+            let wide=path.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
+            let kind=match unsafe{GetDriveTypeW(wide.as_ptr())} {2=>"可移动磁盘",3=>"本地磁盘",4=>"网络磁盘",5=>"光驱",6=>"内存盘",_=>"磁盘"};
+            drives.push(json!({"path":path,"label":format!("{path} · {kind}")}));
+        }
+        Ok(json!(drives))
+    }
+    #[cfg(not(windows))] { Ok(json!([{"path":"/","label":"/ · 文件系统"}])) }
+}
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Side {

@@ -11,12 +11,26 @@ let terminalExpanded=false;
 const terminalDrawer = new TerminalDrawer({toast,goDevices:()=>showPage('devices')});
 const logsPage = new LogsPage({toast});
 function toast(message) {$('toast').textContent = message;$('toast').hidden = false;clearTimeout(toastTimer);toastTimer = setTimeout(() => $('toast').hidden = true, 6000);}
-function profile() {return {id: selected?.id, name: $('name').value, host: $('host').value, port: Number($('port').value), username: $('username').value, display: $('display').value, xauthority: $('xauthority').value};}
+function profile() {return {id: selected?.id, name: $('name').value, host: $('host').value, port: Number($('port').value), username: $('username').value, display: $('display').value, xauthority: $('xauthority').value,authMethod:$('authMethod').value,privateKeyPath:$('privateKeyPath').value,rememberPassword:$('rememberPassword').checked};}
+function savedCredentialMatches() {
+  const p=profile(),s=selected;
+  return Boolean(s?.hasSavedCredential&&p.rememberPassword&&p.host.trim()===s.host&&p.port===s.port&&p.username.trim()===s.username&&p.authMethod===(s.authMethod||'password')&&(p.authMethod!=='key'||p.privateKeyPath.trim()===s.privateKeyPath));
+}
+function renderAuth() {
+  const key=$('authMethod').value==='key',saved=savedCredentialMatches();
+  $('keyFileField').hidden=!key;$('credentialLabel').textContent=key?'密钥口令':'密码';
+  $('rememberLabel').textContent=key?'记住密钥口令':'记住密码';
+  $('credentialHint').textContent=saved?'已加密保存，留空使用':key?'未加密私钥可留空':'不勾选则不保存';
+  $('password').placeholder=saved?'已加密保存，留空使用':key?'加密私钥请输入口令，未加密可留空':'输入设备登录密码';
+}
+for(const id of ['host','port','username','authMethod','privateKeyPath','rememberPassword'])$(id).addEventListener('input',renderAuth);
+$('choosePrivateKey').onclick=async()=>{try{const path=await window.studio.choosePrivateKey();if(path){$('privateKeyPath').value=path;renderAuth();}}catch(error){toast(error.message);}};
 function fill(device) {
   selected = device || null;
   const values = device || {name: '', host: '', port: 22, username: '', display: ':0', xauthority: ''};
   for (const key of ['name', 'host', 'port', 'username', 'display', 'xauthority']) $(key).value = values[key] ?? '';
   $('password').value = '';
+  $('authMethod').value=values.authMethod||'password';$('privateKeyPath').value=values.privateKeyPath||'';$('rememberPassword').checked=Boolean(values.rememberPassword);renderAuth();
   $('editorTitle').textContent = device?.name || '添加一台设备';
   $('removeDevice').hidden = !device;
   renderDevices();
@@ -66,7 +80,7 @@ function renderState(state) {
   $('connectionBadge').lastElementChild.textContent = status;
   $('profileState').textContent = connected ? '已连接' : connecting ? '连接中' : '未连接';
   $('connectDevice').querySelector('span').textContent = connecting ? '取消连接' : connected ? '断开设备' : '连接设备';
-  for (const id of ['name', 'host', 'port', 'username', 'password', 'display', 'xauthority', 'saveDevice', 'newDevice', 'removeDevice', 'importProfiles', 'rollbackProfiles']) $(id).disabled = connected || connecting;
+  for (const id of ['name', 'host', 'port', 'username', 'password', 'authMethod','privateKeyPath','rememberPassword','choosePrivateKey','display', 'xauthority', 'saveDevice', 'newDevice', 'removeDevice', 'importProfiles', 'rollbackProfiles']) $(id).disabled = connected || connecting;
   $('resultTitle').textContent = connected ? '设备连接成功' : connecting ? '正在建立连接' : state.ssh === 'error' ? '连接失败' : '准备连接';
   $('resultMessage').textContent = state.message;
   $('globalStatus').textContent = state.message;
@@ -122,16 +136,17 @@ async function migrateProfiles(rollback=false){
 }
 $('importProfiles').onclick=()=>migrateProfiles(false);$('rollbackProfiles').onclick=()=>migrateProfiles(true);
 $('newDevice').onclick = () => {fill(null);$('name').focus();};
-$('saveDevice').onclick = async () => {try {const saved = await window.studio.save(profile());devices = await window.studio.profiles();fill(saved);toast('设备配置已保存，密码不会保存。');} catch (error) {toast(error.message);}};
+$('saveDevice').onclick = async () => {try {const saved = await window.studio.save(profile(),$('password').value);devices = await window.studio.profiles();fill(saved);toast(saved.rememberPassword?'配置及加密凭据已保存。':'配置已保存，密码/密钥口令未保存。');} catch (error) {toast(error.message);}};
 $('removeDevice').onclick = async () => {if (selected && await window.studio.remove(selected.id)) {devices = await window.studio.profiles();fill(devices[0] || null);}};
 $('deviceForm').onsubmit = async event => {
   event.preventDefault();
   if (['connected', 'connecting'].includes(current.ssh)) {clearRfb();await window.studio.disconnect();return;}
   const password = $('password').value;
-  if (!password) {toast('请输入设备登录密码。');$('password').focus();return;}
+  if ($('authMethod').value==='password'&&!password&&!savedCredentialMatches()) {toast('请输入设备登录密码。');$('password').focus();return;}
   try {
-    const saved = await window.studio.save(profile());selected = saved;devices = await window.studio.profiles();
+    const saved = await window.studio.save(profile(),password);selected = saved;devices = await window.studio.profiles();renderAuth();
     await window.studio.connect(saved, password);
+    $('password').value='';renderAuth();
   } catch (error) {toast(error.message);}
 };
 $('goDesktop').onclick = () => {showPage('desktop');if (current.desktop !== 'connected') startDesktop();};

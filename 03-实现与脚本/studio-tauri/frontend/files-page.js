@@ -13,6 +13,7 @@ export class FilePage {
       $(side+'All').onchange=()=>{const panel=this.panels[side];panel.selected=new Set($(side+'All').checked?panel.entries.map(e=>e.name):[]);this.renderSelection(side);};
     }
     $('localChoose').onclick=async()=>{try{const directory=await window.studio.chooseLocalFolder();if(directory)this.load('local',directory);}catch(error){toast(error.message);}};
+    $('localDrive').onchange=()=>this.load('local',$('localDrive').value);
     $('filesConnect').onclick=goDevices;
     $('uploadFiles').onclick=()=>this.transfer('upload');$('downloadFiles').onclick=()=>this.transfer('download');
     $('cancelTransfer').onclick=()=>window.studio.cancelTransfer().catch(error=>toast(error.message));
@@ -21,7 +22,9 @@ export class FilePage {
     window.studio.onFileState(state=>this.transferState(state));
     window.studio.fileState().then(state=>this.transferState(state)).catch(error=>toast(error.message));
   }
-  show() {this.visible=true;if(!this.localLoaded)this.load('local','');if(this.connected&&!this.remoteLoaded)this.load('remote',this.panels.remote.path);}
+  show() {this.visible=true;this.refreshDrives();if(!this.localLoaded)this.load('local','');if(this.connected&&!this.remoteLoaded)this.load('remote',this.panels.remote.path);}
+  async refreshDrives(){try{const drives=await window.studio.localDrives(),placeholder=new Option('盘符','');placeholder.disabled=true;$('localDrive').replaceChildren(placeholder,...drives.map(d=>new Option(d.label,d.path)));this.selectDrive();}catch(error){this.toast(error.message);}}
+  selectDrive(){const path=this.panels.local.path,drive=/^[a-z]:[\\/]/i.test(path)?path.slice(0,2).toUpperCase()+'\\':'/';$('localDrive').value=[...$('localDrive').options].some(o=>o.value===drive)?drive:'';}
   hide() {this.visible=false;}
   setConnection(state,profileId) {
     const was=this.connected;this.connected=state.ssh==='connected';
@@ -41,6 +44,7 @@ export class FilePage {
       $(side+'Files').querySelectorAll('input').forEach(input=>input.disabled=this.busy);
     }
     $('localChoose').disabled=this.busy;
+    $('localDrive').disabled=this.busy||this.panels.local.loading;
     const loading=this.panels.local.loading||this.panels.remote.loading;
     $('uploadFiles').disabled=this.busy||loading||!this.connected||!this.panels.local.selected.size||!this.remoteLoaded;
     $('downloadFiles').disabled=this.busy||loading||!this.connected||!this.panels.remote.selected.size||!this.localLoaded;
@@ -60,7 +64,7 @@ export class FilePage {
     } catch(error) {
       if(request!==panel.request)return;
       panel.error=error.message;$(side+'Path').value=panel.path;$(side+'Message').textContent=error.message;this.toast(error.message);
-    } finally {if(request===panel.request){panel.loading=false;this.controls();}}
+    } finally {if(request===panel.request){panel.loading=false;if(side==='local')this.selectDrive();this.controls();}}
   }
   render(side) {
     const panel=this.panels[side],body=$(side+'Files');body.replaceChildren();

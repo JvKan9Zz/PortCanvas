@@ -15,6 +15,9 @@ fn display() -> String {
 fn schema() -> u32 {
     1
 }
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AuthMethod { #[default] Password, Key }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,12 +32,25 @@ pub struct Profile {
     pub display: String,
     #[serde(default)]
     pub xauthority: String,
+    #[serde(default)]
+    pub auth_method: AuthMethod,
+    #[serde(default)]
+    pub private_key_path: String,
+    #[serde(default)]
+    pub remember_password: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encrypted_secret: Option<String>,
 }
 impl Profile {
     pub fn validate(mut self) -> Result<Self> {
         self.name = self.name.trim().into();
         self.host = self.host.trim().into();
         self.username = self.username.trim().into();
+        self.private_key_path = self.private_key_path.trim().into();
+        if self.auth_method == AuthMethod::Key && (!Path::new(&self.private_key_path).is_absolute() || self.private_key_path.contains(['\r','\n','\0'])) {
+            bail!("请选择本机SSH私钥文件的绝对路径。");
+        }
+        if let Some(value) = &self.encrypted_secret { crate::credentials::validate(value)?; }
         if self.name.is_empty() || self.name.chars().count() > 80 {
             bail!("请输入设备名称（最多 80 字）。");
         }
@@ -80,6 +96,15 @@ impl Profile {
     }
     pub fn address(&self) -> String {
         format!("{}:{}", self.host, self.port)
+    }
+    fn credential_context(&self) -> Vec<u8> {
+        serde_json::to_vec(&serde_json::json!(["PortCanvas credential v1",self.id,self.host,self.port,self.username,self.auth_method,if self.auth_method==AuthMethod::Key { &self.private_key_path } else { "" }])).unwrap()
+    }
+    pub fn public_value(&self) -> serde_json::Value {
+        let mut value = serde_json::to_value(self).unwrap();
+        value.as_object_mut().unwrap().remove("encryptedSecret");
+        value["hasSavedCredential"] = serde_json::json!(self.remember_password && self.encrypted_secret.is_some());
+        value
     }
     pub fn terminal_name(&self) -> String {
         use sha2::{Digest, Sha256};
@@ -176,9 +201,20 @@ impl ProfileStore {
     pub fn write(&self, data: &ProfileData) -> Result<()> {
         atomic_json(&self.directory.join("devices.json"), data)
     }
-    pub fn save(&self, profile: Profile) -> Result<Profile> {
-        let profile = profile.validate()?;
+    pub fn save(&self, profile: Profile, secret: &str) -> Result<Profile> {
+        let mut profile = profile.validate()?;
         let mut data = self.read()?;
+        profile.encrypted_secret = None;
+        if profile.remember_password {
+            let old = data.devices.iter().find(|p|p.id==profile.id && p.remember_password && p.credential_context()==profile.credential_context());
+            profile.encrypted_secret = if !secret.is_empty() {
+                Some(crate::credentials::seal(secret, &profile.credential_context())?)
+            } else if let Some(value) = old.and_then(|p|p.encrypted_secret.clone()) {
+                Some(value)
+            } else if profile.auth_method == AuthMethod::Key {
+                Some(crate::credentials::seal("", &profile.credential_context())?)
+            } else { bail!("请输入要保存的密码；更换设备地址或用户名后需要重新输入。"); };
+        }
         if let Some(old) = data.devices.iter_mut().find(|p| p.id == profile.id) {
             *old = profile.clone();
         } else {
@@ -186,6 +222,16 @@ impl ProfileStore {
         }
         self.write(&data)?;
         Ok(profile)
+    }
+    pub fn connection_secret(&self, profile: &Profile, supplied: zeroize::Zeroizing<String>) -> Result<zeroize::Zeroizing<String>> {
+        if !supplied.is_empty() { return Ok(supplied); }
+        if profile.remember_password {
+            if let Some(stored) = self.read()?.devices.into_iter().find(|p|p.id==profile.id && p.remember_password && p.credential_context()==profile.credential_context()) {
+                if let Some(value) = stored.encrypted_secret { return crate::credentials::open(&value, &profile.credential_context()); }
+            }
+        }
+        if profile.auth_method == AuthMethod::Key { return Ok(supplied); }
+        bail!("请输入设备登录密码，或勾选使用已保存的密码。");
     }
     pub fn trust(&self, address: &str, fingerprint: &str) -> Result<()> {
         let mut data = self.read()?;
@@ -216,5 +262,26 @@ mod tests {
             serde_json::to_value(data).unwrap()["hostKeys"]["host:22"],
             format!("SHA256:{}", "A".repeat(43))
         );
+    }
+    #[cfg(windows)]
+    #[test]
+    fn remembered_secret_is_atomic_redacted_and_can_be_removed() {
+        let directory=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(uuid::Uuid::new_v4().to_string());
+        let store=ProfileStore{directory};
+        let mut profile:Profile=serde_json::from_value(serde_json::json!({"id":"remember-test","name":"设备","host":"192.0.2.1","port":22,"username":"demo"})).unwrap();
+        let secret="synthetic-remember-test";
+        store.save(profile.clone(),secret).unwrap();
+        assert!(!fs::read_to_string(store.directory.join("devices.json")).unwrap().contains(secret));
+        profile.remember_password=true;
+        let saved=store.save(profile.clone(),secret).unwrap();
+        assert_eq!(saved.public_value()["hasSavedCredential"],true);
+        assert!(saved.public_value().get("encryptedSecret").is_none());
+        assert_eq!(store.connection_secret(&profile,zeroize::Zeroizing::new(String::new())).unwrap().as_str(),secret);
+        profile.host="192.0.2.2".into();
+        assert!(store.save(profile.clone(),"").is_err());
+        assert!(store.connection_secret(&profile,zeroize::Zeroizing::new(String::new())).is_err());
+        profile.host="192.0.2.1".into();profile.remember_password=false;
+        assert!(store.save(profile.clone(),"").unwrap().encrypted_secret.is_none());
+        assert!(store.connection_secret(&profile,zeroize::Zeroizing::new(String::new())).is_err());
     }
 }
