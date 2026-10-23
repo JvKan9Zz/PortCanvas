@@ -20,7 +20,7 @@ const startTerminal=async(cols:number,rows:number,key:string="main",deviceKey:st
  try{return await invoke('terminal_subscribe',{cols,rows,channel,terminalKey:key,deviceKey});}catch(error){throw error instanceof Error?error:new Error(String(error));}
 };
 const api={
- settings:()=>call('settings:read'),setLanguage:(language:string)=>call('settings:language',language),checkUpdates:()=>call('settings:updates'),openRepository:()=>call('settings:repository'),
+ settings:()=>call('settings:read'),setLanguage:(language:string)=>call('settings:language',language),setTheme:(theme:string)=>call('settings:theme',theme),checkUpdates:()=>call('settings:updates'),openRepository:()=>call('settings:repository'),
  profiles:()=>call('profiles:list'),save:(p:unknown,secret:string='')=>call('profiles:save',p,secret),remove:(id:string)=>call('profiles:remove',id),choosePrivateKey:()=>call('profiles:choose-key'),
  connect:(p:unknown,password:string)=>call('device:connect',p,password),disconnect:()=>call('device:disconnect'),state:()=>call('device:state'),
  startDesktop:()=>call('desktop:start'),stopDesktop:()=>call('desktop:stop'),desktopReady:(id:number)=>call('desktop:ready',id),desktopLost:(id:number,_clean:boolean)=>call('desktop:lost',id),fullscreen:()=>call('window:fullscreen'),

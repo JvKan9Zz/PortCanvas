@@ -311,6 +311,7 @@ async fn studio_call(
         match action.as_str(){
             "settings:read"=>state.preferences.lock().unwrap().info(),
             "settings:language"=>state.preferences.lock().unwrap().save_language(argument(&args,0)?),
+            "settings:theme"=>state.preferences.lock().unwrap().save_theme(argument(&args,0)?),
             "settings:updates"=>tokio::task::spawn_blocking(crate::preferences::check_update).await?,
             "settings:repository"=>{open_repository(window).await?;Ok(Value::Null)},
             "profiles:list"=>Ok(json!(state.profiles.lock().unwrap().read()?.devices.iter().map(Profile::public_value).collect::<Vec<_>>())),
