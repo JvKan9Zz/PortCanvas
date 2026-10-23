@@ -339,5 +339,9 @@
   "正在补全…": "Completing…",
   "补全前缀无效或过长。": "The completion prefix is invalid or too long.",
   "无法读取补全结果。": "Unable to read completion results.",
-  "终端连接已变化。": "Terminal connection changed."
+  "终端连接已变化。": "Terminal connection changed.",
+  "主题色彩": "Accent palette",
+  "浅蓝": "Light blue",
+  "绿色": "Green",
+  "灰色": "Gray"
 }

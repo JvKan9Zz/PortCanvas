@@ -9,7 +9,12 @@ pub const REPOSITORY:&str="https://github.com/JvKan9Zz/PortCanvas";
 pub struct Preferences {
     #[serde(default)]
     pub language:Language,
+    #[serde(default)]
+    pub theme:Theme,
 }
+#[derive(Clone,Copy,Default,Deserialize,Serialize,PartialEq)]
+#[serde(rename_all="lowercase")]
+pub enum Theme {#[default] Blue,Green,Graphite}
 #[derive(Clone,Copy,Default,Deserialize,Serialize,PartialEq)]
 pub enum Language {
     #[default]
@@ -25,8 +30,9 @@ impl PreferenceStore {
         serde_json::from_slice(&std::fs::read(&self.file)?).context("设置读取失败，原文件保留。")
     }
     pub fn language(&self)->Language {self.read().map(|p|p.language).unwrap_or_default()}
-    pub fn info(&self)->Result<Value>{let p=self.read()?;Ok(json!({"language":p.language,"version":env!("CARGO_PKG_VERSION"),"repository":REPOSITORY}))}
+    pub fn info(&self)->Result<Value>{let p=self.read()?;Ok(json!({"language":p.language,"theme":p.theme,"version":env!("CARGO_PKG_VERSION"),"repository":REPOSITORY}))}
     pub fn save_language(&self,language:Language)->Result<Value>{let mut p=self.read()?;p.language=language;atomic_json(&self.file,&p)?;self.info()}
+    pub fn save_theme(&self,theme:Theme)->Result<Value>{let mut p=self.read()?;p.theme=theme;atomic_json(&self.file,&p)?;self.info()}
 }
 pub fn update_result(status:u32,body:&[u8])->Result<Value>{
     if status==404{return Ok(json!({"status":"unavailable"}));}
@@ -70,7 +76,11 @@ fn github_package()->Result<(u32,Vec<u8>)>{
     use super::*;
     #[test]fn preference_language_persists_without_touching_other_files(){
         let root=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(uuid::Uuid::new_v4().to_string());let store=PreferenceStore{file:root.join("settings.json")};
-        assert_eq!(store.info().unwrap()["language"],"zh-CN");store.save_language(Language::English).unwrap();assert_eq!(store.info().unwrap()["language"],"en");
+        assert_eq!(store.info().unwrap()["language"],"zh-CN");assert_eq!(store.info().unwrap()["theme"],"blue");
+        std::fs::create_dir_all(&root).unwrap();std::fs::write(&store.file,br#"{"language":"en"}"#).unwrap();assert_eq!(store.info().unwrap()["theme"],"blue");
+        store.save_theme(Theme::Green).unwrap();assert_eq!(store.info().unwrap()["language"],"en");
+        store.save_language(Language::Chinese).unwrap();assert_eq!(store.info().unwrap()["theme"],"green");
+        assert!(serde_json::from_value::<Theme>(json!("invalid")).is_err());
         std::fs::write(&store.file,b"{broken").unwrap();assert!(store.save_language(Language::Chinese).is_err());assert_eq!(std::fs::read(&store.file).unwrap(),b"{broken");
     }
     #[test]fn inaccessible_or_invalid_updates_are_never_reported_current(){
