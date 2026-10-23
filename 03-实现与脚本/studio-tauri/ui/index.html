@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PortCanvas · Demo V0.4.8</title>
+  <title>PortCanvas · Demo V0.4.9</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="files.css">
   <link rel="stylesheet" href="xterm.css">
   <link rel="stylesheet" href="terminal.css">
   <link rel="stylesheet" href="logs.css">
+  <link rel="stylesheet" href="settings.css">
 </head>
 <body>
 <svg class="icon-defs" aria-hidden="true"><defs>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m9 3 1-1h4l1 3 3 1 3 2-1 3v3l1 3-3 2-3 1-1 2h-4l-1-2-3-1-3-2 1-3v-3L3 8l3-2 3-1V3Z"/></symbol>
   <symbol id="i-device" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M8 21h8m-4-4v4M8 9h3m-3 4h6"/></symbol>
   <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4m-5-13h5m-5 3h8"/></symbol>
   <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m6 0h4"/></symbol>
@@ -42,6 +44,7 @@
     <button class="nav-item" data-page="logs" title="本地运行日志"><svg><use href="#i-log"/></svg><span>日志</span></button>
     <button class="nav-item future" data-page="arena" title="实时擂台 · 后续版本"><svg><use href="#i-arena"/></svg><span>擂台</span></button>
   </nav>
+  <button id="openSettings" class="nav-item rail-settings" type="button" title="设置" aria-haspopup="dialog"><svg><use href="#i-settings"/></svg><span>设置</span></button>
 </aside>
 <div id="appRoot" class="app">
   <header class="app-header"><div class="wordmark">Port<strong>Canvas</strong></div><div class="header-actions"><button id="toggleTerminal" class="button secondary" type="button" aria-expanded="false" aria-controls="terminalDrawer" hidden><svg><use href="#i-terminal"/></svg>终端</button><div id="connectionBadge" class="badge"><span class="dot"></span><span>设备未连接</span></div></div></header>
@@ -116,11 +119,13 @@
     <div class="terminal-project"><label>日志项目<input id="logProjectName" maxlength="100" placeholder="自动识别项目"></label><button id="saveLogProject" class="button secondary compact" type="button">应用</button></div>
     <p id="terminalLogStatus" class="terminal-log-status" role="status">本地自动记录</p>
     <div id="terminalOutput" class="terminal-output" role="region" aria-label="远端设备 SSH 终端"><p id="terminalEmpty" class="terminal-empty" role="status" hidden>暂无终端</p></div>
+    <form id="terminalCommandForm" class="terminal-command" aria-label="终端命令输入"><ul id="terminalCompletions" class="command-completions" role="listbox" aria-label="补全候选" hidden></ul><textarea id="terminalCommand" rows="1" spellcheck="false" autocomplete="off" aria-label="命令输入" aria-autocomplete="list" aria-controls="terminalCompletions" aria-expanded="false" title="Enter发送；Shift+Enter换行；Tab补全" placeholder="输入命令…" disabled></textarea><button id="sendCommand" class="button primary compact" type="submit" disabled>发送</button></form>
     <p id="terminalMessage" class="terminal-message" role="status" hidden></p>
 
   </aside>
 
 </div>
+<dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle"><header><h2 id="settingsTitle">设置</h2><button id="closeSettings" class="button secondary compact" type="button" aria-label="关闭设置">×</button></header><div class="settings-row"><label for="settingsLanguage">语言</label><select id="settingsLanguage" autofocus><option value="zh-CN">简体中文</option><option value="en">English</option></select></div><section class="settings-repository"><h3>GitHub 仓库</h3><code>JvKan9Zz/PortCanvas</code><div class="settings-actions"><button id="openRepository" class="button secondary compact" type="button">打开仓库</button><button id="checkUpdates" class="button secondary compact" type="button">检查更新</button></div><p id="updateStatus" role="status" hidden></p></section><div class="settings-row"><span>当前版本</span><strong id="appVersion">—</strong></div></dialog>
 <div id="toast" class="toast" role="alert" hidden></div>
 <script type="module" src="app.js"></script>
 </body></html>

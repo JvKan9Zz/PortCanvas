@@ -1,3 +1,4 @@
+import {t} from './i18n.js';
 const $=id=>document.getElementById(id);
 export class FileDrag {
   constructor(page){
@@ -24,7 +25,7 @@ export class FileDrag {
   }
   highlight(target){
     this.clearHighlight();if(!target)return;
-    this.highlighted=target;target.pane.classList.add('drop-target');target.pane.dataset.dropLabel=target.side==='remote'?'松开以上传':'松开以下载';target.row?.classList.add('drop-folder');
+    this.highlighted=target;target.pane.classList.add('drop-target');target.pane.dataset.dropLabel=t(target.side==='remote'?'松开以上传':'松开以下载');target.row?.classList.add('drop-folder');
   }
   clearHighlight(){if(this.highlighted){this.highlighted.pane.classList.remove('drop-target');this.highlighted.row?.classList.remove('drop-folder');this.highlighted=null;}}
   move(event){
@@ -34,7 +35,7 @@ export class FileDrag {
       if(Math.hypot(event.clientX-drag.x,event.clientY-drag.y)<7)return;
       drag.active=true;const selected=this.page.panels[drag.side].selected;drag.names=selected.has(drag.name)?[...selected]:[drag.name];
       try{drag.row.setPointerCapture(drag.id);}catch{}
-      document.body.classList.add('file-dragging');this.label.textContent=`${drag.names.length} 项 · ${drag.side==='local'?'上传':'下载'}`;this.label.hidden=false;
+      document.body.classList.add('file-dragging');this.label.textContent=t('{n} 项 · {direction}',{n:drag.names.length,direction:t(drag.side==='local'?'上传':'下载')});this.label.hidden=false;
     }
     event.preventDefault();this.label.style.left=Math.min(event.clientX+14,window.innerWidth-130)+'px';this.label.style.top=Math.min(event.clientY+14,window.innerHeight-45)+'px';
     this.highlight(this.target(event.clientX,event.clientY,drag.side==='local'?'remote':'local'));
