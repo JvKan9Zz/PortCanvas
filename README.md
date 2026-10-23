@@ -13,7 +13,8 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 
 | 版本 | 状态 | 实现 |
 | --- | --- | --- |
-| **Demo V0.4.5 · PortCanvas** | 当前 `main` 版本，[PR #8][v045-pr] 已合并 | Tauri 2 + Rust + 系统 WebView2 |
+| **Demo V0.4.6 · PortCanvas** | 本轮版本：[PR #10][v046-pr]，终端本地滚轮、侧栏调宽/动画、品牌禁选禁拖 | Tauri 2 + Rust + 系统 WebView2 |
+| **Demo V0.4.5** | 透明品牌、可选凭据和密钥认证基线，[PR #8][v045-pr] 已合并 | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.4** | 完整框架迁移与实机验收基线，[PR #7][v04-pr] | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.3.5** | 保留的历史 Electron 版本 | Electron + ssh2 + noVNC |
 
@@ -26,7 +27,7 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 | 设备连接与管理 | SSH 密码或私钥认证（OpenSSH / PEM / PPK），可选 Windows DPAPI 加密记住密码/密钥口令；主机指纹确认、取消连接与状态管理 |
 | 远程桌面 | 进入设备已有的 X11 桌面，支持鼠标键盘、只读、缩放适配和全屏；桌面经 SSH 加密转发 |
 | 文件管理与传输 | 本地/远端双栏浏览，本地盘符快速切换，文件及目录双向传输、新建目录、进度、限速、取消与覆盖确认 |
-| 右侧持久终端 | 在设备页以外展开，直接输入命令；收起侧栏或切页不结束程序，断线后恢复远端 tmux 会话 |
+| 右侧持久终端 | 在设备页以外展开，可拖动调宽、平滑开合；滚轮仅在本机滚动，收起或切页不结束程序，断线后恢复远端 tmux 会话 |
 | 电脑本地日志 | 按项目和日期记录命令、输出、退出码与中断状态；项目自动识别并允许手动指定，支持离线查看、筛选与清理 |
 | 旧版资料迁移（V0.4） | 导入设备、受信指纹和日志设置；提供预览、冲突检查、备份及回退，保留原设备 ID |
 
@@ -38,9 +39,11 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 
 ### Windows 安装与便携运行
 
-V0.4.5 提供 Windows x64 安装包和便携包的本地交付。当前仓库保存源码与文档，不将本地 EXE、ZIP 或用户数据当作仓库下载链接。
+V0.4.6 提供 Windows x64 安装包和便携包的本地交付。当前仓库保存源码与文档，不将本地 EXE、ZIP 或用户数据当作仓库下载链接。
 
 - [V0.4.5 使用说明](06-交付物/PortCanvas-Demo-V0.4.5-使用说明.md)
+- [V0.4.6 使用说明](06-交付物/PortCanvas-Demo-V0.4.6-使用说明.md)
+- [V0.4.6 验收记录](06-交付物/PortCanvas-Demo-V0.4.6-验收记录-2026-10-23.md)
 - [V0.4.5 验收记录](06-交付物/PortCanvas-Demo-V0.4.5-验收记录-2026-10-23.md)
 - [框架迁移与旧资料导入说明][v04-guide]
 - [V0.4 完整验收记录][v04-checks]
@@ -84,12 +87,14 @@ V0.4 将运行核心迁移到 Rust，并按需加载桌面和终端组件。完�
 | Demo V0.3.5 | 本地日志、项目/日期分类和清理 | [验收记录](06-交付物/Demo-V0.3.5-验收记录-2026-10-23.md) |
 | Demo V0.4 | Rust/Tauri 重构、PortCanvas 品牌、可逆资料迁移 | [PR #7][v04-pr] |
 | Demo V0.4.5 | 透明标志、可选保存凭据、密钥认证、本地盘符 | [使用说明](06-交付物/PortCanvas-Demo-V0.4.5-使用说明.md) |
+| Demo V0.4.6 | 终端本地滚轮、侧栏调宽和动画、品牌禁选禁拖 | [使用说明](06-交付物/PortCanvas-Demo-V0.4.6-使用说明.md) |
 
 项目编号为 `Project-016`，沿用 `00–07` 的管理、需求、设计、实现、素材、验证、交付和复盘目录。旧版 `03-实现与脚本/studio` 与 V0.4 的 `studio-tauri` 分开保留。设备凭据、私钥、用户日志、本地测试数据和依赖目录不提交到 Git。
 
 [v04-source]: https://github.com/JvKan9Zz/PortCanvas/tree/feature/v04-portcanvas-release
 [v04-pr]: https://github.com/JvKan9Zz/PortCanvas/pull/7
 [v045-pr]: https://github.com/JvKan9Zz/PortCanvas/pull/8
+[v046-pr]: https://github.com/JvKan9Zz/PortCanvas/pull/10
 [v04-guide]: https://github.com/JvKan9Zz/PortCanvas/blob/383dfcade64db0537da845a92ef1d6cd02d8509c/06-%E4%BA%A4%E4%BB%98%E7%89%A9/PortCanvas-Demo-V0.4-%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.md
 [v04-checks]: https://github.com/JvKan9Zz/PortCanvas/blob/383dfcade64db0537da845a92ef1d6cd02d8509c/06-%E4%BA%A4%E4%BB%98%E7%89%A9/PortCanvas-Demo-V0.4-%E9%AA%8C%E6%94%B6%E8%AE%B0%E5%BD%95-2026-10-23.md
 [v04-performance]: https://github.com/JvKan9Zz/PortCanvas/blob/383dfcade64db0537da845a92ef1d6cd02d8509c/06-%E4%BA%A4%E4%BB%98%E7%89%A9/PortCanvas-Demo-V0.4-%E8%B5%84%E6%BA%90%E5%AF%B9%E7%85%A7-2026-10-23.md
