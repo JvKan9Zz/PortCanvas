@@ -85,7 +85,7 @@ export class TerminalDrawer {
   }
   renderLog(){
     const log=this.current?.log||{phase:'idle',message:'连接此终端后自动记录。',project:''};
-    $('terminalLogStatus').textContent=log.phase==='ready'?'本地日志 · 自动记录':log.phase==='error'?'日志异常 · 查看日志页':'本地日志 · '+log.message;$('terminalLogStatus').classList.toggle('error',log.phase==='error');
+    $('terminalLogStatus').hidden=log.phase!=='error';$('terminalLogStatus').textContent=log.message;$('terminalLogStatus').classList.toggle('error',log.phase==='error');
     if(document.activeElement!==$('logProjectName'))$('logProjectName').value=log.project||'';
   }
   render(){
@@ -93,9 +93,9 @@ export class TerminalDrawer {
     for(const item of this.panes.values())if(item.term)item.term.options.disableStdin=!(this.connected&&item.state.phase==='connected');
     this.renderTabs();$('terminalEmpty').hidden=this.panes.size>0;$('connectTerminal').disabled=this.busy||busy||live||(this.connected&&(!this.catalogReady||!pane));$('connectTerminal').textContent=busy?'正在连接…':live?'终端已连接':this.connected?'连接 / 恢复终端':'前往连接设备';$('connectTerminal').setAttribute('aria-busy',String(busy));
     $('disconnectTerminal').disabled=this.busy||(!live&&!busy);$('restartTerminal').disabled=this.busy||busy||!this.connected||!pane||!this.catalogReady;$('newTerminal').disabled=this.busy||!this.connected||!this.catalogReady;$('clearTerminal').disabled=!pane?.term;
-    $('logProjectName').disabled=!this.connected;$('saveLogProject').disabled=this.busy||!this.connected||!this.catalogReady;
+    $('logProjectName').disabled=!this.connected||!pane;$('saveLogProject').disabled=this.busy||!this.connected||!this.catalogReady||!pane;
     $('terminalStatus').className='badge '+(live?'connected':state.phase==='error'?'error':'');$('terminalStatus').lastElementChild.textContent=live?'会话已连接':busy?'正在连接':state.phase==='error'?'连接失败':'终端未连接';
-    $('terminalMessage').textContent=this.connected?state.message:'设备未连接，已存在的远端会话保留。';
+    $('terminalMessage').hidden=state.phase!=='error';$('terminalMessage').textContent=state.message;
     $('terminalSession').textContent=state.session?`${state.host||'远端设备'} · 会话 ${state.session}`:'会话信息将在连接后显示';
     $('terminalConnectionTime').textContent=pane?.connectedAt?'本次连接 '+pane.connectedAt:'';this.renderLog();
   }

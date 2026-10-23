@@ -23,7 +23,7 @@ export class LogsPage{
   if(changed){this.selected=null;this.reset();for(const id of ['logFilterProject','logFilterDay','logFilterStatus'])$(id).value='';if(this.visible)this.refresh();}
   $('logRootPath').textContent=state.root;this.statusMessage=state.message;this.statusError=state.phase==='error';this.statusNotice=state.notice||'';this.renderNotice();
  }
- renderNotice(){const notice=this.page?.notice||this.statusNotice||'';$('logRecordingStatus').textContent=(this.statusMessage||'')+(notice?' '+notice:'');$('logRecordingStatus').classList.toggle('error',this.statusError||Boolean(notice));}
+ renderNotice(){const notice=this.page?.notice||this.statusNotice||'';$('logRecordingStatus').textContent=(this.statusMessage||'')+(notice?' '+notice:'');$('logRecordingStatus').classList.toggle('error',this.statusError||Boolean(notice));$('logRecordingStatus').hidden=!this.statusError&&!notice;}
  show(){this.visible=true;this.refresh();this.tick();}
  hide(){this.visible=false;clearTimeout(this.timer);clearTimeout(this.refreshTimer);}
  tick(){clearTimeout(this.timer);if(!this.visible)return;this.timer=setTimeout(async()=>{if(this.selected)await this.readSelected();this.tick();},1200);}
