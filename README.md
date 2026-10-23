@@ -3,7 +3,7 @@
 统一远程设备工作台，原Wheel Combat Studio。Demo V0.4采用Tauri 2、Rust和系统WebView2，实现设备管理、远程桌面、SFTP、右侧持久终端和电脑本地运行日志。
 
 - GitHub：[JvKan9Zz/PortCanvas](https://github.com/JvKan9Zz/PortCanvas)，原私有仓库更名，历史与PR保留。
-- V0.4已完成M0–M5及本机/控制器验收，源码位于studio-tauri，总PR供审查；本轮不自动合并，main/demo-v0.3.5保持稳定基线。旧Electron工程studio和历史交付保留。
+- V0.4已完成M0–M5及本机/控制器验收，源码位于studio-tauri，[总PR #7](https://github.com/JvKan9Zz/PortCanvas/pull/7)供审查；本轮不自动合并，main/demo-v0.3.5保持稳定基线。旧Electron工程studio和历史交付保留。
 - [安装包](06-交付物/demo-v0.4/PortCanvas_0.4.0_x64-setup.exe)、[便携EXE](06-交付物/demo-v0.4/portable/PortCanvas.exe)、[完整ZIP](06-交付物/PortCanvas-Demo-V0.4-Windows-x64.zip)仅在本机交付，未将设备配置、日志或二进制提交Git。
 - [使用与迁移说明](06-交付物/PortCanvas-Demo-V0.4-使用说明.md) · [验收记录](06-交付物/PortCanvas-Demo-V0.4-验收记录-2026-10-23.md) · [完整进程树资源对照](06-交付物/PortCanvas-Demo-V0.4-资源对照-2026-10-23.md)。体积和私有内存降低；工作集、CPU和启动时间并非全面改善。
 
