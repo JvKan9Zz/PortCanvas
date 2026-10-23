@@ -20,7 +20,7 @@ path = "src/bin/compat_probe.rs"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:tauri", "dep:rfd", "dep:open"]
+desktop = ["dep:tauri", "dep:rfd", "dep:open", "dep:windows-sys"]
 
 [dependencies]
 tauri = { version = "2", optional = true, features = [] }
@@ -41,6 +41,7 @@ anyhow = "1"
 futures-util = "0.3"
 tokio-tungstenite = "0.28"
 zeroize = "1"
+windows-sys = { version = "0.61", optional = true, features = ["Win32_UI_WindowsAndMessaging"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

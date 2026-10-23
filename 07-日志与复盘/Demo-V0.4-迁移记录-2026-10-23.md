@@ -8,7 +8,7 @@
 
 初始环境：PowerShell Core 7.6.6、Bash 5.3.15、Node 24.19.0。Rust/Cargo 和 Visual Studio C++ 工具未发现；WebView2 155.0.4283.62 存在，Windows Kits 10/8.1 存在。第一次 Git 状态命令误在工作区根运行，无变更；随后在真实项目核对 main 干净、固定提交一致。
 
-当前状态：M0/M1 已验证，准备独立 PR 后继续 M2–M5。所有失败、选型证据和后续结果在本文件追加。
+当前状态：M0/M1 PR #3 已创建，M2连接与桌面已通过核心/实机检查，继续M3–M5。所有失败、选型证据和后续结果在本文件追加。
 
 用户随后明确：本轮完成后产品名 PortCanvas，使用所给 Logo，并同步现有 GitHub 仓库更名。旧内部协议/路径通过兼容层保留，不全局替换历史标识。
 
@@ -21,3 +21,13 @@ Windows SDK 首次落盘但未完成时再次链接缺 dbghelp.lib，停止编�
 M1 最终：2 项 Rust 测试通过；真实 Rust SSH 探针验证错误指纹拒绝、正确指纹/认证/中文 exec/PTY/SFTP/direct-tcpip。原生 Tauri UI 的资料 IPC、中文、5 页、1000×680、xterm 实际按键/中文显示通过。合成 VNC fixture 首次错用 WebSocket 文本消息、随后未遵循客户端 SetPixelFormat，核对协议后改为二进制并按请求像素格式编码；最终逐像素/键鼠通过。证据 m1-rust-probe-result.json、m1-webview-result.json，不把合成组件测试当完整远程桌面验收。
 
 本轮采集了 M1 调试原型测试后的 5 秒全进程树样本（m1-prototype-idle.json），包含额外组件测试模块/调试状态，仅探索记录，不能作为正式轻量化收益；M5 必须重新启动同功能发布包并与旧版比较。PortCanvas 原图和 imagegen 提取的透明图标存于 04-数据与素材/brand，原图未改，ICO 由官方 Tauri icon 转换；品牌正式切换在 M5。
+
+## M2 连接与桌面
+
+PR #3 为M0/M1，head已补齐被通用bin/规则误忽略的Rust探针源，以及独立M1组件入口所需的noVNC类型声明。M2基于该已验证分支，保留main稳定基线。
+
+Rust DeviceManager使用同步短临界区维护连接代次/取消/真实状态，DesktopService独立管理转发、远端进程及关闭。回调绑定代次和桌面ID；旧请求不能结束或标记新桌面。原生确认默认取消，变更指纹直接阻止；后端命令明确校验本地main窗口及来源。窗口关闭先做受限资源回收。
+
+实机发现Tauri invoke失败抛字符串，旧界面按Error.message读取而丢失原因；桥接统一转成Error后，指纹变化与认证失败正确显示。桌面键鼠/只读通过后发现本次x11vnc PID5991成为PPID1且继续运行；核实exe/cmdline身份后只清理该PID。关闭链路改为EOF→有界等待→关通道，Python有界终止/kill自身子进程并绑定Linux父死亡信号。最终完整桌面检查和实际结束Windows进程后，远端自有x11vnc均恢复到基线0。
+
+M2的4项核心测试、真实主机身份/认证恢复、403来源拒绝、X11鼠标/按键、只读阻止、独立关闭、取消后重连和崩溃清理通过。测试窗口来源为项目tools/x11_input_probe.py，经SSH以内存源码运行，未落盘远端。M1 Windows.GraphicsCapture截图曾有字形捕获瑕疵，独立CDP PNG核对文字完整，未为截图瑕疵更改渲染设置。

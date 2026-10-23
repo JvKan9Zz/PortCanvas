@@ -96,17 +96,17 @@ async function startDesktop() {
   clearRfb();
   const attempt = desktopAttempt;
   try {
-    const {url} = await window.studio.startDesktop();
+    const {url,id} = await window.studio.startDesktop();
     if (attempt !== desktopAttempt) return;
     const remote = new RFB($('desktopCanvas'), url, {shared: true});
     rfb = remote;
     remote.scaleViewport = fit;remote.resizeSession = false;remote.viewOnly = readonly;
     remote.qualityLevel = 6;remote.compressionLevel = 2;remote.background = '#17222b';
-    remote.addEventListener('connect', async () => {if (rfb !== remote) return;$('desktopEmpty').hidden = true;await window.studio.desktopReady();remote.focus();});
+    remote.addEventListener('connect', async () => {if (rfb !== remote) return;$('desktopEmpty').hidden = true;await window.studio.desktopReady(id);remote.focus();});
     remote.addEventListener('disconnect', event => {
       if (rfb !== remote) return;
       rfb = null;$('desktopCanvas').replaceChildren();
-      window.studio.desktopLost(Boolean(event.detail.clean)).catch(error => toast(error.message));
+      window.studio.desktopLost(id,Boolean(event.detail.clean)).catch(error => toast(error.message));
     });
     remote.addEventListener('securityfailure', () => toast('桌面握手失败，请断开并重新连接。'));
     remote.addEventListener('credentialsrequired', () => toast('桌面服务要求额外认证，请检查组件配置。'));
