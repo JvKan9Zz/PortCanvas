@@ -30,6 +30,9 @@ pub fn session_name(profile: &Profile, namespace: Option<&str>) -> String {
     };
     format!("{base}-logs")
 }
+pub fn session_name_for(profile:&Profile,namespace:Option<&str>,key:&str)->String {
+    if key=="main"{session_name(profile,namespace)}else{session_name(profile,Some(&format!("{}:terminal:{key}",namespace.unwrap_or_default())))}
+}
 pub fn dimensions(cols: u32, rows: u32) -> Result<()> {
     if !(2..=1000).contains(&cols) || !(1..=500).contains(&rows) {
         bail!("终端尺寸无效。");
@@ -96,17 +99,24 @@ pub struct TerminalService {
     devices: DeviceManager,
     namespace: Option<String>,
     logs: Option<crate::logs::LogService>,
+    key:String,
+    device_key:String,
+    ids:Arc<AtomicU64>,
+    operation:Arc<tokio::sync::Mutex<()>>,
 }
 impl TerminalService {
     pub fn new(
         devices: DeviceManager,
         namespace: Option<String>,
         logs: Option<crate::logs::LogService>,
+        key:String,
+        device_key:String,
+        ids:Arc<AtomicU64>,
     ) -> Self {
         Self {
             inner: Arc::new(Mutex::new(Inner {
                 id: 0,
-                state: json!({"phase":"disconnected","id":0,"message":"连接设备后可打开终端。"}),
+                state: json!({"phase":"disconnected","id":0,"key":key,"deviceKey":device_key,"message":"连接设备后可打开终端。"}),
                 cancel: CancellationToken::new(),
                 tx: None,
                 flow: Arc::new(Flow::new()),
@@ -114,14 +124,15 @@ impl TerminalService {
             })),
             devices,
             namespace,
-            logs,
+            logs, key, device_key, ids, operation:Arc::new(tokio::sync::Mutex::new(())),
         }
     }
     pub fn snapshot(&self) -> Value {
         self.inner.lock().unwrap().state.clone()
     }
+    pub fn key(&self)->&str {&self.key}
     pub fn name(&self, profile: &Profile) -> String {
-        session_name(profile, self.namespace.as_deref())
+        session_name_for(profile, self.namespace.as_deref(),&self.key)
     }
     fn emit(&self, state: Value) {
         (self.devices.events)("terminal-state", state);
@@ -130,20 +141,22 @@ impl TerminalService {
         let state = {
             let mut inner = self.inner.lock().unwrap();
             inner.cancel.cancel();
-            inner.id += 1;
+            inner.id = self.ids.fetch_add(1,Ordering::SeqCst)+1;
             inner.tx = None;
             inner.flow.clear();
             if let Some(pending) = inner.pending.take() {
                 pending.send_replace(Some(Err("终端连接已取消。".into())));
             }
-            inner.state = json!({"phase":"disconnected","id":inner.id,"generation":self.devices.generation(),"message":"终端已断开，远端会话保留。"});
+            inner.state = json!({"phase":"disconnected","key":self.key,"deviceKey":self.device_key,"id":inner.id,"generation":self.devices.generation(),"message":"终端已断开，远端会话保留。"});
             inner.state.clone()
         };
         self.emit(state);
     }
     pub async fn start(&self, cols: u32, rows: u32, sink: OutputSink) -> Result<Value> {
+        let _operation=self.operation.lock().await;
         dimensions(cols, rows)?;
         let (generation, connection) = self.devices.connection_with_generation()?;
+        anyhow::ensure!(connection.profile.terminal_name()==self.device_key,"设备连接已变化。");
         let (mut receiver, owner) = {
             let mut inner = self.inner.lock().unwrap();
             if inner.state["phase"] == "connected"
@@ -156,7 +169,7 @@ impl TerminalService {
                 (pending.subscribe(), None)
             } else {
                 inner.cancel.cancel();
-                inner.id += 1;
+                inner.id = self.ids.fetch_add(1,Ordering::SeqCst)+1;
                 let id = inner.id;
                 let cancel = connection.cancel.child_token();
                 let flow = Arc::new(Flow::new());
@@ -166,7 +179,7 @@ impl TerminalService {
                 inner.cancel = cancel.clone();
                 inner.flow = flow.clone();
                 inner.tx = Some(tx);
-                inner.state = json!({"phase":"connecting","id":id,"generation":generation,"session":self.name(&connection.profile),"message":"正在恢复远端终端…"});
+                inner.state = json!({"phase":"connecting","key":self.key,"deviceKey":self.device_key,"id":id,"generation":generation,"session":self.name(&connection.profile),"message":"正在恢复远端终端…"});
                 (receiver, Some((id, cancel, flow, rx, inner.state.clone())))
             }
         };
@@ -232,7 +245,7 @@ impl TerminalService {
                     .clone()
                     .unwrap_or_else(|| "终端在就绪前关闭。".into()))));
             }
-            inner.id += 1;
+            inner.id = self.ids.fetch_add(1,Ordering::SeqCst)+1;
             inner.state["id"] = json!(inner.id);
             inner.state["generation"] = json!(self.devices.generation());
             inner.state["phase"] = json!(if error.is_some() && !canceled {
@@ -267,11 +280,10 @@ impl TerminalService {
         let info: Value = serde_json::from_str(output.trim())?;
         anyhow::ensure!(info["session"] == name, "远端终端身份不匹配。");
         if let Some(logs) = &self.logs {
-            let _ = logs.attach(connection.clone(), generation, info).await;
+            let _ = logs.attach(connection.clone(), generation, info.clone(),self.key.clone()).await;
         }
-        if cancel.is_cancelled() {
-            bail!("终端连接已取消。");
-        }
+        if cancel.is_cancelled() { bail!("终端连接已取消。"); }
+        {let mut inner=self.inner.lock().unwrap();anyhow::ensure!(inner.id==id,"终端连接已变化。");inner.state["host"]=info["host"].clone();inner.state["window"]=info["window"].clone();}
         let mut channel = connection.channel().await?;
         channel
             .request_pty(true, "xterm-256color", cols, rows, 0, 0, &[])
@@ -279,7 +291,7 @@ impl TerminalService {
         channel
             .exec(
                 true,
-                format!("exec tmux -L wcs-terminal -f /dev/null attach-session -t {name}"),
+                format!("exec tmux -L wcs-terminal -f /dev/null attach-session -t ={name}"),
             )
             .await?;
         let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
@@ -294,6 +306,19 @@ impl TerminalService {
         let _ = channel.eof().await;
         let _ = channel.close().await;
         operation
+    }
+    pub async fn reset(&self,remove:bool)->Result<Value>{
+        let _operation=self.operation.lock().await;
+        let (generation,connection)=self.devices.connection_with_generation()?;
+        anyhow::ensure!(connection.profile.terminal_name()==self.device_key,"设备连接已变化。");
+        self.stop();
+        if let Some(logs)=&self.logs{logs.close_terminal(&self.key,if remove{"用户关闭此终端。"}else{"用户手动重启此终端。"}).await?;}
+        anyhow::ensure!(generation==self.devices.generation()&&!connection.cancel.is_cancelled(),"设备连接已变化。");
+        let config=json!({"session":self.name(&connection.profile),"action":if remove{"remove"}else{"reset"},"source":include_str!("../resources/log-shell.bash").replace("\r\n","\n")});
+        let command=python(include_str!("../resources/log-bootstrap.py"),json!(["logs",config.to_string()]))?;
+        let (output,_)=connection.exec(&command,250000,Duration::from_secs(12)).await?;
+        let info:Value=serde_json::from_str(output.trim())?;anyhow::ensure!(info["session"]==self.name(&connection.profile),"终端身份不匹配。");
+        Ok(self.snapshot())
     }
     fn sender(&self, id: u64) -> Result<mpsc::Sender<Input>> {
         let inner = self.inner.lock().unwrap();
@@ -341,6 +366,19 @@ mod tests {
         let p = data.devices[0].clone();
         assert_eq!(session_name(&p, None), "wcs-a96d1d05b24621e4-logs");
         assert_ne!(session_name(&p, None), session_name(&p, Some("test")));
+        assert_eq!(session_name_for(&p,None,"main"),session_name(&p,None));
+        let one=session_name_for(&p,None,"550e8400-e29b-41d4-a716-446655440000");
+        let two=session_name_for(&p,None,"550e8400-e29b-41d4-a716-446655440001");
+        assert_ne!(one,two);assert_ne!(one,session_name(&p,None));
+        assert_ne!(one,session_name_for(&p,Some("test"),"550e8400-e29b-41d4-a716-446655440000"));
+    }
+    #[test]
+    fn terminal_stream_ids_are_unique_across_tabs_and_stops(){
+        let devices=DeviceManager::new(Arc::new(|_,_|{}));let ids=Arc::new(AtomicU64::new(0));
+        let one=TerminalService::new(devices.clone(),None,None,"main".into(),"device".into(),ids.clone());
+        let two=TerminalService::new(devices,None,None,"second".into(),"device".into(),ids);
+        one.stop();let first=one.snapshot()["id"].as_u64().unwrap();two.stop();let second=two.snapshot()["id"].as_u64().unwrap();one.stop();
+        assert!(first<second&&second<one.snapshot()["id"].as_u64().unwrap());
     }
     #[tokio::test]
     async fn binary_frames_and_ack_release_only_owned_credits() {

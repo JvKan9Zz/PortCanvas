@@ -14,7 +14,6 @@ export class LogsPage{
   $('chooseLogDirectory').onclick=async()=>{try{this.renderStatus(await window.studio.chooseLogDirectory());this.selected=null;this.reset();await this.refresh();}catch(error){toast(error.message);}};
   $('openLogDirectory').onclick=()=>window.studio.openLogFolder().catch(error=>toast(error.message));
   $('openRunDirectory').onclick=()=>this.selected&&window.studio.openLogFolder(this.selected).catch(error=>toast(error.message));
-  $('saveLogProject').onclick=async()=>{try{this.renderStatus(await window.studio.logProject($('logProjectName').value));toast('项目设置已保存，对之后开始的命令生效。');}catch(error){toast(error.message);}};
   window.studio.onLogsChanged(()=>{if(this.visible){clearTimeout(this.refreshTimer);this.refreshTimer=setTimeout(()=>this.refresh(),180);}});
   window.studio.onLogState(state=>this.renderStatus(state));window.studio.logState().then(state=>this.renderStatus(state)).catch(error=>toast(error.message));
  }
@@ -23,8 +22,6 @@ export class LogsPage{
   const changed=this.root&&this.root!==state.root;this.root=state.root;
   if(changed){this.selected=null;this.reset();for(const id of ['logFilterProject','logFilterDay','logFilterStatus'])$(id).value='';if(this.visible)this.refresh();}
   $('logRootPath').textContent=state.root;this.statusMessage=state.message;this.statusError=state.phase==='error';this.statusNotice=state.notice||'';this.renderNotice();
-  $('terminalLogStatus').textContent=state.phase==='ready'?'本地日志 · 自动记录':state.phase==='error'?'日志异常 · 查看日志页':'本地日志 · '+state.message;$('terminalLogStatus').classList.toggle('error',this.statusError);
-  if(document.activeElement!==$('logProjectName'))$('logProjectName').value=state.project||'';
  }
  renderNotice(){const notice=this.page?.notice||this.statusNotice||'';$('logRecordingStatus').textContent=(this.statusMessage||'')+(notice?' '+notice:'');$('logRecordingStatus').classList.toggle('error',this.statusError||Boolean(notice));}
  show(){this.visible=true;this.refresh();this.tick();}
