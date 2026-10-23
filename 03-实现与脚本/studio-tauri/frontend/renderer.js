@@ -1,4 +1,3 @@
-import RFB from '@novnc/novnc';
 import {FilePage} from './files-page.js';
 import {TerminalDrawer} from './terminal-drawer.js';
 import {LogsPage} from './logs-page.js';
@@ -81,10 +80,10 @@ function renderState(state) {
   $('sendCAD').disabled = !desktopLive || readonly;
   $('desktopStatus').className = desktopLive ? 'connected' : '';
   $('desktopStatus').replaceChildren(Object.assign(document.createElement('span'), {className:'dot'}), document.createTextNode(desktopLive ? '桌面已连接' : desktopBusy ? '正在连接桌面' : state.desktop === 'error' ? '桌面连接失败' : '桌面未连接'));
-  $('desktopSubtitle').textContent = connected ? `${state.device} · ${selected?.display || ':0'} 现有桌面` : '树莓派现有桌面会话';
+  $('desktopSubtitle').textContent = connected ? `${state.device} · ${selected?.display || ':0'} 现有桌面` : '远端设备现有桌面会话';
   if (!desktopLive) {
     $('desktopEmpty').hidden = false;
-    $('desktopEmptyTitle').textContent = desktopBusy ? '正在打开树莓派桌面' : state.desktop === 'error' ? '暂时无法打开桌面' : '把树莓派桌面带到这里';
+    $('desktopEmptyTitle').textContent = desktopBusy ? '正在打开远端设备桌面' : state.desktop === 'error' ? '暂时无法打开桌面' : '把远端设备桌面带到这里';
     $('desktopEmptyText').textContent = desktopBusy ? '正在建立加密桌面通道，请稍候。' : state.desktop === 'error' ? state.message : connected ? '设备连接已就绪，点击连接桌面即可开始。' : '先连接设备，再打开远程桌面。\n连接后可直接使用鼠标和键盘操作。';
     $('desktopEmptyAction').hidden = desktopBusy;
     $('desktopEmptyAction').replaceChildren(document.createTextNode(connected ? '连接远程桌面' : '前往连接设备'), icon('arrow'));
@@ -96,6 +95,8 @@ async function startDesktop() {
   clearRfb();
   const attempt = desktopAttempt;
   try {
+    const {default:RFB} = await import('@novnc/novnc');
+    if (attempt !== desktopAttempt) return;
     const {url,id} = await window.studio.startDesktop();
     if (attempt !== desktopAttempt) return;
     const remote = new RFB($('desktopCanvas'), url, {shared: true});

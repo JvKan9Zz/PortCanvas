@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Wheel Combat Studio",
+  "productName": "PortCanvas",
   "version": "0.4.0",
-  "identifier": "com.wheelcombat.studio",
+  "identifier": "io.portcanvas.app",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run build",
@@ -12,12 +12,12 @@
     "windows": [
       {
         "label": "main",
-        "title": "Wheel Combat Studio · Demo V0.4 M4",
+        "title": "PortCanvas · Demo V0.4",
         "width": 1360,
         "height": 880,
         "minWidth": 1000,
         "minHeight": 680,
-        "devtools": true
+        "devtools": false
       }
     ],
     "security": {
@@ -26,6 +26,7 @@
   },
   "bundle": {
     "active": true,
+    "resources": {"../THIRD-PARTY-NOTICES.txt":"THIRD-PARTY-NOTICES.txt"},
     "targets": [
       "nsis"
     ],

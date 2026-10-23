@@ -1,4 +1,4 @@
-use anyhow::{Context,Result};
+use anyhow::Result;
 use studio_core::{profiles::Profile,ssh::{HostCheck,SshConnection,quote}};
 use serde::Deserialize;
 use std::{io::{self,Read},sync::Arc,time::Duration};

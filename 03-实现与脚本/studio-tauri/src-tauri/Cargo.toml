@@ -1,22 +1,23 @@
 [package]
-name = "wheel-combat-studio-tauri"
+name = "portcanvas"
 version = "0.4.0"
 edition = "2021"
 rust-version = "1.88"
-default-run = "wheel-combat-studio"
+default-run = "PortCanvas"
+autobins = false
 
 [lib]
 name = "studio_core"
 path = "src/lib.rs"
 
 [[bin]]
-name = "wheel-combat-studio"
+name = "PortCanvas"
 path = "src/main.rs"
 required-features = ["desktop"]
 
-[[bin]]
+[[example]]
 name = "compat-probe"
-path = "src/bin/compat_probe.rs"
+path = "examples/compat_probe.rs"
 
 [features]
 default = ["desktop"]
@@ -48,6 +49,9 @@ libc = "0.2"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }
 
 [profile.release]
 opt-level = "s"

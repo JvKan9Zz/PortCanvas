@@ -335,8 +335,18 @@ async fn studio_call(
     result.map_err(|e| e.to_string())
 }
 pub fn run() {
+    let executable = std::env::current_exe().expect("application executable");
+    let portable = std::env::args().any(|arg| arg == "--portable")
+        || executable.with_file_name("portable.flag").is_file();
+    if portable && std::env::var_os("WCS_DATA_DIR").is_none() {
+        let directory = executable.with_file_name("data");
+        std::env::set_var("WCS_DATA_DIR", &directory);
+        if std::env::var_os("WEBVIEW2_USER_DATA_FOLDER").is_none() {
+            std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", directory.join("webview"));
+        }
+    }
     tauri::Builder::default()
-        .setup(|app| {
+        .setup(move |app| {
             let directory = std::env::var_os("WCS_DATA_DIR")
                 .map(PathBuf::from)
                 .unwrap_or(app.path().app_data_dir()?);
@@ -372,7 +382,9 @@ pub fn run() {
                 .filter(|s| !s.is_empty());
             let documents = app.path().document_dir()?;
             let legacy = documents.join("Wheel Combat Studio/Logs");
-            let default_log_root = if legacy.is_dir() {
+            let default_log_root = if portable {
+                directory.join("logs")
+            } else if legacy.is_dir() {
                 legacy
             } else {
                 documents.join("PortCanvas/Logs")

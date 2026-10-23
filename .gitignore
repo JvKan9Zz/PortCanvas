@@ -45,6 +45,8 @@ target/
 03-实现与脚本/studio-tauri/ui/app.js
 06-交付物/demo-v0.4/
 03-实现与脚本/studio-tauri/ui/components.m1.js
+03-实现与脚本/studio-tauri/ui/chunks/
 03-实现与脚本/studio-tauri/src-tauri/gen/
 !03-实现与脚本/studio-tauri/src-tauri/src/bin/
 !03-实现与脚本/studio-tauri/src-tauri/src/bin/*.rs
+07-日志与复盘/全局文档更新前-v04-2026-10-23/

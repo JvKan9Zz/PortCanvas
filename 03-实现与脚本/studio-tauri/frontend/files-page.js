@@ -28,7 +28,7 @@ export class FilePage {
     if(this.profileId!==profileId){this.profileId=profileId;this.panels.remote.path='';this.remoteLoaded=false;}
     if(!this.connected) {
       this.panels.remote.request++;this.panels.remote.loading=false;this.panels.remote.entries=[];this.panels.remote.selected.clear();this.remoteLoaded=false;
-      this.render('remote');$('remoteMessage').textContent='请先在设备页面连接树莓派。';
+      this.render('remote');$('remoteMessage').textContent='请先在设备页面连接远端设备。';
     } else if(!was&&this.visible)this.load('remote',this.panels.remote.path);
     $('filesConnect').hidden=this.connected;
     this.controls();
@@ -66,7 +66,7 @@ export class FilePage {
     const panel=this.panels[side],body=$(side+'Files');body.replaceChildren();
     if(!panel.entries.length) {
       const row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=4;cell.className='file-empty';
-      cell.textContent=side==='remote'&&!this.connected?'连接后在这里浏览树莓派文件。':'这个文件夹是空的。';row.append(cell);body.append(row);
+      cell.textContent=side==='remote'&&!this.connected?'连接后在这里浏览远端设备文件。':'这个文件夹是空的。';row.append(cell);body.append(row);
     }
     for(const entry of panel.entries) {
       const row=document.createElement('tr');row.tabIndex=0;row.dataset.name=entry.name;row.classList.toggle('selected',panel.selected.has(entry.name));

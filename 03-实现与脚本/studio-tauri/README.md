@@ -1,13 +1,29 @@
-# PortCanvas / Demo V0.4 迁移工程
+# PortCanvas Demo V0.4
 
-当前已完成M0–M4：Tauri2/WebView2、Rust SSH/完整桌面/SFTP/持久终端/本地日志与旧资料导入回退通过分包检查，**尚非完整 V0.4**。正式交付继续使用旧 `../studio` 及 V0.3.5 EXE；M5继续发布集成。
+已完成M0–M5：Tauri 2 / WebView2前端，Rust承担SSH、桌面转发、SFTP、PTY/tmux、电脑本地日志与可逆资料导入。旧../studio和V0.3.5保留。正式支持当前Windows交付，其他平台没有实机验收结论。
 
-Node 只用于前端构建/测试，Rust/Tauri 承担 Windows 运行核心。`npm ci`、`npm run build`、`npx tsc --noEmit`；在 Rust MSVC/C++ Build Tools/Windows SDK 已配置的环境运行 `cargo test --manifest-path src-tauri/Cargo.toml` 和 `npm run pack`。设备探针 `cargo build --manifest-path src-tauri/Cargo.toml --no-default-features --bin compat-probe` 从 stdin 接收 profile/password/fingerprint JSON；不要把真实凭据写入命令行或普通日志。
+运行时无需常驻Node/Python；远端沿用Bash、tmux、Python3和X11/x11vnc辅助协议。Node只用于前端构建。默认恢复旧wcs日志会话、保留设备/指纹和wcs.run/1。WCS_SESSION_NAMESPACE仅用于隔离测试，不设置时兼容用户旧会话。
 
-原型默认使用用户可写 app data；本机测试通过仅子进程的 WCS_DATA_DIR/WEBVIEW2_USER_DATA_FOLDER 指向项目 local 隔离目录。核心 Tauri 命令仅授权 main 窗口和本地来源，显式 ACL，不暴露原始 Rust 句柄。M1 组件 fixture 仅在 WCS_M1_COMPONENT_TEST=1 构建，不由应用页面导入。
+## 构建
 
-终端通过受控的二进制Channel和消费ACK保持有界输出，默认恢复历史wcs日志会话；WCS_SESSION_NAMESPACE仅用于独立测试/高级会话隔离，未设置时保持旧命名。SFTP覆盖上传需要OpenSSH posix-rename扩展，批准后才替换；缺失时保留原文件。取消/失败只清理本次登记的临时文件，不提供崩溃后的通用断点续传。
+本轮工具链：Node24.19、Rust1.99.1 MSVC、VS Build Tools2022、Windows SDK10.0.26100.0。先按Tauri Windows要求安装C++工具链和WebView2，在正确MSVC环境运行：
 
-性能脚本 tools/sample_process_tree.py 需要 Python3+psutil，按整个进程树记录工作集、Private Bytes、CPU，原型与完整产品结果须分开。通用远端后端与竞赛配置解耦目标见项目迁移工作包。
+```bash
+npm ci
+npm run build
+npx tsc --noEmit
+cargo test --manifest-path src-tauri/Cargo.toml --no-default-features --lib
+npm run pack
+```
 
-日志保持wcs.run/1，在电脑本地写入；断线续写同一命令并显式标记缺失。每页200条、详情末尾256KiB，原文保留在磁盘。资料导入仅处理设备、指纹、日志设置，确认前显示来源和差异，备份原配置并支持回退；不复制或清理旧日志。迁移须先断开设备。
+版本以package-lock.json/Cargo.lock为准。SSH兼容探针为开发示例：cargo build --manifest-path src-tauri/Cargo.toml --no-default-features --example compat-probe，从stdin接收测试配置/密码/预期指纹；不得写真实凭据到源码、命令行或普通日志。探针不进入安装包。
+
+## 运行与数据
+
+PortCanvas.exe默认当前用户AppData目录；同目录portable.flag或--portable启用data/便携资料、缓存和日志。WCS_DATA_DIR兼容显式测试目录。日志位置在UI可见，用户日志设置优先。Node/Python采样器不是应用运行依赖。
+
+noVNC/xterm首次使用才加载。二进制Tauri Channel通过消费ACK限制256KiB待消费输出，输入队列有界。SFTP覆盖上传仅在批准且支持OpenSSH posix-rename时原子替换；失败/取消保留最终目标，只清理本次临时路径，无通用断点续传。
+
+日志独立于交互PTY；缺口续写同运行ID，complete=false保持。列表每页200条，详情最多256KiB尾部，完整文本在磁盘。资料导入预览/备份/冲突检查/回退，不搬移旧日志。原生确认默认取消；首次身份确认等待不计入网络超时，取消令牌拒绝过期信任。主窗口及本地来源由ACL和后端共同校验。
+
+tools/sample_process_tree.py使用Python3+psutil比较完整进程树。验收与资源结果见06-交付物对应文档，不以Rust主进程或原型占用代替完整产品。许可说明THIRD-PARTY-NOTICES.txt随安装/便携包分发；Logo来源与修正记录见04-数据与素材/brand。

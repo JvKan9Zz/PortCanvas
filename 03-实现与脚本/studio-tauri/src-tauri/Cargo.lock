@@ -3393,6 +3393,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "portcanvas"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "chrono",
+ "dunce",
+ "futures-util",
+ "libc",
+ "regex",
+ "rfd",
+ "russh",
+ "russh-sftp",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tauri",
+ "tauri-build",
+ "tokio",
+ "tokio-tungstenite",
+ "tokio-util",
+ "uuid",
+ "windows-sys 0.61.2",
+ "zeroize",
+]
+
+[[package]]
 name = "potential_utf"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5667,33 +5694,6 @@ dependencies = [
  "thiserror 2.0.21",
  "windows",
  "windows-core",
-]
-
-[[package]]
-name = "wheel-combat-studio-tauri"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "chrono",
- "dunce",
- "futures-util",
- "libc",
- "regex",
- "rfd",
- "russh",
- "russh-sftp",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tauri",
- "tauri-build",
- "tokio",
- "tokio-tungstenite",
- "tokio-util",
- "uuid",
- "windows-sys 0.61.2",
- "zeroize",
 ]
 
 [[package]]

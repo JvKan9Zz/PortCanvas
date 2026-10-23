@@ -1,5 +1,3 @@
-import {Terminal} from '@xterm/xterm';
-import {FitAddon} from '@xterm/addon-fit';
 const $=id=>document.getElementById(id);
 export class TerminalDrawer {
   constructor({toast,goDevices}) {
@@ -12,11 +10,17 @@ export class TerminalDrawer {
     window.studio.onTerminalData(({id,data,ack})=>{if(id===this.state.id&&this.term)this.term.write(data,ack);else ack?.();});
     window.studio.terminalState().then(state=>this.render(state)).catch(e=>toast(e.message));
   }
-  ensure() {
+  async ensure() {
     if(this.term)return;
+    if(this.loading)return this.loading;
+    this.loading=this.create();
+    try{await this.loading;}finally{this.loading=null;}
+  }
+  async create() {
+    const [{Terminal},{FitAddon}]=await Promise.all([import('@xterm/xterm'),import('@xterm/addon-fit')]);
     this.term=new Terminal({fontFamily:'"Cascadia Mono", Consolas, monospace',fontSize:14,cursorBlink:true,scrollback:5000,screenReaderMode:true,theme:{background:'#17222b',foreground:'#e1e8ed',cursor:'#9cddcb',selectionBackground:'#31524f'}});
     this.fit=new FitAddon();this.term.loadAddon(this.fit);this.term.open($('terminalOutput'));
-    this.term.textarea?.setAttribute('aria-label','树莓派终端输入');
+    this.term.textarea?.setAttribute('aria-label','远端设备终端输入');
     this.term.onData(data=>{
       if(this.state.phase!=='connected'||!this.connected)return;
       const id=this.state.id;
@@ -29,7 +33,7 @@ export class TerminalDrawer {
     this.term.options.disableStdin=this.state.phase!=='connected';
   }
   fitVisible() {if(this.visible&&this.term&&$('terminalOutput').clientWidth>0) this.fit.fit();}
-  show() {this.visible=true;this.ensure();requestAnimationFrame(()=>{this.fitVisible();if(this.state.phase==='connected')this.term.focus();});}
+  show() {this.visible=true;this.ensure().then(()=>{if(!this.visible)return;requestAnimationFrame(()=>{this.fitVisible();if(this.state.phase==='connected')this.term.focus();});}).catch(error=>this.toast(error.message));}
   hide() {this.visible=false;}
   setConnection(state) {this.connected=state.ssh==='connected';$('logProjectName').disabled=!this.connected;$('saveLogProject').disabled=!this.connected;this.render(this.state);}
   render(state) {
@@ -49,8 +53,7 @@ export class TerminalDrawer {
     if(live&&this.visible){this.fitVisible();this.term?.focus();}
   }
   async start() {
-    this.ensure();this.fitVisible();
-    try {await window.studio.startTerminal(this.term.cols,this.term.rows);}
+    try {await this.ensure();this.fitVisible();await window.studio.startTerminal(this.term.cols,this.term.rows);}
     catch(error){this.toast(error.message);}
   }
 }

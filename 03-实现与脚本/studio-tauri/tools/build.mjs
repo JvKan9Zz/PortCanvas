@@ -1,3 +1,5 @@
 import {build} from 'esbuild';
-await build({entryPoints:['frontend/main.ts'],bundle:true,outfile:'ui/app.js',format:'esm',platform:'browser',target:['es2022'],minify:true,sourcemap:false});
-if(process.env.WCS_M1_COMPONENT_TEST==='1')await build({entryPoints:['frontend/m1-components.ts'],bundle:true,outfile:'ui/components.m1.js',format:'esm',platform:'browser',target:['es2022'],minify:true});
+import {rm} from 'node:fs/promises';
+await rm(new URL('../ui/chunks/',import.meta.url),{recursive:true,force:true});
+await rm(new URL('../ui/components.m1.js',import.meta.url),{force:true});
+await build({entryPoints:{app:'frontend/main.ts'},bundle:true,outdir:'ui',chunkNames:'chunks/[name]-[hash]',splitting:true,format:'esm',platform:'browser',target:['es2022'],minify:true,sourcemap:false});

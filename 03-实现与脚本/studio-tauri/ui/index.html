@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Wheel Combat Studio · Demo V0.4 · M4</title>
+  <title>PortCanvas · Demo V0.4</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="files.css">
   <link rel="stylesheet" href="xterm.css">
@@ -34,7 +34,7 @@
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 15v6h16v-6"/></symbol>
 </defs></svg>
 <aside class="rail">
-  <div class="mark" aria-label="Wheel Combat Studio"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m5 9 6 15 5-11 5 11 6-15M6 6h20"/></svg></div>
+  <div class="mark"><img src="portcanvas.png" alt="PortCanvas" width="48" height="48"></div>
   <nav aria-label="主要页面">
     <button class="nav-item active" data-page="devices" title="设备连接与管理"><svg><use href="#i-device"/></svg><span>设备</span></button>
     <button class="nav-item" data-page="desktop" title="远程桌面"><svg><use href="#i-desktop"/></svg><span>桌面</span></button>
@@ -42,35 +42,35 @@
     <button class="nav-item" data-page="logs" title="本地运行日志"><svg><use href="#i-log"/></svg><span>日志</span></button>
     <button class="nav-item future" data-page="arena" title="实时擂台 · 后续版本"><svg><use href="#i-arena"/></svg><span>擂台</span></button>
   </nav>
-  <div class="rail-version">DEMO<br>V0.4 M4</div>
+  <div class="rail-version">DEMO<br>V0.4</div>
 </aside>
 <div id="appRoot" class="app">
-  <header class="app-header"><div class="wordmark">WHEEL COMBAT <strong>STUDIO</strong></div><div class="header-actions"><button id="toggleTerminal" class="button secondary" type="button" aria-expanded="false" aria-controls="terminalDrawer" hidden><svg><use href="#i-terminal"/></svg>终端</button><div id="connectionBadge" class="badge"><span class="dot"></span><span>设备未连接</span></div></div></header>
+  <header class="app-header"><div class="wordmark">Port<strong>Canvas</strong></div><div class="header-actions"><button id="toggleTerminal" class="button secondary" type="button" aria-expanded="false" aria-controls="terminalDrawer" hidden><svg><use href="#i-terminal"/></svg>终端</button><div id="connectionBadge" class="badge"><span class="dot"></span><span>设备未连接</span></div></div></header>
   <main>
     <section id="page-devices" class="page device-page">
-      <div class="page-heading"><div><h1>设备连接与管理</h1><p>连接你的树莓派，进入同一个开发现场。</p></div><div class="device-manage-actions"><button id="importProfiles" class="button secondary" type="button">导入旧版资料</button><button id="rollbackProfiles" class="button secondary" type="button">恢复导入前资料</button><button id="newDevice" class="button secondary"><svg><use href="#i-plus"/></svg>添加设备</button></div></div>
+      <div class="page-heading"><div><h1>设备连接与管理</h1><p>连接你的远端设备，进入同一个开发现场。</p></div><div class="device-manage-actions"><button id="importProfiles" class="button secondary" type="button">导入旧版资料</button><button id="rollbackProfiles" class="button secondary" type="button">恢复导入前资料</button><button id="newDevice" class="button secondary"><svg><use href="#i-plus"/></svg>添加设备</button></div></div>
       <div class="device-workspace">
         <aside class="device-list-panel"><div class="panel-label">已保存的设备 <span id="deviceCount">0</span></div><div id="deviceList" class="device-list"></div><p class="list-note">配置保存在本机。<br>密码仅用于本次连接。</p></aside>
         <div class="connection-editor">
           <div class="editor-heading"><div class="device-emblem"><svg><use href="#i-device"/></svg></div><div><h2 id="editorTitle">添加你的第一台设备</h2><p>通过 SSH 建立加密连接</p></div><span id="profileState" class="small-label">未连接</span></div>
           <form id="deviceForm" novalidate>
-            <div class="fields"><label class="wide">设备名称<input id="name" name="name" maxlength="80" placeholder="例如：创意之星 AI 控制器" required></label><label>设备地址<input id="host" name="host" placeholder="192.168.1.183" autocomplete="off" spellcheck="false" required></label><label class="port-field">SSH 端口<input id="port" name="port" type="number" value="22" min="1" max="65535" required></label><label>用户名<input id="username" name="username" placeholder="Linux 登录用户" autocomplete="off" spellcheck="false" required></label><label>密码<span class="label-note">不保存</span><input id="password" name="password" type="password" autocomplete="off" placeholder="输入设备登录密码"></label></div>
+            <div class="fields"><label class="wide">设备名称<input id="name" name="name" maxlength="80" placeholder="例如：开发控制器" required></label><label>设备地址<input id="host" name="host" placeholder="例如：192.168.1.100" autocomplete="off" spellcheck="false" required></label><label class="port-field">SSH 端口<input id="port" name="port" type="number" value="22" min="1" max="65535" required></label><label>用户名<input id="username" name="username" placeholder="Linux 登录用户" autocomplete="off" spellcheck="false" required></label><label>密码<span class="label-note">不保存</span><input id="password" name="password" type="password" autocomplete="off" placeholder="输入设备登录密码"></label></div>
             <details id="advanced"><summary>桌面连接设置</summary><div class="advanced-fields"><label>显示编号<input id="display" value=":0" spellcheck="false"></label><label>桌面授权文件<span class="label-note">可留空</span><input id="xauthority" placeholder="自动选择当前用户的 Xauthority" spellcheck="false"></label></div></details>
             <div class="form-actions"><button id="connectDevice" class="button primary" type="submit"><svg><use href="#i-connect"/></svg><span>连接设备</span></button><button id="saveDevice" class="button secondary" type="button">保存配置</button><button id="removeDevice" class="text-button danger" type="button" hidden>移除配置</button></div>
           </form>
-          <div class="connection-result" aria-live="polite"><div id="resultIcon" class="result-icon"><svg><use href="#i-connect"/></svg></div><div><h3 id="resultTitle">准备连接</h3><p id="resultMessage">确认树莓派已开机，并与电脑处于可互通的网络。</p></div><button id="goDesktop" class="button primary" hidden>进入远程桌面<svg><use href="#i-arrow"/></svg></button></div>
+          <div class="connection-result" aria-live="polite"><div id="resultIcon" class="result-icon"><svg><use href="#i-connect"/></svg></div><div><h3 id="resultTitle">准备连接</h3><p id="resultMessage">确认远端设备已开机，并与电脑处于可互通的网络。</p></div><button id="goDesktop" class="button primary" hidden>进入远程桌面<svg><use href="#i-arrow"/></svg></button></div>
         </div>
       </div>
     </section>
     <section id="page-desktop" class="page desktop-page" hidden>
-      <div class="desktop-heading"><div><h1>远程桌面</h1><p id="desktopSubtitle">树莓派现有桌面会话</p></div><div class="desktop-actions"><button id="startDesktop" class="button primary"><svg><use href="#i-connect"/></svg><span>连接桌面</span></button><button id="stopDesktop" class="button secondary" disabled>断开桌面</button></div></div>
+      <div class="desktop-heading"><div><h1>远程桌面</h1><p id="desktopSubtitle">远端设备现有桌面会话</p></div><div class="desktop-actions"><button id="startDesktop" class="button primary"><svg><use href="#i-connect"/></svg><span>连接桌面</span></button><button id="stopDesktop" class="button secondary" disabled>断开桌面</button></div></div>
       <div class="desktop-toolbar"><div class="toolbar-group"><button id="fitDesktop" class="tool-button selected" title="适配画布"><svg><use href="#i-fit"/></svg><span>适配</span></button><button id="actualSize" class="tool-button" title="原始像素尺寸">1:1</button></div><div class="toolbar-group"><button id="viewOnly" class="tool-button" title="切换只读模式" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>只读</span></button><button id="sendCAD" class="tool-button" title="向远端发送 Ctrl+Alt+Del" disabled><svg><use href="#i-key"/></svg><span>Ctrl+Alt+Del</span></button><button id="fullscreen" class="tool-button" title="切换全屏"><svg><use href="#i-full"/></svg></button></div></div>
-      <div class="desktop-stage"><div id="desktopCanvas" class="desktop-canvas"></div><div id="desktopEmpty" class="desktop-empty"><div class="empty-display"><svg><use href="#i-desktop"/></svg></div><h2 id="desktopEmptyTitle">把树莓派桌面带到这里</h2><p id="desktopEmptyText">先连接设备，再打开远程桌面。<br>连接后可直接使用鼠标和键盘操作。</p><button id="desktopEmptyAction" class="button secondary">前往连接设备<svg><use href="#i-arrow"/></svg></button></div></div>
+      <div class="desktop-stage"><div id="desktopCanvas" class="desktop-canvas"></div><div id="desktopEmpty" class="desktop-empty"><div class="empty-display"><svg><use href="#i-desktop"/></svg></div><h2 id="desktopEmptyTitle">把远端设备桌面带到这里</h2><p id="desktopEmptyText">先连接设备，再打开远程桌面。<br>连接后可直接使用鼠标和键盘操作。</p><button id="desktopEmptyAction" class="button secondary">前往连接设备<svg><use href="#i-arrow"/></svg></button></div></div>
       <div class="desktop-caption"><span id="desktopStatus"><span class="dot"></span>桌面未连接</span><span id="desktopMode">点击画面后输入 · SSH 加密通道</span></div>
     </section>
     <section id="page-files" class="page files-page" hidden>
-      <div class="files-heading"><div><h1>文件管理与传输</h1><p>在电脑与树莓派之间传输文件和文件夹。</p></div><div id="sftpBadge" class="badge"><span class="dot"></span><span>SFTP 未连接</span></div></div>
-      <div class="transfer-actions"><div><button id="uploadFiles" class="button primary" disabled><svg><use href="#i-upload"/></svg>上传至树莓派</button><button id="downloadFiles" class="button secondary" disabled><svg><use href="#i-download"/></svg>下载至电脑</button></div><label class="rate-label">传输限速<select id="transferRate" aria-label="传输限速"><option value="0">不限速</option><option value="1048576">1 MiB/s</option><option value="5242880">5 MiB/s</option><option value="10485760">10 MiB/s</option></select></label></div>
+      <div class="files-heading"><div><h1>文件管理与传输</h1><p>在电脑与远端设备之间传输文件和文件夹。</p></div><div id="sftpBadge" class="badge"><span class="dot"></span><span>SFTP 未连接</span></div></div>
+      <div class="transfer-actions"><div><button id="uploadFiles" class="button primary" disabled><svg><use href="#i-upload"/></svg>上传至远端设备</button><button id="downloadFiles" class="button secondary" disabled><svg><use href="#i-download"/></svg>下载至电脑</button></div><label class="rate-label">传输限速<select id="transferRate" aria-label="传输限速"><option value="0">不限速</option><option value="1048576">1 MiB/s</option><option value="5242880">5 MiB/s</option><option value="10485760">10 MiB/s</option></select></label></div>
       <div class="file-panes">
         <section class="file-pane" aria-label="本地文件面板">
           <div class="file-pane-heading"><h2><svg><use href="#i-device"/></svg>本地电脑</h2><button id="localChoose" class="text-button">选择目录</button></div>
@@ -80,11 +80,11 @@
           <div id="localMessage" class="file-pane-message" role="status">正在读取本地目录…</div>
         </section>
         <section class="file-pane" aria-label="远端文件面板">
-          <div class="file-pane-heading"><h2><svg><use href="#i-folder"/></svg>树莓派</h2><button id="filesConnect" class="text-button">连接设备</button></div>
+          <div class="file-pane-heading"><h2><svg><use href="#i-folder"/></svg>远端设备</h2><button id="filesConnect" class="text-button">连接设备</button></div>
           <div class="file-pane-tools"><button id="remoteUp" class="tool-button" title="远端上一级" aria-label="远端上一级" disabled><svg><use href="#i-up"/></svg></button><button id="remoteHome" class="tool-button" title="远端主目录" aria-label="远端主目录" disabled><svg><use href="#i-home"/></svg></button><button id="remoteRefresh" class="tool-button" title="刷新远端目录" aria-label="刷新远端目录" disabled><svg><use href="#i-refresh"/></svg></button><button id="remoteNew" class="tool-button" title="远端新建文件夹" disabled><svg><use href="#i-plus"/></svg><span>新建文件夹</span></button></div>
           <form id="remotePathForm" class="file-path-form"><input id="remotePath" aria-label="远端目录路径" placeholder="连接设备后可浏览远端目录" autocomplete="off" spellcheck="false" disabled><button id="remoteGo" class="tool-button" type="submit" title="打开远端路径" aria-label="打开远端路径" disabled><svg><use href="#i-arrow"/></svg></button></form>
           <div class="file-table-scroll"><table class="file-table" aria-label="远端文件列表"><colgroup><col class="file-check-col"><col><col class="file-size-col"><col class="file-date-col"></colgroup><thead><tr><th><input id="remoteAll" type="checkbox" aria-label="全选远端文件" disabled></th><th>名称</th><th>大小</th><th>修改时间</th></tr></thead><tbody id="remoteFiles"></tbody></table></div>
-          <div id="remoteMessage" class="file-pane-message" role="status">请先在设备页面连接树莓派。</div>
+          <div id="remoteMessage" class="file-pane-message" role="status">请先在设备页面连接远端设备。</div>
         </section>
       </div>
       <section class="transfer-status" aria-label="传输状态"><div class="transfer-status-top"><strong id="transferTitle">准备传输</strong><span id="transferNumbers">选择左侧上传，或右侧下载</span><button id="cancelTransfer" class="text-button" disabled>取消传输</button></div><progress id="transferProgress" max="100" value="0" aria-label="文件传输进度"></progress><p id="transferMessage" role="status">选择文件或文件夹，开始双向传输。</p><div id="transferCurrent" class="transfer-current"></div></section>
@@ -113,12 +113,12 @@
     <div class="terminal-toolbar"><button id="connectTerminal" class="button primary">前往连接设备</button><button id="disconnectTerminal" class="button secondary" disabled>断开</button><button id="clearTerminal" class="text-button" disabled>清屏</button></div>
     <div class="terminal-project"><label>日志项目 <span>留空自动识别</span><input id="logProjectName" maxlength="100" placeholder="自动识别当前项目/目录"></label><button id="saveLogProject" class="text-button" type="button">应用</button></div>
     <p id="terminalLogStatus" class="terminal-log-status" role="status">本地自动记录</p>
-    <div id="terminalOutput" class="terminal-output" role="region" aria-label="树莓派 SSH 终端"></div>
+    <div id="terminalOutput" class="terminal-output" role="region" aria-label="远端设备 SSH 终端"></div>
     <p id="terminalMessage" class="terminal-message" role="status">连接设备后可打开终端。</p>
     <p id="terminalSession" class="terminal-session"></p>
     <p class="terminal-help">切换页面会保持连接。断线或关闭软件后可恢复远端会话；Ctrl+C 会中断前台程序，exit 会结束当前 Shell。</p>
   </aside>
-  <footer class="status-bar"><span id="globalStatus" role="status">就绪</span><span>Wheel Combat Studio <b>Demo V0.4 · M4</b></span></footer>
+  <footer class="status-bar"><span id="globalStatus" role="status">就绪</span><span>PortCanvas <b>Demo V0.4</b></span></footer>
 </div>
 <div id="toast" class="toast" role="alert" hidden></div>
 <script type="module" src="app.js"></script>
