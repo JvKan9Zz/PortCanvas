@@ -23,3 +23,5 @@
 正式升级到0.5.1后，devices/settings/terminals/log-settings四文件字节保持，桌面快捷方式指向0.5.1 ICO；未强制终止旧进程。证据local/v051/installed-result.json。
 
 干净便携副本以自身data/logs运行，设备列表为空；1536px图片正常解码、黄y700/蓝y2700正确，摄像头关闭。ZIP8文件、无个人资料；安装/便携EXE仅官方UNK/NSS包类型标记不同。证据local/v051/portable-result.json、package-result.json、installed-ui-result.json。正式客户端已打开赛台页，保持离线和摄像头关闭。
+
+PR #16按功能头1551c0b8dd5f414460a17abf22e32dde166c65f3合入main，合并提交51a3d64aab7dde2a9b37cd1a3197257314ef4cba；关联当前聊天并提交审查面板（queued）。Code Review后端同头checks/statuses/annotations均为空，未据空CI称外部审查通过。本地main已同步。后续仅同步文档/发布记录。

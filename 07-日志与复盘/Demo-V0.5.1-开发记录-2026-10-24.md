@@ -15,3 +15,5 @@ Release38项核心、前端/TypeScript、实际资源解码和四视图断言通
 安装前旧版最小化时CloseMainWindow15秒未退出，未强杀。通过Computer Use恢复旧版后Alt+F4正常退出，复核库存为空，再运行安装通过。此现象不能仅据最小化状态归因；未为此扩大修改退出实现。旧窗口还显示过failed to send message to the webview，记录为旧运行实例状态，不据其推定新版本引入。四份配置保留，快捷方式0.5.1正确。
 
 升级后采用明确目标的可访问性读取与正常导航复核正式赛台，未使用被前景遮挡的原生截图作为证据。便携空资料/自身data/logs/图片/出发区通过，测试副本正常关闭。正式版本停在赛台页，离线、摄像头关闭。
+
+PR #16按功能头1551c0b8dd5f414460a17abf22e32dde166c65f3合入main，合并提交51a3d64aab7dde2a9b37cd1a3197257314ef4cba；关联当前聊天并提交审查面板（queued）。Code Review后端同头checks/statuses/annotations均为空，未据空CI称外部审查通过。本地main已同步。后续仅同步文档/发布记录。
