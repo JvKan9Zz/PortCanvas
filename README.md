@@ -49,7 +49,7 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 
 ### Windows 安装与便携运行
 
-V0.5.0 提供 Windows x64 安装包和便携包。V0.1–V0.4.9 的 11 份发布包已放入 [GitHub Releases 历史归档](https://github.com/JvKan9Zz/PortCanvas/releases/tag/history-backup-2026-10-24)，下载后可按随附 SHA256SUMS.txt 校验。源码与验收文档保留在 Git 历史中，用户配置和日志不上传。
+[V0.5.0 发布包](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.0)提供 Windows x64 安装包和便携包，附 SHA256SUMS.txt 校验文件。V0.1–V0.4.9 的 11 份发布包已放入 [GitHub Releases 历史归档](https://github.com/JvKan9Zz/PortCanvas/releases/tag/history-backup-2026-10-24)，下载后可按随附 SHA256SUMS.txt 校验。源码与验收文档保留在 Git 历史中，用户配置和日志不上传。
 
 - [V0.5.0 使用说明](06-交付物/PortCanvas-Demo-V0.5.0-使用说明.md)
 - [V0.5.0 验收记录](06-交付物/PortCanvas-Demo-V0.5.0-验收记录-2026-10-24.md)
