@@ -1,4 +1,4 @@
-# PortCanvas Demo V0.5.0
+# PortCanvas Demo V0.5.1
 
 已完成M0–M5：Tauri 2 / WebView2前端，Rust承担SSH、桌面转发、SFTP、PTY/tmux、电脑本地日志与可逆资料导入。旧../studio和V0.3.5保留。正式支持当前Windows交付，其他平台没有实机验收结论。
 
@@ -13,6 +13,8 @@ V0.4.8精简常驻说明/底栏，普通操作统一button/secondary/compact；�
 运行时无需常驻Node/Python；远端沿用Bash、tmux、Python3和X11/x11vnc辅助协议。Node只用于前端构建。默认恢复旧wcs日志会话、保留设备/指纹和wcs.run/1。WCS_SESSION_NAMESPACE仅用于隔离测试，不设置时兼容用户旧会话。
 
 V0.5.0新增赛台：SVG毫米坐标、用户提供图纸的1024px显示贴图，真实/proc性能串行采样；远端V4L2/OpenCV视频经SSH传送有界JPEG，仅保留最新帧。摄像头默认关闭，手动开启；关闭、切页、最小化、断连、退出释放。原生消费租约与远端stdin/15秒心跳看门狗清理本次通道，不安装服务、不录像。实际车辆/能量块/敌车输入尚未接入。
+
+V0.5.1仅修正赛台呈现：1536px原图显示PNG含ICC、无尺寸标注、收紧画布、黄色上边/蓝色下边分别与中央台面上/下边齐平。源码原件与素材说明位于04-数据与素材/arena，相关传输实现保持。
 
 ## 构建
 
