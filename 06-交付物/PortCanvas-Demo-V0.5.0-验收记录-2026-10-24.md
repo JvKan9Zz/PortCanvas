@@ -47,3 +47,5 @@
 便携副本使用自身data/logs，空设备列表、默认浅蓝/中文、摄像头关闭且离线禁用。证据portable-result.json。同时打开两份同名应用时，原生截图提供器返回与可访问性/CDP不一致的重叠画面，未将此截图作为便携证据；采用明确端口9501的API、DOM与文件结果验证，并关闭测试副本。
 
 发布包8个文件，ZIP自检通过，无个人data/、凭据、相机照片或测试资料。便携EXE与安装版仅官方UNK/NSS包类型标记不同；ICO含16/24/32/48/64/256方形尺寸。证据local/v050/package-result.json。
+
+PR #15已按功能头 1b1435d75dbc605805030f5e4d66559061aeea70 合入main，合并提交 e1d186d68d923f56ad9b6ba3caf6b5e7781040c1。已关联聊天，并提交Codex审查面板（返回queued）。Code Review后端读取同一功能头，checks/statuses/annotations均为空；未将空CI视为独立代码审查通过。本地main已同步，后续提交仅同步文档与发布记录。

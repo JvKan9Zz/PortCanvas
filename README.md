@@ -13,7 +13,7 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 
 | 版本 | 状态 | 实现 |
 | --- | --- | --- |
-| **Demo V0.5.0 · PortCanvas** | 赛台、可开关远端摄像头、真实设备性能 | Tauri 2 + Rust + 系统 WebView2 |
+| **Demo V0.5.0 · PortCanvas** | 当前main：[PR #15](https://github.com/JvKan9Zz/PortCanvas/pull/15)已合并；赛台、可开关远端摄像头、真实设备性能 | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.4.9** | [PR #13][v049-pr]、主题补充 [PR #14][v049-theme-pr] 已合并；设置、中英文与终端命令框/Tab补全 | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.4.8** | [PR #12][v048-pr] 已合并；简洁UI、统一按钮与拖拽传输 | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.4.7** | [PR #11][v047-pr] 已合并；多终端、手动重启/关闭、会话信息移出画面、清屏样式统一 | Tauri 2 + Rust + 系统 WebView2 |
