@@ -4,7 +4,7 @@ import {getCurrentWebviewWindow} from '@tauri-apps/api/webviewWindow';
 type Handler=(data:any)=>void;
 const handlers=new Map<string,Set<Handler>>();let generation=0;
 const on=(event:string,handler:Handler)=>{if(!handlers.has(event))handlers.set(event,new Set());handlers.get(event)!.add(handler);};
-const ready=Promise.all([...['device-state','terminal-state','terminal-data','logs-state','logs-changed','file-state'].map(topic=>listen(topic,event=>{
+const ready=Promise.all([...['device-state','terminal-state','terminal-data','logs-state','logs-changed','file-state','arena-pose','arena-visibility'].map(topic=>listen(topic,event=>{
  const payload=event.payload as any;
  if(topic==='device-state'){if(payload.generation<generation)return;generation=payload.generation;}
  else if(typeof payload?.generation==='number'&&payload.generation<generation)return;
@@ -21,7 +21,9 @@ const startTerminal=async(cols:number,rows:number,key:string="main",deviceKey:st
 };
 const api={
  settings:()=>call('settings:read'),setLanguage:(language:string)=>call('settings:language',language),setTheme:(theme:string)=>call('settings:theme',theme),checkUpdates:()=>call('settings:updates'),openRepository:()=>call('settings:repository'),
- arenaMetrics:()=>call('arena:metrics'),arenaCameras:()=>call('arena:cameras'),startArenaCamera:(path:string)=>call('arena:camera-start',path),arenaCameraFrame:(id:number,sequence:number)=>call('arena:camera-frame',id,sequence),stopArenaCamera:(id:number|null)=>call('arena:camera-stop',id),
+ arenaMetrics:()=>call('arena:metrics'),arenaCameras:()=>call('arena:cameras'),startArenaCamera:(path:string,fps:number=20)=>call('arena:camera-start',path,fps),arenaCameraFrame:(id:number,sequence:number)=>call('arena:camera-frame',id,sequence),stopArenaCamera:(id:number|null)=>call('arena:camera-stop',id),
+ startArenaPose:()=>call('arena:pose-start'),stopArenaPose:(id:number|null)=>call('arena:pose-stop',id),arenaPose:()=>call('arena:pose'),onArenaPose:(h:Handler)=>on('arena-pose',h),
+ onArenaVisibility:(h:Handler)=>on('arena-visibility',h),
  profiles:()=>call('profiles:list'),save:(p:unknown,secret:string='')=>call('profiles:save',p,secret),remove:(id:string)=>call('profiles:remove',id),choosePrivateKey:()=>call('profiles:choose-key'),
  connect:(p:unknown,password:string)=>call('device:connect',p,password),disconnect:()=>call('device:disconnect'),state:()=>call('device:state'),
  startDesktop:()=>call('desktop:start'),stopDesktop:()=>call('desktop:stop'),desktopReady:(id:number)=>call('desktop:ready',id),desktopLost:(id:number,_clean:boolean)=>call('desktop:lost',id),fullscreen:()=>call('window:fullscreen'),

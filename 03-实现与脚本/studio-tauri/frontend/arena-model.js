@@ -1,3 +1,4 @@
+export function worldToSvg(x,y){return {x:x*1000,y:3800-y*1000};}
 export function sampleRates(previous,current){
   if(!previous||current.generation!==previous.generation)return {cpu:null,received:null,sent:null};
   const elapsed=current.clock-previous.clock,total=current.cpuTotal-previous.cpuTotal,idle=current.cpuIdle-previous.cpuIdle;

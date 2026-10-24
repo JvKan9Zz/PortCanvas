@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PortCanvas · Demo V0.5.1</title>
+  <title>PortCanvas · Demo V0.5.2</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="themes.css">
   <link rel="stylesheet" href="files.css">
@@ -14,10 +14,10 @@
   <link rel="stylesheet" href="arena.css">
 </head>
 <body>
-<!-- V050-ARENA CONTRACT
-THESIS: Verified arena geometry beside real camera and Linux readings; no invented participants.
+<!-- V052-ARENA CONTRACT
+THESIS: Fast on-demand preview beside a real coordinate frame; no vehicle location without valid telemetry.
 OWN-WORLD: Existing PortCanvas gray/white surfaces, selectable blue accent, Plex/system Chinese text and compact bordered controls.
-STORY: Connect a device, explicitly enable its camera, read performance, close to release capture.
+STORY: Enable camera at a chosen frame rate; read a bottom-left-origin location only when the producer supplies fresh data.
 FIRST VIEWPORT: Left third holds camera above metrics; right two thirds holds the square 3.8m arena and 2.4m platform. Camera starts off.
 FORM: User-specified composition, code-led extension of the established workspace; no concept seed applies.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
@@ -123,8 +123,8 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
       <div class="arena-sidebar">
         <section class="arena-camera" aria-labelledby="arenaCameraTitle">
           <header class="arena-panel-heading"><h2 id="arenaCameraTitle">摄像头</h2><button id="arenaCameraToggle" class="button primary compact" aria-pressed="false" disabled>开启摄像头</button></header>
-          <div class="arena-camera-tools"><select id="arenaCameraDevice" aria-label="视频设备" disabled></select><button id="arenaCameraRefresh" class="tool-button" title="刷新摄像头" aria-label="刷新摄像头" disabled><svg><use href="#i-refresh"/></svg></button></div>
-          <div class="arena-camera-frame"><img id="arenaCameraImage" alt="远端摄像头实时画面" hidden><div id="arenaCameraEmpty" class="arena-camera-empty"><svg><use href="#i-camera"/></svg></div></div>
+          <div class="arena-camera-tools"><select id="arenaCameraDevice" aria-label="视频设备" disabled></select><select id="arenaCameraRate" class="camera-rate" aria-label="目标帧率" title="目标帧率"><option value="8">8 FPS</option><option value="15">15 FPS</option><option value="20" selected>20 FPS</option><option value="30">30 FPS</option></select><button id="arenaCameraRefresh" class="tool-button" title="刷新摄像头" aria-label="刷新摄像头" disabled><svg><use href="#i-refresh"/></svg></button></div>
+          <div class="arena-camera-frame"><img id="arenaCameraImage" alt="远端摄像头实时画面" draggable="false" hidden><div id="arenaCameraEmpty" class="arena-camera-empty"><svg><use href="#i-camera"/></svg></div></div>
           <div id="arenaCameraStatus" class="arena-camera-status" role="status">摄像头已关闭</div>
         </section>
         <section class="arena-performance" aria-labelledby="arenaPerformanceTitle">
@@ -141,16 +141,25 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
         </section>
       </div>
       <section class="arena-map" aria-labelledby="arenaMapTitle">
-        <header class="arena-map-heading"><h1 id="arenaMapTitle">赛台</h1><span>定位未接入</span></header>
+        <header class="arena-map-heading"><h1 id="arenaMapTitle">赛台</h1><div class="arena-pose-readout"><span id="arenaPoseStatus" role="status">定位未接入</span><span class="pose-values">X <output id="arenaPoseX" aria-label="己方小车X坐标">—</output> m<span class="pose-divider">/</span>Y <output id="arenaPoseY" aria-label="己方小车Y坐标">—</output> m</span></div></header>
         <div class="arena-map-stage">
-          <svg id="arenaMap" viewBox="-35 -35 3870 3870" role="img" aria-label="赛台俯视图，围栏内3.8米，中央台面2.4米">
+          <svg id="arenaMap" viewBox="-250 -140 4260 4260" role="img" aria-label="赛台坐标系，左下角为原点，X向右，Y向上，单位米">
             <rect id="arenaFloor" width="3800" height="3800" fill="#30363a"/>
             <image id="arenaPlatform" x="700" y="700" width="2400" height="2400" href="arena-platform.png"/>
             <rect x="700" y="700" width="2400" height="2400" fill="none" stroke="#ecf0f3" stroke-width="10"/>
             <rect id="arenaYellowStart" x="0" y="700" width="500" height="400" fill="#f6d627"><title>黄色出发区</title></rect>
             <rect id="arenaBlueStart" x="3300" y="2700" width="500" height="400" fill="#2458ee"><title>蓝色出发区</title></rect>
             <rect id="arenaWall" x="-10" y="-10" width="3820" height="3820" fill="none" stroke="#c3423f" stroke-width="20"/>
-            <g id="arenaEntities"></g>
+            <defs><marker id="arenaAxisArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10" fill="none" stroke="#648391" stroke-width="1.5"/></marker></defs>
+            <g class="arena-axes" aria-hidden="true">
+              <path d="M0 -22V-95M3822 3800H3910" marker-end="url(#arenaAxisArrow)"/>
+              <path d="M1000 3822v42m1000-42v42m1000-42v42m800-42v42M-22 2800h-42m42-1000h-42m42-1000h-42m42-800h-42"/>
+              <text x="1000" y="3960">1</text><text x="2000" y="3960">2</text><text x="3000" y="3960">3</text><text x="3800" y="3960">3.8</text>
+              <text x="-100" y="2830" text-anchor="end">1</text><text x="-100" y="1830" text-anchor="end">2</text><text x="-100" y="830" text-anchor="end">3</text><text x="-100" y="30" text-anchor="end">3.8</text>
+              <text x="70" y="3960" text-anchor="start">(0, 0)</text><text x="3800" y="4090" text-anchor="end">X (m)</text><text x="75" y="-60" text-anchor="start">Y (m)</text>
+              <circle cx="0" cy="3800" r="18"/>
+            </g>
+            <g id="arenaEntities"><g id="arenaRobot" style="display:none"><circle r="52"/><path id="arenaRobotHeading" d="M-34-30 44 0-34 30Z"/><text id="arenaRobotLabel" x="90" y="-75">己方</text></g></g>
           </svg>
         </div>
       </section>

@@ -1,4 +1,5 @@
 pub mod arena;
+pub mod arena_pose;
 pub mod preferences;
 pub mod i18n;
 pub mod profiles;

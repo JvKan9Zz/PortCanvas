@@ -26,6 +26,7 @@ pub struct AppState {
     pub devices: DeviceManager,
     pub desktop: DesktopService,
     pub arena: crate::arena::ArenaService,
+    pub pose: crate::arena_pose::PoseService,
     pub quitting: AtomicBool,
     pub files: FileService,
     pub terminal: TerminalPool,
@@ -321,7 +322,7 @@ async fn studio_call(
             "profiles:remove"=>{let id:String=argument(&args,0)?;if !confirm(window.clone(),"移除设备配置".into(),"仅移除本机连接配置，是否继续？".into()).await?{return Ok(json!(false));}if state.devices.snapshot()["deviceId"]==id{state.devices.disconnect().await;}
                 let store=state.profiles.lock().unwrap();let mut data=store.read()?;let removed=data.devices.iter().find(|p|p.id==id).cloned();data.devices.retain(|p|p.id!=id);if let Some(removed)=removed{if !data.devices.iter().any(|p|p.address()==removed.address()){data.host_keys.remove(&removed.address());}}store.write(&data)?;Ok(json!(true))},
             "device:state"=>Ok(state.devices.snapshot()),
-            "device:disconnect"=>{state.arena.stop(None).await;state.devices.disconnect().await;state.desktop.stop(None).await;Ok(state.devices.snapshot())},
+            "device:disconnect"=>{tokio::join!(state.arena.stop(None),state.pose.stop(None));state.devices.disconnect().await;state.desktop.stop(None).await;Ok(state.devices.snapshot())},
             "device:connect"=>{
                 let mut profile:Profile=argument::<Profile>(&args,0)?.validate()?;profile.encrypted_secret=None;
                 let supplied=match args.get_mut(1).map(Value::take){Some(Value::String(p))=>zeroize::Zeroizing::new(p),None|Some(Value::Null)=>zeroize::Zeroizing::new(String::new()),_=>bail!("凭据参数无效。")};
@@ -334,10 +335,13 @@ async fn studio_call(
                     if !accepted||cancel.is_cancelled(){return Ok(false);}store.lock().unwrap().trust(&address,&fingerprint)?;Ok(true)
                 })});callback}).await
             },
-            "arena:metrics"=>state.arena.metrics().await,
+            "arena:metrics"=>{state.pose.touch();state.arena.metrics().await},
             "arena:cameras"=>state.arena.cameras().await,
-            "arena:camera-start"=>state.arena.start(argument(&args,0)?).await,
-            "arena:camera-frame"=>{let id:u64=argument(&args,0)?;if window.is_minimized().unwrap_or(false){state.arena.stop(Some(id)).await;}Ok(state.arena.frame(id,argument(&args,1)?))},
+            "arena:camera-start"=>state.arena.start(argument(&args,0)?,argument::<Option<u32>>(&args,1)?.unwrap_or(20)).await,
+            "arena:camera-frame"=>{if window.is_minimized().unwrap_or(false){state.arena.stop(None).await;}Ok(state.arena.status())},
+            "arena:pose-start"=>state.pose.start().await,
+            "arena:pose-stop"=>{state.pose.stop(argument(&args,0)?).await;Ok(Value::Null)},
+            "arena:pose"=>Ok(state.pose.snapshot()),
             "arena:camera-stop"=>{state.arena.stop(argument(&args,0)?).await;Ok(Value::Null)},
             "desktop:start"=>state.desktop.start(origin).await,
             "desktop:stop"=>{state.desktop.stop(None).await;Ok(Value::Null)},
@@ -423,9 +427,10 @@ pub fn run() {
                 }
                 let _ = handle.emit(name, data);
             });
-            let devices = DeviceManager::new(events);
+            let devices = DeviceManager::new(events.clone());
             let desktop = DesktopService::new(devices.clone());
             let arena = crate::arena::ArenaService::new(devices.clone());
+            let pose = crate::arena_pose::PoseService::new(devices.clone(),events);
             let files = FileService::new(devices.clone(), app.path().document_dir()?);
             let namespace = std::env::var("WCS_SESSION_NAMESPACE")
                 .ok()
@@ -451,6 +456,7 @@ pub fn run() {
                 devices,
                 desktop,
                 arena,
+                pose,
                 files,
                 terminal,
                 logs,
@@ -461,6 +467,16 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Resized(_) = event {
+                let hidden=window.is_minimized().unwrap_or(false);
+                let _=window.emit("arena-visibility",json!({"hidden":hidden}));
+                if hidden {
+                    let state=window.state::<AppState>();
+                    let arena=state.arena.clone();let pose=state.pose.clone();
+                    let camera_id=arena.status()["id"].as_u64();let pose_id=pose.snapshot()["id"].as_u64();
+                    tauri::async_runtime::spawn(async move{tokio::join!(arena.stop(camera_id),pose.stop(pose_id));});
+                }
+            }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let app = window.app_handle().clone();
@@ -473,7 +489,7 @@ pub fn run() {
                         let state = app.state::<AppState>();
                         state.terminal.stop_all();
                         state.files.cancel();
-                        state.arena.stop(None).await;
+                        tokio::join!(state.arena.stop(None),state.pose.stop(None));
                         state.desktop.stop(None).await;
                         state.devices.disconnect().await;
                         let _ = state.logs.close().await;

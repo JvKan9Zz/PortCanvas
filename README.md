@@ -13,7 +13,8 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 
 | 版本 | 状态 | 实现 |
 | --- | --- | --- |
-| **Demo V0.5.1 · PortCanvas** | 当前main：[PR #16](https://github.com/JvKan9Zz/PortCanvas/pull/16)已合并；台面原图、放大赛台、移除尺寸标注、出发区齐平 | Tauri 2 + Rust + 系统 WebView2 |
+| **Demo V0.5.2 · PortCanvas** | 摄像头MJPEG优化与帧率选择、左下角原点坐标系、真实定位输入接口（尚无定位算法） | Tauri 2 + Rust + 系统 WebView2 |
+| **Demo V0.5.1** | [PR #16](https://github.com/JvKan9Zz/PortCanvas/pull/16)已合并；台面原图、放大赛台、移除尺寸标注、出发区齐平 | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.5.0** | [PR #15](https://github.com/JvKan9Zz/PortCanvas/pull/15)已合并；赛台、可开关远端摄像头、真实设备性能 | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.4.9** | [PR #13][v049-pr]、主题补充 [PR #14][v049-theme-pr] 已合并；设置、中英文与终端命令框/Tab补全 | Tauri 2 + Rust + 系统 WebView2 |
 | **Demo V0.4.8** | [PR #12][v048-pr] 已合并；简洁UI、统一按钮与拖拽传输 | Tauri 2 + Rust + 系统 WebView2 |
@@ -33,7 +34,7 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 | 远程桌面 | 进入设备已有的 X11 桌面，支持鼠标键盘、只读、缩放适配和全屏；桌面经 SSH 加密转发 |
 | 文件管理与传输 | 本地/远端双栏浏览，本地盘符快速切换，面板间拖动上传/下载、资源管理器拖入上传，文件及目录双向传输、新建目录、进度、限速、取消与覆盖确认 |
 | 右侧持久终端 | 在设备页以外展开，多标签独立运行，可手动重启或确认关闭；可拖动调宽、平滑开合；滚轮仅在本机滚动，收起或切页不结束程序，断线后恢复远端 tmux 会话 |
-| 赛台监控 | 3.8m俯视赛台与2.4m台面，远端摄像头手动开关、默认关闭；CPU/内存/负载/网络等真实指标及60秒曲线 |
+| 赛台监控 | 3.8m俯视赛台与2.4m台面，远端摄像头手动开关与8/15/20/30 FPS选择；全场米制坐标系与真实定位输入（未接入时不造数）；CPU/内存/负载/网络等真实指标及60秒曲线 |
 | 设置与语言 | 浅蓝/绿色/灰色主题、中英文即时切换并保存在本机、当前版本、仓库入口与版本检查；私有或网络不可访问时明确提示 |
 | 电脑本地日志 | 按项目和日期记录命令、输出、退出码与中断状态；项目自动识别并允许手动指定，支持离线查看、筛选与清理 |
 | 旧版资料迁移（V0.4） | 导入设备、受信指纹和日志设置；提供预览、冲突检查、备份及回退，保留原设备 ID |
@@ -50,8 +51,11 @@ PortCanvas 由 Wheel Combat Studio 发展而来，将远端 Linux 设备的连�
 
 ### Windows 安装与便携运行
 
-[V0.5.1 发布包](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.1)提供 Windows x64 安装包和便携包，附 SHA256SUMS.txt 校验文件。V0.1–V0.4.9 的 11 份发布包已放入 [GitHub Releases 历史归档](https://github.com/JvKan9Zz/PortCanvas/releases/tag/history-backup-2026-10-24)，下载后可按随附 SHA256SUMS.txt 校验。源码与验收文档保留在 Git 历史中，用户配置和日志不上传。
+[V0.5.2 发布包](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.2)提供 Windows x64 安装包和便携包，附 SHA256SUMS.txt 校验文件。V0.1–V0.4.9 的 11 份发布包已放入 [GitHub Releases 历史归档](https://github.com/JvKan9Zz/PortCanvas/releases/tag/history-backup-2026-10-24)，下载后可按随附 SHA256SUMS.txt 校验。源码与验收文档保留在 Git 历史中，用户配置和日志不上传。
 
+- [V0.5.2 使用说明](06-交付物/PortCanvas-Demo-V0.5.2-使用说明.md)
+- [V0.5.2 验收记录](06-交付物/PortCanvas-Demo-V0.5.2-验收记录-2026-10-25.md)
+- [定位数据接口](02-方案与设计/Demo-V0.5.2-定位数据接口.md)
 - [V0.5.1 使用说明](06-交付物/PortCanvas-Demo-V0.5.1-使用说明.md)
 - [V0.5.1 验收记录](06-交付物/PortCanvas-Demo-V0.5.1-验收记录-2026-10-24.md)
 - [V0.5.0 使用说明](06-交付物/PortCanvas-Demo-V0.5.0-使用说明.md)

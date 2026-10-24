@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-22T04:39:18Z",
+  "generatedAt": "2026-10-24T16:32:43Z",
   "title": "Design System: Wheel Combat Studio",
   "extensions": {
     "colorMeta": {
@@ -404,6 +404,20 @@
   },
   "components": [
     {
+      "name": "V0.5.2 摄像头帧率选择",
+      "kind": "input",
+      "description": "现有摄像头控制行的目标帧率选择：8/15/20/30 FPS，默认20。采集或关闭过程中禁用；默认相机关闭，恢复页面不自动开启。此样例仅表达选择控件，不提供图像或性能读数。保留下方V0.5.0空态与其他历史组件。",
+      "html": "<select class=\"ds-arena-rate\" aria-label=\"目标帧率\" title=\"目标帧率\"><option value=\"8\">8 FPS</option><option value=\"15\">15 FPS</option><option value=\"20\" selected>20 FPS</option><option value=\"30\">30 FPS</option></select>",
+      "css": ".ds-arena-rate{font-family:Plex,'Microsoft YaHei UI','Microsoft YaHei',sans-serif;font-size:11px;height:32px;width:78px;padding:0 7px;color:var(--ink,#23313a);background:#fff;border:1px solid #cdd6db;border-radius:4px}.ds-arena-rate:disabled{opacity:.45;cursor:default}"
+    },
+    {
+      "name": "V0.5.2 己方坐标空态",
+      "kind": "custom",
+      "description": "地图标题右侧的状态与X/Y米制读数，允许换行。全场左下角原点，X右/Y上，范围0–3.8m。仅新鲜有效的portcanvas.pose/1输入显示己方点位和两位小数读数；无效、超过2秒或valid:false清空。当前没有定位生产程序，此样例保持未接入，不放置合成车辆点位。",
+      "html": "<div class=\"ds-arena-pose\"><span role=\"status\">定位未接入</span><span class=\"ds-pose-values\">X <output aria-label=\"己方小车X坐标\">—</output> m<span class=\"ds-pose-divider\">/</span>Y <output aria-label=\"己方小车Y坐标\">—</output> m</span></div>",
+      "css": ".ds-arena-pose{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px 16px;min-width:0;font-family:Plex,'Microsoft YaHei UI','Microsoft YaHei',sans-serif;font-size:11px;color:var(--muted,#596c78)}.ds-pose-values{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ink,#23313a);font-size:12px}.ds-pose-values output{font-weight:600;display:inline-block;min-width:32px;text-align:right}.ds-pose-divider{margin:0 8px}"
+    },
+    {
       "name": "V0.5.0 赛台摄像头空态",
       "kind": "custom",
       "description": "2026-10-24 局部新增记录：赛台左侧摄像头面板复用白底细边框、现有紧凑按钮与深色预览。此示例仅显示默认关闭、设备未连接的空态，不提供虚构画面或读数。实际画面由 SSH 提供；手动开启/关闭，切页、最小化、断连或退出停止。未重新生成历史主题 token、narrative 或其他组件。",
@@ -515,7 +529,7 @@
   ],
   "narrative": {
     "northStar": "设备操作工作台",
-    "overview": "这是中文 Windows 操作工具的现有视觉系统：灰白工作区承载设备信息、表单和双栏文件列表，深蓝灰固定侧栏稳定定位，绿色突出主要操作和选中状态。信息密度适中，文字、边框和分区承担层级，远程桌面画面和文件操作各自获得主要空间。\n\n该名称概括已经建成的方向，不是新增品牌提案。用户明确指定固定导航与页面布局，并选择直接编码、优先功能；继续开发时沿用这一约定。Demo V0.1 的文件与擂台均为后续版本入口；V0.2 已将文件页实现为本地电脑与树莓派之间的 SFTP 浏览和传输界面，擂台仍为后续入口。连接与传输反馈来自实际状态，不为界面填充虚构内容。",
+    "overview": "当前产品为 PortCanvas。下述 V0.1/V0.2 提取记录及其绿色 frontmatter 保留为历史基线；当前主题以文末 V0.4.9 补充和 `studio-tauri/ui/themes.css` 为准。V0.5.0 只扩展赛台表面，文末对应补充取代旧的擂台占位描述，不改变其余页面或全局视觉系统。\n\nV0.5.2 继续使用灰白表面、默认浅蓝主题、Plex/中文回退、紧凑描边控件与既有赛台构图。当前赛台以文末 V0.5.2 补充及对应 surface brief 为准；它扩展帧率控制与真实输入驱动的坐标显示，不建立新视觉系统。\n\n这是中文 Windows 操作工具的现有视觉系统：灰白工作区承载设备信息、表单和双栏文件列表，深蓝灰固定侧栏稳定定位，绿色突出主要操作和选中状态。信息密度适中，文字、边框和分区承担层级，远程桌面画面和文件操作各自获得主要空间。\n\n该名称概括已经建成的方向，不是新增品牌提案。用户明确指定固定导航与页面布局，并选择直接编码、优先功能；继续开发时沿用这一约定。Demo V0.1 的文件与擂台均为后续版本入口；V0.2 已将文件页实现为本地电脑与树莓派之间的 SFTP 浏览和传输界面，擂台仍为后续入口。连接与传输反馈来自实际状态，不为界面填充虚构内容。",
     "keyCharacteristics": [
       "固定左侧导航与稳定的页头、状态栏。",
       "白色设备编辑区和双栏文件区、浅灰背景与深色桌面画布。",
@@ -532,6 +546,11 @@
         "name": "The Stable Rail Rule",
         "body": "调整窗口时保留侧栏的宽度、入口顺序和图标配文字形式，不擅自更换为顶部导航。",
         "section": "layout"
+      },
+      {
+        "name": "The Fresh Pose Rule",
+        "body": "己方点位和坐标只表现新鲜有效的生产者数据；未接入、无效、过期或明确丢失定位时清空读数与点位。",
+        "section": "components"
       }
     ],
     "dos": [

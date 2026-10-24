@@ -389,5 +389,17 @@
   "正在关闭摄像头…": "Stopping camera…",
   "摄像头连接超时。": "Camera connection timed out.",
   "蓝色出发区": "Blue starting zone",
-  "黄色出发区": "Yellow starting zone"
+  "黄色出发区": "Yellow starting zone",
+  "目标帧率": "Target frame rate",
+  "己方": "Ours",
+  "己方小车X坐标": "Own robot X coordinate",
+  "己方小车Y坐标": "Own robot Y coordinate",
+  "定位数据无效": "Invalid position data",
+  "定位数据已过期": "Position data expired",
+  "定位已接入": "Position connected",
+  "赛台坐标系，左下角为原点，X向右，Y向上，单位米": "Arena coordinates: bottom-left origin, X right, Y up, meters",
+  "请选择有效帧率。": "Select a valid frame rate.",
+  "摄像头数据无效。": "Invalid camera data.",
+  "定位数据路径无效。": "Invalid position data path.",
+  "定位通道已关闭。": "Position channel closed."
 }
