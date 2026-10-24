@@ -1,4 +1,4 @@
-# Demo V0.5.2 定位数据接口
+# Demo V0.5.3 定位数据接口
 
 本版本提供坐标系与数据接入，不实现视觉/测距融合定位算法。用户已确认当前没有定位程序，因此正常界面保持未接入，不生成演示位置。
 
@@ -36,5 +36,5 @@
 
 ## 生产程序辅助函数
 
-03-实现与脚本/studio-tauri/examples/publish_pose.py提供publish_pose函数；它只发布调用方传入的数据，没有自动生成坐标或循环。融合算法可在得到有效X/Y后调用；丢失定位时调用publish_pose(valid=False)。按一个文件一个生产者使用。
+app/examples/publish_pose.py提供publish_pose函数；它只发布调用方传入的数据，没有自动生成坐标或循环。融合算法可在得到有效X/Y后调用；丢失定位时调用publish_pose(valid=False)。按一个文件一个生产者使用。
 

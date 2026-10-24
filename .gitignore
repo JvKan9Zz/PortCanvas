@@ -40,18 +40,18 @@ Thumbs.db
 /.impeccable/
 /PRODUCT.md
 /DESIGN.md
-/03-实现与脚本/*
-!/03-实现与脚本/studio-tauri/
-/04-数据与素材/raw/
-/04-数据与素材/private/
-/04-数据与素材/brand/portcanvas-icon.png
-/04-数据与素材/brand/portcanvas-icon-square.png
-/04-数据与素材/brand/portcanvas-icon-final.png
+/03-实现与脚本/
+/04-数据与素材/
+/assets/raw/
+/assets/private/
+/assets/brand/portcanvas-icon.png
+/assets/brand/portcanvas-icon-square.png
+/assets/brand/portcanvas-icon-final.png
 
 # Rebuilt app artifacts.
-/03-实现与脚本/studio-tauri/ui/app.js
-/03-实现与脚本/studio-tauri/ui/components.m1.js
-/03-实现与脚本/studio-tauri/ui/chunks/
-/03-实现与脚本/studio-tauri/src-tauri/gen/
-!/03-实现与脚本/studio-tauri/src-tauri/src/bin/
-!/03-实现与脚本/studio-tauri/src-tauri/src/bin/*.rs
+/app/ui/app.js
+/app/ui/components.m1.js
+/app/ui/chunks/
+/app/src-tauri/gen/
+!/app/src-tauri/src/bin/
+!/app/src-tauri/src/bin/*.rs
