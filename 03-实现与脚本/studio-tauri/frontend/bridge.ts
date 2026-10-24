@@ -21,6 +21,7 @@ const startTerminal=async(cols:number,rows:number,key:string="main",deviceKey:st
 };
 const api={
  settings:()=>call('settings:read'),setLanguage:(language:string)=>call('settings:language',language),setTheme:(theme:string)=>call('settings:theme',theme),checkUpdates:()=>call('settings:updates'),openRepository:()=>call('settings:repository'),
+ arenaMetrics:()=>call('arena:metrics'),arenaCameras:()=>call('arena:cameras'),startArenaCamera:(path:string)=>call('arena:camera-start',path),arenaCameraFrame:(id:number,sequence:number)=>call('arena:camera-frame',id,sequence),stopArenaCamera:(id:number|null)=>call('arena:camera-stop',id),
  profiles:()=>call('profiles:list'),save:(p:unknown,secret:string='')=>call('profiles:save',p,secret),remove:(id:string)=>call('profiles:remove',id),choosePrivateKey:()=>call('profiles:choose-key'),
  connect:(p:unknown,password:string)=>call('device:connect',p,password),disconnect:()=>call('device:disconnect'),state:()=>call('device:state'),
  startDesktop:()=>call('desktop:start'),stopDesktop:()=>call('desktop:stop'),desktopReady:(id:number)=>call('desktop:ready',id),desktopLost:(id:number,_clean:boolean)=>call('desktop:lost',id),fullscreen:()=>call('window:fullscreen'),

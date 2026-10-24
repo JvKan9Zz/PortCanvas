@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PortCanvas · Demo V0.4.9</title>
+  <title>PortCanvas · Demo V0.5.0</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="themes.css">
   <link rel="stylesheet" href="files.css">
@@ -11,9 +11,20 @@
   <link rel="stylesheet" href="terminal.css">
   <link rel="stylesheet" href="logs.css">
   <link rel="stylesheet" href="settings.css">
+  <link rel="stylesheet" href="arena.css">
 </head>
 <body>
+<!-- V050-ARENA CONTRACT
+THESIS: Verified arena geometry beside real camera and Linux readings; no invented participants.
+OWN-WORLD: Existing PortCanvas gray/white surfaces, selectable blue accent, Plex/system Chinese text and compact bordered controls.
+STORY: Connect a device, explicitly enable its camera, read performance, close to release capture.
+FIRST VIEWPORT: Left third holds camera above metrics; right two thirds holds the square 3.8m arena and 2.4m platform. Camera starts off.
+FORM: User-specified composition, code-led extension of the established workspace; no concept seed applies.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+
 <svg class="icon-defs" aria-hidden="true"><defs>
+  <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="6" width="14" height="13" rx="2"/><path d="m17 10 4-2v9l-4-2M7 6l1-2h4l1 2"/><circle cx="10" cy="12.5" r="3"/></symbol>
   <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m9 3 1-1h4l1 3 3 1 3 2-1 3v3l1 3-3 2-3 1-1 2h-4l-1-2-3-1-3-2 1-3v-3L3 8l3-2 3-1V3Z"/></symbol>
   <symbol id="i-device" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M8 21h8m-4-4v4M8 9h3m-3 4h6"/></symbol>
   <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4m-5-13h5m-5 3h8"/></symbol>
@@ -43,7 +54,7 @@
     <button class="nav-item" data-page="desktop" title="远程桌面"><svg><use href="#i-desktop"/></svg><span>桌面</span></button>
     <button class="nav-item" data-page="files" title="文件管理与传输"><svg><use href="#i-folder"/></svg><span>文件</span></button>
     <button class="nav-item" data-page="logs" title="本地运行日志"><svg><use href="#i-log"/></svg><span>日志</span></button>
-    <button class="nav-item future" data-page="arena" title="实时擂台 · 后续版本"><svg><use href="#i-arena"/></svg><span>擂台</span></button>
+    <button class="nav-item" data-page="arena" title="赛台"><svg><use href="#i-arena"/></svg><span>赛台</span></button>
   </nav>
   <button id="openSettings" class="nav-item rail-settings" type="button" title="设置" aria-haspopup="dialog"><svg><use href="#i-settings"/></svg><span>设置</span></button>
 </aside>
@@ -108,7 +119,46 @@
         </div></section>
       </div>
     </section>
-    <section id="page-arena" class="page future-page" hidden><svg class="future-icon"><use href="#i-arena"/></svg><h1>实时擂台</h1><span class="future-label">开发中</span></section>
+    <section id="page-arena" class="page arena-page" hidden>
+      <div class="arena-sidebar">
+        <section class="arena-camera" aria-labelledby="arenaCameraTitle">
+          <header class="arena-panel-heading"><h2 id="arenaCameraTitle">摄像头</h2><button id="arenaCameraToggle" class="button primary compact" aria-pressed="false" disabled>开启摄像头</button></header>
+          <div class="arena-camera-tools"><select id="arenaCameraDevice" aria-label="视频设备" disabled></select><button id="arenaCameraRefresh" class="tool-button" title="刷新摄像头" aria-label="刷新摄像头" disabled><svg><use href="#i-refresh"/></svg></button></div>
+          <div class="arena-camera-frame"><img id="arenaCameraImage" alt="远端摄像头实时画面" hidden><div id="arenaCameraEmpty" class="arena-camera-empty"><svg><use href="#i-camera"/></svg></div></div>
+          <div id="arenaCameraStatus" class="arena-camera-status" role="status">摄像头已关闭</div>
+        </section>
+        <section class="arena-performance" aria-labelledby="arenaPerformanceTitle">
+          <header class="arena-panel-heading"><h2 id="arenaPerformanceTitle">设备性能</h2><small id="arenaMetricsStatus">设备未连接</small></header>
+          <dl class="arena-metrics">
+            <div><dt>CPU</dt><dd id="arenaCpu">—</dd><progress id="arenaCpuBar" max="100" value="0" aria-label="CPU使用率"></progress></div>
+            <div><dt>内存</dt><dd id="arenaMemory">—</dd><progress id="arenaMemoryBar" max="100" value="0" aria-label="内存使用率"></progress></div>
+            <div><dt>交换空间</dt><dd id="arenaSwap">—</dd></div><div><dt>SSH往返</dt><dd id="arenaRtt">—</dd></div>
+            <div><dt>接收</dt><dd id="arenaReceive">—</dd></div><div><dt>发送</dt><dd id="arenaSend">—</dd></div>
+            <div class="metric-wide"><dt>运行时间</dt><dd id="arenaUptime">—</dd></div><div class="metric-wide"><dt>负载 · 1 / 5 / 15 min</dt><dd id="arenaLoad">—</dd></div>
+          </dl>
+          <div class="arena-history"><header><div class="arena-history-keys"><span><i></i>CPU</span><span><i class="memory-key"></i>内存</span></div><span>最近60秒 · 0–100%</span></header><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path id="arenaCpuPlot"/><path id="arenaMemoryPlot"/></svg></div>
+          <p id="arenaMetricsError" class="arena-metrics-error" hidden></p>
+        </section>
+      </div>
+      <section class="arena-map" aria-labelledby="arenaMapTitle">
+        <header class="arena-map-heading"><h1 id="arenaMapTitle">赛台</h1><span>定位未接入</span></header>
+        <div class="arena-map-stage">
+          <svg id="arenaMap" viewBox="-300 -220 4400 4540" role="img" aria-label="赛台俯视图，围栏内3.8米，中央台面2.4米">
+            <rect id="arenaFloor" width="3800" height="3800" fill="#30363a"/>
+            <image id="arenaPlatform" x="700" y="700" width="2400" height="2400" href="arena-surface.jpg"/>
+            <rect x="700" y="700" width="2400" height="2400" fill="none" stroke="#ecf0f3" stroke-width="10"/>
+            <rect id="arenaBlueStart" x="2700" y="0" width="400" height="500" fill="#2458ee"><title>蓝色出发区</title></rect><rect id="arenaYellowStart" x="700" y="3300" width="400" height="500" fill="#f6d627"><title>黄色出发区</title></rect>
+            <rect id="arenaWall" x="-10" y="-10" width="3820" height="3820" fill="none" stroke="#c3423f" stroke-width="20"/>
+            <path class="arena-dimension-line" d="M0 3890v160m3800-160v160M0 4000h3800M-90 0h-150m150 3800h-150M-180 0v3800"/>
+            <text class="arena-dimension" x="1900" y="4190" text-anchor="middle">3.8 m</text><text class="arena-dimension" x="-210" y="1900" text-anchor="middle" transform="rotate(-90 -210 1900)">3.8 m</text>
+            <path d="M700 640V520m2400 120V520M700 570h2400M20 3170v120m660-120v120M20 3230h660" fill="none" stroke="#c6d2dc" stroke-width="5"/>
+            <text x="1900" y="490" text-anchor="middle" fill="#e6edf2" font-size="95" font-family="Plex,sans-serif">2.4 m</text><text x="350" y="3380" text-anchor="middle" fill="#e6edf2" font-size="88" font-family="Plex,sans-serif">0.70 m</text>
+            <g id="arenaEntities"></g>
+          </svg>
+        </div>
+        <div class="arena-map-legend"><span><i class="platform-key"></i>台面 · 2.4 × 2.4 m</span><span><i></i>台下 · 0.70 m</span><span><i class="wall-key"></i>围墙</span></div>
+      </section>
+    </section>
   </main>
   <aside id="terminalDrawer" class="terminal-drawer" aria-label="远程终端侧栏" aria-hidden="true" inert>
     <div id="terminalResize" class="terminal-resize" role="separator" aria-orientation="vertical" aria-label="调整终端侧栏宽度" aria-controls="terminalDrawer" tabindex="0" title="左右拖动调整宽度；方向键调整，双击恢复默认"></div>
