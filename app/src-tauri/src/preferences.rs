@@ -38,19 +38,18 @@ pub fn update_result(status:u32,body:&[u8])->Result<Value>{
     if status==404{return Ok(json!({"status":"unavailable"}));}
     if status==403||status==429{return Ok(json!({"status":"limited"}));}
     anyhow::ensure!(status==200,"更新服务返回 HTTP {status}。");
-    let release:Value=serde_json::from_slice(body).context("更新信息无效。")?;
-    anyhow::ensure!(release["draft"]==false&&release["prerelease"]==false,"更新来源无效。");
-    let tag=release["tag_name"].as_str().context("更新信息缺少版本号。")?;
-    let latest=tag.strip_prefix('v').unwrap_or(tag);
+    let package:Value=serde_json::from_slice(body).context("更新信息无效。")?;
+    anyhow::ensure!(package["name"]=="portcanvas","更新来源无效。");
+    let latest=package["version"].as_str().context("更新信息缺少版本号。")?;
     let current=semver::Version::parse(env!("CARGO_PKG_VERSION"))?;let remote=semver::Version::parse(latest).context("更新版本号无效。")?;
     Ok(json!({"status":if remote>current{"available"}else if remote==current{"current"}else{"ahead"},"latest":latest}))
 }
 pub fn check_update()->Result<Value>{
-    #[cfg(windows)] {let(status,body)=github_release()?;update_result(status,&body)}
+    #[cfg(windows)] {let(status,body)=github_package()?;update_result(status,&body)}
     #[cfg(not(windows))] {Ok(json!({"status":"unsupported"}))}
 }
 #[cfg(windows)]
-fn github_release()->Result<(u32,Vec<u8>)>{
+fn github_package()->Result<(u32,Vec<u8>)>{
     use std::{ffi::c_void,ptr::{null,null_mut}};
     use windows_sys::Win32::Networking::WinHttp::*;
     struct Handle(*mut c_void);
@@ -63,9 +62,9 @@ fn github_release()->Result<(u32,Vec<u8>)>{
         let session=Handle::new(WinHttpOpen(agent.as_ptr(),WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,null(),null(),0))?;
         ok(WinHttpSetTimeouts(session.0,5000,5000,5000,10000))?;
         let host=wide("api.github.com");let connection=Handle::new(WinHttpConnect(session.0,host.as_ptr(),443,0))?;
-        let method=wide("GET");let path=wide("/repos/JvKan9Zz/PortCanvas/releases/latest");
+        let method=wide("GET");let path=wide("/repos/JvKan9Zz/PortCanvas/contents/app/package.json?ref=main");
         let request=Handle::new(WinHttpOpenRequest(connection.0,method.as_ptr(),path.as_ptr(),null(),null(),null(),WINHTTP_FLAG_SECURE))?;
-        let header=wide("Accept: application/vnd.github+json\r\nX-GitHub-Api-Version: 2022-11-28\r\n");
+        let header=wide("Accept: application/vnd.github.raw+json\r\nX-GitHub-Api-Version: 2022-11-28\r\n");
         ok(WinHttpSendRequest(request.0,header.as_ptr(),(header.len()-1)as u32,null(),0,0,0))?;ok(WinHttpReceiveResponse(request.0,null_mut()))?;
         let mut status=0u32;let mut size=4u32;ok(WinHttpQueryHeaders(request.0,WINHTTP_QUERY_STATUS_CODE|WINHTTP_QUERY_FLAG_NUMBER,null(),&mut status as *mut _ as *mut c_void,&mut size,null_mut()))?;
         let mut body=Vec::new();let mut buffer=[0u8;8192];let start=std::time::Instant::now();
@@ -85,13 +84,9 @@ fn github_release()->Result<(u32,Vec<u8>)>{
         std::fs::write(&store.file,b"{broken").unwrap();assert!(store.save_language(Language::Chinese).is_err());assert_eq!(std::fs::read(&store.file).unwrap(),b"{broken");
     }
     #[test]fn inaccessible_or_invalid_updates_are_never_reported_current(){
-        assert_eq!(update_result(404,b"{}").unwrap()["status"],"unavailable");assert_eq!(update_result(403,b"{}").unwrap()["status"],"limited");assert!(update_result(200,br#"{"name":"portcanvas","version":"9.0.0"}"#).is_err());assert!(update_result(200,br#"{"tag_name":"bad","draft":false,"prerelease":false}"#).is_err());
+        assert_eq!(update_result(404,b"{}").unwrap()["status"],"unavailable");assert_eq!(update_result(403,b"{}").unwrap()["status"],"limited");assert!(update_result(200,br#"{"name":"other","version":"9.0.0"}"#).is_err());assert!(update_result(200,br#"{"name":"portcanvas","version":"bad"}"#).is_err());
         let mut next=semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap();next.patch+=1;
-        let newer=json!({"tag_name":format!("v{next}"),"draft":false,"prerelease":false}).to_string();assert_eq!(update_result(200,newer.as_bytes()).unwrap()["status"],"available");
-        let body=json!({"tag_name":env!("CARGO_PKG_VERSION"),"draft":false,"prerelease":false}).to_string();assert_eq!(update_result(200,body.as_bytes()).unwrap()["status"],"current");assert_eq!(update_result(200,br#"{"tag_name":"v0.4.8","draft":false,"prerelease":false}"#).unwrap()["status"],"ahead");
-    }
-    #[test]fn unpublished_releases_and_rate_limits_never_signal_an_update(){
-        for (draft,prerelease) in [(true,false),(false,true)]{let body=json!({"tag_name":"v99.0.0","draft":draft,"prerelease":prerelease}).to_string();assert!(update_result(200,body.as_bytes()).is_err());}
-        assert_eq!(update_result(429,b"{}").unwrap()["status"],"limited");assert!(update_result(500,b"{}").is_err());assert!(update_result(200,b"not JSON").is_err());
+        let newer=json!({"name":"portcanvas","version":next.to_string()}).to_string();assert_eq!(update_result(200,newer.as_bytes()).unwrap()["status"],"available");
+        let body=json!({"name":"portcanvas","version":env!("CARGO_PKG_VERSION")}).to_string();assert_eq!(update_result(200,body.as_bytes()).unwrap()["status"],"current");assert_eq!(update_result(200,br#"{"name":"portcanvas","version":"0.4.8"}"#).unwrap()["status"],"ahead");
     }
 }

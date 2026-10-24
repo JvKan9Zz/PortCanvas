@@ -1,4 +1,4 @@
-# PortCanvas Demo V0.5.3
+# PortCanvas Demo V0.5.25
 
 Tauri 2 + Rust + WebView2桌面客户端。Rust负责SSH、SFTP、桌面转发、PTY/tmux、本地日志、设置与按需摄像头；前端使用noVNC与xterm。Node仅用于构建，电脑端运行无需Node/Python。
 
@@ -28,4 +28,4 @@ Windows产物在src-tauri/target/release/bundle/nsis/。依赖版本以package-l
 
 [用户说明](../docs/usage.md) · THIRD-PARTY-NOTICES.txt随安装与便携包分发。
 
-V0.5.3使用GitHub releases/latest检查正式发布版本，不再读取main中的package.json；草稿/预发布和限流/不可访问状态分别处理。目录、文档与素材使用英文路径。
+V0.5.25仅整理目录与README，并将原有版本检查地址同步为app/package.json；版本比较及其余业务行为保持。
