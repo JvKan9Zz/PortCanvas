@@ -1,3 +1,4 @@
+pub mod arena;
 pub mod preferences;
 pub mod i18n;
 pub mod profiles;

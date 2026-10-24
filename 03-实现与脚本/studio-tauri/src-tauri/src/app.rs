@@ -25,6 +25,7 @@ pub struct AppState {
     pub profiles: Arc<Mutex<ProfileStore>>,
     pub devices: DeviceManager,
     pub desktop: DesktopService,
+    pub arena: crate::arena::ArenaService,
     pub quitting: AtomicBool,
     pub files: FileService,
     pub terminal: TerminalPool,
@@ -320,7 +321,7 @@ async fn studio_call(
             "profiles:remove"=>{let id:String=argument(&args,0)?;if !confirm(window.clone(),"移除设备配置".into(),"仅移除本机连接配置，是否继续？".into()).await?{return Ok(json!(false));}if state.devices.snapshot()["deviceId"]==id{state.devices.disconnect().await;}
                 let store=state.profiles.lock().unwrap();let mut data=store.read()?;let removed=data.devices.iter().find(|p|p.id==id).cloned();data.devices.retain(|p|p.id!=id);if let Some(removed)=removed{if !data.devices.iter().any(|p|p.address()==removed.address()){data.host_keys.remove(&removed.address());}}store.write(&data)?;Ok(json!(true))},
             "device:state"=>Ok(state.devices.snapshot()),
-            "device:disconnect"=>{state.devices.disconnect().await;state.desktop.stop(None).await;Ok(state.devices.snapshot())},
+            "device:disconnect"=>{state.arena.stop(None).await;state.devices.disconnect().await;state.desktop.stop(None).await;Ok(state.devices.snapshot())},
             "device:connect"=>{
                 let mut profile:Profile=argument::<Profile>(&args,0)?.validate()?;profile.encrypted_secret=None;
                 let supplied=match args.get_mut(1).map(Value::take){Some(Value::String(p))=>zeroize::Zeroizing::new(p),None|Some(Value::Null)=>zeroize::Zeroizing::new(String::new()),_=>bail!("凭据参数无效。")};
@@ -333,6 +334,11 @@ async fn studio_call(
                     if !accepted||cancel.is_cancelled(){return Ok(false);}store.lock().unwrap().trust(&address,&fingerprint)?;Ok(true)
                 })});callback}).await
             },
+            "arena:metrics"=>state.arena.metrics().await,
+            "arena:cameras"=>state.arena.cameras().await,
+            "arena:camera-start"=>state.arena.start(argument(&args,0)?).await,
+            "arena:camera-frame"=>{let id:u64=argument(&args,0)?;if window.is_minimized().unwrap_or(false){state.arena.stop(Some(id)).await;}Ok(state.arena.frame(id,argument(&args,1)?))},
+            "arena:camera-stop"=>{state.arena.stop(argument(&args,0)?).await;Ok(Value::Null)},
             "desktop:start"=>state.desktop.start(origin).await,
             "desktop:stop"=>{state.desktop.stop(None).await;Ok(Value::Null)},
             "desktop:ready"=>{state.desktop.ready(argument(&args,0)?);Ok(Value::Null)},
@@ -419,6 +425,7 @@ pub fn run() {
             });
             let devices = DeviceManager::new(events);
             let desktop = DesktopService::new(devices.clone());
+            let arena = crate::arena::ArenaService::new(devices.clone());
             let files = FileService::new(devices.clone(), app.path().document_dir()?);
             let namespace = std::env::var("WCS_SESSION_NAMESPACE")
                 .ok()
@@ -443,6 +450,7 @@ pub fn run() {
                 profiles: Arc::new(Mutex::new(ProfileStore { directory })),
                 devices,
                 desktop,
+                arena,
                 files,
                 terminal,
                 logs,
@@ -465,6 +473,7 @@ pub fn run() {
                         let state = app.state::<AppState>();
                         state.terminal.stop_all();
                         state.files.cancel();
+                        state.arena.stop(None).await;
                         state.desktop.stop(None).await;
                         state.devices.disconnect().await;
                         let _ = state.logs.close().await;

@@ -85,7 +85,8 @@ fn github_package()->Result<(u32,Vec<u8>)>{
     }
     #[test]fn inaccessible_or_invalid_updates_are_never_reported_current(){
         assert_eq!(update_result(404,b"{}").unwrap()["status"],"unavailable");assert_eq!(update_result(403,b"{}").unwrap()["status"],"limited");assert!(update_result(200,br#"{"name":"other","version":"9.0.0"}"#).is_err());assert!(update_result(200,br#"{"name":"portcanvas","version":"bad"}"#).is_err());
-        assert_eq!(update_result(200,br#"{"name":"portcanvas","version":"0.4.10"}"#).unwrap()["status"],"available");
+        let mut next=semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap();next.patch+=1;
+        let newer=json!({"name":"portcanvas","version":next.to_string()}).to_string();assert_eq!(update_result(200,newer.as_bytes()).unwrap()["status"],"available");
         let body=json!({"name":"portcanvas","version":env!("CARGO_PKG_VERSION")}).to_string();assert_eq!(update_result(200,body.as_bytes()).unwrap()["status"],"current");assert_eq!(update_result(200,br#"{"name":"portcanvas","version":"0.4.8"}"#).unwrap()["status"],"ahead");
     }
 }

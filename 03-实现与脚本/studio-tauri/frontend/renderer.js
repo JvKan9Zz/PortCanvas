@@ -3,6 +3,7 @@ import {SettingsDialog} from './settings.js';
 import {FilePage} from './files-page.js';
 import {TerminalDrawer} from './terminal-drawer.js';
 import {LogsPage} from './logs-page.js';
+import {ArenaPage} from './arena-page.js';
 const $ = id => document.getElementById(id);
 let devices = [], selected = null, page = 'devices', rfb = null, desktopAttempt = 0;
 let current = {ssh: 'disconnected', desktop: 'disconnected', message: '就绪'}, fit = true, readonly = false;
@@ -13,6 +14,7 @@ let terminalExpanded=false;
 const terminalDrawer = new TerminalDrawer({toast,goDevices:()=>showPage('devices')});
 const logsPage = new LogsPage({toast});
 const settingsDialog = new SettingsDialog({toast});
+const arenaPage = new ArenaPage();
 document.querySelectorAll('.mark,.wordmark').forEach(element=>element.addEventListener('dragstart',event=>event.preventDefault()));
 function toast(message) {toastMessage=message;$('toast').textContent = t(message);$('toast').hidden = false;clearTimeout(toastTimer);toastTimer = setTimeout(() => $('toast').hidden = true, 6000);}
 function profile() {return {id: selected?.id, name: $('name').value, host: $('host').value, port: Number($('port').value), username: $('username').value, display: $('display').value, xauthority: $('xauthority').value,authMethod:$('authMethod').value,privateKeyPath:$('privateKeyPath').value,rememberPassword:$('rememberPassword').checked};}
@@ -56,6 +58,7 @@ function showPage(next) {
   for (const section of document.querySelectorAll('.page')) section.hidden = section.id !== 'page-' + next;
   if(next==='files')filesPage.show();else filesPage.hide();
   if(next==='logs')logsPage.show();else logsPage.hide();
+  if(next==='arena')arenaPage.show();else arenaPage.hide();
   renderTerminalDrawer();
 }
 function renderTerminalDrawer() {
@@ -77,7 +80,7 @@ function clearRfb() {
 }
 function renderState(state,presentationOnly=false) {
   current = state;
-  if(!presentationOnly){filesPage.setConnection(state,selected?.id);terminalDrawer.setConnection(state);}
+  if(!presentationOnly){filesPage.setConnection(state,selected?.id);terminalDrawer.setConnection(state);arenaPage.setConnection(state);}
   const connected = state.ssh === 'connected', connecting = state.ssh === 'connecting';
   const status = connected ? '设备已连接' : connecting ? '正在连接设备' : state.ssh === 'error' ? '连接失败' : '设备未连接';
   $('connectionBadge').className = 'badge ' + state.ssh;

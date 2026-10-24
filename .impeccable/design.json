@@ -404,6 +404,13 @@
   },
   "components": [
     {
+      "name": "V0.5.0 赛台摄像头空态",
+      "kind": "custom",
+      "description": "2026-10-24 局部新增记录：赛台左侧摄像头面板复用白底细边框、现有紧凑按钮与深色预览。此示例仅显示默认关闭、设备未连接的空态，不提供虚构画面或读数。实际画面由 SSH 提供；手动开启/关闭，切页、最小化、断连或退出停止。未重新生成历史主题 token、narrative 或其他组件。",
+      "html": "<section class=\"ds-arena-camera\" aria-label=\"赛台摄像头空态样例\"><header><h2>摄像头</h2><button class=\"ds-arena-toggle\" disabled aria-pressed=\"false\">开启摄像头</button></header><div class=\"ds-arena-preview\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"6\" width=\"14\" height=\"13\" rx=\"2\"/><path d=\"m17 10 4-2v9l-4-2M7 6l1-2h4l1 2\"/><circle cx=\"10\" cy=\"12.5\" r=\"3\"/></svg></div><div class=\"ds-arena-status\" role=\"status\">设备未连接</div></section>",
+      "css": ".ds-arena-camera{font-family:Plex,'Microsoft YaHei UI','Microsoft YaHei',sans-serif;background:#fff;color:var(--ink,#23313a);border:1px solid var(--line,#dce2e5);border-radius:6px;overflow:hidden;max-width:360px}.ds-arena-camera header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px}.ds-arena-camera h2{margin:0;font-size:15px;font-weight:600}.ds-arena-toggle{font-family:inherit;height:32px;padding:0 12px;font-size:12px;font-weight:500;border:1px solid var(--accent-button,#9bd4f3);border-radius:5px;color:var(--accent-on-button,#163d54);background:var(--accent-button,#9bd4f3);white-space:nowrap;transition:background .15s}.ds-arena-toggle:not(:disabled):hover{background:var(--accent-button-hover,#83c6ed)}.ds-arena-toggle:not(:disabled):active{filter:brightness(.96)}.ds-arena-toggle:focus-visible{outline:2px solid var(--accent,#287aa6);outline-offset:4px}.ds-arena-toggle:disabled{opacity:.45;cursor:default}.ds-arena-preview{display:grid;place-items:center;min-height:80px;background:#17222b;color:#adc0cd}.ds-arena-preview svg{width:38px;height:38px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}.ds-arena-status{font-size:11px;color:var(--muted,#596c78);padding:9px 14px;min-height:32px;max-height:64px;overflow:auto;overflow-wrap:anywhere}@media(prefers-reduced-motion:reduce){.ds-arena-toggle{transition:none}}"
+    },
+    {
       "name": "连接主按钮",
       "kind": "button",
       "refersTo": "button-primary",
