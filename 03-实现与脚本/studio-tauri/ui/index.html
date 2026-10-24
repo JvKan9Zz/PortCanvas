@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PortCanvas · Demo V0.5.0</title>
+  <title>PortCanvas · Demo V0.5.1</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="themes.css">
   <link rel="stylesheet" href="files.css">
@@ -143,20 +143,16 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
       <section class="arena-map" aria-labelledby="arenaMapTitle">
         <header class="arena-map-heading"><h1 id="arenaMapTitle">赛台</h1><span>定位未接入</span></header>
         <div class="arena-map-stage">
-          <svg id="arenaMap" viewBox="-300 -220 4400 4540" role="img" aria-label="赛台俯视图，围栏内3.8米，中央台面2.4米">
+          <svg id="arenaMap" viewBox="-35 -35 3870 3870" role="img" aria-label="赛台俯视图，围栏内3.8米，中央台面2.4米">
             <rect id="arenaFloor" width="3800" height="3800" fill="#30363a"/>
-            <image id="arenaPlatform" x="700" y="700" width="2400" height="2400" href="arena-surface.jpg"/>
+            <image id="arenaPlatform" x="700" y="700" width="2400" height="2400" href="arena-platform.png"/>
             <rect x="700" y="700" width="2400" height="2400" fill="none" stroke="#ecf0f3" stroke-width="10"/>
-            <rect id="arenaBlueStart" x="2700" y="0" width="400" height="500" fill="#2458ee"><title>蓝色出发区</title></rect><rect id="arenaYellowStart" x="700" y="3300" width="400" height="500" fill="#f6d627"><title>黄色出发区</title></rect>
+            <rect id="arenaYellowStart" x="0" y="700" width="500" height="400" fill="#f6d627"><title>黄色出发区</title></rect>
+            <rect id="arenaBlueStart" x="3300" y="2700" width="500" height="400" fill="#2458ee"><title>蓝色出发区</title></rect>
             <rect id="arenaWall" x="-10" y="-10" width="3820" height="3820" fill="none" stroke="#c3423f" stroke-width="20"/>
-            <path class="arena-dimension-line" d="M0 3890v160m3800-160v160M0 4000h3800M-90 0h-150m150 3800h-150M-180 0v3800"/>
-            <text class="arena-dimension" x="1900" y="4190" text-anchor="middle">3.8 m</text><text class="arena-dimension" x="-210" y="1900" text-anchor="middle" transform="rotate(-90 -210 1900)">3.8 m</text>
-            <path d="M700 640V520m2400 120V520M700 570h2400M20 3170v120m660-120v120M20 3230h660" fill="none" stroke="#c6d2dc" stroke-width="5"/>
-            <text x="1900" y="490" text-anchor="middle" fill="#e6edf2" font-size="95" font-family="Plex,sans-serif">2.4 m</text><text x="350" y="3380" text-anchor="middle" fill="#e6edf2" font-size="88" font-family="Plex,sans-serif">0.70 m</text>
             <g id="arenaEntities"></g>
           </svg>
         </div>
-        <div class="arena-map-legend"><span><i class="platform-key"></i>台面 · 2.4 × 2.4 m</span><span><i></i>台下 · 0.70 m</span><span><i class="wall-key"></i>围墙</span></div>
       </section>
     </section>
   </main>
