@@ -62,7 +62,7 @@ fn github_package()->Result<(u32,Vec<u8>)>{
         let session=Handle::new(WinHttpOpen(agent.as_ptr(),WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,null(),null(),0))?;
         ok(WinHttpSetTimeouts(session.0,5000,5000,5000,10000))?;
         let host=wide("api.github.com");let connection=Handle::new(WinHttpConnect(session.0,host.as_ptr(),443,0))?;
-        let method=wide("GET");let path=wide("/repos/JvKan9Zz/PortCanvas/contents/03-%E5%AE%9E%E7%8E%B0%E4%B8%8E%E8%84%9A%E6%9C%AC/studio-tauri/package.json?ref=main");
+        let method=wide("GET");let path=wide("/repos/JvKan9Zz/PortCanvas/contents/app/package.json?ref=main");
         let request=Handle::new(WinHttpOpenRequest(connection.0,method.as_ptr(),path.as_ptr(),null(),null(),null(),WINHTTP_FLAG_SECURE))?;
         let header=wide("Accept: application/vnd.github.raw+json\r\nX-GitHub-Api-Version: 2022-11-28\r\n");
         ok(WinHttpSendRequest(request.0,header.as_ptr(),(header.len()-1)as u32,null(),0,0,0))?;ok(WinHttpReceiveResponse(request.0,null_mut()))?;
