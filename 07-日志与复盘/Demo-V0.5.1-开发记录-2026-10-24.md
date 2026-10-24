@@ -17,3 +17,5 @@ Release38项核心、前端/TypeScript、实际资源解码和四视图断言通
 升级后采用明确目标的可访问性读取与正常导航复核正式赛台，未使用被前景遮挡的原生截图作为证据。便携空资料/自身data/logs/图片/出发区通过，测试副本正常关闭。正式版本停在赛台页，离线、摄像头关闭。
 
 PR #16按功能头1551c0b8dd5f414460a17abf22e32dde166c65f3合入main，合并提交51a3d64aab7dde2a9b37cd1a3197257314ef4cba；关联当前聊天并提交审查面板（queued）。Code Review后端同头checks/statuses/annotations均为空，未据空CI称外部审查通过。本地main已同步。后续仅同步文档/发布记录。
+
+归档脚本复制后遗漏v050本地目录，首次发布将正确V051 ZIP配上旧校验清单/说明，且回执写到旧目录。发现两个版本checksum附件digest相同后定位；原ZIP无误。仅替换本次checksum附件和说明，保存初次回执。GitHub说明回读为CRLF，逐行内容与本机完全一致；先只读核实，再按明确换行策略比较，没有重复上传。最终ZIP和checksum摘要、文件名/版本、说明及大小均匹配，历史V050回执从原publish.log恢复。本次发布结果见local/v051/release-result.json。
