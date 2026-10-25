@@ -32,6 +32,10 @@ use tokio_util::sync::CancellationToken;
 pub fn python(source: &str, args: Value) -> Result<String> {
     Ok(format!("python3 -u -c {}",quote(&format!("import sys,json,base64;sys.argv=json.loads(base64.b64decode('{}'));exec(base64.b64decode('{}'))",STANDARD.encode(serde_json::to_vec(&args)?),STANDARD.encode(source.replace("\r\n","\n"))))))
 }
+fn desktop_origin_matches(expected:&str,actual:Option<&str>)->bool{
+    // url::Url treats custom schemes as opaque; WebKit can retain the app scheme.
+    actual==Some(expected)||(cfg!(target_os="macos")&&expected=="null"&&actual==Some("tauri://localhost"))
+}
 pub async fn schedule_reboot(connection:&SshConnection)->Result<()>{
     let command=format!("sh -c {}",quote(&include_str!("../resources/reboot.sh").replace("\r\n","\n")));
     let(output,status)=connection.exec(&command,4096,Duration::from_secs(8)).await?;
@@ -199,7 +203,7 @@ impl DesktopService {
             tokio::spawn(async move {
                 let active = Arc::new(tokio::sync::Semaphore::new(1));
                 loop {
-                    tokio::select! {_=worker_cancel.cancelled()=>break,message=process.wait()=>{if message.is_none(){if !worker_cancel.is_cancelled(){devices.update(generation,json!({"desktop":"error","message":"远程桌面服务已结束。"}));}worker_cancel.cancel();break;}},accepted=listener.accept()=>{let Ok((socket,_))=accepted else{break;};let _=socket.set_nodelay(true);let Ok(permit)=active.clone().try_acquire_owned()else{continue;};let path=expected_path.clone();let origin=origin.clone();let cancel=worker_cancel.clone();let conn=conn.clone();tokio::spawn(async move{let _permit=permit;let operation=async{let mut config=WebSocketConfig::default();config.max_message_size=Some(4*1024*1024);config.max_frame_size=Some(4*1024*1024);let ws=tokio::time::timeout(Duration::from_secs(5),accept_hdr_async_with_config(socket,move|request:&Request,response:Response|{if request.uri().path()!=path||request.headers().get("origin").and_then(|v|v.to_str().ok())!=Some(origin.as_str()){return Err(http::Response::builder().status(403).body(Some("Invalid session or origin".into())).unwrap());}Ok(response)},Some(config))).await??;bridge(ws,conn,info.port,cancel.clone()).await};tokio::select!{_=cancel.cancelled()=>{},_ = operation=>{}}});}}
+                    tokio::select! {_=worker_cancel.cancelled()=>break,message=process.wait()=>{if message.is_none(){if !worker_cancel.is_cancelled(){devices.update(generation,json!({"desktop":"error","message":"远程桌面服务已结束。"}));}worker_cancel.cancel();break;}},accepted=listener.accept()=>{let Ok((socket,_))=accepted else{break;};let _=socket.set_nodelay(true);let Ok(permit)=active.clone().try_acquire_owned()else{continue;};let path=expected_path.clone();let origin=origin.clone();let cancel=worker_cancel.clone();let conn=conn.clone();tokio::spawn(async move{let _permit=permit;let operation=async{let mut config=WebSocketConfig::default();config.max_message_size=Some(4*1024*1024);config.max_frame_size=Some(4*1024*1024);let ws=tokio::time::timeout(Duration::from_secs(5),accept_hdr_async_with_config(socket,move|request:&Request,response:Response|{if request.uri().path()!=path||!desktop_origin_matches(&origin,request.headers().get("origin").and_then(|v|v.to_str().ok())){return Err(http::Response::builder().status(403).body(Some("Invalid session or origin".into())).unwrap());}Ok(response)},Some(config))).await??;bridge(ws,conn,info.port,cancel.clone()).await};tokio::select!{_=cancel.cancelled()=>{},_ = operation=>{}}});}}
                 }
                 close_process(process).await;
                 worker_done.cancel();
@@ -261,6 +265,14 @@ async fn bridge(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn websocket_origin_stays_bound_to_the_application(){
+        assert!(desktop_origin_matches("http://tauri.localhost",Some("http://tauri.localhost")));
+        assert!(!desktop_origin_matches("http://tauri.localhost",Some("null")));
+        assert!(!desktop_origin_matches("null",Some("https://example.org")));
+        assert!(!desktop_origin_matches("null",None));
+        assert_eq!(desktop_origin_matches("null",Some("tauri://localhost")),cfg!(target_os="macos"));
+    }
     #[test]
     fn python_arguments_are_encoded_without_shell_expansion() {
         let cmd = python("print('ok')", json!(["desktop", "quote'\n$(false)"])).unwrap();

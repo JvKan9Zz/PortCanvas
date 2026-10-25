@@ -1,0 +1,98 @@
+name: macOS v0.5.6 one-time build
+
+on:
+  push:
+    branches: [feat/v056-native-macos]
+    paths: [app/**, .github/workflows/macos-v056.yml]
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: v0.5.6 source ref to rebuild
+        default: v0.5.6
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-v056-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  universal:
+    runs-on: macos-15
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: app
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '13.0'
+      WCS_TEST_ROOT: ${{ github.workspace }}/app/src-tauri/target/v056-tests
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+      - name: Limit this workflow to the requested compatibility release
+        run: test "$(node -p 'require("./package.json").version')" = '0.5.6'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Prepare Rust targets
+        run: |
+          rustup toolchain install 1.90.0 --profile minimal
+          rustup default 1.90.0
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            app/src-tauri/target
+          key: macos-v056-rust190-${{ hashFiles('app/src-tauri/Cargo.lock') }}
+      - name: Frontend checks
+        run: |
+          npm ci
+          npm run build
+          npx tsc --noEmit
+          npm run test:frontend
+          python3 -m unittest discover -s tests -p 'test_desktop*.py'
+      - name: Native Rust and Keychain tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked --release --target aarch64-apple-darwin --lib
+      - name: Build universal ad-hoc signed DMG
+        run: npx tauri build --target universal-apple-darwin --bundles dmg --ci
+      - name: Verify package and launch on Apple Silicon
+        run: python3 tools/check-macos-package.py src-tauri/target/universal-apple-darwin/release/bundle/dmg src-tauri/target/v056-macos-artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-v056-universal
+          path: |
+            app/src-tauri/target/v056-macos-artifacts/*.dmg
+            app/src-tauri/target/v056-macos-artifacts/*.json
+            app/src-tauri/target/v056-macos-artifacts/*.png
+            app/src-tauri/target/v056-macos-artifacts/*.log
+          if-no-files-found: error
+
+  intel-launch:
+    needs: universal
+    runs-on: macos-15-intel
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-v056-universal
+          path: app/src-tauri/target/macos-download
+      - name: Verify the same package and launch on Intel
+        run: python3 app/tools/check-macos-package.py app/src-tauri/target/macos-download app/src-tauri/target/v056-intel-artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-v056-intel-check
+          path: |
+            app/src-tauri/target/v056-intel-artifacts/*.json
+            app/src-tauri/target/v056-intel-artifacts/*.png
+            app/src-tauri/target/v056-intel-artifacts/*.log
+          if-no-files-found: error

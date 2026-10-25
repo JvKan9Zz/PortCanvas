@@ -33,7 +33,7 @@ export class SettingsDialog {
   render(){
     $('settingsLanguage').value=getLanguage();$('settingsTheme').value=getTheme();$('appVersion').textContent=this.info?'Demo V'+this.info.version:'—';
     const update=this.update||{},status=update.status||'idle',busy=['checking','downloading','verifying','installing'].includes(status);
-    $('checkUpdates').disabled=this.acting||busy;$('checkUpdates').textContent=t(status==='checking'?'正在检查…':'检查更新');
+    $('checkUpdates').disabled=this.acting||busy||this.info?.updatesSupported===false;$('checkUpdates').textContent=t(status==='checking'?'正在检查…':'检查更新');
     $('downloadUpdate').hidden=!update.version||!['available','canceled','error'].includes(status);
     $('downloadUpdate').disabled=this.acting||busy;
     $('installUpdate').hidden=status!=='ready';$('installUpdate').disabled=this.acting;
@@ -41,6 +41,7 @@ export class SettingsDialog {
     const messages={checking:'正在检查…',verifying:'正在校验签名…',ready:'更新已就绪。',installing:'正在安装，即将重新启动…',current:'已是最新版本。',canceled:'已取消更新。'};
     const downloaded=(Number(update.downloaded||0)/1048576).toFixed(1),total=update.total?(Number(update.total)/1048576).toFixed(1):'—';
     let message=status==='available'?t('发现新版本 Demo V{version}',{version:update.version}):status==='ready'?t('Demo V{version} 更新已就绪。',{version:update.version}):status==='downloading'?(update.connections?t('正在下载（{connections} 路）：{downloaded} / {total} MiB',{connections:update.connections,downloaded,total}):t('正在连接下载服务…')):status==='updated'?t('已更新至 Demo V{version}。',{version:update.version}):status==='error'?updateError(update.message):t(messages[status]||'');
+    if(status==='manual')message=t(update.message);
     $('updateStatus').hidden=!message;if($('updateStatus').textContent!==message)$('updateStatus').textContent=message;
     $('updateStatus').classList.toggle('error',status==='error');
     $('updateProgress').hidden=!['downloading','verifying','ready'].includes(status);

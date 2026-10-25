@@ -4,11 +4,11 @@
 
 简体中文 | [English](README.en.md)
 
-统一远程设备工作台 · **Demo V0.5.5**
+统一远程设备工作台 · **Demo V0.5.6**
 
-本版新增远端文件删除、桌面分阶段加载、远端设备重启和可展开的终端命令框，并修复刚连接后打开文件管理器时的长时间停顿。
+本版减少页面外壳的文本选择，关闭空白处的浏览器右键菜单；输入框、日志和诊断详情仍可编辑或复制。新增一次性 macOS Universal 安装包。
 
-在一个Windows客户端中连接Linux设备、操作远程桌面、传输文件、运行终端并查看电脑本地日志。
+在一个桌面客户端中连接Linux设备、操作远程桌面、传输文件、运行终端并查看电脑本地日志。
 
 | 功能 | 当前能力 |
 | --- | --- |
@@ -16,15 +16,19 @@
 | 桌面与文件 | X11远程桌面与三种画质模式、离页暂停/返回恢复；双栏SFTP、盘符切换、拖拽传输、远端删除、进度与取消 |
 | 终端与日志 | 多终端、重启/关闭、断线恢复、可展开命令框与补全；本地按项目/日期记录与清理 |
 | 赛台 | 可开关摄像头，8/15/20/30 FPS；设备性能与60秒曲线；全场左下角米制坐标和定位输入接口 |
-| 设置 | 中英文、浅蓝/绿色/灰色主题；软件内更新（安装版与便携版） |
+| 设置 | 中英文、浅蓝/绿色/灰色主题；Windows 安装版软件内更新 |
 
 尚无定位生产程序，坐标默认未接入，不生成模拟实时位置。摄像头默认关闭；最小化、离页和退出回收采集，恢复后需手动开启。原生MJPEG减少树莓派采集重编码，但流量及部分电脑占用会提高，实际性能受设备和网络影响。
 
 ## 下载与使用
 
-[下载最新版本](https://github.com/JvKan9Zz/PortCanvas/releases/latest) · [使用说明](docs/usage.md) · [定位数据接口](docs/pose-protocol.md)
+[Windows 最新安装包](https://github.com/JvKan9Zz/PortCanvas/releases/latest) · [macOS V0.5.6](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.6) · [使用说明](docs/usage.md) · [定位数据接口](docs/pose-protocol.md)
 
-提供Windows x64安装版与便携版，附SHA256SUMS.txt。客户端使用系统WebView2，电脑端运行无需Node.js、Rust或Python。安装模式沿用原配置；便携模式使用同目录data/。
+Windows 提供 x64 安装器，手动安装可选择位置，软件内更新沿用已有目录和配置。Mac 提供面向 macOS 13+ 的 Universal DMG，包含 Intel 与 Apple 芯片代码，使用系统 WKWebView；目前仅适配 Demo V0.5.6，后续可能等正式版推出后再继续适配。两端运行均无需 Node.js、Rust 或 Python。
+
+Mac 包采用 ad-hoc 签名，未经 Apple 公证，首次打开可能需要你按 macOS 提示在“隐私与安全性”中手动允许。Windows 使用 DPAPI，Mac 使用钥匙串保护保存的凭据；加密资料不支持直接跨系统解密。
+
+不再发布便携版、说明压缩包、单独签名和校验清单。Release 除安装包及 GitHub 自动提供的源码外，仅保留 Windows 应用内更新所需的 latest.json，签名包含在其中。
 
 ## 源码
 

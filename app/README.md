@@ -1,4 +1,4 @@
-# PortCanvas Demo V0.5.5
+# PortCanvas Demo V0.5.6
 
 Tauri 2 + Rust + WebView2桌面客户端。Rust负责SSH、SFTP、桌面转发、PTY/tmux、本地日志、设置与按需摄像头；前端使用noVNC与xterm。Node仅用于构建，电脑端运行无需Node/Python。
 
@@ -16,11 +16,11 @@ cargo test --manifest-path src-tauri/Cargo.toml --no-default-features --lib
 npm run pack
 ```
 
-Windows产物在src-tauri/target/release/bundle/nsis/。依赖版本以package-lock.json与Cargo.lock为准。其他平台尚无正式实机支持结论。
+Windows产物在src-tauri/target/release/bundle/nsis/。依赖版本以package-lock.json与Cargo.lock为准。macOS V0.5.6使用独立配置和Universal DMG，最低目标macOS13。在Mac上运行 npm run pack -- --target universal-apple-darwin --bundles dmg；需要安装两个Rust目标。使用ad-hoc签名，不含Apple公证。macos-v056.yml只在本次适配分支或手动指定V0.5.6源码时运行，不跟随后续版本。
 
 ## 运行约定
 
-默认使用当前用户AppData；同目录portable.flag或--portable启用同目录data/。WCS_DATA_DIR可供隔离测试指定资料目录。密码与密钥口令仅可选DPAPI加密保存，私钥只记本机路径；不提交凭据或用户数据。
+默认使用当前用户AppData；同目录portable.flag或--portable启用同目录data/。WCS_DATA_DIR可供隔离测试指定资料目录。密码与密钥口令可选使用Windows DPAPI或Mac钥匙串保护的AES-GCM加密，私钥只记本机路径；不提交凭据或用户数据。Mac配置/默认日志位于应用资料目录，本地文件从用户主目录浏览。
 
 终端由远端tmux保持，关闭标签会确认终止对应Shell，断开和清屏保留程序。日志只写电脑；网络缺口明确标记。SFTP传输保留覆盖确认和本次临时文件清理，未实现通用断点续传。远端删除与传输共用操作锁，确认目标后逐项删除，不跟随符号链接；中断后不重放删除。
 
@@ -36,10 +36,8 @@ Windows产物在src-tauri/target/release/bundle/nsis/。依赖版本以package-l
 
 ## 更新发布
 
-更新由 `tauri-plugin-updater` 校验签名。安装版使用 NSIS，便携版使用签名的 `PortCanvas.exe`，由该程序的更新助手在旧进程退出后替换；资料目录保留。`latest.json` 同时提供 `windows-x86_64`（安装器）与 `windows-x86_64-portable`（程序）条目。检查来源是 GitHub 最新 Release，未发布的 main 提交不提示升级。
+更新继续使用tauri-plugin-updater验证版本签名，仅支持Windows安装版。当前用户静默更新沿用注册表记录的位置；手动安装保留目录选择。便携模式保留旧资料读取兼容，但停止提供发布包或更新。Mac目前仅适配V0.5.6，后续可能等正式版推出后再继续适配，暂不跟随Windows后续Demo更新。
 
-正式打包须通过环境变量提供 `TAURI_SIGNING_PRIVATE_KEY` 和 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，私钥保存在仓库外部或已忽略的本机私密目录，不提交到 Git。构建生成的安装器及其 `.sig`、签名后的便携程序及其 `.sig` 和 `latest.json` 随 Release 上传；`bundle.createUpdaterArtifacts` 已启用。签名文件中的版本必须与该 Release 一致。
+Windows构建通过TAURI_SIGNING_PRIVATE_KEY与TAURI_SIGNING_PRIVATE_KEY_PASSWORD提供既有更新密钥。只将安装器签名内容写入latest.json的windows-x86_64条目；不单发.sig、portable.bin、SHA256SUMS或说明ZIP。旧版更新器依赖releases/latest/download/latest.json，因此保留此清单。GitHub自动提供源码归档，Mac DMG只在v0.5.6发布。
 
-更新在用户点击后下载，校验完成后再确认安装并重启；下载可取消。安装前停止本机连接并封存日志，远端持久终端会话不主动终止。文件传输或资料迁移进行中不允许安装。便携目录必须可写。只有 debug 构建支持回环测试源，正式版固定使用 HTTPS 和内置公钥。
-
-更新下载默认使用32路并发分段；服务不支持Range时自动回退到单连接。界面显示实际并发数，取消会停止本次下载。完整文件及版本签名通过校验后才能安装。
+更新在用户点击后下载，默认32路分段，不支持Range时回退单连接；可取消，完整文件通过版本签名校验后才允许安装。安装前停止本机连接并封存日志，远端持久会话保留；文件操作或迁移进行中不允许安装。正式版固定HTTPS与内置公钥。

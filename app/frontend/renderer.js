@@ -6,6 +6,8 @@ import {LogsPage} from './logs-page.js';
 import {ArenaPage} from './arena-page.js';
 import {DesktopLifecycle} from './desktop-lifecycle.js';
 import {observeDesktopStartup} from './desktop-startup.js';
+import {installDesktopInteractions} from './desktop-interactions.js';
+installDesktopInteractions();
 const $ = id => document.getElementById(id);
 let devices = [], selected = null, page = 'devices', rfb = null, desktopAttempt = 0;
 let current = {ssh: 'disconnected', desktop: 'disconnected', message: '就绪'}, fit = true, readonly = false;

@@ -32,7 +32,7 @@ impl PreferenceStore {
         serde_json::from_slice(&std::fs::read(&self.file)?).context("设置读取失败，原文件保留。")
     }
     pub fn language(&self)->Language {self.read().map(|p|p.language).unwrap_or_default()}
-    pub fn info(&self)->Result<Value>{let p=self.read()?;Ok(json!({"language":p.language,"theme":p.theme,"desktopMode":p.desktop_mode,"version":env!("CARGO_PKG_VERSION"),"repository":REPOSITORY}))}
+    pub fn info(&self)->Result<Value>{let p=self.read()?;Ok(json!({"language":p.language,"theme":p.theme,"desktopMode":p.desktop_mode,"version":env!("CARGO_PKG_VERSION"),"repository":REPOSITORY,"updatesSupported":cfg!(windows)}))}
     pub fn save_language(&self,language:Language)->Result<Value>{let mut p=self.read()?;p.language=language;atomic_json(&self.file,&p)?;self.info()}
     pub fn save_theme(&self,theme:Theme)->Result<Value>{let mut p=self.read()?;p.theme=theme;atomic_json(&self.file,&p)?;self.info()}
     pub fn save_desktop_mode(&self,mode:crate::desktop_settings::DesktopMode)->Result<Value>{let mut p=self.read()?;p.desktop_mode=mode;atomic_json(&self.file,&p)?;self.info()}
