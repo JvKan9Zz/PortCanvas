@@ -1,8 +1,8 @@
 [package]
 name = "portcanvas"
-version = "0.5.25"
+version = "0.5.3"
 edition = "2021"
-rust-version = "1.88"
+rust-version = "1.90"
 default-run = "PortCanvas"
 autobins = false
 
@@ -21,10 +21,11 @@ path = "examples/compat_probe.rs"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:tauri", "dep:rfd", "windows-sys/Win32_UI_WindowsAndMessaging", "windows-sys/Win32_UI_Shell"]
+desktop = ["dep:tauri", "dep:rfd", "dep:tauri-plugin-updater", "dep:reqwest", "windows-sys/Win32_UI_WindowsAndMessaging", "windows-sys/Win32_UI_Shell"]
 
 [dependencies]
 tauri = { version = "2", optional = true, features = [] }
+reqwest = { version = "0.13", optional = true, default-features = false }
 rfd = { version = "0.15", optional = true }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["rt"] }
@@ -44,6 +45,7 @@ tokio-tungstenite = "0.28"
 zeroize = "1"
 dunce = "1"
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_Networking_WinHttp"] }
+tauri-plugin-updater = { version = "=2.14.0", default-features = false, features = ["rustls-tls", "system-proxy"], optional = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -34,6 +34,34 @@ pub struct AppState {
     pub migrating: AtomicBool,
     pub default_log_root: PathBuf,
     pub preferences: Mutex<crate::preferences::PreferenceStore>,
+    pub updates: crate::updates::UpdateService,
+}
+async fn stop_for_exit(state:&AppState) {
+    state.updates.cancel();
+    state.terminal.stop_all();
+    state.files.cancel();
+    tokio::join!(state.arena.stop(None),state.pose.stop(None));
+    state.desktop.stop(None).await;
+    state.devices.disconnect().await;
+    let _=state.logs.close().await;
+}
+async fn install_update(window:tauri::WebviewWindow,state:&AppState)->Result<Value> {
+    anyhow::ensure!(!state.files.snapshot()["busy"].as_bool().unwrap_or(false)&&!state.migrating.load(Ordering::SeqCst),"请等待文件传输或资料迁移结束后再安装更新。");
+    let(update,bytes)=state.updates.begin_install()?;
+    if state.quitting.swap(true,Ordering::SeqCst){bail!("程序正在退出。");}
+    let result=async {
+        let stage=if state.updates.portable {
+            let data=state.preferences.lock().unwrap().file.parent().context("设置目录无效。")?.to_path_buf();
+            Some(crate::portable_update::prepare(&bytes,&data)?)
+        }else{None};
+        stop_for_exit(state).await;
+        if let Some(stage)=stage {
+            if let Err(error)=crate::portable_update::launch(&stage){let _=std::fs::remove_dir_all(&stage);return Err(error);}
+            window.app_handle().exit(0);Ok(())
+        }else{tokio::task::spawn_blocking(move||update.install(bytes)).await??;Ok(())}
+    }.await;
+    if let Err(error)=result{state.quitting.store(false,Ordering::SeqCst);state.updates.install_error(&error);}
+    Ok(state.updates.snapshot())
 }
 pub fn argument<T: DeserializeOwned>(args: &[Value], index: usize) -> Result<T> {
     serde_json::from_value(args.get(index).cloned().unwrap_or(Value::Null))
@@ -309,12 +337,17 @@ async fn studio_call(
 ) -> std::result::Result<Value, String> {
     let result:Result<Value>=async{
         let origin=validate_window(&window)?;
+        anyhow::ensure!(!state.quitting.load(Ordering::SeqCst),"程序正在退出。");
         if state.migrating.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"profiles:save"|"profiles:remove"|"files:transfer"|"logs:directory"|"logs:project"|"terminal:new"|"terminal:restart"|"terminal:close"){bail!("资料迁移中，请稍后重试。");}
         match action.as_str(){
             "settings:read"=>state.preferences.lock().unwrap().info(),
             "settings:language"=>state.preferences.lock().unwrap().save_language(argument(&args,0)?),
             "settings:theme"=>state.preferences.lock().unwrap().save_theme(argument(&args,0)?),
-            "settings:updates"=>tokio::task::spawn_blocking(crate::preferences::check_update).await?,
+            "settings:updates"=>state.updates.check(window.app_handle()).await,
+            "settings:update-state"=>Ok(state.updates.snapshot()),
+            "settings:update-download"=>state.updates.download().await,
+            "settings:update-cancel"=>{state.updates.cancel();Ok(state.updates.snapshot())},
+            "settings:update-install"=>install_update(window,&state).await,
             "settings:repository"=>{open_repository(window).await?;Ok(Value::Null)},
             "profiles:list"=>Ok(json!(state.profiles.lock().unwrap().read()?.devices.iter().map(Profile::public_value).collect::<Vec<_>>())),
             "profiles:save"=>{anyhow::ensure!(!matches!(state.devices.snapshot()["ssh"].as_str(),Some("connected"|"connecting")),"请先断开设备再修改配置。");let profile:Profile=argument(&args,0)?;let secret=match args.get_mut(1).map(Value::take){Some(Value::String(p))=>zeroize::Zeroizing::new(p),None|Some(Value::Null)=>zeroize::Zeroizing::new(String::new()),_=>bail!("凭据参数无效。")};Ok(state.profiles.lock().unwrap().save(profile,&secret)?.public_value())},
@@ -399,6 +432,7 @@ pub fn run() {
         }
     }
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
             let directory = std::env::var_os("WCS_DATA_DIR")
                 .map(PathBuf::from)
@@ -430,7 +464,7 @@ pub fn run() {
             let devices = DeviceManager::new(events.clone());
             let desktop = DesktopService::new(devices.clone());
             let arena = crate::arena::ArenaService::new(devices.clone());
-            let pose = crate::arena_pose::PoseService::new(devices.clone(),events);
+            let pose = crate::arena_pose::PoseService::new(devices.clone(),events.clone());
             let files = FileService::new(devices.clone(), app.path().document_dir()?);
             let namespace = std::env::var("WCS_SESSION_NAMESPACE")
                 .ok()
@@ -450,7 +484,10 @@ pub fn run() {
                 default_log_root.clone(),
             )?;
             let terminal = TerminalPool::new(devices.clone(),logs.clone(),namespace,directory.join("terminals.json"));
+            let updates=crate::updates::UpdateService::new(events,portable);
+            if portable {if let Some(result)=crate::portable_update::result(&directory){updates.restore_result(result);}}
             app.manage(AppState {
+                updates,
                 preferences: Mutex::new(crate::preferences::PreferenceStore{file:directory.join("settings.json")}),
                 profiles: Arc::new(Mutex::new(ProfileStore { directory })),
                 devices,
@@ -487,12 +524,7 @@ pub fn run() {
                 {
                     tauri::async_runtime::spawn(async move {
                         let state = app.state::<AppState>();
-                        state.terminal.stop_all();
-                        state.files.cancel();
-                        tokio::join!(state.arena.stop(None),state.pose.stop(None));
-                        state.desktop.stop(None).await;
-                        state.devices.disconnect().await;
-                        let _ = state.logs.close().await;
+                        stop_for_exit(&state).await;
                         app.exit(0);
                     });
                 }

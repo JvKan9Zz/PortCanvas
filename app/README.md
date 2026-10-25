@@ -1,4 +1,4 @@
-# PortCanvas Demo V0.5.25
+# PortCanvas Demo V0.5.3
 
 Tauri 2 + Rust + WebView2桌面客户端。Rust负责SSH、SFTP、桌面转发、PTY/tmux、本地日志、设置与按需摄像头；前端使用noVNC与xterm。Node仅用于构建，电脑端运行无需Node/Python。
 
@@ -28,4 +28,14 @@ Windows产物在src-tauri/target/release/bundle/nsis/。依赖版本以package-l
 
 [用户说明](../docs/usage.md) · THIRD-PARTY-NOTICES.txt随安装与便携包分发。
 
-V0.5.25仅整理目录与README，并将原有版本检查地址同步为app/package.json；版本比较及其余业务行为保持。
+
+
+## 更新发布
+
+更新由 `tauri-plugin-updater` 校验签名。安装版使用 NSIS，便携版使用签名的 `PortCanvas.exe`，由该程序的更新助手在旧进程退出后替换；资料目录保留。`latest.json` 同时提供 `windows-x86_64`（安装器）与 `windows-x86_64-portable`（程序）条目。检查来源是 GitHub 最新 Release，未发布的 main 提交不提示升级。
+
+正式打包须通过环境变量提供 `TAURI_SIGNING_PRIVATE_KEY` 和 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，私钥保存在仓库外部或已忽略的本机私密目录，不提交到 Git。构建生成的安装器及其 `.sig`、签名后的便携程序及其 `.sig` 和 `latest.json` 随 Release 上传；`bundle.createUpdaterArtifacts` 已启用。签名文件中的版本必须与该 Release 一致。
+
+更新在用户点击后下载，校验完成后再确认安装并重启；下载可取消。安装前停止本机连接并封存日志，远端持久终端会话不主动终止。文件传输或资料迁移进行中不允许安装。便携目录必须可写。只有 debug 构建支持回环测试源，正式版固定使用 HTTPS 和内置公钥。
+
+更新下载默认使用32路并发分段；服务不支持Range时自动回退到单连接。界面显示实际并发数，取消会停止本次下载。完整文件及版本签名通过校验后才能安装。

@@ -8,6 +8,8 @@ const $ = id => document.getElementById(id);
 let devices = [], selected = null, page = 'devices', rfb = null, desktopAttempt = 0;
 let current = {ssh: 'disconnected', desktop: 'disconnected', message: '就绪'}, fit = true, readonly = false;
 let toastTimer,toastMessage;
+const connectionSteps=[['prepare','准备认证资料'],['resolve','解析设备地址'],['tcp','建立 TCP 连接'],['handshake','SSH 密钥交换'],['identity','验证主机身份'],['secure','完成 SSH 握手'],['authenticate','登录认证'],['ready','连接完成']];
+const connectionAdvice={prepare:'检查私钥文件、格式和口令。',resolve:'检查设备地址或 DNS 设置。',tcp:'检查设备是否开机、网络是否互通，以及 SSH 端口是否正确。',handshake:'确认目标端口运行 SSH 服务，并检查服务端日志。',identity:'请核对设备指纹；身份变化时不要直接信任新密钥。',secure:'确认目标端口运行 SSH 服务，并检查服务端日志。',authenticate:'检查用户名、密码，或设备上的公钥授权。'};
 const icon = name => {const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');const use = document.createElementNS(svg.namespaceURI, 'use');use.setAttribute('href', '#i-' + name);svg.append(use);return svg;};
 const filesPage = new FilePage({toast,icon,goDevices:()=>showPage('devices')});
 let terminalExpanded=false;
@@ -79,6 +81,7 @@ function clearRfb() {
   $('desktopCanvas').replaceChildren();
 }
 function renderState(state,presentationOnly=false) {
+  const revealConnectionResult=(state.ssh==='connecting'&&current.ssh!=='connecting')||(state.ssh==='error'&&current.ssh!=='error');
   current = state;
   if(!presentationOnly){filesPage.setConnection(state,selected?.id);terminalDrawer.setConnection(state);arenaPage.setConnection(state);}
   const connected = state.ssh === 'connected', connecting = state.ssh === 'connecting';
@@ -88,6 +91,20 @@ function renderState(state,presentationOnly=false) {
   $('connectDevice').querySelector('span').textContent = t(connecting ? '取消连接' : connected ? '断开设备' : '连接设备');
   for (const id of ['name', 'host', 'port', 'username', 'password', 'authMethod','privateKeyPath','rememberPassword','choosePrivateKey','display', 'xauthority', 'saveDevice', 'newDevice', 'removeDevice', 'importProfiles', 'rollbackProfiles']) $(id).disabled = connected || connecting;
   $('resultTitle').textContent = t(connected ? '设备连接成功' : connecting ? '正在建立连接' : state.ssh === 'error' ? '连接失败' : '准备连接');
+  const stepIndex=connectionSteps.findIndex(([key])=>key===state.connectionStage);
+  $('connectionTarget').textContent=state.connectionTarget||'';
+  $('connectionTarget').hidden=!state.connectionTarget;
+  $('connectionSteps').replaceChildren();
+  if(stepIndex>=0)for(const [index,[key,label]] of connectionSteps.entries()){
+    const item=document.createElement('li');
+    const result=index<stepIndex||connected?'已完成':index===stepIndex?(state.ssh==='error'?'失败':'进行中'):'等待';
+    item.className=index<stepIndex||connected?'complete':index===stepIndex?(state.ssh==='error'?'failed':'active'):'';
+    if(index===stepIndex)item.setAttribute('aria-current','step');
+    item.append(document.createTextNode(t(label)),Object.assign(document.createElement('span'),{textContent:t(result)}));
+    $('connectionSteps').append(item);
+  }
+  $('connectionAdvice').hidden=state.ssh!=='error'||!connectionAdvice[state.connectionStage];
+  $('connectionAdvice').textContent=t(connectionAdvice[state.connectionStage]||'');
   $('resultMessage').textContent = t(state.message);
   $('connectionBadge').title=t(state.message);
   document.querySelector('.connection-result').hidden=!connected&&!connecting&&state.ssh!=='error';
@@ -112,6 +129,7 @@ function renderState(state,presentationOnly=false) {
   }
   if (!connected && rfb) clearRfb();
   renderDevices();
+  if(revealConnectionResult)requestAnimationFrame(()=>document.querySelector('.connection-result').scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'}));
 }
 async function startDesktop() {
   clearRfb();
