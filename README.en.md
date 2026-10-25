@@ -4,11 +4,11 @@
 
 [简体中文](README.md) | English
 
-A unified remote device workspace · **Demo V0.5.5**
+A unified remote device workspace · **Demo V0.5.6**
 
-This release adds remote file deletion, staged desktop loading, remote device reboot and an expandable terminal command box. It also fixes the long desktop stall when opening the file manager just after connecting.
+This release limits text selection in the application shell and disables the browser context menu on empty areas. Editing fields, logs and diagnostic details remain selectable. It also adds a one-time universal macOS package.
 
-Connect to Linux devices, control their desktops, transfer files, run terminals and read local execution logs from one Windows client.
+Connect to Linux devices, control their desktops, transfer files, run terminals and read local execution logs from one desktop client.
 
 | Feature | Current capabilities |
 | --- | --- |
@@ -16,15 +16,19 @@ Connect to Linux devices, control their desktops, transfer files, run terminals 
 | Desktop and files | X11 remote desktop with three picture modes and automatic pause/resume; dual-pane SFTP, drive selection, drag-and-drop transfers, remote deletion, progress and cancellation |
 | Terminals and logs | Multiple terminals, restart/close, reconnectable sessions and an expandable command box with completion; local logs grouped by project/date |
 | Arena | On-demand camera preview at target rates of 8/15/20/30 FPS, device metrics and 60-second history, full-field metric coordinates and a position input interface |
-| Settings | Chinese/English, light blue/green/gray themes and in-app updates for installed and portable builds |
+| Settings | Chinese/English, light blue/green/gray themes and in-app updates for the Windows installer edition |
 
 No localization producer is connected yet. Position readings stay unavailable rather than showing simulated live data. The camera starts off and stops on minimize, page departure or exit; restoring the workspace does not reopen it. Native MJPEG avoids board-side re-encoding, at the cost of more bandwidth and some host overhead. Results depend on the device and network.
 
 ## Download and usage
 
-[Latest release](https://github.com/JvKan9Zz/PortCanvas/releases/latest) · [Usage guide (Chinese)](docs/usage.md) · [Position protocol (Chinese)](docs/pose-protocol.md)
+[Latest Windows installer](https://github.com/JvKan9Zz/PortCanvas/releases/latest) · [macOS V0.5.6](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.6) · [Usage guide (Chinese)](docs/usage.md) · [Position protocol (Chinese)](docs/pose-protocol.md)
 
-Windows x64 installer and portable packages include SHA256SUMS.txt. The client uses the system WebView2 runtime; Node.js, Rust and Python are not required on the Windows computer at runtime. Installer mode preserves existing settings; portable mode uses a local data/ directory. Personal settings, private keys, execution logs and camera photos are excluded from the repository and packages.
+The Windows x64 installer lets you choose the installation folder. In-app updates retain that folder and existing configuration. The universal DMG targets macOS 13+ and includes Intel and Apple Silicon code. Demo V0.5.6 is currently the only macOS compatibility release. Further macOS adaptation may wait until the stable version is released; later Windows demos will not automatically receive a Mac build. Both editions use the operating system's webview and need no Node.js, Rust or Python at runtime.
+
+The Mac package uses an ad-hoc signature and is not notarized by Apple. First launch may require manual approval in macOS Privacy & Security. Saved credentials use Windows DPAPI or macOS Keychain and cannot be decrypted directly on the other operating system.
+
+Portable builds, wrapper ZIPs, standalone signatures and checksum lists are no longer published. Besides installers and GitHub's source archives, releases retain only the latest.json needed by the Windows in-app updater; its signature is embedded in that manifest.
 
 ## Source
 
