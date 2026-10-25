@@ -37,17 +37,18 @@ export class TerminalDrawer {
   get current(){return this.panes.get(this.activeKey);}
   setupCommand(){
     const input=$('terminalCommand');
-    input.oninput=()=>{this.clearCompletions();if(this.current)this.current.draft=input.value;input.style.height='auto';input.style.height=Math.min(110,Math.max(38,input.scrollHeight))+'px';};
+    $('expandCommand').onclick=()=>{this.commandExpanded=!this.commandExpanded;this.renderCommandSize();if(!input.disabled)input.focus();};
+    input.oninput=()=>{this.clearCompletions();if(this.current)this.current.draft=input.value;this.renderCommandSize();};
     input.onkeydown=event=>{
       if(event.isComposing||event.keyCode===229)return;
-      if(this.completions){if(['ArrowUp','ArrowDown','Tab'].includes(event.key)&&!event.shiftKey){event.preventDefault();const list=this.completions;list.index=(list.index+(event.key==='ArrowUp'?-1:1)+list.items.length)%list.items.length;this.renderCompletions();return;}if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.chooseCompletion(this.completions.index);return;}if(event.key==='Escape'){event.preventDefault();this.clearCompletions();return;}}
+      if(this.completions){if(['ArrowUp','ArrowDown','Tab'].includes(event.key)&&!event.shiftKey){event.preventDefault();const list=this.completions;list.index=(list.index+(event.key==='ArrowUp'?-1:1)+list.items.length)%list.items.length;this.renderCompletions();return;}if(event.key==='Enter'&&!event.shiftKey&&!event.ctrlKey&&!event.metaKey){event.preventDefault();this.chooseCompletion(this.completions.index);return;}if(event.key==='Escape'){event.preventDefault();this.clearCompletions();return;}}
       if(event.key==='Tab'&&!event.shiftKey){event.preventDefault();this.completeCommand();return;}
-      if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();$('terminalCommandForm').requestSubmit();}
-      else if(['ArrowUp','ArrowDown'].includes(event.key)&&!input.value.includes('\n')&&this.current?.history.length){
+      if(event.key==='Enter'&&(event.ctrlKey||event.metaKey||(!this.commandExpanded&&!event.shiftKey))){event.preventDefault();$('terminalCommandForm').requestSubmit();}
+      else if(['ArrowUp','ArrowDown'].includes(event.key)&&!this.commandExpanded&&!input.value.includes('\n')&&this.current?.history.length){
         event.preventDefault();this.clearCompletions();const pane=this.current;
         if(pane.historyIndex===pane.history.length)pane.historyDraft=input.value;
         pane.historyIndex=Math.max(0,Math.min(pane.history.length,pane.historyIndex+(event.key==='ArrowUp'?-1:1)));
-        input.value=pane.historyIndex===pane.history.length?pane.historyDraft||'':pane.history[pane.historyIndex];pane.draft=input.value;
+        input.value=pane.historyIndex===pane.history.length?pane.historyDraft||'':pane.history[pane.historyIndex];pane.draft=input.value;this.renderCommandSize();
       }
     };
     input.addEventListener('blur',()=>this.clearCompletions());
@@ -63,6 +64,14 @@ export class TerminalDrawer {
       }catch(error){this.toast(error.message);}finally{pane.sending=false;this.renderCommand();if(this.current===pane&&this.visible&&!input.disabled)input.focus();}
     };
   }
+  renderCommandSize(){
+    const input=$('terminalCommand'),expanded=Boolean(this.commandExpanded),button=$('expandCommand');
+    $('terminalCommandForm').classList.toggle('expanded',expanded);button.setAttribute('aria-expanded',String(expanded));
+    button.title=t(expanded?'收起命令输入框':'展开命令输入框');button.setAttribute('aria-label',button.title);button.classList.toggle('selected',expanded);
+    input.title=t(expanded?'Enter换行；Ctrl+Enter发送；Tab补全':'Enter发送；Shift+Enter换行；Tab补全');
+    input.style.height='';
+    if(!expanded){input.style.height='auto';input.style.height=Math.min(110,Math.max(38,input.scrollHeight))+'px';}
+  }
   clearCompletions(){
     this.completionSerial=(this.completionSerial||0)+1;this.completions=null;
     $('terminalCompletions').hidden=true;$('terminalCommand').setAttribute('aria-expanded','false');$('terminalCommand').setAttribute('aria-busy','false');$('terminalCommand').removeAttribute('aria-activedescendant');
@@ -74,7 +83,7 @@ export class TerminalDrawer {
   }
   chooseCompletion(index){
     const list=this.completions;if(!list)return;
-    const edit=completionEdit(list.context,list.items[index]);this.clearCompletions();const input=$('terminalCommand');input.value=edit.value;input.setSelectionRange(edit.cursor,edit.cursor);if(this.current)this.current.draft=input.value;input.focus();
+    const edit=completionEdit(list.context,list.items[index]);this.clearCompletions();const input=$('terminalCommand');input.value=edit.value;input.setSelectionRange(edit.cursor,edit.cursor);if(this.current)this.current.draft=input.value;this.renderCommandSize();input.focus();
   }
   async completeCommand(){
     const pane=this.current,input=$('terminalCommand');if(!pane||input.disabled)return;
@@ -92,7 +101,8 @@ export class TerminalDrawer {
   renderCommand(){
     const pane=this.current,input=$('terminalCommand'),disabled=!pane||!this.connected||pane.state.phase!=='connected'||pane.sending;
     input.disabled=Boolean(disabled);$('sendCommand').disabled=Boolean(disabled);
-    if(input.value!==(pane?.draft||'')){input.value=pane?.draft||'';input.style.height='38px';}
+    if(input.value!==(pane?.draft||''))input.value=pane?.draft||'';
+    this.renderCommandSize();
   }
 
   setupResize() {

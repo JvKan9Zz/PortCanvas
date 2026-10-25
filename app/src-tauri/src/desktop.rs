@@ -32,6 +32,12 @@ use tokio_util::sync::CancellationToken;
 pub fn python(source: &str, args: Value) -> Result<String> {
     Ok(format!("python3 -u -c {}",quote(&format!("import sys,json,base64;sys.argv=json.loads(base64.b64decode('{}'));exec(base64.b64decode('{}'))",STANDARD.encode(serde_json::to_vec(&args)?),STANDARD.encode(source.replace("\r\n","\n"))))))
 }
+pub async fn schedule_reboot(connection:&SshConnection)->Result<()>{
+    let command=format!("sh -c {}",quote(&include_str!("../resources/reboot.sh").replace("\r\n","\n")));
+    let(output,status)=connection.exec(&command,4096,Duration::from_secs(8)).await?;
+    anyhow::ensure!(status==0&&output.lines().any(|line|line=="PORTCANVAS_REBOOT_SCHEDULED"),"无法提交重启请求，请检查设备账户是否具备免交互重启权限。");
+    Ok(())
+}
 struct Running {
     id: u64,
     generation: u64,
@@ -79,8 +85,13 @@ impl DesktopService {
             old.cancel.cancel();
             let _ = tokio::time::timeout(Duration::from_secs(5), old.done.cancelled()).await;
             let current=self.running.lock().unwrap();
-            if current.is_none(){self.devices.update(old.generation,json!({"desktop":"disconnected"}));}
+            if current.is_none(){self.devices.update(old.generation,json!({"desktop":"disconnected","desktopStage":null}));}
         }
+    }
+    pub async fn failed(&self,id:u64,message:String){
+        let generation={let running=self.running.lock().unwrap();let Some(run)=running.as_ref().filter(|run|run.id==id)else{return;};run.generation};
+        self.stop(Some(id)).await;
+        if self.running.lock().unwrap().is_none(){self.devices.update(generation,json!({"desktop":"error","message":if message.is_empty(){"桌面连接中断，请重新连接。".into()}else{message}}));}
     }
     pub fn ready(&self, id: u64) {
         let running = self.running.lock().unwrap();
@@ -110,7 +121,7 @@ impl DesktopService {
         });
         self.devices.update(
             generation,
-            json!({"desktop":"connecting","message":"正在打开远程桌面…"}),
+            json!({"desktop":"connecting","desktopStage":"prepare","message":"正在打开远程桌面…"}),
         );
         let operation = async {
             let config = json!({"display":connection.profile.display,"xauthority":connection.profile.xauthority,"tuning":mode.tuning()});
@@ -127,6 +138,7 @@ impl DesktopService {
                 bail!("桌面连接已取消。");
             }
             process.exec(true, command).await?;
+            self.devices.update(generation,json!({"desktopStage":"service"}));
             let ready = async {
                 let mut output = String::new();
                 let mut diagnostic = String::new();

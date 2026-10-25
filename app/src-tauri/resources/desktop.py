@@ -67,7 +67,9 @@ if tuning:
     assert type(wait) is int and 1 <= wait <= 1000
     assert type(defer) is int and 0 <= defer <= 100
     assert 0 < tuning['frameInterval'] <= 1
-    transport_options = ['-wait', str(wait), '-defer', str(defer), '-setdefer', '-1', '-input_eagerly', '-nowf', '-noscr', '-slow_fb', str(tuning['frameInterval'])]
+    # Avoid x11vnc's synchronous startup bandwidth probe, which can suspend
+    # scanning/input delivery for 5–15 seconds after a large window redraw.
+    transport_options = ['-speeds', 'lan', '-wait', str(wait), '-defer', str(defer), '-setdefer', '-1', '-input_eagerly', '-nowf', '-noscr', '-slow_fb', str(tuning['frameInterval'])]
     width_limit, height_limit = tuning['maxWidth'], tuning['maxHeight']
     if width_limit and height_limit:
         transport_options.extend(scale_options(profile['display'], auth, width_limit, height_limit))
