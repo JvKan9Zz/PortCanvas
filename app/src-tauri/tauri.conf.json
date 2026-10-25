@@ -61,7 +61,7 @@
         "https://github.com/JvKan9Zz/PortCanvas/releases/latest/download/latest.json"
       ],
       "windows": {
-        "installMode": "passive"
+        "installMode": "quiet"
       },
       "requireSignedVersion": true
     }
