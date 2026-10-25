@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PortCanvas · Demo V0.5.5</title>
+  <title>PortCanvas · Demo V0.5.6</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="themes.css">
   <link rel="stylesheet" href="files.css">
@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="logs.css">
   <link rel="stylesheet" href="settings.css">
   <link rel="stylesheet" href="arena.css">
+  <link rel="stylesheet" href="interaction.css">
 </head>
 <body>
 <!-- V052-ARENA CONTRACT
@@ -69,7 +70,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
         <div class="connection-editor">
           <div class="editor-heading"><div class="device-emblem"><svg><use href="#i-device"/></svg></div><div><h2 id="editorTitle">添加你的第一台设备</h2></div></div>
           <form id="deviceForm" novalidate>
-            <div class="fields"><label class="wide">设备名称<input id="name" name="name" maxlength="80" placeholder="例如：开发控制器" required></label><label>设备地址<input id="host" name="host" placeholder="例如：192.168.1.100" autocomplete="off" spellcheck="false" required></label><label class="port-field">SSH 端口<input id="port" name="port" type="number" value="22" min="1" max="65535" required></label><label>用户名<input id="username" name="username" placeholder="Linux 登录用户" autocomplete="off" spellcheck="false" required></label><label>认证方式<select id="authMethod" aria-label="SSH认证方式"><option value="password">密码</option><option value="key">SSH 密钥</option></select></label><label id="keyFileField" class="wide" hidden>私钥文件<span class="key-file-control"><input id="privateKeyPath" autocomplete="off" spellcheck="false" placeholder="选择本机私钥文件"><button id="choosePrivateKey" class="button secondary" title="OpenSSH / PEM / PPK" type="button">选择私钥</button></span></label><label class="wide"><span id="credentialLabel">密码</span><span id="credentialHint" class="label-note" hidden></span><input id="password" name="password" type="password" autocomplete="off" maxlength="8192" placeholder="输入设备登录密码"></label><div class="wide credential-choice"><label class="remember-choice" title="使用当前 Windows 账户加密保存；取消勾选并保存可移除。"><input id="rememberPassword" type="checkbox"><span id="rememberLabel">记住密码</span></label></div></div>
+            <div class="fields"><label class="wide">设备名称<input id="name" name="name" maxlength="80" placeholder="例如：开发控制器" required></label><label>设备地址<input id="host" name="host" placeholder="例如：192.168.1.100" autocomplete="off" spellcheck="false" required></label><label class="port-field">SSH 端口<input id="port" name="port" type="number" value="22" min="1" max="65535" required></label><label>用户名<input id="username" name="username" placeholder="Linux 登录用户" autocomplete="off" spellcheck="false" required></label><label>认证方式<select id="authMethod" aria-label="SSH认证方式"><option value="password">密码</option><option value="key">SSH 密钥</option></select></label><label id="keyFileField" class="wide" hidden>私钥文件<span class="key-file-control"><input id="privateKeyPath" autocomplete="off" spellcheck="false" placeholder="选择本机私钥文件"><button id="choosePrivateKey" class="button secondary" title="OpenSSH / PEM / PPK" type="button">选择私钥</button></span></label><label class="wide"><span id="credentialLabel">密码</span><span id="credentialHint" class="label-note" hidden></span><input id="password" name="password" type="password" autocomplete="off" maxlength="8192" placeholder="输入设备登录密码"></label><div class="wide credential-choice"><label class="remember-choice" title="使用当前系统账户保护凭据；取消勾选并保存可移除。"><input id="rememberPassword" type="checkbox"><span id="rememberLabel">记住密码</span></label></div></div>
             <details id="advanced"><summary>桌面连接设置</summary><div class="advanced-fields"><label>显示编号<input id="display" value=":0" spellcheck="false"></label><label>桌面授权文件<input id="xauthority" placeholder="自动选择当前用户的 Xauthority" spellcheck="false"></label></div></details>
             <div class="form-actions"><button id="connectDevice" class="button primary" type="submit"><svg><use href="#i-connect"/></svg><span>连接设备</span></button><button id="saveDevice" class="button secondary" type="button">保存配置</button><button id="removeDevice" class="button secondary danger" type="button" hidden>移除配置</button></div>
           </form>

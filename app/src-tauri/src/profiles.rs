@@ -263,7 +263,7 @@ mod tests {
             format!("SHA256:{}", "A".repeat(43))
         );
     }
-    #[cfg(windows)]
+    #[cfg(any(windows,target_os="macos"))]
     #[test]
     fn remembered_secret_is_atomic_redacted_and_can_be_removed() {
         let directory=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(uuid::Uuid::new_v4().to_string());

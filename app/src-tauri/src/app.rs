@@ -215,7 +215,8 @@ async fn open_repository(window:tauri::WebviewWindow)->Result<()> {
         #[cfg(windows)]{use windows_sys::Win32::UI::{Shell::ShellExecuteW,WindowsAndMessaging::SW_SHOWNORMAL};
         let verb="open".encode_utf16().chain(Some(0)).collect::<Vec<_>>();let url=crate::preferences::REPOSITORY.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
         let parent=window.hwnd().map(|h|h.0 as *mut std::ffi::c_void).unwrap_or(std::ptr::null_mut());let result=unsafe{ShellExecuteW(parent,verb.as_ptr(),url.as_ptr(),std::ptr::null(),std::ptr::null(),SW_SHOWNORMAL)};anyhow::ensure!(result as isize>32,"无法打开GitHub仓库。");}
-        #[cfg(not(windows))]{let _=window;anyhow::bail!("当前平台暂不支持打开仓库。");}
+        #[cfg(target_os="macos")]{let _=window;anyhow::ensure!(std::process::Command::new("/usr/bin/open").arg(crate::preferences::REPOSITORY).status()?.success(),"无法打开GitHub仓库。");}
+        #[cfg(not(any(windows,target_os="macos")))]{let _=window;anyhow::bail!("当前平台暂不支持打开仓库。");}
         Ok::<_,anyhow::Error>(())
     }).await?
 }
@@ -255,7 +256,9 @@ async fn open_directory(window: tauri::WebviewWindow, path: PathBuf) -> Result<(
                 bail!("无法打开目录（系统状态{}）。", result as isize);
             }
         }
-        #[cfg(not(windows))]
+        #[cfg(target_os="macos")]
+        {let _=window;anyhow::ensure!(std::process::Command::new("/usr/bin/open").arg(&path).status()?.success(),"无法打开目录。");}
+        #[cfg(not(any(windows,target_os="macos")))]
         {
             let _ = window;
             bail!("当前交付仅支持Windows目录打开。");
@@ -319,7 +322,11 @@ pub async fn confirm(window: tauri::WebviewWindow, title: String, message: Strin
                 ) == IDOK
             }
         }
-        #[cfg(not(windows))]
+        #[cfg(target_os="macos")]
+        {
+            matches!(rfd::MessageDialog::new().set_parent(&window).set_title(title).set_description(message).set_level(rfd::MessageLevel::Warning).set_buttons(rfd::MessageButtons::OkCancel).show(),rfd::MessageDialogResult::Ok)
+        }
+        #[cfg(not(any(windows,target_os="macos")))]
         {
             let _ = (window, title, message);
             false
@@ -489,13 +496,13 @@ pub fn run() {
             let desktop = DesktopService::new(devices.clone());
             let arena = crate::arena::ArenaService::new(devices.clone());
             let pose = crate::arena_pose::PoseService::new(devices.clone(),events.clone());
-            let files = FileService::new(devices.clone(), app.path().document_dir()?);
+            let files = FileService::new(devices.clone(), if cfg!(target_os="macos"){app.path().home_dir()?}else{app.path().document_dir()?});
             let namespace = std::env::var("WCS_SESSION_NAMESPACE")
                 .ok()
                 .filter(|s| !s.is_empty());
             let documents = app.path().document_dir()?;
             let legacy = documents.join("Wheel Combat Studio/Logs");
-            let default_log_root = if portable {
+            let default_log_root = if portable||cfg!(target_os="macos") {
                 directory.join("logs")
             } else if legacy.is_dir() {
                 legacy

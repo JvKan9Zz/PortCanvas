@@ -104,7 +104,7 @@ export class FilePage {
     if(!panel.error)$(side+'Message').textContent=t('{n} 个项目 · 已选 {selected} 个',{n:panel.entries.length,selected:panel.selected.size});
     this.controls();
   }
-  join(side,parent,name) {return parent.replace(side==='local'?/[\\/]$/:/\/$/,'')+(side==='local'?'\\':'/')+name;}
+  join(side,parent,name) {const windows=side==='local'&&(/^[a-z]:[\\/]/i.test(parent)||parent.startsWith('\\\\'));return parent.replace(windows?/[\\/]$/:/\/$/,'')+(windows?'\\':'/')+name;}
   newFolder(side) {this.folderSide=side;$('folderDialogTitle').textContent=t((side==='local'?'本地':'远端')+'新建文件夹');$('folderName').value='';$('folderError').textContent='';$('folderDialog').showModal();$('folderName').focus();}
   async removeRemote(){
     const panel=this.panels.remote;

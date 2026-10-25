@@ -24,7 +24,7 @@ impl UpdateService {
     pub fn new(events: EventSink, portable: bool) -> Self {
         Self {
             inner: Mutex::new(Pending {
-                state: json!({"status":"idle"}),
+                state: if cfg!(target_os="macos"){json!({"status":"manual","message":"macOS 版固定为 Demo V0.5.6，暂不提供后续自动更新。"})}else{json!({"status":"idle"})},
                 update: None,
                 bytes: None,
                 cancel: CancellationToken::new(),
@@ -62,6 +62,7 @@ impl UpdateService {
             inner.state = json!({"status":"checking"});
         }
         self.publish(json!({}));
+        if !cfg!(windows)||self.portable{return Ok(self.publish(json!({"status":"manual","message":if self.portable{"便携版已停止发布，请改用 Windows 安装器。"}else{"macOS 版固定为 Demo V0.5.6，暂不提供后续自动更新。"}})));}
         let result=async {
             let mut builder=app.updater_builder().timeout(Duration::from_secs(20));
             if self.portable {builder=builder.target(format!("windows-{}-portable",std::env::consts::ARCH));}
@@ -92,6 +93,7 @@ impl UpdateService {
         }
     }
     pub async fn download(&self) -> Result<Value> {
+        anyhow::ensure!(cfg!(windows)&&!self.portable,"此版本请使用对应系统的安装包安装。");
         let _operation = self.operation.try_lock().context("更新操作正在进行。")?;
         let (update, cancel) = {
             let mut inner = self.inner.lock().unwrap();
@@ -132,6 +134,7 @@ impl UpdateService {
         }
     }
     pub fn begin_install(&self) -> Result<(Update, Vec<u8>)> {
+        anyhow::ensure!(cfg!(windows)&&!self.portable,"此版本请使用对应系统的安装包安装。");
         let _operation = self.operation.try_lock().context("更新操作正在进行。")?;
         let mut inner = self.inner.lock().unwrap();
         anyhow::ensure!(inner.state["status"] == "ready", "请先下载并校验更新。");

@@ -72,7 +72,6 @@
   "输入设备登录密码": "Device password",
   "已加密保存，留空使用": "Saved securely; leave blank to use",
   "加密私钥请输入口令，未加密可留空": "Passphrase, if the private key is encrypted",
-  "使用当前 Windows 账户加密保存；取消勾选并保存可移除。": "Encrypted for this Windows account. Uncheck and save to remove.",
   "桌面连接设置": "Desktop options",
   "显示编号": "Display",
   "桌面授权文件": "Xauthority file",
@@ -520,5 +519,12 @@
   "设备连接已变化，请重新确认重启目标。": "The connection changed. Confirm the restart target again.",
   "无法提交重启请求，请检查设备账户是否具备免交互重启权限。": "The restart request could not be submitted. Check that the device account can restart without an interactive password prompt.",
   "设备重启请求正在处理中，请稍后重试。": "The device restart request is being handled. Try again shortly.",
-  "重启请求已提交，请稍后重新连接设备。": "Restart requested. Reconnect to the device shortly."
+  "重启请求已提交，请稍后重新连接设备。": "Restart requested. Reconnect to the device shortly.",
+  "使用当前系统账户保护凭据；取消勾选并保存可移除。": "Protect credentials with your current system account. Uncheck and save to remove them.",
+  "保存的凭据属于其他系统，请重新输入并保存。": "These credentials belong to another operating system. Enter them again and save.",
+  "macOS 版固定为 Demo V0.5.6，暂不提供后续自动更新。": "The macOS edition is fixed at Demo V0.5.6. Further automatic updates are not provided.",
+  "便携版已停止发布，请改用 Windows 安装器。": "Portable releases have ended. Use the Windows installer.",
+  "此版本请使用对应系统的安装包安装。": "Use the installer for your operating system.",
+  "无法读取钥匙串凭据，请重新输入或检查钥匙串访问权限。": "Cannot access Keychain credentials. Re-enter them or check Keychain access.",
+  "钥匙串保存失败，配置未更改。": "Keychain storage failed. The configuration was not changed."
 }
