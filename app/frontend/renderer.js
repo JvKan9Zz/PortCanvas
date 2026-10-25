@@ -81,7 +81,7 @@ function clearRfb() {
   $('desktopCanvas').replaceChildren();
 }
 function renderState(state,presentationOnly=false) {
-  const startedConnecting=state.ssh==='connecting'&&current.ssh!=='connecting';
+  const revealConnectionResult=(state.ssh==='connecting'&&current.ssh!=='connecting')||(state.ssh==='error'&&current.ssh!=='error');
   current = state;
   if(!presentationOnly){filesPage.setConnection(state,selected?.id);terminalDrawer.setConnection(state);arenaPage.setConnection(state);}
   const connected = state.ssh === 'connected', connecting = state.ssh === 'connecting';
@@ -129,7 +129,7 @@ function renderState(state,presentationOnly=false) {
   }
   if (!connected && rfb) clearRfb();
   renderDevices();
-  if(startedConnecting)requestAnimationFrame(()=>document.querySelector('.connection-result').scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'}));
+  if(revealConnectionResult)requestAnimationFrame(()=>document.querySelector('.connection-result').scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'}));
 }
 async function startDesktop() {
   clearRfb();

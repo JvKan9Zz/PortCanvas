@@ -262,7 +262,7 @@
   "终端连接已失效，请重新连接。": "This terminal connection has expired. Reconnect to continue.",
   "终端连接已关闭。": "Terminal connection closed.",
   "认证失败：请检查用户名和密码。": "Authentication failed. Check the username and password.",
-  "密钥认证失败：请检查用户名、公钥授权和私钥。": "Key authentication failed. Check the username, authorized key and private key.",
+  "密钥认证失败：请检查用户名、公钥授权和私钥。": "Key authentication failed. Check the username, authorized public key and private key.",
   "请先在设备页面连接树莓派。": "Connect a device first.",
   "请输入设备登录密码。": "Enter the device password.",
   "已取消资料操作。": "Data operation canceled.",
@@ -459,5 +459,11 @@
   "没有足够内存下载更新。": "There is not enough memory to download the update.",
   "程序目录不可写，无法更新便携版。": "The portable application directory is not writable.",
   "无法启动便携版更新助手。": "Could not start the portable update helper.",
-  "Demo V{version} 更新已就绪。": "Demo V{version} is ready to install."
+  "Demo V{version} 更新已就绪。": "Demo V{version} is ready to install.",
+  "连接被拒绝：请确认 SSH 服务和端口。": "Connection refused. Check the SSH service and port.",
+  "连接超时：请检查设备与网络。": "Connection timed out. Check the device and network.",
+  "连接超时：请检查网络和设备。": "Connection timed out. Check the network and device.",
+  "主机身份未确认，已停止连接。": "Host identity was not confirmed. Connection stopped.",
+  "无法解析私钥，请确认密钥格式及口令；支持OpenSSH、PEM和PuTTY PPK。": "Could not parse the private key. Check its format and passphrase. OpenSSH, PEM and PuTTY PPK are supported.",
+  "无法读取私钥文件，请检查路径和权限。": "Could not read the private key. Check its path and permissions."
 }
