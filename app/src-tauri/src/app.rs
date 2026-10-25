@@ -1,6 +1,6 @@
 use crate::{
     desktop::DesktopService,
-    files::{Confirmation, FileService, Side, Transfer},
+    files::{Confirmation, FileService, Side, Transfer, Removal},
     log_store::Query as LogQuery,
     logs::{LogService, Settings as LogSettings},
     migration::Plan as MigrationPlan,
@@ -22,6 +22,7 @@ use std::{
 };
 use tauri::{Emitter, Manager};
 pub struct AppState {
+    pub rebooting:AtomicBool,
     pub profiles: Arc<Mutex<ProfileStore>>,
     pub devices: DeviceManager,
     pub desktop: DesktopService,
@@ -327,6 +328,25 @@ pub async fn confirm(window: tauri::WebviewWindow, title: String, message: Strin
     .await
     .context("确认窗口未正常结束。")
 }
+async fn reboot_device(window:tauri::WebviewWindow,state:&AppState)->Result<Value>{
+    anyhow::ensure!(!state.rebooting.swap(true,Ordering::SeqCst),"重启请求正在处理中。");
+    let operation=async{
+        anyhow::ensure!(!state.migrating.load(Ordering::SeqCst)&&state.files.snapshot()["busy"]!=true,"请先完成或取消文件操作后再重启设备。");
+        let(generation,connection)=state.devices.connection_with_generation()?;
+        let target=format!("{}\n{}@{}",connection.profile.name,connection.profile.username,connection.profile.address());
+        if !confirm(window,"重启远端设备".into(),format!("即将重启：\n{target}\n远端正在运行的程序将结束，所有连接会断开，是否继续？")).await?{return Ok(json!({"canceled":true}));}
+        anyhow::ensure!(generation==state.devices.generation()&&!connection.cancel.is_cancelled(),"设备连接已变化，请重新确认重启目标。");
+        anyhow::ensure!(state.files.snapshot()["busy"]!=true,"请先完成或取消文件操作后再重启设备。");
+        state.devices.update(generation,json!({"rebooting":true}));
+        tokio::join!(state.desktop.stop(None),state.arena.stop(None),state.pose.stop(None));
+        crate::desktop::schedule_reboot(&connection).await?;
+        state.devices.disconnect().await;
+        Ok(json!({"requested":true}))
+    }.await;
+    state.rebooting.store(false,Ordering::SeqCst);
+    state.devices.update(state.devices.generation(),json!({"rebooting":false}));
+    operation
+}
 
 #[tauri::command]
 async fn studio_call(
@@ -338,7 +358,8 @@ async fn studio_call(
     let result:Result<Value>=async{
         let origin=validate_window(&window)?;
         anyhow::ensure!(!state.quitting.load(Ordering::SeqCst),"程序正在退出。");
-        if state.migrating.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"profiles:save"|"profiles:remove"|"files:transfer"|"logs:directory"|"logs:project"|"terminal:new"|"terminal:restart"|"terminal:close"){bail!("资料迁移中，请稍后重试。");}
+        if state.rebooting.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"desktop:start"|"files:transfer"|"files:remove"|"files:mkdir"|"terminal:new"|"terminal:restart"|"terminal:close"|"terminal:write"){bail!("设备重启请求正在处理中，请稍后重试。");}
+        if state.migrating.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"profiles:save"|"profiles:remove"|"files:transfer"|"files:remove"|"logs:directory"|"logs:project"|"terminal:new"|"terminal:restart"|"terminal:close"){bail!("资料迁移中，请稍后重试。");}
         match action.as_str(){
             "settings:read"=>state.preferences.lock().unwrap().info(),
             "settings:language"=>state.preferences.lock().unwrap().save_language(argument(&args,0)?),
@@ -356,6 +377,7 @@ async fn studio_call(
             "profiles:remove"=>{let id:String=argument(&args,0)?;if !confirm(window.clone(),"移除设备配置".into(),"仅移除本机连接配置，是否继续？".into()).await?{return Ok(json!(false));}if state.devices.snapshot()["deviceId"]==id{state.devices.disconnect().await;}
                 let store=state.profiles.lock().unwrap();let mut data=store.read()?;let removed=data.devices.iter().find(|p|p.id==id).cloned();data.devices.retain(|p|p.id!=id);if let Some(removed)=removed{if !data.devices.iter().any(|p|p.address()==removed.address()){data.host_keys.remove(&removed.address());}}store.write(&data)?;Ok(json!(true))},
             "device:state"=>Ok(state.devices.snapshot()),
+            "device:reboot"=>reboot_device(window,&state).await,
             "device:disconnect"=>{tokio::join!(state.arena.stop(None),state.pose.stop(None));state.devices.disconnect().await;state.desktop.stop(None).await;Ok(state.devices.snapshot())},
             "device:connect"=>{
                 let mut profile:Profile=argument::<Profile>(&args,0)?.validate()?;profile.encrypted_secret=None;
@@ -380,7 +402,7 @@ async fn studio_call(
             "desktop:start"=>{let mode=state.preferences.lock().unwrap().read()?.desktop_mode;state.desktop.start(origin,mode).await},
             "desktop:stop"=>{state.desktop.stop(None).await;Ok(Value::Null)},
             "desktop:ready"=>{state.desktop.ready(argument(&args,0)?);Ok(Value::Null)},
-            "desktop:lost"=>{let id:u64=argument(&args,0)?;state.desktop.stop(Some(id)).await;Ok(Value::Null)},
+            "desktop:lost"=>{let id:u64=argument(&args,0)?;if argument::<Option<bool>>(&args,1)?.unwrap_or(true){state.desktop.stop(Some(id)).await;}else{state.desktop.failed(id,optional_text(&args,2)?).await;}Ok(Value::Null)},
             "terminal:list"=>state.terminal.list(),
             "terminal:new"=>state.terminal.create(Some(&optional_text(&args,0)?)),
             "terminal:state"=>state.terminal.snapshot(&terminal_key(&args,0)?),
@@ -406,6 +428,7 @@ async fn studio_call(
             "files:mkdir"=>Ok(json!(state.files.mkdir(argument(&args,0)?,argument(&args,1)?,argument(&args,2)?).await?)),
             "files:choose-local"=>{let directory=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title(local_text(&window,"选择本地文件夹")).pick_folder()).await?;Ok(json!(directory.map(|p|p.to_string_lossy().into_owned())))},
             "files:transfer"=>{let options:Transfer=argument(&args,0)?;let callback:Confirmation=Arc::new(move|paths|{let window=window.clone();Box::pin(async move{confirm(window,"确认覆盖文件".into(),format!("目标已有 {} 个同名文件，是否覆盖？\n{}\n取消将保留原文件。",paths.len(),paths.iter().take(8).cloned().collect::<Vec<_>>().join("\n"))).await})});state.files.transfer(options,callback).await},
+            "files:remove"=>{let options:Removal=argument(&args,0)?;let callback:Confirmation=Arc::new(move|paths|{let window=window.clone();Box::pin(async move{confirm(window,"删除远端项目".into(),format!("将永久删除远端的 {} 个选中项目及其内容：\n{}\n无法通过本软件撤销，是否继续？",paths.len(),paths.iter().take(8).cloned().collect::<Vec<_>>().join("\n"))).await})});state.files.remove_remote(options,callback).await},
             "profiles:import"=>import_profiles(window,&state).await,
             "profiles:rollback"=>rollback_profiles(window,&state).await,
             "logs:state"=>{let key=optional_text(&args,0)?;Ok(if key.is_empty(){state.logs.snapshot()}else{crate::terminal_pool::validate_key(&key)?;state.logs.terminal_snapshot(&key)})},
@@ -488,6 +511,7 @@ pub fn run() {
             let updates=crate::updates::UpdateService::new(events,portable);
             if portable {if let Some(result)=crate::portable_update::result(&directory){updates.restore_result(result);}}
             app.manage(AppState {
+                rebooting:AtomicBool::new(false),
                 updates,
                 preferences: Mutex::new(crate::preferences::PreferenceStore{file:directory.join("settings.json")}),
                 profiles: Arc::new(Mutex::new(ProfileStore { directory })),

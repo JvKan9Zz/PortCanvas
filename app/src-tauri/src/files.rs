@@ -208,6 +208,9 @@ impl Access {
         };
         Ok(())
     }
+    async fn rmdir(&self,path:&str)->Result<()>{
+        match self{Self::Local=>fs::remove_dir(path).await?,Self::Remote(s)=>s.remove_dir(path).await?};Ok(())
+    }
     async fn read(&self, path: &str) -> Result<Box<dyn AsyncRead + Unpin + Send>> {
         Ok(match self {
             Self::Local => Box::new(fs::File::open(path).await?),
@@ -285,6 +288,23 @@ pub struct Transfer {
     #[serde(default)]
     rate_limit: u64,
 }
+#[derive(Deserialize)]
+pub struct Removal {pub parent:String,pub names:Vec<String>,pub generation:u64}
+async fn removal_plan(access:&Access,parent:&str,names:&[String],cancel:&CancellationToken)->Result<Vec<(String,Meta)>>{
+    let mut selected=HashSet::new();let mut stack=Vec::new();let mut plan=Vec::new();
+    for name in names{leaf(name,false)?;if selected.insert(name){stack.push((access.join(parent,name),None));}}
+    while let Some((path,visited))=stack.pop(){
+        anyhow::ensure!(!cancel.is_cancelled(),"删除已中断。");
+        if let Some(meta)=visited{plan.push((path,meta));continue;}
+        let meta=access.stat(&path).await?;
+        anyhow::ensure!(meta.kind!=Kind::Other,"暂不删除特殊文件：{path}");
+        if meta.kind==Kind::Directory{
+            stack.push((path.clone(),Some(meta)));
+            for(name,_)in access.list(&path).await?{if name=="."||name==".."{continue;}leaf(&name,false)?;stack.push((access.join(&path,&name),None));}
+        }else{plan.push((path,meta));}
+    }
+    Ok(plan)
+}
 fn dropped_sources(options:&Transfer)->Result<Vec<(String,String)>> {
     if options.local_items.is_empty(){return Ok(vec![]);}
     anyhow::ensure!(options.direction=="upload"&&options.names.is_empty(),"拖入文件仅支持上传，不能混合两种源列表。");
@@ -334,7 +354,8 @@ impl FileService {
         if let Some(job) = job {
             job.user.store(true, Ordering::SeqCst);
             job.cancel.cancel();
-            self.update(json!({"phase":"canceling","message":"正在取消传输…"}));
+            let deleting=self.snapshot()["operation"]=="delete";
+            self.update(json!({"phase":"canceling","message":if deleting{"正在停止删除…"}else{"正在取消传输…"}}));
         }
     }
     pub fn invalidate(&self) {
@@ -524,7 +545,7 @@ impl FileService {
             }
             inner.job = Some(job.clone());
         }
-        self.update(json!({"busy":true,"phase":"planning","direction":options.direction,"message":"正在检查文件与目标…","bytes":0,"totalBytes":0,"completed":0,"totalFiles":0,"speed":0,"currentFile":""}));
+        self.update(json!({"busy":true,"operation":"transfer","phase":"planning","direction":options.direction,"message":"正在检查文件与目标…","bytes":0,"totalBytes":0,"completed":0,"totalFiles":0,"speed":0,"currentFile":""}));
         let mut bytes = 0u64;
         let mut completed = 0u64;
         let operation=async{
@@ -591,6 +612,43 @@ impl FileService {
         self.update(json!({"busy":false}));
         Ok(self.snapshot())
     }
+    pub async fn remove_remote(&self,options:Removal,confirm:Confirmation)->Result<Value>{
+        anyhow::ensure!(!options.names.is_empty(),"请选择需要删除的远端项目。");
+        for name in &options.names{leaf(name,false)?;}
+        let(generation,connection)=self.devices.connection_with_generation()?;
+        anyhow::ensure!(generation==options.generation,"设备连接已变化，请刷新后重新选择删除目标。");
+        let job=Arc::new(Job{cancel:connection.cancel.child_token(),user:AtomicBool::new(false),temps:Mutex::new(vec![]),rename:Mutex::new(None)});
+        {let mut inner=self.inner.lock().unwrap();anyhow::ensure!(inner.job.is_none(),"已有文件操作正在进行，请等待或取消。");inner.job=Some(job.clone());}
+        self.update(json!({"busy":true,"operation":"delete","phase":"planning","message":"正在检查删除目标…","bytes":0,"totalBytes":0,"completed":0,"totalFiles":0,"speed":0,"currentFile":""}));
+        let mut removed=0usize;
+        let operation=async{
+            let(g,sftp,home,_)=self.sftp().await?;anyhow::ensure!(g==generation,"设备连接已变化，请刷新后重新选择删除目标。");
+            let parent=sftp.canonicalize(Self::remote_path(&options.parent,&home)?).await?;
+            let access=Access::Remote(sftp.clone());let plan=removal_plan(&access,&parent,&options.names,&job.cancel).await?;
+            self.update(json!({"phase":"confirming","totalFiles":plan.len(),"message":"等待确认删除远端项目。"}));
+            let mut roots=options.names.iter().map(|n|access.join(&parent,n)).collect::<Vec<_>>();roots.sort();roots.dedup();
+            if !confirm(roots).await?{job.user.store(true,Ordering::SeqCst);job.cancel.cancel();return Ok(());}
+            self.update(json!({"phase":"deleting","message":"正在删除远端项目…"}));
+            for(path,expected)in plan{
+                anyhow::ensure!(generation==self.devices.generation()&&!job.cancel.is_cancelled(),"删除已中断。");
+                // Resolve parents again: never follow a directory replaced by a
+                // symlink after the user confirmed the plan.
+                anyhow::ensure!(sftp.canonicalize(posix_parent(&path)).await?==posix_parent(&path),"删除目标的父目录发生变化，请刷新后重试：{path}");
+                let current=access.stat(&path).await?;
+                anyhow::ensure!(current.kind==expected.kind&&(current.kind==Kind::Directory||current==expected),"删除目标在确认后发生变化，请刷新后重试：{path}");
+                self.update(json!({"currentFile":path}));
+                if current.kind==Kind::Directory{access.rmdir(&path).await?;}else{access.unlink(&path).await?;}
+                removed+=1;self.update(json!({"completed":removed}));
+            }
+            Ok::<_,anyhow::Error>(())
+        };
+        let result=tokio::select!{result=operation=>result,_=job.cancel.cancelled()=>Err(anyhow::anyhow!("删除已中断。"))};
+        let canceled=job.user.load(Ordering::SeqCst);
+        let message=if canceled{format!("删除已取消，已确认删除 {removed} 个项目。")}else if let Err(error)=&result{file_error(error)}else{format!("已删除 {removed} 个远端项目。")};
+        self.inner.lock().unwrap().job=None;
+        self.update(json!({"busy":false,"phase":if canceled{"canceled"}else if result.is_err(){"failed"}else{"completed"},"completed":removed,"speed":0,"message":message}));
+        Ok(self.snapshot())
+    }
 }
 fn check(job: &Job) -> Result<()> {
     if job.cancel.is_cancelled() {
@@ -601,6 +659,28 @@ fn check(job: &Job) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn deletion_fixture()->PathBuf{
+        let base=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap());let root=base.join(uuid::Uuid::new_v4().to_string());std::fs::create_dir_all(&root).unwrap();root
+    }
+    fn clear_deletion_fixture(root:&Path){
+        let base=dunce::canonicalize(std::env::var_os("WCS_TEST_ROOT").unwrap()).unwrap();let target=dunce::canonicalize(root).unwrap();assert!(target!=base&&target.starts_with(base));std::fs::remove_dir_all(target).unwrap();
+    }
+    #[tokio::test]
+    async fn deletion_plan_covers_hidden_files_and_is_postorder_without_duplicates(){
+        let root=deletion_fixture();let selected=root.join("selected");std::fs::create_dir_all(selected.join("nested")).unwrap();
+        std::fs::write(selected.join("nested/.hidden"),b"one").unwrap();std::fs::write(selected.join("中文's.txt"),b"two").unwrap();
+        let plan=removal_plan(&Access::Local,&root.to_string_lossy(),&["selected".into(),"selected".into()],&CancellationToken::new()).await.unwrap();
+        assert_eq!(plan.len(),4);assert_eq!(Path::new(&plan.last().unwrap().0),selected);
+        let child=plan.iter().position(|(p,_)|p.ends_with(".hidden")).unwrap();let parent=plan.iter().position(|(p,m)|m.kind==Kind::Directory&&p.ends_with("nested")).unwrap();assert!(child<parent);
+        assert!(selected.join("nested/.hidden").exists());clear_deletion_fixture(&root);
+    }
+    #[tokio::test]
+    async fn invalid_delete_names_and_cancellation_preserve_the_fixture(){
+        let root=deletion_fixture();std::fs::write(root.join("keep.txt"),b"keep").unwrap();
+        for name in [".","..","../keep.txt","/absolute","dir/file","bad\0name"]{assert!(removal_plan(&Access::Local,&root.to_string_lossy(),&[name.into()],&CancellationToken::new()).await.is_err());}
+        let cancel=CancellationToken::new();cancel.cancel();assert!(removal_plan(&Access::Local,&root.to_string_lossy(),&["keep.txt".into()],&cancel).await.is_err());
+        assert_eq!(std::fs::read(root.join("keep.txt")).unwrap(),b"keep");clear_deletion_fixture(&root);
+    }
     #[test]
     fn dropped_uploads_keep_each_source_parent_and_reject_ambiguous_input(){
         let root=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap());

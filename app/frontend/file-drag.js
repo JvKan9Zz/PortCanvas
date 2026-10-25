@@ -15,7 +15,7 @@ export class FileDrag {
     window.addEventListener('keydown',event=>{if(event.key==='Escape')this.clear();});
     window.studio.onFileDrop(event=>this.external(event));
   }
-  available(){const p=this.page;return p.visible&&p.connected&&!p.busy&&!p.submitting&&p.localLoaded&&p.remoteLoaded&&!p.panels.local.loading&&!p.panels.remote.loading;}
+  available(){const p=this.page;return p.visible&&p.connected&&!p.busy&&!p.submitting&&!p.removing&&p.localLoaded&&p.remoteLoaded&&!p.panels.local.loading&&!p.panels.remote.loading;}
   target(x,y,side){
     if(!this.available())return null;
     const element=document.elementFromPoint(x,y),pane=element?.closest('[data-file-side]');

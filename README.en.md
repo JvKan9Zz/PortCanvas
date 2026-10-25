@@ -4,17 +4,17 @@
 
 [简体中文](README.md) | English
 
-A unified remote device workspace · **Demo V0.5.4**
+A unified remote device workspace · **Demo V0.5.5**
 
-This release improves desktop refresh and input response, adds Smooth/Clear/Save resources modes, and pauses desktop streaming while hidden or minimized. Streaming resumes when you return. The default mode retains the device’s native resolution.
+This release adds remote file deletion, staged desktop loading, remote device reboot and an expandable terminal command box. It also fixes the long desktop stall when opening the file manager just after connecting.
 
 Connect to Linux devices, control their desktops, transfer files, run terminals and read local execution logs from one Windows client.
 
 | Feature | Current capabilities |
 | --- | --- |
 | Devices | SSH password/private-key authentication, optional encrypted credential storage and host-key confirmation |
-| Desktop and files | X11 remote desktop with three picture modes and automatic pause/resume; dual-pane SFTP, drive selection, drag-and-drop transfers, progress and cancellation |
-| Terminals and logs | Multiple terminals, restart/close, reconnectable sessions and command completion; local logs grouped by project/date |
+| Desktop and files | X11 remote desktop with three picture modes and automatic pause/resume; dual-pane SFTP, drive selection, drag-and-drop transfers, remote deletion, progress and cancellation |
+| Terminals and logs | Multiple terminals, restart/close, reconnectable sessions and an expandable command box with completion; local logs grouped by project/date |
 | Arena | On-demand camera preview at target rates of 8/15/20/30 FPS, device metrics and 60-second history, full-field metric coordinates and a position input interface |
 | Settings | Chinese/English, light blue/green/gray themes and in-app updates for installed and portable builds |
 

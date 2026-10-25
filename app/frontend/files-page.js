@@ -17,6 +17,7 @@ export class FilePage {
     $('localChoose').onclick=async()=>{try{const directory=await window.studio.chooseLocalFolder();if(directory)this.load('local',directory);}catch(error){toast(error.message);}};
     $('localDrive').onchange=()=>this.load('local',$('localDrive').value);
     $('filesConnect').onclick=goDevices;
+    $('remoteDelete').onclick=()=>this.removeRemote();
     $('uploadFiles').onclick=()=>this.transfer('upload');$('downloadFiles').onclick=()=>this.transfer('download');
     $('cancelTransfer').onclick=()=>window.studio.cancelTransfer().catch(error=>toast(error.message));
     $('folderCancel').onclick=()=>$('folderDialog').close();
@@ -43,18 +44,19 @@ export class FilePage {
   }
   controls() {
     for(const side of ['local','remote']) {
-      const panel=this.panels[side],disabled=this.busy||panel.loading||(side==='remote'&&!this.connected);
+      const panel=this.panels[side],disabled=this.busy||this.removing||panel.loading||(side==='remote'&&!this.connected);
       for(const id of ['Up','Home','Refresh','New','Path','All'])$(side+id).disabled=Boolean(disabled);
       $(side+'PathForm').querySelector('button').disabled=Boolean(disabled);
-      $(side+'Files').querySelectorAll('input').forEach(input=>input.disabled=this.busy);
+      $(side+'Files').querySelectorAll('input').forEach(input=>input.disabled=Boolean(this.busy||this.removing));
     }
-    $('localChoose').disabled=this.busy;
-    $('localDrive').disabled=this.busy||this.panels.local.loading;
+    $('localChoose').disabled=Boolean(this.busy||this.removing);
+    $('localDrive').disabled=Boolean(this.busy||this.removing||this.panels.local.loading);
     const loading=this.panels.local.loading||this.panels.remote.loading;
-    $('uploadFiles').disabled=this.busy||loading||!this.connected||!this.panels.local.selected.size||!this.remoteLoaded;
-    $('downloadFiles').disabled=this.busy||loading||!this.connected||!this.panels.remote.selected.size||!this.localLoaded;
+    $('uploadFiles').disabled=Boolean(this.busy||this.removing||loading||!this.connected||!this.panels.local.selected.size||!this.remoteLoaded);
+    $('downloadFiles').disabled=Boolean(this.busy||this.removing||loading||!this.connected||!this.panels.remote.selected.size||!this.localLoaded);
     $('transferRate').disabled=this.busy;
     $('cancelTransfer').disabled=!this.busy;
+    $('remoteDelete').disabled=Boolean(this.busy||this.removing||!this.connected||!this.remoteLoaded||this.panels.remote.loading||!this.panels.remote.selected.size);
   }
   async load(side,directory) {
     const panel=this.panels[side];if(this.busy)return;
@@ -80,7 +82,7 @@ export class FilePage {
     for(const entry of panel.entries) {
       const row=document.createElement('tr');row.tabIndex=0;row.dataset.name=entry.name;row.classList.toggle('selected',panel.selected.has(entry.name));
       const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=panel.selected.has(entry.name);checkbox.setAttribute('aria-label',t('选择 {name}',{name:entry.name}));checkbox.disabled=this.busy;
-      const choose=add=>{if(this.busy)return;if(!add)panel.selected.clear();if(add&&panel.selected.has(entry.name))panel.selected.delete(entry.name);else panel.selected.add(entry.name);this.renderSelection(side);};
+      const choose=add=>{if(this.busy||this.removing)return;if(!add)panel.selected.clear();if(add&&panel.selected.has(entry.name))panel.selected.delete(entry.name);else panel.selected.add(entry.name);this.renderSelection(side);};
       checkbox.onclick=e=>{e.stopPropagation();choose(true);};
       row.onclick=e=>{if(performance.now()<(this.suppressClickUntil||0))return;choose(e.ctrlKey||e.metaKey);};
       const open=()=>{if(entry.type==='directory'&&!this.busy)this.load(side,this.join(side,panel.path,entry.name));};
@@ -104,8 +106,16 @@ export class FilePage {
   }
   join(side,parent,name) {return parent.replace(side==='local'?/[\\/]$/:/\/$/,'')+(side==='local'?'\\':'/')+name;}
   newFolder(side) {this.folderSide=side;$('folderDialogTitle').textContent=t((side==='local'?'本地':'远端')+'新建文件夹');$('folderName').value='';$('folderError').textContent='';$('folderDialog').showModal();$('folderName').focus();}
+  async removeRemote(){
+    const panel=this.panels.remote;
+    if(this.busy||this.removing||!this.connected||panel.loading||!panel.selected.size)return;
+    this.removing=true;this.drag.clear();this.controls();
+    try{await window.studio.removeRemoteFiles({parent:panel.path,names:[...panel.selected],generation:panel.generation});}
+    catch(error){this.toast(error.message);}
+    finally{this.removing=false;this.controls();}
+  }
   async transfer(direction,drop={}) {
-    if(this.submitting||this.busy)return;
+    if(this.submitting||this.busy||this.removing)return;
     this.submitting=true;this.drag.clear();
     const side=direction==='upload'?'local':'remote';
     try {
@@ -117,14 +127,16 @@ export class FilePage {
     const wasBusy=this.busy;this.busy=Boolean(state.busy);
     $('sftpBadge').className='badge '+state.connection;
     $('sftpBadge').lastElementChild.textContent=t(state.connection==='connected'?'SFTP 已连接':state.connection==='connecting'?'正在连接 SFTP':'SFTP 未连接');
-    const titles={idle:'准备传输',planning:'检查文件',confirming:'确认覆盖',transferring:state.direction==='upload'?'正在上传':'正在下载',canceling:'正在取消',completed:'传输完成',canceled:'已取消传输',failed:'传输失败'};
+    const deleting=state.operation==='delete';
+    const titles=deleting?{planning:'检查删除目标',confirming:'确认删除',deleting:'正在删除',canceling:'正在停止删除…',completed:'删除完成',canceled:'已取消删除',failed:'删除失败'}:{idle:'准备传输',planning:'检查文件',confirming:'确认覆盖',transferring:state.direction==='upload'?'正在上传':'正在下载',canceling:'正在取消',completed:'传输完成',canceled:'已取消传输',failed:'传输失败'};
     $('transferTitle').textContent=t(titles[state.phase]||'准备传输');
     document.querySelector('.transfer-status').hidden=state.phase==='idle';
-    $('transferMessage').textContent=t(state.message);
-    $('transferProgress').value=state.phase==='completed'?100:state.totalBytes?Math.min(100,state.bytes/state.totalBytes*100):0;
-    $('transferNumbers').textContent=state.phase==='idle'?'':t('{size} · {done}/{total} 个文件',{size:bytes(state.bytes||0)+' / '+bytes(state.totalBytes||0),done:state.completed||0,total:state.totalFiles||0})+(state.speed?` · ${bytes(state.speed)}/s`:'');
+    $('transferMessage').textContent=deleting&&state.phase==='failed'?t('删除未完成，已确认删除 {n} 个项目。{error} 请刷新目录核对。',{n:state.completed||0,error:t(state.message)}):t(state.message);
+    $('transferProgress').value=state.phase==='completed'?100:deleting?(state.totalFiles?state.completed/state.totalFiles*100:0):state.totalBytes?Math.min(100,state.bytes/state.totalBytes*100):0;
+    $('transferNumbers').textContent=deleting?t('{done}/{total} 个项目',{done:state.completed||0,total:state.totalFiles||0}):state.phase==='idle'?'':t('{size} · {done}/{total} 个文件',{size:bytes(state.bytes||0)+' / '+bytes(state.totalBytes||0),done:state.completed||0,total:state.totalFiles||0})+(state.speed?` · ${bytes(state.speed)}/s`:'');
+    $('cancelTransfer').textContent=t(deleting?'取消删除':'取消传输');
     const target=state.direction==='upload'?this.panels.remote.path:this.panels.local.path;
-    $('transferCurrent').textContent=state.currentFile?t('当前：{path}',{path:state.currentFile}):state.phase==='idle'?'':t('目标：{path}',{path:target});
+    $('transferCurrent').textContent=state.currentFile?t('当前：{path}',{path:state.currentFile}):deleting||state.phase==='idle'?'':t('目标：{path}',{path:target});
     $('transferCurrent').title=$('transferCurrent').textContent;
     document.querySelector('.transfer-status').classList.toggle('failed',state.phase==='failed');
     this.controls();

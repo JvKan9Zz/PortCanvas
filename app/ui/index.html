@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PortCanvas · Demo V0.5.4</title>
+  <title>PortCanvas · Demo V0.5.5</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="themes.css">
   <link rel="stylesheet" href="files.css">
@@ -28,6 +28,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
   <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m9 3 1-1h4l1 3 3 1 3 2-1 3v3l1 3-3 2-3 1-1 2h-4l-1-2-3-1-3-2 1-3v-3L3 8l3-2 3-1V3Z"/></symbol>
   <symbol id="i-device" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M8 21h8m-4-4v4M8 9h3m-3 4h6"/></symbol>
   <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4m-5-13h5m-5 3h8"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></symbol>
   <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m6 0h4"/></symbol>
   <symbol id="i-log" viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8m-8 5h8m-8 5h5"/></symbol>
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7h18"/></symbol>
@@ -78,8 +79,8 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     </section>
     <section id="page-desktop" class="page desktop-page" hidden>
       <div class="desktop-heading"><div><h1>远程桌面</h1><p id="desktopSubtitle">远端设备现有桌面会话</p></div><div class="desktop-actions"><button id="startDesktop" class="button primary"><svg><use href="#i-connect"/></svg><span>连接桌面</span></button><button id="stopDesktop" class="button secondary" disabled>断开桌面</button></div></div>
-      <div class="desktop-toolbar"><div class="toolbar-group"><select id="desktopMode" class="desktop-mode" aria-label="桌面画质" title="桌面画质"><option value="smooth">流畅</option><option value="clear">清晰</option><option value="economy">省资源</option></select><button id="fitDesktop" class="tool-button selected" title="适配画布"><svg><use href="#i-fit"/></svg><span>适配</span></button><button id="actualSize" class="tool-button" title="原始像素尺寸">1:1</button></div><div class="toolbar-group"><button id="viewOnly" class="tool-button" title="切换只读模式" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>只读</span></button><button id="sendCAD" class="tool-button" title="向远端发送 Ctrl+Alt+Del" disabled><svg><use href="#i-key"/></svg><span>Ctrl+Alt+Del</span></button><button id="fullscreen" class="tool-button" title="切换全屏"><svg><use href="#i-full"/></svg></button></div></div>
-      <div class="desktop-stage"><div id="desktopCanvas" class="desktop-canvas"></div><div id="desktopEmpty" class="desktop-empty"><div class="empty-display"><svg><use href="#i-desktop"/></svg></div><h2 id="desktopEmptyTitle">把远端设备桌面带到这里</h2><p id="desktopEmptyText">先连接设备，再打开远程桌面。<br>连接后可直接使用鼠标和键盘操作。</p><button id="desktopEmptyAction" class="button secondary">前往连接设备<svg><use href="#i-arrow"/></svg></button></div></div>
+      <div class="desktop-toolbar"><div class="toolbar-group"><select id="desktopMode" class="desktop-mode" aria-label="桌面画质" title="桌面画质"><option value="smooth">流畅</option><option value="clear">清晰</option><option value="economy">省资源</option></select><button id="fitDesktop" class="tool-button selected" title="适配画布"><svg><use href="#i-fit"/></svg><span>适配</span></button><button id="actualSize" class="tool-button" title="原始像素尺寸">1:1</button></div><div class="toolbar-group"><button id="viewOnly" class="tool-button" title="切换只读模式" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>只读</span></button><button id="rebootDevice" class="tool-button danger" title="重启远端设备" disabled><svg><use href="#i-refresh"/></svg><span>重启设备</span></button><button id="fullscreen" class="tool-button" title="切换全屏"><svg><use href="#i-full"/></svg></button></div></div>
+      <div class="desktop-stage"><div id="desktopCanvas" class="desktop-canvas"></div><div id="desktopEmpty" class="desktop-empty"><div class="empty-display"><svg><use href="#i-desktop"/></svg></div><h2 id="desktopEmptyTitle">把远端设备桌面带到这里</h2><progress id="desktopProgress" max="5" value="0" aria-label="远程桌面连接进度" hidden></progress><ol id="desktopSteps" class="desktop-steps" aria-label="桌面连接阶段" aria-live="polite" hidden></ol><p id="desktopEmptyText">先连接设备，再打开远程桌面。<br>连接后可直接使用鼠标和键盘操作。</p><button id="desktopEmptyAction" class="button secondary">前往连接设备<svg><use href="#i-arrow"/></svg></button></div></div>
       <div class="desktop-caption"><span id="desktopStatus"><span class="dot"></span>桌面未连接</span></div>
     </section>
     <section id="page-files" class="page files-page" hidden>
@@ -94,7 +95,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
           <div id="localMessage" class="file-pane-message" role="status">正在读取本地目录…</div>
         </section>
         <section class="file-pane" data-file-side="remote" aria-label="远端文件面板">
-          <div class="file-pane-heading"><h2><svg><use href="#i-folder"/></svg>远端设备</h2><button id="filesConnect" class="button secondary compact">连接设备</button></div>
+          <div class="file-pane-heading"><h2><svg><use href="#i-folder"/></svg>远端设备</h2><div class="remote-file-actions"><button id="remoteDelete" class="button secondary compact danger" type="button" title="删除选中的远端文件或文件夹" disabled><svg><use href="#i-trash"/></svg>删除</button><button id="filesConnect" class="button secondary compact">连接设备</button></div></div>
           <div class="file-pane-tools"><button id="remoteUp" class="tool-button" title="远端上一级" aria-label="远端上一级" disabled><svg><use href="#i-up"/></svg></button><button id="remoteHome" class="tool-button" title="远端主目录" aria-label="远端主目录" disabled><svg><use href="#i-home"/></svg></button><button id="remoteRefresh" class="tool-button" title="刷新远端目录" aria-label="刷新远端目录" disabled><svg><use href="#i-refresh"/></svg></button><button id="remoteNew" class="tool-button" title="远端新建文件夹" disabled><svg><use href="#i-plus"/></svg><span>新建文件夹</span></button></div>
           <form id="remotePathForm" class="file-path-form"><input id="remotePath" aria-label="远端目录路径" placeholder="连接设备后可浏览远端目录" autocomplete="off" spellcheck="false" disabled><button id="remoteGo" class="tool-button" type="submit" title="打开远端路径" aria-label="打开远端路径" disabled><svg><use href="#i-arrow"/></svg></button></form>
           <div class="file-table-scroll"><table class="file-table" aria-label="远端文件列表"><colgroup><col class="file-check-col"><col><col class="file-size-col"><col class="file-date-col"></colgroup><thead><tr><th><input id="remoteAll" type="checkbox" aria-label="全选远端文件" disabled></th><th>名称</th><th>大小</th><th>修改时间</th></tr></thead><tbody id="remoteFiles"></tbody></table></div>
@@ -175,7 +176,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     <div class="terminal-project"><label>日志项目<input id="logProjectName" maxlength="100" placeholder="自动识别项目"></label><button id="saveLogProject" class="button secondary compact" type="button">应用</button></div>
     <p id="terminalLogStatus" class="terminal-log-status" role="status">本地自动记录</p>
     <div id="terminalOutput" class="terminal-output" role="region" aria-label="远端设备 SSH 终端"><p id="terminalEmpty" class="terminal-empty" role="status" hidden>暂无终端</p></div>
-    <form id="terminalCommandForm" class="terminal-command" aria-label="终端命令输入"><ul id="terminalCompletions" class="command-completions" role="listbox" aria-label="补全候选" hidden></ul><textarea id="terminalCommand" rows="1" spellcheck="false" autocomplete="off" aria-label="命令输入" aria-autocomplete="list" aria-controls="terminalCompletions" aria-expanded="false" title="Enter发送；Shift+Enter换行；Tab补全" placeholder="输入命令…" disabled></textarea><button id="sendCommand" class="button primary compact" type="submit" disabled>发送</button></form>
+    <form id="terminalCommandForm" class="terminal-command" aria-label="终端命令输入"><ul id="terminalCompletions" class="command-completions" role="listbox" aria-label="补全候选" hidden></ul><textarea id="terminalCommand" rows="1" spellcheck="false" autocomplete="off" aria-label="命令输入" aria-autocomplete="list" aria-controls="terminalCompletions" aria-expanded="false" title="Enter发送；Shift+Enter换行；Tab补全" placeholder="输入命令…" disabled></textarea><div class="command-actions"><button id="expandCommand" class="tool-button" type="button" title="展开命令输入框" aria-label="展开命令输入框" aria-controls="terminalCommand" aria-expanded="false"><svg><use href="#i-full"/></svg></button><button id="sendCommand" class="button primary compact" type="submit" title="Ctrl+Enter发送" disabled>发送</button></div></form>
     <p id="terminalMessage" class="terminal-message" role="status" hidden></p>
 
   </aside>
