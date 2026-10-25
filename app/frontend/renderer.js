@@ -4,6 +4,7 @@ import {FilePage} from './files-page.js';
 import {TerminalDrawer} from './terminal-drawer.js';
 import {LogsPage} from './logs-page.js';
 import {ArenaPage} from './arena-page.js';
+import {DesktopLifecycle} from './desktop-lifecycle.js';
 const $ = id => document.getElementById(id);
 let devices = [], selected = null, page = 'devices', rfb = null, desktopAttempt = 0;
 let current = {ssh: 'disconnected', desktop: 'disconnected', message: '就绪'}, fit = true, readonly = false;
@@ -17,6 +18,12 @@ const terminalDrawer = new TerminalDrawer({toast,goDevices:()=>showPage('devices
 const logsPage = new LogsPage({toast});
 const settingsDialog = new SettingsDialog({toast});
 const arenaPage = new ArenaPage();
+let nativeHidden=false;
+const desktopLifecycle=new DesktopLifecycle({open:startDesktop,close:clearRfb,stop:()=>window.studio.stopDesktop(),onError:error=>toast(error.message)});
+function updateDesktopActivity(){desktopLifecycle.setAllowed(page==='desktop'&&!nativeHidden&&!document.hidden&&current.ssh==='connected');}
+function renderDesktopModeHint(){const mode=$('desktopMode');mode.title=t(mode.value==='economy'?'传输画面最高 960×540，不改变设备分辨率':'保留设备原始分辨率');}
+window.studio.onArenaVisibility(({hidden})=>{nativeHidden=Boolean(hidden);updateDesktopActivity();});
+document.addEventListener('visibilitychange',updateDesktopActivity);
 document.querySelectorAll('.mark,.wordmark').forEach(element=>element.addEventListener('dragstart',event=>event.preventDefault()));
 function toast(message) {toastMessage=message;$('toast').textContent = t(message);$('toast').hidden = false;clearTimeout(toastTimer);toastTimer = setTimeout(() => $('toast').hidden = true, 6000);}
 function profile() {return {id: selected?.id, name: $('name').value, host: $('host').value, port: Number($('port').value), username: $('username').value, display: $('display').value, xauthority: $('xauthority').value,authMethod:$('authMethod').value,privateKeyPath:$('privateKeyPath').value,rememberPassword:$('rememberPassword').checked};}
@@ -62,6 +69,7 @@ function showPage(next) {
   if(next==='logs')logsPage.show();else logsPage.hide();
   if(next==='arena')arenaPage.show();else arenaPage.hide();
   renderTerminalDrawer();
+  updateDesktopActivity();
 }
 function renderTerminalDrawer() {
   const visible=page!=='devices'&&terminalExpanded;
@@ -77,7 +85,7 @@ $('closeTerminalDrawer').onclick=()=>{terminalExpanded=false;renderTerminalDrawe
 function clearRfb() {
   desktopAttempt++;
   const previous = rfb;rfb = null;
-  if (previous) previous.disconnect();
+  if(previous)previous.disconnect();
   $('desktopCanvas').replaceChildren();
 }
 function renderState(state,presentationOnly=false) {
@@ -115,6 +123,7 @@ function renderState(state,presentationOnly=false) {
   $('startDesktop').disabled = !connected || desktopBusy;
   $('startDesktop').querySelector('span').textContent = t(desktopBusy ? '正在连接…' : desktopLive ? '重新连接桌面' : '连接桌面');
   $('stopDesktop').disabled = !desktopBusy && !desktopLive;
+  $('desktopMode').disabled=desktopBusy;
   $('sendCAD').disabled = !desktopLive || readonly;
   $('desktopStatus').className = desktopLive ? 'connected' : '';
   $('desktopStatus').replaceChildren(Object.assign(document.createElement('span'), {className:'dot'}), document.createTextNode(t(desktopLive ? '桌面已连接' : desktopBusy ? '正在连接桌面' : state.desktop === 'error' ? '桌面连接失败' : '桌面未连接')));
@@ -129,21 +138,23 @@ function renderState(state,presentationOnly=false) {
   }
   if (!connected && rfb) clearRfb();
   renderDevices();
+  updateDesktopActivity();
   if(revealConnectionResult)requestAnimationFrame(()=>document.querySelector('.connection-result').scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'}));
 }
 async function startDesktop() {
   clearRfb();
+  renderState({...current,desktop:'connecting'});
   const attempt = desktopAttempt;
   try {
     const {default:RFB} = await import('@novnc/novnc');
     if (attempt !== desktopAttempt) return;
-    const {url,id} = await window.studio.startDesktop();
-    if (attempt !== desktopAttempt) return;
+    const {url,id,tuning} = await window.studio.startDesktop();
+    if(attempt!==desktopAttempt)return;
     const remote = new RFB($('desktopCanvas'), url, {shared: true});
     rfb = remote;
     remote.scaleViewport = fit;remote.resizeSession = false;remote.viewOnly = readonly;
-    remote.qualityLevel = 6;remote.compressionLevel = 2;remote.background = '#17222b';
-    remote.addEventListener('connect', async () => {if (rfb !== remote) return;$('desktopEmpty').hidden = true;await window.studio.desktopReady(id);remote.focus();});
+    remote.qualityLevel = tuning?.quality??6;remote.compressionLevel = tuning?.compression??2;remote.background = '#17222b';
+    remote.addEventListener('connect', async () => {if(rfb!==remote)return;$('desktopEmpty').hidden=true;await window.studio.desktopReady(id);remote.focus();});
     remote.addEventListener('disconnect', event => {
       if (rfb !== remote) return;
       rfb = null;$('desktopCanvas').replaceChildren();
@@ -175,18 +186,20 @@ $('deviceForm').onsubmit = async event => {
     $('password').value='';renderAuth();
   } catch (error) {toast(error.message);}
 };
-$('goDesktop').onclick = () => {showPage('desktop');if (current.desktop !== 'connected') startDesktop();};
+$('goDesktop').onclick = () => {showPage('desktop');if (current.desktop !== 'connected'){desktopLifecycle.start();}};
 
-$('desktopEmptyAction').onclick = () => current.ssh === 'connected' ? startDesktop() : showPage('devices');
-$('startDesktop').onclick = startDesktop;
-$('stopDesktop').onclick = async () => {clearRfb();await window.studio.stopDesktop();};
+$('desktopEmptyAction').onclick = () => {if(current.ssh==='connected'){desktopLifecycle.start();}else showPage('devices');};
+$('startDesktop').onclick = () => {desktopLifecycle.start();};
+$('stopDesktop').onclick = () => desktopLifecycle.stop();
+$('desktopMode').onchange=async()=>{const select=$('desktopMode');select.disabled=true;try{await window.studio.setDesktopMode(select.value);renderDesktopModeHint();if(desktopLifecycle.wanted)await desktopLifecycle.start();}catch(error){toast(error.message);}finally{select.disabled=current.desktop==='connecting';}};
+window.studio.settings().then(info=>{$('desktopMode').value=info.desktopMode||'smooth';renderDesktopModeHint();}).catch(error=>toast(error.message));
 function setFit(value) {fit = value;if (rfb) rfb.scaleViewport = fit;$('fitDesktop').classList.toggle('selected', fit);$('actualSize').classList.toggle('selected', !fit);}
 $('fitDesktop').onclick = () => setFit(true);$('actualSize').onclick = () => setFit(false);
 $('viewOnly').onclick = () => {readonly = !readonly;if (rfb) rfb.viewOnly = readonly;$('viewOnly').classList.toggle('selected', readonly);$('viewOnly').setAttribute('aria-pressed', String(readonly));$('sendCAD').disabled = !rfb || readonly;};
 $('sendCAD').onclick = () => rfb?.sendCtrlAltDel();
 $('fullscreen').onclick = () => window.studio.fullscreen();
 window.studio.onState(renderState);
-onLanguageChange(()=>{renderAuth();renderState(current,true);if(!selected)$('editorTitle').textContent=t('添加一台设备');if(toastMessage)$('toast').textContent=t(toastMessage);});
+onLanguageChange(()=>{renderAuth();renderState(current,true);renderDesktopModeHint();if(!selected)$('editorTitle').textContent=t('添加一台设备');if(toastMessage)$('toast').textContent=t(toastMessage);});
 (async () => {
   try {devices = await window.studio.profiles();fill(devices[0] || null);renderState(await window.studio.state());} catch (error) {toast('读取设备配置失败：' + error.message);}
 })();

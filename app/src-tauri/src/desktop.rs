@@ -78,8 +78,8 @@ impl DesktopService {
         if let Some(old) = old {
             old.cancel.cancel();
             let _ = tokio::time::timeout(Duration::from_secs(5), old.done.cancelled()).await;
-            self.devices
-                .update(old.generation, json!({"desktop":"disconnected"}));
+            let current=self.running.lock().unwrap();
+            if current.is_none(){self.devices.update(old.generation,json!({"desktop":"disconnected"}));}
         }
     }
     pub fn ready(&self, id: u64) {
@@ -93,7 +93,7 @@ impl DesktopService {
             }
         }
     }
-    pub async fn start(&self, origin: String) -> Result<Value> {
+    pub async fn start(&self, origin: String,mode:crate::desktop_settings::DesktopMode) -> Result<Value> {
         let (generation, connection) = self.devices.connection_with_generation()?;
         self.stop(None).await;
         if generation != self.devices.generation() || connection.cancel.is_cancelled() {
@@ -113,7 +113,7 @@ impl DesktopService {
             json!({"desktop":"connecting","message":"正在打开远程桌面…"}),
         );
         let operation = async {
-            let config = json!({"display":connection.profile.display,"xauthority":connection.profile.xauthority});
+            let config = json!({"display":connection.profile.display,"xauthority":connection.profile.xauthority,"tuning":mode.tuning()});
             let command = python(
                 include_str!("../resources/desktop.py"),
                 json!(["desktop", config.to_string()]),
@@ -187,13 +187,13 @@ impl DesktopService {
             tokio::spawn(async move {
                 let active = Arc::new(tokio::sync::Semaphore::new(1));
                 loop {
-                    tokio::select! {_=worker_cancel.cancelled()=>break,message=process.wait()=>{if message.is_none(){if !worker_cancel.is_cancelled(){devices.update(generation,json!({"desktop":"error","message":"远程桌面服务已结束。"}));}worker_cancel.cancel();break;}},accepted=listener.accept()=>{let Ok((socket,_))=accepted else{break;};let Ok(permit)=active.clone().try_acquire_owned()else{continue;};let path=expected_path.clone();let origin=origin.clone();let cancel=worker_cancel.clone();let conn=conn.clone();tokio::spawn(async move{let _permit=permit;let operation=async{let mut config=WebSocketConfig::default();config.max_message_size=Some(4*1024*1024);config.max_frame_size=Some(4*1024*1024);let ws=tokio::time::timeout(Duration::from_secs(5),accept_hdr_async_with_config(socket,move|request:&Request,response:Response|{if request.uri().path()!=path||request.headers().get("origin").and_then(|v|v.to_str().ok())!=Some(origin.as_str()){return Err(http::Response::builder().status(403).body(Some("Invalid session or origin".into())).unwrap());}Ok(response)},Some(config))).await??;bridge(ws,conn,info.port,cancel.clone()).await};tokio::select!{_=cancel.cancelled()=>{},_ = operation=>{}}});}}
+                    tokio::select! {_=worker_cancel.cancelled()=>break,message=process.wait()=>{if message.is_none(){if !worker_cancel.is_cancelled(){devices.update(generation,json!({"desktop":"error","message":"远程桌面服务已结束。"}));}worker_cancel.cancel();break;}},accepted=listener.accept()=>{let Ok((socket,_))=accepted else{break;};let _=socket.set_nodelay(true);let Ok(permit)=active.clone().try_acquire_owned()else{continue;};let path=expected_path.clone();let origin=origin.clone();let cancel=worker_cancel.clone();let conn=conn.clone();tokio::spawn(async move{let _permit=permit;let operation=async{let mut config=WebSocketConfig::default();config.max_message_size=Some(4*1024*1024);config.max_frame_size=Some(4*1024*1024);let ws=tokio::time::timeout(Duration::from_secs(5),accept_hdr_async_with_config(socket,move|request:&Request,response:Response|{if request.uri().path()!=path||request.headers().get("origin").and_then(|v|v.to_str().ok())!=Some(origin.as_str()){return Err(http::Response::builder().status(403).body(Some("Invalid session or origin".into())).unwrap());}Ok(response)},Some(config))).await??;bridge(ws,conn,info.port,cancel.clone()).await};tokio::select!{_=cancel.cancelled()=>{},_ = operation=>{}}});}}
                 }
                 close_process(process).await;
                 worker_done.cancel();
             });
             Ok(
-                json!({"url":format!("ws://127.0.0.1:{port}/{token}"),"id":id,"generation":generation,"backend":"vnc-x11-over-ssh"}),
+                json!({"url":format!("ws://127.0.0.1:{port}/{token}"),"id":id,"generation":generation,"backend":"vnc-x11-over-ssh","tuning":mode.tuning()}),
             )
         };
         let result = operation.await;
@@ -201,10 +201,8 @@ impl DesktopService {
             let canceled = cancel.is_cancelled();
             cancel.cancel();
             done.cancel();
-            if self.id() == Some(id) {
-                self.running.lock().unwrap().take();
-            }
-            self.devices.update(generation,json!({"desktop":if canceled{"disconnected"}else{"error"},"message":error.to_string()}));
+            let mut current=self.running.lock().unwrap();
+            if current.as_ref().is_some_and(|run|run.id==id){current.take();self.devices.update(generation,json!({"desktop":if canceled{"disconnected"}else{"error"},"message":error.to_string()}));}
         }
         result
     }

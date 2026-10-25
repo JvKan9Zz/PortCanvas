@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PortCanvas · Demo V0.5.3</title>
+  <title>PortCanvas · Demo V0.5.4</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="themes.css">
   <link rel="stylesheet" href="files.css">
@@ -78,7 +78,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     </section>
     <section id="page-desktop" class="page desktop-page" hidden>
       <div class="desktop-heading"><div><h1>远程桌面</h1><p id="desktopSubtitle">远端设备现有桌面会话</p></div><div class="desktop-actions"><button id="startDesktop" class="button primary"><svg><use href="#i-connect"/></svg><span>连接桌面</span></button><button id="stopDesktop" class="button secondary" disabled>断开桌面</button></div></div>
-      <div class="desktop-toolbar"><div class="toolbar-group"><button id="fitDesktop" class="tool-button selected" title="适配画布"><svg><use href="#i-fit"/></svg><span>适配</span></button><button id="actualSize" class="tool-button" title="原始像素尺寸">1:1</button></div><div class="toolbar-group"><button id="viewOnly" class="tool-button" title="切换只读模式" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>只读</span></button><button id="sendCAD" class="tool-button" title="向远端发送 Ctrl+Alt+Del" disabled><svg><use href="#i-key"/></svg><span>Ctrl+Alt+Del</span></button><button id="fullscreen" class="tool-button" title="切换全屏"><svg><use href="#i-full"/></svg></button></div></div>
+      <div class="desktop-toolbar"><div class="toolbar-group"><select id="desktopMode" class="desktop-mode" aria-label="桌面画质" title="桌面画质"><option value="smooth">流畅</option><option value="clear">清晰</option><option value="economy">省资源</option></select><button id="fitDesktop" class="tool-button selected" title="适配画布"><svg><use href="#i-fit"/></svg><span>适配</span></button><button id="actualSize" class="tool-button" title="原始像素尺寸">1:1</button></div><div class="toolbar-group"><button id="viewOnly" class="tool-button" title="切换只读模式" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>只读</span></button><button id="sendCAD" class="tool-button" title="向远端发送 Ctrl+Alt+Del" disabled><svg><use href="#i-key"/></svg><span>Ctrl+Alt+Del</span></button><button id="fullscreen" class="tool-button" title="切换全屏"><svg><use href="#i-full"/></svg></button></div></div>
       <div class="desktop-stage"><div id="desktopCanvas" class="desktop-canvas"></div><div id="desktopEmpty" class="desktop-empty"><div class="empty-display"><svg><use href="#i-desktop"/></svg></div><h2 id="desktopEmptyTitle">把远端设备桌面带到这里</h2><p id="desktopEmptyText">先连接设备，再打开远程桌面。<br>连接后可直接使用鼠标和键盘操作。</p><button id="desktopEmptyAction" class="button secondary">前往连接设备<svg><use href="#i-arrow"/></svg></button></div></div>
       <div class="desktop-caption"><span id="desktopStatus"><span class="dot"></span>桌面未连接</span></div>
     </section>

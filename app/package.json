@@ -1,13 +1,14 @@
 {
   "name": "portcanvas",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "node tools/build.mjs",
     "dev": "tauri dev",
     "pack": "tauri build",
-    "test": "cargo test --manifest-path src-tauri/Cargo.toml"
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:frontend": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@novnc/novnc": "1.7.0",
