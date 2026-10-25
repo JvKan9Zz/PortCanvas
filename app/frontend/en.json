@@ -465,5 +465,11 @@
   "连接超时：请检查网络和设备。": "Connection timed out. Check the network and device.",
   "主机身份未确认，已停止连接。": "Host identity was not confirmed. Connection stopped.",
   "无法解析私钥，请确认密钥格式及口令；支持OpenSSH、PEM和PuTTY PPK。": "Could not parse the private key. Check its format and passphrase. OpenSSH, PEM and PuTTY PPK are supported.",
-  "无法读取私钥文件，请检查路径和权限。": "Could not read the private key. Check its path and permissions."
+  "无法读取私钥文件，请检查路径和权限。": "Could not read the private key. Check its path and permissions.",
+  "桌面画质": "Desktop picture mode",
+  "流畅": "Smooth",
+  "清晰": "Clear",
+  "省资源": "Save resources",
+  "传输画面最高 960×540，不改变设备分辨率": "Stream up to 960×540. The device display resolution stays unchanged.",
+  "保留设备原始分辨率": "Keep the device's native resolution"
 }

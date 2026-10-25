@@ -8,6 +8,8 @@ import threading
 import shutil
 import sysconfig
 import ctypes
+import ctypes.util
+from fractions import Fraction
 from pathlib import Path
 
 profile = json.loads(sys.argv[1])
@@ -28,6 +30,47 @@ if not system_binary:
     if library.is_dir():
         env['LD_LIBRARY_PATH'] = str(library) + (':' + env['LD_LIBRARY_PATH'] if env.get('LD_LIBRARY_PATH') else '')
 parent_pid = os.getpid()
+
+def scale_options(display_name, auth, width_limit, height_limit):
+    # Scale the transmitted framebuffer; never resize the user's X11 display.
+    display = None
+    try:
+        library = ctypes.util.find_library('X11')
+        if not library:
+            return []
+        os.environ['XAUTHORITY'] = auth
+        x11 = ctypes.CDLL(library)
+        x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+        x11.XOpenDisplay.restype = ctypes.c_void_p
+        x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+        display = x11.XOpenDisplay(display_name.encode())
+        if not display:
+            return []
+        x11.XDefaultScreen.argtypes = [ctypes.c_void_p]
+        screen = x11.XDefaultScreen(display)
+        for name in ['XDisplayWidth', 'XDisplayHeight']:
+            getattr(x11, name).argtypes = [ctypes.c_void_p, ctypes.c_int]
+        width, height = x11.XDisplayWidth(display, screen), x11.XDisplayHeight(display, screen)
+        if width <= 0 or height <= 0:
+            return []
+        scale = min(Fraction(1), Fraction(width_limit, width), Fraction(height_limit, height))
+        return ['-scale', f'{scale.numerator}/{scale.denominator}:nb,nocr'] if scale < 1 else []
+    except (OSError, AttributeError):
+        return []  # The existing native-resolution VNC path remains available.
+    finally:
+        if display:
+            x11.XCloseDisplay(display)
+tuning = profile.get('tuning', {})
+transport_options = []
+if tuning:
+    wait, defer = tuning['wait'], tuning['defer']
+    assert type(wait) is int and 1 <= wait <= 1000
+    assert type(defer) is int and 0 <= defer <= 100
+    assert 0 < tuning['frameInterval'] <= 1
+    transport_options = ['-wait', str(wait), '-defer', str(defer), '-setdefer', '-1', '-input_eagerly', '-nowf', '-noscr', '-slow_fb', str(tuning['frameInterval'])]
+    width_limit, height_limit = tuning['maxWidth'], tuning['maxHeight']
+    if width_limit and height_limit:
+        transport_options.extend(scale_options(profile['display'], auth, width_limit, height_limit))
 def child_setup():
     if sys.platform.startswith('linux'):
         libc = ctypes.CDLL(None, use_errno=True)
@@ -39,7 +82,7 @@ def child_setup():
 process = subprocess.Popen([
     str(binary), '-display', profile['display'], '-auth', auth,
     '-localhost', '-no6', '-autoport', '5900', '-nopw', '-forever',
-    '-shared', '-quiet', '-noipv6'
+    '-shared', '-quiet', '-noipv6', *transport_options
 ], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, preexec_fn=child_setup)
 
 stopping = threading.Event()

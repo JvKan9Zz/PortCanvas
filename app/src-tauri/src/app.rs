@@ -343,6 +343,7 @@ async fn studio_call(
             "settings:read"=>state.preferences.lock().unwrap().info(),
             "settings:language"=>state.preferences.lock().unwrap().save_language(argument(&args,0)?),
             "settings:theme"=>state.preferences.lock().unwrap().save_theme(argument(&args,0)?),
+            "settings:desktop-mode"=>state.preferences.lock().unwrap().save_desktop_mode(argument(&args,0)?),
             "settings:updates"=>state.updates.check(window.app_handle()).await,
             "settings:update-state"=>Ok(state.updates.snapshot()),
             "settings:update-download"=>state.updates.download().await,
@@ -376,7 +377,7 @@ async fn studio_call(
             "arena:pose-stop"=>{state.pose.stop(argument(&args,0)?).await;Ok(Value::Null)},
             "arena:pose"=>Ok(state.pose.snapshot()),
             "arena:camera-stop"=>{state.arena.stop(argument(&args,0)?).await;Ok(Value::Null)},
-            "desktop:start"=>state.desktop.start(origin).await,
+            "desktop:start"=>{let mode=state.preferences.lock().unwrap().read()?.desktop_mode;state.desktop.start(origin,mode).await},
             "desktop:stop"=>{state.desktop.stop(None).await;Ok(Value::Null)},
             "desktop:ready"=>{state.desktop.ready(argument(&args,0)?);Ok(Value::Null)},
             "desktop:lost"=>{let id:u64=argument(&args,0)?;state.desktop.stop(Some(id)).await;Ok(Value::Null)},
@@ -510,8 +511,9 @@ pub fn run() {
                 if hidden {
                     let state=window.state::<AppState>();
                     let arena=state.arena.clone();let pose=state.pose.clone();
+                    let desktop=state.desktop.clone();let desktop_id=desktop.id();
                     let camera_id=arena.status()["id"].as_u64();let pose_id=pose.snapshot()["id"].as_u64();
-                    tauri::async_runtime::spawn(async move{tokio::join!(arena.stop(camera_id),pose.stop(pose_id));});
+                    tauri::async_runtime::spawn(async move{tokio::join!(arena.stop(camera_id),pose.stop(pose_id),async{if let Some(id)=desktop_id{desktop.stop(Some(id)).await;}});});
                 }
             }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

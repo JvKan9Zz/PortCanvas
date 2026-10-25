@@ -20,6 +20,7 @@ const startTerminal=async(cols:number,rows:number,key:string="main",deviceKey:st
  try{return await invoke('terminal_subscribe',{cols,rows,channel,terminalKey:key,deviceKey});}catch(error){throw error instanceof Error?error:new Error(String(error));}
 };
 const api={
+ setDesktopMode:(mode:string)=>call('settings:desktop-mode',mode),
  settings:()=>call('settings:read'),setLanguage:(language:string)=>call('settings:language',language),setTheme:(theme:string)=>call('settings:theme',theme),checkUpdates:()=>call('settings:updates'),updateState:()=>call('settings:update-state'),downloadUpdate:()=>call('settings:update-download'),cancelUpdate:()=>call('settings:update-cancel'),installUpdate:()=>call('settings:update-install'),onUpdate:(h:Handler)=>on('update-state',h),openRepository:()=>call('settings:repository'),
  arenaMetrics:()=>call('arena:metrics'),arenaCameras:()=>call('arena:cameras'),startArenaCamera:(path:string,fps:number=20)=>call('arena:camera-start',path,fps),arenaCameraFrame:(id:number,sequence:number)=>call('arena:camera-frame',id,sequence),stopArenaCamera:(id:number|null)=>call('arena:camera-stop',id),
  startArenaPose:()=>call('arena:pose-start'),stopArenaPose:(id:number|null)=>call('arena:pose-stop',id),arenaPose:()=>call('arena:pose'),onArenaPose:(h:Handler)=>on('arena-pose',h),

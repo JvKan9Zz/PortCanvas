@@ -7,6 +7,7 @@ pub mod credentials;
 pub mod ssh;
 pub mod session;
 pub mod desktop;
+pub mod desktop_settings;
 pub mod terminal;
 pub mod terminal_pool;
 pub mod files;
