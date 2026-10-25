@@ -4,9 +4,9 @@
 
 [简体中文](README.md) | English
 
-A unified remote device workspace · **Demo V0.5.25**
+A unified remote device workspace · **Demo V0.5.3**
 
-This maintenance release organizes English paths, adds an English README and adjusts the update URL to the new layout.
+This release adds connection-stage diagnostics and in-app updates with 32 parallel download streams, signature verification and automatic restart.
 
 Connect to Linux devices, control their desktops, transfer files, run terminals and read local execution logs from one Windows client.
 
@@ -16,7 +16,7 @@ Connect to Linux devices, control their desktops, transfer files, run terminals 
 | Desktop and files | X11 remote desktop, dual-pane SFTP, drive selection, drag-and-drop transfers, progress and cancellation |
 | Terminals and logs | Multiple terminals, restart/close, reconnectable sessions and command completion; local logs grouped by project/date |
 | Arena | On-demand camera preview at target rates of 8/15/20/30 FPS, device metrics and 60-second history, full-field metric coordinates and a position input interface |
-| Settings | Chinese/English, light blue/green/gray themes and version checks |
+| Settings | Chinese/English, light blue/green/gray themes and in-app updates for installed and portable builds |
 
 No localization producer is connected yet. Position readings stay unavailable rather than showing simulated live data. The camera starts off and stops on minimize, page departure or exit; restoring the workspace does not reopen it. Native MJPEG avoids board-side re-encoding, at the cost of more bandwidth and some host overhead. Results depend on the device and network.
 

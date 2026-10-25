@@ -64,6 +64,17 @@ impl DeviceManager {
         };
         (self.events)("device-state", state);
     }
+    fn connection_progress(&self, generation: u64, stage: &'static str) {
+        let state = {
+            let mut inner = self.inner.lock().unwrap();
+            if inner.generation != generation || inner.state["ssh"] != "connecting" {
+                return;
+            }
+            inner.state["connectionStage"] = json!(stage);
+            inner.state.clone()
+        };
+        (self.events)("device-state", state);
+    }
     pub async fn connect(
         &self,
         profile: Profile,
@@ -77,7 +88,7 @@ impl DeviceManager {
             let old = inner.connection.take();
             inner.generation += 1;
             inner.cancel = CancellationToken::new();
-            inner.state = json!({"generation":inner.generation,"deviceId":profile.id,"device":profile.name,"ssh":"connecting","desktop":"disconnected","message":format!("正在连接 {}…",profile.host)});
+            inner.state = json!({"generation":inner.generation,"deviceId":profile.id,"device":profile.name,"ssh":"connecting","desktop":"disconnected","connectionStage":"prepare","connectionTarget":profile.address(),"message":format!("正在连接 {}…",profile.host)});
             (
                 inner.generation,
                 inner.cancel.clone(),
@@ -91,11 +102,13 @@ impl DeviceManager {
             });
         }
         (self.events)("device-state", state);
-        let result = SshConnection::connect(
+        let progress_manager = self.clone();
+        let result = SshConnection::connect_with_progress(
             profile,
             password,
             make_check(cancel.clone()),
             cancel.clone(),
+            Arc::new(move |stage| progress_manager.connection_progress(generation,stage)),
         )
         .await;
         let connection = match result {
@@ -120,7 +133,7 @@ impl DeviceManager {
         }
         self.update(
             generation,
-            json!({"ssh":"connected","message":"设备连接成功。"}),
+            json!({"ssh":"connected","connectionStage":"ready","message":"设备连接成功。"}),
         );
         let manager = self.clone();
         tokio::spawn(async move {
@@ -169,5 +182,17 @@ mod tests {
         m.update(0, json!({"ssh":"connected"}));
         assert_eq!(m.snapshot()["ssh"], "disconnected");
         assert_eq!(m.generation(), 1);
+        m.connection_progress(0,"authenticate");
+        assert!(m.snapshot()["connectionStage"].is_null());
+    }
+    #[test]
+    fn failure_keeps_stage_and_late_progress_cannot_replace_it() {
+        let m=DeviceManager::new(Arc::new(|_,_|{}));
+        m.update(0,json!({"ssh":"connecting","connectionStage":"prepare"}));
+        m.connection_progress(0,"tcp");
+        m.update(0,json!({"ssh":"error","message":"timeout"}));
+        m.connection_progress(0,"authenticate");
+        assert_eq!(m.snapshot()["connectionStage"],"tcp");
+        assert_eq!(m.snapshot()["ssh"],"error");
     }
 }

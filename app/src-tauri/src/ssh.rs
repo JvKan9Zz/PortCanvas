@@ -9,6 +9,7 @@ use tokio_util::sync::CancellationToken;
 use zeroize::Zeroizing;
 
 pub type SshChannel = Channel<client::Msg>;
+pub type ConnectionProgress = Arc<dyn Fn(&'static str) + Send + Sync>;
 pub type HostCheck = Arc<
     dyn Fn(String) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<bool>> + Send>>
         + Send
@@ -18,6 +19,7 @@ pub struct ClientHandler {
     pub check: HostCheck,
     pub rejected: Arc<Mutex<Option<String>>>,
     confirming: tokio::sync::watch::Sender<bool>,
+    progress: ConnectionProgress,
 }
 impl client::Handler for ClientHandler {
     type Error = anyhow::Error;
@@ -25,6 +27,7 @@ impl client::Handler for ClientHandler {
         &mut self,
         key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool> {
+        (self.progress)("identity");
         if key.certificate().is_some() {
             bail!("此版本尚未支持 SSH 主机证书认证，请使用受支持的主机公钥。");
         }
@@ -36,7 +39,7 @@ impl client::Handler for ClientHandler {
         let result = (self.check)(fingerprint).await;
         let _ = self.confirming.send(false);
         match result {
-            Ok(true) => Ok(true),
+            Ok(true) => { (self.progress)("secure"); Ok(true) },
             Ok(false) => {
                 *self.rejected.lock().unwrap() = Some("主机身份未确认，已停止连接。".into());
                 Ok(false)
@@ -60,7 +63,18 @@ impl SshConnection {
         check: HostCheck,
         cancel: CancellationToken,
     ) -> Result<Self> {
+        Self::connect_with_progress(profile, secret, check, cancel, Arc::new(|_| {})).await
+    }
+    pub async fn connect_with_progress(
+        profile: Profile,
+        secret: Zeroizing<String>,
+        check: HostCheck,
+        cancel: CancellationToken,
+        progress: ConnectionProgress,
+    ) -> Result<Self> {
+        progress("prepare");
         let profile = profile.validate()?;
+        let operation = async {
         let key = if profile.auth_method == AuthMethod::Key {
             let path = profile.private_key_path.clone();
             let passphrase = secret.clone();
@@ -84,11 +98,21 @@ impl SshConnection {
             check,
             rejected: rejected.clone(),
             confirming,
+            progress: progress.clone(),
         };
-        let operation = async {
-            let mut handle = client::connect(
+        let network = async {
+            progress("resolve");
+            let addresses = tokio::net::lookup_host((profile.host.as_str(), profile.port))
+                .await.context("设备地址解析失败，请检查主机名。")?.collect::<Vec<_>>();
+            anyhow::ensure!(!addresses.is_empty(), "设备地址未解析到可用的 IP。");
+            progress("tcp");
+            let stream = tokio::net::TcpStream::connect(addresses.as_slice()).await
+                .map_err(|error| anyhow::anyhow!(friendly(&error.to_string())))?;
+            stream.set_nodelay(true)?;
+            progress("handshake");
+            let mut handle = client::connect_stream(
                 Arc::new(config),
-                (profile.host.as_str(), profile.port),
+                stream,
                 handler,
             )
             .await
@@ -99,6 +123,7 @@ impl SshConnection {
                     .clone()
                     .unwrap_or_else(|| friendly(&e.to_string())))
             })?;
+            progress("authenticate");
             let authenticated=if let Some(key)=key {
                 let hash=handle.best_supported_rsa_hash().await?.flatten();
                 handle.authenticate_publickey(&profile.username,russh::keys::PrivateKeyWithHashAlg::new(Arc::new(key),hash)).await?.success()
@@ -110,7 +135,9 @@ impl SshConnection {
                 cancel: cancel.clone(),
             })
         };
-        tokio::select! {_ = cancel.cancelled()=>bail!("连接已取消。"),result=network_timeout(operation,confirmation)=>result}
+        network_timeout(network,confirmation).await
+        };
+        tokio::select! {biased; _ = cancel.cancelled()=>bail!("连接已取消。"),result=operation=>result}
     }
     pub async fn channel(&self) -> Result<SshChannel> {
         tokio::select! {_ = self.cancel.cancelled()=>bail!("设备已断开。"),result=tokio::time::timeout(Duration::from_secs(10),self.handle.channel_open_session())=>Ok(result.context("SSH通道打开超时。")??)}
@@ -217,7 +244,7 @@ pub fn friendly(message: &str) -> String {
         "认证失败：请检查用户名和密码。".into()
     } else if message.contains("10061") || message.to_lowercase().contains("refused") {
         "连接被拒绝：请确认 SSH 服务和端口。".into()
-    } else if message.to_lowercase().contains("timed out") {
+    } else if message.contains("10060") || message.to_lowercase().contains("timed out") {
         "连接超时：请检查设备与网络。".into()
     } else {
         message.to_string()

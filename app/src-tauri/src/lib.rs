@@ -15,3 +15,6 @@ pub mod log_store;
 pub mod logs;
 pub mod migration;
 #[cfg(feature="desktop")]pub mod app;
+#[cfg(feature="desktop")]pub mod updates;
+#[cfg(feature="desktop")]mod update_download;
+#[cfg(feature="desktop")]pub mod portable_update;
