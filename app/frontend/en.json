@@ -458,5 +458,6 @@
   "更新包超过 256 MiB 限制。": "The update package exceeds the 256 MiB limit.",
   "没有足够内存下载更新。": "There is not enough memory to download the update.",
   "程序目录不可写，无法更新便携版。": "The portable application directory is not writable.",
-  "无法启动便携版更新助手。": "Could not start the portable update helper."
+  "无法启动便携版更新助手。": "Could not start the portable update helper.",
+  "Demo V{version} 更新已就绪。": "Demo V{version} is ready to install."
 }

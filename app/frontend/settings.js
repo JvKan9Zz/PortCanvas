@@ -10,7 +10,7 @@ export class SettingsDialog {
     $('settingsDialog').addEventListener('close',()=>$('openSettings').focus());
     $('settingsDialog').addEventListener('keydown',event=>{
       if(event.key!=='Tab')return;
-      const controls=[...$('settingsDialog').querySelectorAll('button:not(:disabled),select:not(:disabled)')],first=controls[0],last=controls.at(-1);
+      const controls=[...$('settingsDialog').querySelectorAll('button:not(:disabled),select:not(:disabled)')].filter(element=>element.getClientRects().length>0),first=controls[0],last=controls.at(-1);
       if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
       else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
     });
@@ -40,7 +40,7 @@ export class SettingsDialog {
     $('cancelUpdate').hidden=!['checking','downloading'].includes(status);
     const messages={checking:'正在检查…',verifying:'正在校验签名…',ready:'更新已就绪。',installing:'正在安装，即将重新启动…',current:'已是最新版本。',canceled:'已取消更新。'};
     const downloaded=(Number(update.downloaded||0)/1048576).toFixed(1),total=update.total?(Number(update.total)/1048576).toFixed(1):'—';
-    let message=status==='available'?t('发现新版本 Demo V{version}',{version:update.version}):status==='downloading'?(update.connections?t('正在下载（{connections} 路）：{downloaded} / {total} MiB',{connections:update.connections,downloaded,total}):t('正在连接下载服务…')):status==='updated'?t('已更新至 Demo V{version}。',{version:update.version}):status==='error'?updateError(update.message):t(messages[status]||'');
+    let message=status==='available'?t('发现新版本 Demo V{version}',{version:update.version}):status==='ready'?t('Demo V{version} 更新已就绪。',{version:update.version}):status==='downloading'?(update.connections?t('正在下载（{connections} 路）：{downloaded} / {total} MiB',{connections:update.connections,downloaded,total}):t('正在连接下载服务…')):status==='updated'?t('已更新至 Demo V{version}。',{version:update.version}):status==='error'?updateError(update.message):t(messages[status]||'');
     $('updateStatus').hidden=!message;if($('updateStatus').textContent!==message)$('updateStatus').textContent=message;
     $('updateStatus').classList.toggle('error',status==='error');
     $('updateProgress').hidden=!['downloading','verifying','ready'].includes(status);
