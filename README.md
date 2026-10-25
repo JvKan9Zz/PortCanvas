@@ -24,7 +24,7 @@
 
 [下载最新版本](https://github.com/JvKan9Zz/PortCanvas/releases/latest) · [使用说明](docs/usage.md) · [定位数据接口](docs/pose-protocol.md)
 
-提供Windows x64安装版与便携版，附SHA256SUMS.txt。客户端使用系统WebView2，电脑端运行无需Node.js、Rust或Python。安装模式沿用原配置；便携模式使用同目录data/。个人配置、密钥、运行日志和相机照片不进入仓库或发布包。
+提供Windows x64安装版与便携版，附SHA256SUMS.txt。客户端使用系统WebView2，电脑端运行无需Node.js、Rust或Python。安装模式沿用原配置；便携模式使用同目录data/。
 
 ## 源码
 
