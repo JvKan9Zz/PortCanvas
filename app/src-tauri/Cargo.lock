@@ -3500,7 +3500,7 @@ dependencies = [
 
 [[package]]
 name = "portcanvas"
-version = "0.5.7-beta.1"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "base64 0.22.1",

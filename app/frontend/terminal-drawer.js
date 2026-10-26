@@ -192,7 +192,8 @@ class TerminalPane {
   async ensure(){if(this.term||this.disposed)return;if(this.loading)return this.loading;this.loading=this.create();try{await this.loading;}finally{this.loading=null;}}
   async create(){
     const [{Terminal},{FitAddon}]=await Promise.all([import('@xterm/xterm'),import('@xterm/addon-fit')]);if(this.disposed)return;
-    this.term=new Terminal({fontFamily:'"Cascadia Mono", Consolas, monospace',fontSize:14,cursorBlink:true,scrollback:5000,screenReaderMode:true,theme:terminalTheme()});
+    await document.fonts.load('14px "PortCanvas PingFang"');if(this.disposed)return;
+    this.term=new Terminal({fontFamily:'"Cascadia Mono", Consolas, "PortCanvas PingFang", "PingFang SC", monospace',fontSize:14,cursorBlink:true,scrollback:5000,screenReaderMode:true,theme:terminalTheme()});
     this.fit=new FitAddon();this.term.loadAddon(this.fit);this.term.open(this.element);this.term.textarea?.setAttribute('aria-label',t(this.title+'远端输入'));
     this.term.onData(data=>{if(!this.manager.connected||this.state.phase!=='connected')return;const id=this.state.id;window.studio.writeTerminal(id,data,this.key).catch(error=>{if(!this.disposed&&id===this.state.id&&this.state.phase==='connected')this.manager.toast(error.message);});});
     this.term.onResize(({cols,rows})=>{if(this.manager.connected&&this.state.phase==='connected')window.studio.resizeTerminal(this.state.id,cols,rows,this.key).catch(()=>{});});

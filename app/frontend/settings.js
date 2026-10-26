@@ -1,20 +1,52 @@
+import {ColorPicker} from './color-picker.js';
+import {applyGlassOpacity} from './glass.js';
+import {StorageSettings} from './storage-settings.js';
+import {applyBackground} from './background.js';
 import {t,setLanguage,getLanguage,onLanguageChange} from './i18n.js';
-import {getTheme,setTheme} from './theme.js';
+import {getTheme,setTheme,getAppearance,setAppearance,onThemeChange} from './theme.js';
 const $=id=>document.getElementById(id);
 const updateError=message=>{const parts=String(message||'').match(/^(检查更新失败|下载或校验失败|安装更新失败)：(.*)$/s);return parts?t(parts[1]+'：{error}',{error:t(parts[2])}):t(message);};
 export class SettingsDialog {
   constructor({toast}){
-    this.toast=toast;this.acting=false;
-    $('openSettings').onclick=()=>{$('settingsDialog').showModal();this.render();};
-    $('closeSettings').onclick=()=>$('settingsDialog').close();
-    $('settingsDialog').addEventListener('close',()=>$('openSettings').focus());
+    this.toast=toast;this.acting=false;this.storage=new StorageSettings({toast});this.category='general';
+    for(const button of document.querySelectorAll('[data-settings-page]'))button.onclick=()=>this.selectCategory(button.dataset.settingsPage);
+    document.querySelector('.settings-tabs').onkeydown=event=>{
+      const tabs=[...document.querySelectorAll('[data-settings-page]')],index=tabs.findIndex(tab=>tab.dataset.settingsPage===this.category);
+      const next={ArrowUp:(index+tabs.length-1)%tabs.length,ArrowDown:(index+1)%tabs.length,Home:0,End:tabs.length-1}[event.key];
+      if(next!==undefined){event.preventDefault();this.selectCategory(tabs[next].dataset.settingsPage);tabs[next].focus();}
+    };
+    $('openSettings').onclick=()=>{$('settingsDialog').showModal();this.selectCategory(this.category);this.render();};
+    $('closeSettings').onclick=()=>this.close();
+    $('settingsDialog').addEventListener('cancel',event=>{event.preventDefault();this.close();});
+    $('settingsDialog').addEventListener('close',()=>{this.storage.hide();$('openSettings').focus();});
     $('settingsDialog').addEventListener('keydown',event=>{
       if(event.key!=='Tab')return;
-      const controls=[...$('settingsDialog').querySelectorAll('button:not(:disabled),select:not(:disabled)')].filter(element=>element.getClientRects().length>0),first=controls[0],last=controls.at(-1);
+      const controls=[...$('settingsDialog').querySelectorAll('button:not(:disabled),select:not(:disabled),input:not(:disabled)')].filter(element=>element.tabIndex>=0&&!element.closest('[inert]')&&element.getClientRects().length>0),first=controls[0],last=controls.at(-1);
       if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
       else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
     });
     $('settingsLanguage').onchange=async()=>{const select=$('settingsLanguage'),focused=document.activeElement===select;select.disabled=true;try{const result=await window.studio.setLanguage(select.value);setLanguage(result.language);}catch(error){select.value=getLanguage();toast(error.message);}finally{select.disabled=false;if(focused&&document.activeElement===document.body&&$('settingsDialog').open)select.focus();}};
+    for(const option of document.querySelectorAll('input[name="environmentSource"]'))option.onchange=async()=>{
+      if(!option.checked||this.savingSource)return;
+      this.savingSource=true;this.render();
+      try{this.info=await window.studio.setEnvironmentSource(option.value);}catch(error){toast(error.message);}
+      finally{this.savingSource=false;this.render();}
+    };
+    this.colorPicker=new ColorPicker(value=>this.backgroundAction(()=>window.studio.setBackgroundColor(value)));
+    for(const id of ['glassOpacity','glassOpacityNumber']){
+      $(id).oninput=()=>{if($(id).checkValidity()){const value=$(id).value;$('glassOpacity').value=value;$('glassOpacityNumber').value=value;applyGlassOpacity(Number(value));}};
+      $(id).onchange=()=>this.saveGlass($(id));
+    }
+    $('glassOpacityNumber').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();this.saveGlass($('glassOpacityNumber'));}};
+    $('chooseBackgroundImage').onclick=()=>this.backgroundAction(()=>window.studio.chooseBackgroundImage());
+    $('removeBackgroundImage').onclick=()=>this.backgroundAction(()=>window.studio.removeBackgroundImage());
+    $('resetBackground').onclick=()=>this.backgroundAction(()=>window.studio.resetBackground());
+    for(const option of document.querySelectorAll('input[name="appearance"]'))option.onchange=async()=>{
+      if(!option.checked||this.savingAppearance)return;this.savingAppearance=true;
+      try{this.info=await window.studio.setAppearance(option.value);setAppearance(this.info.appearance);}catch(error){toast(error.message);}
+      finally{this.savingAppearance=false;this.render();}
+    };
+    $('openInstallDirectory').onclick=()=>window.studio.openInstallDirectory().catch(error=>toast(error.message));
     $('settingsTheme').onchange=async()=>{const select=$('settingsTheme'),focused=document.activeElement===select;select.disabled=true;try{const result=await window.studio.setTheme(select.value);setTheme(result.theme);}catch(error){select.value=getTheme();toast(error.message);}finally{select.disabled=false;if(focused&&document.activeElement===document.body&&$('settingsDialog').open)select.focus();}};
     $('openRepository').onclick=()=>window.studio.openRepository().catch(error=>toast(error.message));
     $('checkUpdates').onclick=()=>this.perform(()=>window.studio.checkUpdates());
@@ -24,14 +56,62 @@ export class SettingsDialog {
     window.studio.onUpdate(update=>{this.update=update;this.render();});
     window.studio.updateState().then(update=>{if(!this.update)this.update=update;this.render();}).catch(error=>toast(error.message));
     onLanguageChange(()=>this.render());
-    window.studio.settings().then(info=>{this.info=info;setTheme(info.theme);setLanguage(info.language);this.render();}).catch(error=>toast(error.message));
+    onThemeChange(()=>this.render());
+    window.studio.settings().then(info=>{this.info=info;applyGlassOpacity(info.glassOpacity??100);setTheme(info.theme);setAppearance(info.appearance);setLanguage(info.language);this.refreshBackground();this.render();}).catch(error=>toast(error.message));
+  }
+  selectCategory(category){
+    this.category=category;
+    const tabs=[...document.querySelectorAll('[data-settings-page]')];
+    tabs.forEach((tab,index)=>{const selected=tab.dataset.settingsPage===category;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;$('settings-panel-'+tab.dataset.settingsPage).hidden=!selected;if(selected)document.querySelector('.settings-tabs').style.setProperty('--settings-index',index);});
+    $('settingsPageTitle').textContent=t({general:'通用',storage:'存储',about:'关于'}[category]);
+    if(category==='storage')this.storage.show();else this.storage.hide();
+  }
+  async refreshBackground(){
+    const request=(this.backgroundRequest||0)+1;this.backgroundRequest=request;
+    const info=this.info||{};let image=null;
+    if(info.backgroundImage)try{image=await window.studio.backgroundImageData();}catch(error){this.toast(error.message);}
+    if(request===this.backgroundRequest)applyBackground(info.backgroundColor,image);
+  }
+  async saveGlass(input){
+    if(this.savingGlass)return;if(!input.reportValidity())return;
+    const value=Number(input.value);if(value===(this.info?.glassOpacity??100))return;
+    const focused=document.activeElement===input;this.savingGlass=true;this.render();
+    try{this.info=await window.studio.setGlassOpacity(value);}catch(error){this.toast(error.message);}
+    finally{this.savingGlass=false;$('glassOpacity').value=String(this.info?.glassOpacity??100);$('glassOpacityNumber').value=$('glassOpacity').value;applyGlassOpacity(this.info?.glassOpacity??100);this.render();if(focused&&document.activeElement===document.body&&$('settingsDialog').open)input.focus();}
+  }
+  async backgroundAction(action){
+    if(this.backgroundBusy)return;this.backgroundBusy=true;this.render();
+    try{const result=await action();if(!result.canceled){this.info=result;await this.refreshBackground();return true;}return false;}catch(error){this.toast(error.message);return false;}
+    finally{this.backgroundBusy=false;this.render();}
+  }
+  close(){
+    const dialog=$('settingsDialog');if(this.closing||!dialog.open)return;this.colorPicker.close(false);
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){dialog.close();return;}
+    this.closing=true;dialog.dataset.closing='true';
+    const current=getComputedStyle(dialog);
+    const animation=dialog.animate([{opacity:current.opacity,transform:current.transform},{opacity:0,transform:'translateY(8px) scale(.98)'}],{duration:180,easing:'cubic-bezier(.4,0,1,1)'});
+    animation.onfinish=()=>{dialog.close();delete dialog.dataset.closing;this.closing=false;};
+    animation.oncancel=()=>{dialog.close();delete dialog.dataset.closing;this.closing=false;};
   }
   async perform(action){
     if(this.acting)return;this.acting=true;this.render();
     try{this.update=await action();}catch(error){this.toast(error.message);}finally{this.acting=false;this.render();}
   }
   render(){
+    $('settingsPageTitle').textContent=t({general:'通用',storage:'存储',about:'关于'}[this.category]);
+    if(document.activeElement!==$('backgroundColor'))$('backgroundColor').value=this.info?.backgroundColor||(document.documentElement.dataset.appearance==='dark'?'#111927':'#eaf0f8');
+    for(const id of ['backgroundColor','chooseBackgroundImage','resetBackground'])$(id).disabled=Boolean(this.backgroundBusy);
+    $('removeBackgroundImage').hidden=!this.info?.backgroundImage;$('removeBackgroundImage').disabled=Boolean(this.backgroundBusy);
+    const appearanceIndex=['light','dark','system'].indexOf(getAppearance());$('settingsAppearance').style.setProperty('--appearance-index',Math.max(0,appearanceIndex));
+    for(const option of document.querySelectorAll('input[name="appearance"]')){option.checked=option.value===getAppearance();option.disabled=Boolean(this.savingAppearance);}
+    if(!['glassOpacity','glassOpacityNumber'].includes(document.activeElement?.id)&&!this.savingGlass){$('glassOpacity').value=String(this.info?.glassOpacity??100);$('glassOpacityNumber').value=$('glassOpacity').value;}
+    for(const id of ['glassOpacity','glassOpacityNumber'])$(id).disabled=Boolean(this.savingGlass);
+    $('backgroundColorSwatch').style.backgroundColor=$('backgroundColor').value;
+    $('backgroundColorButton').disabled=Boolean(this.backgroundBusy);
     $('settingsLanguage').value=getLanguage();$('settingsTheme').value=getTheme();$('appVersion').textContent=this.info?'Demo V'+this.info.version:'—';
+    for(const option of document.querySelectorAll('input[name="environmentSource"]')){
+      option.checked=option.value===(this.info?.environmentSource||'computer');option.disabled=Boolean(this.savingSource);
+    }
     const update=this.update||{},status=update.status||'idle',busy=['checking','downloading','verifying','installing'].includes(status);
     $('checkUpdates').disabled=this.acting||busy||this.info?.updatesSupported===false;$('checkUpdates').textContent=t(status==='checking'?'正在检查…':'检查更新');
     $('downloadUpdate').hidden=!update.version||!['available','canceled','error'].includes(status);

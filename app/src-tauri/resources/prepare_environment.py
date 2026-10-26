@@ -139,7 +139,7 @@ def run(arguments, cwd=None, env=None, check=True, timeout=60):
         return process.returncode, output.decode('utf-8', 'replace')
     except subprocess.TimeoutExpired:
         stop_process()
-        raise RuntimeError('运行环境准备超时，请检查设备基础工具和软件源索引。')
+        raise RuntimeError('运行环境准备超时，请检查所选下载方式的网络和设备环境。')
     finally:
         with process_lock:
             active_process = None
@@ -291,7 +291,19 @@ def response(feature, root, prepared=False):
             'binDir': str(root / 'bin') if root else None,
             'tmux': shutil.which('tmux', path=env['PATH']), 'sftp': sftp_binary(root)}
 
-def prepare(feature):
+def obtain_packages(source, native, packages, archives, env):
+    if source == 'computer':
+        return receive_packages(native, packages, archives)
+    if not shutil.which('apt-get'):
+        raise RuntimeError('设备缺少 apt-get，请改用电脑下载方式。')
+    print('PORTCANVAS_ENV_PROGRESS=' + json.dumps({'phase': 'board-downloading'}), flush=True)
+    run(['apt-get', 'download'] + [name + '=' + version for name, version in sorted(packages.items())],
+        cwd=archives, env=env, timeout=300)
+    return list(archives.glob('*.deb'))
+
+def prepare(feature, source='computer'):
+    if source not in ('computer', 'board'):
+        raise ValueError('不支持的运行环境下载方式。')
     if feature not in PACKAGES:
         raise ValueError('不支持的运行环境请求。')
     base = Path.home() / '.cache/portcanvas/runtime'
@@ -324,7 +336,8 @@ def prepare(feature):
             archives = stage / 'packages'
             archives.mkdir()
             env = dict(os.environ, TMPDIR=str(stage))
-            files = receive_packages(native, packages, archives)
+            files = obtain_packages(source, native, packages, archives, env)
+            print('PORTCANVAS_ENV_PROGRESS=' + json.dumps({'phase': 'preparing'}), flush=True)
             if len(files) != len(packages):
                 raise RuntimeError('下载的组件不完整，已保留原运行环境。')
             for package in files:
@@ -363,7 +376,8 @@ def main():
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGHUP, interrupted)
     try:
-        result = prepare(json.loads(sys.argv[1])['feature'])
+        options = json.loads(sys.argv[1])
+        result = prepare(options['feature'], options.get('source', 'computer'))
     except Exception as error:
         result = {'ready': False, 'message': str(error)}
     print('PORTCANVAS_ENV=' + json.dumps(result, ensure_ascii=True), flush=True)

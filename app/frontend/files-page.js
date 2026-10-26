@@ -28,7 +28,7 @@ export class FilePage {
     onLanguageChange(()=>{this.render('local');this.render('remote');this.transferState(this.lastTransferState||{phase:'idle'});this.refreshDrives();$('folderDialogTitle').textContent=t((this.folderSide==='remote'?'远端':'本地')+'新建文件夹');});
   }
   show() {this.visible=true;this.refreshDrives();if(!this.localLoaded)this.load('local','');if(this.connected&&!this.remoteLoaded)this.load('remote',this.panels.remote.path);}
-  async refreshDrives(){try{const drives=await window.studio.localDrives(),placeholder=new Option(t('盘符'),'');placeholder.disabled=true;$('localDrive').replaceChildren(placeholder,...drives.map(d=>new Option(d.label.replace(/(可移动磁盘|本地磁盘|网络磁盘|光驱|内存盘|磁盘)$/,kind=>t(kind)),d.path)));this.selectDrive();}catch(error){this.toast(error.message);}}
+  async refreshDrives(){try{const drives=await window.studio.localDrives(),placeholder=new Option(t('盘符'),'');placeholder.disabled=true;$('localDrive').replaceChildren(placeholder,...drives.map(d=>new Option(d.path,d.path)));this.selectDrive();}catch(error){this.toast(error.message);}}
   selectDrive(){const path=this.panels.local.path,drive=/^[a-z]:[\\/]/i.test(path)?path.slice(0,2).toUpperCase()+'\\':'/';$('localDrive').value=[...$('localDrive').options].some(o=>o.value===drive)?drive:'';}
   hide() {this.visible=false;this.drag.clear();}
   setConnection(state,profileId) {

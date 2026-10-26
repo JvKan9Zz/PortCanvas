@@ -8,6 +8,7 @@ import {DesktopLifecycle} from './desktop-lifecycle.js';
 import {observeDesktopStartup} from './desktop-startup.js';
 import {installDesktopInteractions} from './desktop-interactions.js';
 installDesktopInteractions();
+document.querySelectorAll('.page').forEach(section=>section.classList.add('page-enter'));
 const $ = id => document.getElementById(id);
 let devices = [], selected = null, page = 'devices', rfb = null, desktopAttempt = 0;
 let current = {ssh: 'disconnected', desktop: 'disconnected', message: '就绪'}, fit = true, readonly = false;
@@ -73,6 +74,8 @@ function renderDevices() {
 }
 function showPage(next) {
   page = next;
+  const navigation=document.querySelector('.rail nav');
+  navigation.style.setProperty('--nav-index',String([...navigation.querySelectorAll('[data-page]')].findIndex(button=>button.dataset.page===next)));
   for (const button of document.querySelectorAll('[data-page]')) {button.classList.toggle('active', button.dataset.page === next);button.setAttribute('aria-current', button.dataset.page === next ? 'page' : 'false');}
   for (const section of document.querySelectorAll('.page')) section.hidden = section.id !== 'page-' + next;
   if(next==='files')filesPage.show();else filesPage.hide();

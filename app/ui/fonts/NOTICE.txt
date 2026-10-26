@@ -1,0 +1,9 @@
+PingFang SC (Regular, Medium, Semibold)
+Copyright © 2015 DynaComware. All rights reserved.
+
+These font resources are included under software redistribution permission
+confirmed by the project maintainer on 2026-10-26. They are third-party
+proprietary fonts and are not covered by the PortCanvas MIT License.
+This notice does not grant an independent font license.
+
+The WOFF2 files retain the complete original character maps and glyph order.

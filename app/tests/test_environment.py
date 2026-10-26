@@ -84,10 +84,26 @@ class EnvironmentTests(unittest.TestCase):
                 self.assertIsInstance(envmod.received.get_nowait(),Exception)
                 self.assertTrue(envmod.stopping.is_set())
 
-    def test_beta_helper_never_invokes_a_network_downloader(self):
-        tree=ast.parse(SOURCE.read_text(encoding='utf-8'))
-        commands=[node.value for node in ast.walk(tree) if isinstance(node,ast.Constant) and isinstance(node.value,str)]
-        self.assertFalse({'apt-get','curl','wget','pip','pip3'} & set(commands))
+    def test_computer_mode_never_invokes_the_board_downloader(self):
+        with patch.object(envmod,'receive_packages',return_value=['verified archive']) as receive,patch.object(envmod,'run',side_effect=AssertionError('board downloader forbidden')):
+            self.assertEqual(envmod.obtain_packages('computer','arm64',{'tmux':'1'},Path('/fixture'),{}),['verified archive'])
+        receive.assert_called_once()
+
+    def test_board_mode_downloads_exact_packages_without_requesting_pc_transfer(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder=Path(temporary)
+            def run(arguments,**options):
+                self.assertEqual(arguments,['apt-get','download','tmux=1'])
+                self.assertEqual(options['cwd'],folder)
+                (folder/'tmux.deb').write_bytes(b'fixture');return 0,''
+            with patch.object(envmod.shutil,'which',return_value='/usr/bin/apt-get'),patch.object(envmod,'run',side_effect=run),patch.object(envmod,'receive_packages',side_effect=AssertionError('PC transfer forbidden')),patch('builtins.print') as output:
+                files=envmod.obtain_packages('board','arm64',{'tmux':'1'},folder,{})
+            self.assertEqual(files,[folder/'tmux.deb'])
+            self.assertTrue(output.call_args[0][0].startswith('PORTCANVAS_ENV_PROGRESS='))
+
+    def test_invalid_source_is_rejected_before_preparing(self):
+        with self.assertRaisesRegex(ValueError,'下载方式'):
+            envmod.prepare('desktop','arbitrary-command')
 
     def test_cache_pointer_cannot_escape_the_managed_versions_directory(self):
         with tempfile.TemporaryDirectory() as temporary:

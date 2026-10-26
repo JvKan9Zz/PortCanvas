@@ -22,6 +22,7 @@ pub struct DeviceManager {
     pub events: EventSink,
     auto_prepare: bool,
     runtime_cache: Option<std::path::PathBuf>,
+    environment_source: Arc<Mutex<crate::preferences::EnvironmentSource>>,
 }
 impl DeviceManager {
     pub fn new(events: EventSink) -> Self {
@@ -35,11 +36,15 @@ impl DeviceManager {
             events,
             auto_prepare: false,
             runtime_cache: None,
+            environment_source: Arc::new(Mutex::new(Default::default())),
         }
     }
     pub fn with_environment(mut self) -> Self { self.auto_prepare = true; self }
     pub fn with_runtime_cache(mut self, path: std::path::PathBuf) -> Self {
         self.auto_prepare = true; self.runtime_cache = Some(path); self
+    }
+    pub fn set_environment_source(&self, source: crate::preferences::EnvironmentSource) {
+        *self.environment_source.lock().unwrap() = source;
     }
     pub fn snapshot(&self) -> Value {
         self.inner.lock().unwrap().state.clone()
@@ -123,6 +128,7 @@ impl DeviceManager {
             Ok(mut c) => {
                 c.auto_prepare = self.auto_prepare;
                 c.runtime_cache = self.runtime_cache.clone();
+                c.environment_source = self.environment_source.clone();
                 let events = self.events.clone();
                 c.environment_progress = Arc::new(move |name, mut value| {
                     value["generation"] = json!(generation); events(name, value);

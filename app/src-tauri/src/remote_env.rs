@@ -100,7 +100,8 @@ impl SshConnection {
         if self.environment.lock().unwrap().completed.contains(&feature) { return Ok(()); }
         let user_cancel = CancellationToken::new();
         *self.environment_cancel.lock().unwrap() = user_cancel.clone();
-        let command = python(include_str!("../resources/prepare_environment.py"), json!(["environment", json!({"feature":feature.name()}).to_string()]))?;
+        let source = *self.environment_source.lock().unwrap();
+        let command = python(include_str!("../resources/prepare_environment.py"), json!(["environment", json!({"feature":feature.name(),"source":source}).to_string()]))?;
         let mut channel = self.channel().await?;
         let operation = async {
             anyhow::ensure!(!cancel.is_cancelled(), "运行环境准备已取消。");
@@ -109,6 +110,7 @@ impl SshConnection {
             let mut diagnostic = Vec::new();
             let mut status = None;
             let mut planned = false;
+            let mut progress_lines = 0;
             let mut heartbeat = tokio::time::interval(Duration::from_secs(1));
             loop {
                 let message = tokio::select! {
@@ -119,11 +121,21 @@ impl SshConnection {
                     Some(ChannelMsg::Data { data }) => {
                         anyhow::ensure!(output.len() + data.len() <= 65536, "运行环境检查响应过长。");
                         output.extend_from_slice(&data);
+                        let progress_text = String::from_utf8_lossy(&output);
+                        for packet in progress_text.split_inclusive('\n').filter(|line| line.ends_with('\n'))
+                            .filter_map(|line| line.trim_end().strip_prefix("PORTCANVAS_ENV_PROGRESS=")).skip(progress_lines) {
+                            let value: serde_json::Value = serde_json::from_str(packet)?;
+                            let phase = value["phase"].as_str().context("运行环境状态无效。")?;
+                            anyhow::ensure!(matches!(phase, "board-downloading" | "preparing"), "运行环境状态无效。");
+                            self.environment_event(feature, json!({"phase":phase}));
+                            progress_lines += 1;
+                        }
                         if !planned {
                             let text = String::from_utf8_lossy(&output);
                             if let Some(packet) = text.split_inclusive('\n').filter(|line| line.ends_with('\n'))
                                 .find_map(|line| line.trim_end().strip_prefix("PORTCANVAS_ENV_PLAN=")) {
                                 let plan: Plan = serde_json::from_str(packet).context("组件下载清单无效。")?;
+                                anyhow::ensure!(source == crate::preferences::EnvironmentSource::Computer, "板端下载方式返回了意外的电脑下载请求。");
                                 planned = true;
                                 self.send_packages(&mut channel, feature, plan).await?;
                             }
