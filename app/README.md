@@ -54,3 +54,5 @@ Windows构建通过TAURI_SIGNING_PRIVATE_KEY与TAURI_SIGNING_PRIVATE_KEY_PASSWOR
 界面统一入口为 ui/workspace.css。theme.js 负责主题色彩和 light/dark/system 外观，glass.js 映射非透明度，background.js 仅设置背景展示。settings.js 组合分组设置、ColorPicker 与 StorageSettings；偏好和背景受管副本由 preferences.rs 持久化。ui/fonts 内置三种字重的完整 PingFang WOFF2；许可边界见字体 NOTICE 和第三方声明。终端/原始日志用系统等宽字体加中文回退；顶部 wordmark 单独使用完整转换的 Macintosh Skeletal Filled Regular，来源、原许可及用户单独确认的分发权限见字体 NOTICE。
 
 connection-indicator.js 提供4×4随机点阵与可重入异步等待提示，连接阶段保持同一图案，操作结束/失败收回。各页按已有busy状态或实际IPC Promise显示，下载/传输的真实进度仍保留；后台稳定采样不反复闪动。全局隐藏滚动条但不修改滚动权限。
+
+背景裁剪由 background-crop.js/crop-model.js 负责选框与等比投影；background.js 将归一化范围映射到背景尺寸和位置。Native BackgroundDraft 只在内存缓存选择时字节，确认后原子保存受管原图及 backgroundCrop；取消不改旧设置。v0.5.8 同号补充不改版本/原标签，现有 Release 的包与更新清单成对替换，发布说明链接实际补充源码，已装同版本需手动覆盖。

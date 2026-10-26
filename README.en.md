@@ -26,7 +26,7 @@ By default, the app downloads and caches missing components on the PC, then tran
 
 [Windows V0.5.8](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.8) · [macOS V0.5.6](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.6) · [Usage guide (Chinese)](docs/usage.md) · [Position protocol (Chinese)](docs/pose-protocol.md)
 
-Installed Windows editions can check for updates under Settings → About, or use the new installer. Settings → Storage selects the runtime download source; an operation already in progress keeps the source it started with.
+Installed Windows editions can check for updates under Settings → About, or use the new installer. Existing v0.5.8 installations need to download the same-version supplement manually. Background images can be cropped before applying. Settings → Storage selects the runtime download source; an operation already in progress keeps the source it started with.
 
 The Windows x64 installer lets you choose the installation folder. In-app updates retain that folder and existing configuration. The universal DMG targets macOS 13+ and includes Intel and Apple Silicon code. Demo V0.5.6 is currently the only macOS compatibility release. Further macOS adaptation may wait until the stable version is released; later Windows demos will not automatically receive a Mac build. Both editions use the operating system's webview and need no Node.js, Rust or Python at runtime.
 

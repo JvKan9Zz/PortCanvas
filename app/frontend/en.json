@@ -629,5 +629,14 @@
   "确认": "Confirm",
   "非透明度百分比": "Opacity percentage",
   "数值越低越清透，控件内容保持清晰。": "Lower values reveal more of the background while keeping controls readable.",
-  "正在读取摄像头列表…": "Reading camera devices…"
+  "正在读取摄像头列表…": "Reading camera devices…",
+  "裁剪背景": "Crop background",
+  "裁剪范围": "Crop area",
+  "方向键移动选框，Shift 加方向键调整大小。": "Arrow keys move the crop. Shift and arrow keys resize it.",
+  "重置范围": "Reset crop",
+  "应用背景": "Apply background",
+  "图片无法读取，请选择其他图片。": "This image could not be read. Choose another image.",
+  "请选择有效的裁剪范围。": "Choose a valid crop area.",
+  "背景裁剪范围无效，原设置保留。": "The background crop is invalid. Existing settings were preserved.",
+  "背景预览已结束，请重新选择图片。": "The background preview has ended. Select the image again."
 }

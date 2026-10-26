@@ -23,6 +23,7 @@ const api={
  onEnvironment:(h:Handler)=>on('environment-progress',h),cancelEnvironment:()=>call('environment:cancel'),
  setGlassOpacity:(value:number)=>call('settings:glass-opacity',value),
  setBackgroundColor:(color:string)=>call('settings:background-color',color),chooseBackgroundImage:()=>call('settings:background-image'),backgroundImageData:()=>call('settings:background-data'),removeBackgroundImage:()=>call('settings:background-remove-image'),resetBackground:()=>call('settings:background-reset'),
+ commitBackgroundImage:(draftId:string,crop:{x:number,y:number,width:number,height:number})=>call('settings:background-commit',draftId,crop),cancelBackgroundImage:(draftId:string)=>call('settings:background-cancel',draftId),
  setAppearance:(appearance:string)=>call('settings:appearance',appearance),openInstallDirectory:()=>call('settings:install-directory'),
  setEnvironmentSource:(source:string)=>call('settings:environment-source',source),
  setDesktopMode:(mode:string)=>call('settings:desktop-mode',mode),

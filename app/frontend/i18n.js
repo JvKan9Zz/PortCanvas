@@ -22,4 +22,4 @@ export function setLanguage(value){
 // Bind initial interface text only. File names, project names and terminal output are data.
 const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let node;
 while((node=walker.nextNode())){const source=node.nodeValue.trim();if(english[source]&&!node.parentElement.closest('script,style'))bindings.push({element:node,source,raw:node.nodeValue});}
-for(const element of document.querySelectorAll('[title],[placeholder],[aria-label]'))for(const attribute of ['title','placeholder','aria-label']){const source=element.getAttribute(attribute);if(source&&english[source])bindings.push({element,attribute,source});}
+for(const element of document.querySelectorAll('[title],[placeholder],[aria-label],[aria-description]'))for(const attribute of ['title','placeholder','aria-label','aria-description']){const source=element.getAttribute(attribute);if(source&&english[source])bindings.push({element,attribute,source});}
