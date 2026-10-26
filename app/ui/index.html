@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PortCanvas · Demo V0.5.7</title>
+  <title>PortCanvas · Demo V0.5.7 Beta</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="themes.css">
   <link rel="stylesheet" href="files.css">
@@ -62,6 +62,10 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 </aside>
 <div id="appRoot" class="app">
   <header class="app-header"><div class="wordmark">Port<strong>Canvas</strong></div><div class="header-actions"><button id="toggleTerminal" class="button secondary" type="button" aria-expanded="false" aria-controls="terminalDrawer" hidden><svg><use href="#i-terminal"/></svg>终端</button><div id="connectionBadge" class="badge"><span class="dot"></span><span>设备未连接</span></div></div></header>
+  <section id="environmentStatus" class="environment-status" aria-labelledby="environmentTitle" hidden>
+    <div class="environment-copy"><strong id="environmentTitle" role="status" aria-live="polite"></strong><p id="environmentDetail"></p><progress id="environmentProgress" max="100" aria-label="运行环境"></progress></div>
+    <button id="cancelEnvironment" class="button secondary compact" type="button">取消准备</button><button id="dismissEnvironment" class="button secondary compact" type="button" hidden>收起</button>
+  </section>
   <main>
     <section id="page-devices" class="page device-page">
       <div class="page-heading"><div><h1>设备连接与管理</h1></div><div class="device-manage-actions"><button id="importProfiles" class="button secondary" type="button">导入旧版资料</button><button id="rollbackProfiles" class="button secondary" type="button">恢复导入前资料</button><button id="newDevice" class="button secondary"><svg><use href="#i-plus"/></svg>添加设备</button></div></div>

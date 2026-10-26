@@ -8,6 +8,10 @@ use tauri_plugin_updater::Update;
 
 const CONNECTIONS: usize = 32;
 const MAX_PACKAGE_BYTES: u64 = 256 * 1024 * 1024;
+pub(crate) fn client_builder() -> reqwest::ClientBuilder {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    Client::builder().user_agent(concat!("PortCanvas/", env!("CARGO_PKG_VERSION")))
+}
 fn ranges(size: u64) -> Vec<(u64, u64)> {
     let count = CONNECTIONS.min(size as usize) as u64;
     (0..count)
@@ -24,8 +28,7 @@ pub async fn download(
     progress: impl Fn(usize, Option<u64>, usize) + Send + Sync,
     verify: impl FnOnce(),
 ) -> Result<Vec<u8>> {
-    let mut builder = Client::builder()
-        .user_agent(concat!("PortCanvas/", env!("CARGO_PKG_VERSION")))
+    let mut builder = client_builder()
         .default_headers(update.headers.clone());
     if let Some(timeout) = update.timeout {
         builder = builder.timeout(timeout);
@@ -36,8 +39,19 @@ pub async fn download(
         builder = builder.proxy(reqwest::Proxy::all(proxy.as_str())?);
     }
     let client = builder.build()?;
+    let bytes = fetch(&client, &update.download_url, progress).await?;
+    verify();
+    update.verify(&bytes).context("更新文件签名校验失败。")?;
+    Ok(bytes)
+}
+// Shared range transport; each caller keeps its own package authentication.
+pub async fn fetch(
+    client: &Client,
+    url: &reqwest::Url,
+    progress: impl Fn(usize, Option<u64>, usize) + Send + Sync,
+) -> Result<Vec<u8>> {
     let probe = client
-        .get(update.download_url.clone())
+        .get(url.clone())
         .header(RANGE, "bytes=0-0")
         .header(ACCEPT_ENCODING, "identity")
         .send()
@@ -56,7 +70,7 @@ pub async fn download(
         } else {
             drop(probe);
             client
-                .get(update.download_url.clone())
+                .get(url.clone())
                 .header(ACCEPT_ENCODING, "identity")
                 .send()
                 .await?
@@ -79,8 +93,6 @@ pub async fn download(
             bytes.extend_from_slice(&chunk);
             progress(chunk.len(), total, 1);
         }
-        verify();
-        update.verify(&bytes).context("更新文件签名校验失败。")?;
         return Ok(bytes);
     }
     let size = range.unwrap().2;
@@ -106,7 +118,7 @@ pub async fn download(
         let progress = &progress;
         requests.push(async move {
             let mut request = client
-                .get(update.download_url.clone())
+                .get(url.clone())
                 .header(RANGE, format!("bytes={start}-{end}"))
                 .header(ACCEPT_ENCODING, "identity");
             if let Some(validator) = validator {
@@ -145,13 +157,57 @@ pub async fn download(
         let (start, part) = result?;
         bytes[start as usize..start as usize + part.len()].copy_from_slice(&part);
     }
-    verify();
-    update.verify(&bytes).context("更新文件签名校验失败。")?;
     Ok(bytes)
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Arc, Mutex};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    async fn fixture(mode: u8) -> (reqwest::Url, tokio::task::JoinHandle<()>, Vec<u8>) {
+        let listener=tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url=format!("http://{}/package",listener.local_addr().unwrap()).parse().unwrap();
+        let bytes=(0..65539).map(|i|(i%251) as u8).collect::<Vec<_>>();
+        let body=Arc::new(bytes.clone());
+        let task=tokio::spawn(async move {
+            loop {
+                let (mut socket,_)=listener.accept().await.unwrap();let body=body.clone();
+                tokio::spawn(async move {
+                    let mut header=Vec::new();let mut byte=[0];
+                    while !header.ends_with(b"\r\n\r\n") { if socket.read_exact(&mut byte).await.is_err(){return;}header.push(byte[0]); }
+                    let text=String::from_utf8(header).unwrap().to_lowercase();
+                    let range=text.lines().find_map(|line|line.strip_prefix("range: bytes="))
+                        .and_then(|value|value.split_once('-')).map(|(a,b)|(a.parse::<usize>().unwrap(),b.parse::<usize>().unwrap()));
+                    let (response,content)=if mode>0 && range.is_some() {
+                        let (start,end)=range.unwrap();
+                        let reported=if mode==2 && end>0 {start+1}else{start};
+                        (format!("HTTP/1.1 206 Partial Content\r\nContent-Range: bytes {reported}-{end}/{}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",body.len(),end-start+1),&body[start..=end])
+                    }else{(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",body.len()),&body[..])};
+                    let _=socket.write_all(response.as_bytes()).await;let _=socket.write_all(content).await;
+                });
+            }
+        });
+        (url,task,bytes)
+    }
+    #[tokio::test]
+    async fn shared_download_reports_real_range_and_single_connection_bytes() {
+        for mode in [0,1] {
+            let (url,server,expected)=fixture(mode).await;
+            let progress=Mutex::new((0usize,0usize));
+            let result=fetch(&client_builder().no_proxy().build().unwrap(),&url,|bytes,total,connections|{
+                assert_eq!(total,Some(65539));let mut progress=progress.lock().unwrap();progress.0+=bytes;progress.1=connections;
+            }).await;
+            server.abort();
+            assert_eq!(result.unwrap(),expected);
+            assert_eq!(*progress.lock().unwrap(),(expected.len(),if mode==0{1}else{32}));
+        }
+    }
+    #[tokio::test]
+    async fn shared_download_rejects_changed_range_boundaries() {
+        let (url,server,_)=fixture(2).await;
+        let result=fetch(&client_builder().no_proxy().build().unwrap(),&url,|_,_,_|{}).await;
+        server.abort();assert!(result.is_err());
+    }
     #[test]
     fn partitions_cover_every_byte_once_including_uneven_files() {
         for size in [1, 31, 32, 33, 1048579, 16000000] {

@@ -6,6 +6,7 @@ pub mod profiles;
 pub mod credentials;
 pub mod ssh;
 pub mod remote_env;
+mod runtime_download;
 pub mod session;
 pub mod desktop;
 pub mod desktop_settings;

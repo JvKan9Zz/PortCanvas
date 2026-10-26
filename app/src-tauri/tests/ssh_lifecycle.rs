@@ -33,7 +33,8 @@ impl Counts {
 struct MockSsh {
     counts: Arc<Counts>,
     channels: HashMap<ChannelId, Channel<server::Msg>>,
-    environment_reply: bool,
+    environment_reply: u8,
+    wire: HashMap<ChannelId, Vec<u8>>,
 }
 impl server::Handler for MockSsh {
     type Error = russh::Error;
@@ -49,10 +50,29 @@ impl server::Handler for MockSsh {
         self.counts.exec.fetch_add(1, Ordering::SeqCst);
         self.counts.changed.notify_one();
         session.channel_success(id)?;
-        if self.environment_reply {
+        if self.environment_reply == 2 {
+            let plan=b"PORTCANVAS_ENV_PLAN={\"os\":\"ubuntu\",\"release\":\"20.04\",\"architecture\":\"arm64\",\"packages\":[{\"name\":\"tmux\",\"version\":\"1\",\"architecture\":\"arm64\",\"filename\":\"pool/main/t/tmux/tmux_1_arm64.deb\",\"size\":3,\"sha256\":\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\"}]}\n";
+            session.data(id,plan[..10].to_vec())?;session.data(id,plan[10..].to_vec())?;
+        }
+        if self.environment_reply == 1 {
             session.data(id, b"PORTCANVAS_ENV={\"ready\":true,\"feature\":\"terminal\",\"binDir\":\"/tmp/fixture's/bin\",\"tmux\":\"/tmp/fixture's/bin/tmux\",\"sftp\":\"/fixture/system/sftp-server\"}\n".to_vec())?;
             session.exit_status_request(id, 0)?;
             session.close(id)?;
+        }
+        Ok(())
+    }
+    async fn data(&mut self, id: ChannelId, bytes: &[u8], session: &mut server::Session) -> Result<(), Self::Error> {
+        if self.environment_reply != 2 {return Ok(());}
+        let wire=self.wire.entry(id).or_default();wire.extend_from_slice(bytes);
+        while wire.starts_with(b".\n") {wire.drain(..2);}
+        if let Some(end)=wire.iter().position(|byte|*byte==b'\n') {
+            if wire.len()>=end+4 {
+                let header:serde_json::Value=serde_json::from_slice(&wire[..end]).unwrap();
+                assert_eq!(header["index"],0);assert_eq!(header["size"],3);assert_eq!(&wire[end+1..end+4],b"abc");
+                session.data(id,b"PORTCANVAS_ENV={\"ready\":true,\"feature\":\"terminal\"}\n".to_vec())?;
+                session.exit_status_request(id,0)?;session.close(id)?;
+                self.environment_reply=0;
+            }
         }
         Ok(())
     }
@@ -86,7 +106,8 @@ impl Fixture {
     async fn new() -> Self {
         Self::with_environment_reply(false).await
     }
-    async fn with_environment_reply(environment_reply: bool) -> Self {
+    async fn with_environment_reply(environment_reply: bool) -> Self { Self::with_reply(if environment_reply {1}else{0}).await }
+    async fn with_reply(environment_reply: u8) -> Self {
         // Fresh in-memory key: no committed or on-disk private-key fixture.
         let key = russh::keys::PrivateKey::random(&mut rand::rng(), russh::keys::Algorithm::Ed25519).unwrap();
         let config = Arc::new(server::Config {
@@ -99,7 +120,7 @@ impl Fixture {
         let state = counts.clone();
         let listener = tokio::spawn(async move {
             while let Ok((stream, _)) = listener.accept().await {
-                let handler = MockSsh { counts: state.clone(), channels: HashMap::new(), environment_reply };
+                let handler = MockSsh { counts: state.clone(), channels: HashMap::new(), wire: HashMap::new(), environment_reply };
                 let config = config.clone();
                 tokio::spawn(async move {
                     if let Ok(session) = server::run_stream(config, stream, handler).await { let _ = session.await; }
@@ -207,4 +228,22 @@ async fn canceling_environment_preparation_closes_only_the_owned_channel() {
     fixture.counts.wait_for_cleanup().await;
     assert!(devices.connection().is_ok());
     devices.disconnect().await;
+}
+
+#[tokio::test]
+async fn environment_plan_streams_verified_pc_cache_and_reports_each_phase() {
+    let fixture=Fixture::with_reply(2).await;
+    let root=std::env::temp_dir().join(format!("pc-ssh-cache-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad.deb"),b"abc").unwrap();
+    let events=Arc::new(std::sync::Mutex::new(Vec::new()));let sink=events.clone();
+    let devices=DeviceManager::new(Arc::new(move |name,value|{if name=="environment-progress"{sink.lock().unwrap().push(value);}})).with_runtime_cache(root.clone());
+    devices.connect(fixture.profile.clone(),secret(),|_|check(true)).await.unwrap();
+    let connection=devices.connection().unwrap();
+    tokio::time::timeout(Duration::from_secs(5),connection.prepare(studio_core::remote_env::Feature::Terminal,&connection.cancel)).await.unwrap().unwrap();
+    let values=events.lock().unwrap();
+    assert!(values.iter().any(|v|v["phase"]=="downloading"&&v["connections"]==0&&v["done"]==3));
+    assert!(values.iter().any(|v|v["phase"]=="transferring"&&v["done"]==3&&v["total"]==3));
+    assert!(values.iter().any(|v|v["phase"]=="preparing"));assert_eq!(values.last().unwrap()["phase"],"ready");
+    assert!(values.iter().all(|v|v["generation"]==devices.generation()));drop(values);
+    devices.disconnect().await;std::fs::remove_dir_all(root).unwrap();
 }

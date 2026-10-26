@@ -384,6 +384,7 @@ async fn studio_call(
             "profiles:choose-key"=>{let file=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title(local_text(&window,"选择SSH私钥（OpenSSH / PEM / PPK）")).add_filter(local_text(&window,"所有私钥文件"),&["*"]).pick_file()).await?;Ok(json!(file.map(|p|p.to_string_lossy().into_owned())))},
             "profiles:remove"=>{let id:String=argument(&args,0)?;if !confirm(window.clone(),"移除设备配置".into(),"仅移除本机连接配置，是否继续？".into()).await?{return Ok(json!(false));}if state.devices.snapshot()["deviceId"]==id{state.devices.disconnect().await;}
                 let store=state.profiles.lock().unwrap();let mut data=store.read()?;let removed=data.devices.iter().find(|p|p.id==id).cloned();data.devices.retain(|p|p.id!=id);if let Some(removed)=removed{if !data.devices.iter().any(|p|p.address()==removed.address()){data.host_keys.remove(&removed.address());}}store.write(&data)?;Ok(json!(true))},
+            "environment:cancel"=>{state.devices.connection()?.environment_cancel.lock().unwrap().cancel();Ok(json!({"canceled":true}))},
             "device:state"=>Ok(state.devices.snapshot()),
             "device:reboot"=>reboot_device(window,&state).await,
             "device:disconnect"=>{tokio::join!(state.arena.stop(None),state.pose.stop(None));state.devices.disconnect().await;state.desktop.stop(None).await;Ok(state.devices.snapshot())},
@@ -494,7 +495,7 @@ pub fn run() {
                 }
                 let _ = handle.emit(name, data);
             });
-            let devices = DeviceManager::new(events.clone()).with_environment();
+            let devices = DeviceManager::new(events.clone()).with_runtime_cache(directory.join("runtime-cache"));
             let desktop = DesktopService::new(devices.clone());
             let arena = crate::arena::ArenaService::new(devices.clone());
             let pose = crate::arena_pose::PoseService::new(devices.clone(),events.clone());

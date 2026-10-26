@@ -1,5 +1,7 @@
 """Prepare missing feature dependencies in this SSH user's private cache only."""
 import contextlib
+import hashlib
+import queue
 import json
 import os
 import platform
@@ -36,13 +38,88 @@ def stop_process():
         except ProcessLookupError:
             pass
 
+incoming = {}
+received = queue.Queue()
+
+def read_input(length):
+    ready, _, _ = select.select([0], [], [], 15)
+    data = os.read(0, length) if ready else b''
+    if not data:
+        raise RuntimeError('SSH 连接已关闭或传输停滞，运行环境准备已取消。')
+    return data
+
 def watch_connection():
-    while True:
-        ready, _, _ = select.select([0], [], [], 15)
-        if not ready or not os.read(0, 64):
-            stopping.set()
-            stop_process()
-            return
+    seen = set()
+    try:
+        while True:
+            line = bytearray()
+            while not line.endswith(b'\n'):
+                line.extend(read_input(1))
+                if len(line) > 4096:
+                    raise RuntimeError('组件传输头无效。')
+            if line == b'.\n':
+                continue
+            header = json.loads(line)
+            index = header['index']
+            if type(index) is not int or index not in incoming or index in seen:
+                raise RuntimeError('组件传输顺序无效。')
+            path, record = incoming[index]
+            if header['size'] != record['size']:
+                raise RuntimeError('组件传输长度无效。')
+            digest = hashlib.sha256()
+            remaining = record['size']
+            with path.open('xb') as output:
+                while remaining:
+                    data = read_input(min(65536, remaining))
+                    output.write(data)
+                    digest.update(data)
+                    remaining -= len(data)
+            if digest.hexdigest() != record['sha256']:
+                raise RuntimeError('传入组件 SHA-256 校验失败，已保留原运行环境。')
+            seen.add(index)
+            received.put((index, path))
+    except Exception as error:
+        stopping.set()
+        stop_process()
+        received.put(error)
+
+def receive_packages(native, packages, archives):
+    os_info = {}
+    for line in Path('/etc/os-release').read_text().splitlines():
+        if '=' in line:
+            key, value = line.split('=', 1)
+            os_info[key] = value.strip('"')
+    if (os_info.get('ID'), os_info.get('VERSION_ID'), native) != ('ubuntu', '20.04', 'arm64'):
+        raise RuntimeError('Beta 自动下载目前支持 Ubuntu 20.04 ARM64 控制器；其他环境请先手动准备组件。')
+    records = []
+    for name, version in sorted(packages.items()):
+        record = fields(run(['apt-cache', '-o', 'Dir::Cache::pkgcache=', '-o', 'Dir::Cache::srcpkgcache=',
+                             'show', '--no-all-versions', name])[1])
+        size = int(record.get('Size', '0'))
+        filename, digest = record.get('Filename', ''), record.get('SHA256', '')
+        if (record.get('Version') != version or record.get('Architecture') not in (native, 'all') or
+                not filename.startswith('pool/') or not re.fullmatch(r'[0-9a-f]{64}', digest) or
+                not 0 < size <= 256 * 1024 * 1024):
+            raise RuntimeError('APT 缓存缺少完整组件信息：%s；请更新设备软件源索引后重试。' % name)
+        records.append({'name': name, 'version': version, 'architecture': record['Architecture'],
+                        'filename': filename, 'size': size, 'sha256': digest})
+    if sum(record['size'] for record in records) > 512 * 1024 * 1024:
+        raise RuntimeError('所需组件超过 512 MiB，请手动准备。')
+    incoming.update({index: (archives / ('%03d.deb' % index), record) for index, record in enumerate(records)})
+    print('PORTCANVAS_ENV_PLAN=' + json.dumps({'os': os_info['ID'], 'release': os_info['VERSION_ID'],
+          'architecture': native, 'packages': records}), flush=True)
+    files = []
+    while len(files) < len(records):
+        try:
+            item = received.get(timeout=0.2)
+        except queue.Empty:
+            if stopping.is_set():
+                raise RuntimeError('运行环境准备已取消。')
+            continue
+        if isinstance(item, Exception):
+            raise item
+        files.append(item[1])
+    return files
 
 def run(arguments, cwd=None, env=None, check=True, timeout=60):
     global active_process
@@ -58,11 +135,11 @@ def run(arguments, cwd=None, env=None, check=True, timeout=60):
         if stopping.is_set():
             raise RuntimeError('运行环境准备已取消。')
         if check and process.returncode:
-            raise RuntimeError('组件准备失败：%s；请检查树莓派联网和软件源。' % Path(arguments[0]).name)
+            raise RuntimeError('组件准备失败：%s；请检查设备基础工具和软件源索引。' % Path(arguments[0]).name)
         return process.returncode, output.decode('utf-8', 'replace')
     except subprocess.TimeoutExpired:
         stop_process()
-        raise RuntimeError('运行环境准备超时，请检查树莓派联网和软件源。')
+        raise RuntimeError('运行环境准备超时，请检查设备基础工具和软件源索引。')
     finally:
         with process_lock:
             active_process = None
@@ -167,7 +244,7 @@ def required_packages(roots):
             continue
         record = info(name)
         if not record.get('Version'):
-            raise RuntimeError('软件源缺少所需组件：%s；请检查树莓派联网和软件源。' % name)
+            raise RuntimeError('软件源缺少所需组件：%s；请检查设备基础工具和软件源索引。' % name)
         selected[name] = record['Version']
         if len(selected) > 128:
             raise RuntimeError('需要的组件过多，已停止自动准备。')
@@ -222,7 +299,7 @@ def prepare(feature):
     previous = cache_root(base)
     if ready(feature, previous):
         return response(feature, previous)
-    if not all(shutil.which(name) for name in ('apt-get', 'apt-cache', 'dpkg-deb', 'dpkg-query', 'dpkg')):
+    if not all(shutil.which(name) for name in ('apt-cache', 'dpkg-deb', 'dpkg-query', 'dpkg')):
         raise RuntimeError('当前设备缺少组件且不支持自动准备，请使用受支持的 Ubuntu/Debian 环境。')
     base.mkdir(parents=True, exist_ok=True)
     with runtime_lock(base):
@@ -247,8 +324,7 @@ def prepare(feature):
             archives = stage / 'packages'
             archives.mkdir()
             env = dict(os.environ, TMPDIR=str(stage))
-            run(['apt-get', 'download'] + [name + '=' + version for name, version in sorted(packages.items())], cwd=archives, env=env, timeout=120)
-            files = list(archives.glob('*.deb'))
+            files = receive_packages(native, packages, archives)
             if len(files) != len(packages):
                 raise RuntimeError('下载的组件不完整，已保留原运行环境。')
             for package in files:

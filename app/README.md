@@ -1,4 +1,4 @@
-# PortCanvas Demo V0.5.7
+# PortCanvas Demo V0.5.7 Beta
 
 Tauri 2 + Rust + WebView2桌面客户端。Rust负责SSH、SFTP、桌面转发、PTY/tmux、本地日志、设置与按需摄像头；前端使用noVNC与xterm。Node仅用于构建，电脑端运行无需Node/Python。
 
@@ -49,4 +49,4 @@ Windows构建通过TAURI_SIGNING_PRIVATE_KEY与TAURI_SIGNING_PRIVATE_KEY_PASSWOR
 更新在用户点击后下载，默认32路分段，不支持Range时回退单连接；可取消，完整文件通过版本签名校验后才允许安装。安装前停止本机连接并封存日志，远端持久会话保留；文件操作或迁移进行中不允许安装。正式版固定HTTPS与内置公钥。
 
 
-远端依赖准备实现在 resources/prepare_environment.py 与 remote_env.rs。按功能调用、连接内去重、取消/心跳看门狗及独立暂存发布；现有 SFTP 路径优先，缺组件才按当前账号补齐。软件缓存与系统安装分开，不运行维护脚本、不修改 SDK。详见 docs/usage.md 的 V0.5.7 环境表。
+远端依赖准备实现在 resources/prepare_environment.py 与 remote_env.rs，电脑下载/缓存位于 runtime_download.rs，复用 update_download.rs 的 32 路传输。按功能调用、连接内去重、取消/心跳看门狗及独立暂存发布；现有 SFTP 路径优先，缺组件才按当前账号补齐。软件缓存与系统安装分开，不运行维护脚本、不修改 SDK。板端只读取现有 APT 索引，不联网下载；SSH 使用带长度的二进制帧传包，双端校验 SHA-256，取消通过 EOF/Close 回收本次准备。详见 docs/usage.md 的 V0.5.7 Beta 环境表。

@@ -8,6 +8,14 @@ use std::{
 use tauri_plugin_updater::{Update, UpdaterExt};
 use tokio_util::sync::CancellationToken;
 
+fn should_offer(current: &semver::Version, remote: &semver::Version) -> bool {
+    // The already-published 0.5.7 is the board-download Alpha, not a Beta upgrade.
+    if (current.major, current.minor, current.patch) == (0, 5, 7)
+        && current.pre.as_str().starts_with("beta.")
+        && *remote == semver::Version::new(0, 5, 7) { return false; }
+    remote > current
+}
+
 struct Pending {
     state: Value,
     update: Option<Update>,
@@ -64,7 +72,8 @@ impl UpdateService {
         self.publish(json!({}));
         if !cfg!(windows)||self.portable{return Ok(self.publish(json!({"status":"manual","message":if self.portable{"便携版已停止发布，请改用 Windows 安装器。"}else{"macOS 版固定为 Demo V0.5.6，暂不提供后续自动更新。"}})));}
         let result=async {
-            let mut builder=app.updater_builder().timeout(Duration::from_secs(20));
+            let mut builder=app.updater_builder().timeout(Duration::from_secs(20))
+                .version_comparator(|current, release| should_offer(&current, &release.version));
             if self.portable {builder=builder.target(format!("windows-{}-portable",std::env::consts::ARCH));}
             // Only development builds can use a loopback fixture. Shipped builds always use HTTPS.
             #[cfg(debug_assertions)]
@@ -154,5 +163,19 @@ impl UpdateService {
     }
     pub fn restore_result(&self, value: Value) {
         self.publish(value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn beta_skips_existing_alpha_but_accepts_future_releases() {
+        let beta="0.5.7-beta.1".parse().unwrap();
+        assert!(!should_offer(&beta,&"0.5.7".parse().unwrap()));
+        assert!(!should_offer(&beta,&"0.5.6".parse().unwrap()));
+        assert!(should_offer(&beta,&"0.5.7-beta.2".parse().unwrap()));
+        assert!(should_offer(&beta,&"0.5.8".parse().unwrap()));
+        assert!(should_offer(&"0.5.6".parse().unwrap(),&"0.5.7".parse().unwrap()));
     }
 }
