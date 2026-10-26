@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 40
     defaults:
       run:
-        shell: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File {0}'
+        shell: cmd
         working-directory: app
     env:
       WCS_TEST_ROOT: ${{ github.workspace }}/app/src-tauri/target/ci-tests
@@ -36,15 +36,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Prepare Rust and isolated test directories
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -ne 7) { throw 'PowerShell 7 is required.' }
-          $PSVersionTable
-          rustup toolchain install 1.90.0 --profile minimal
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          rustup default 1.90.0
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          New-Item -ItemType Directory -Force -Path $env:WCS_TEST_ROOT, $env:WCS_DATA_DIR | Out-Null
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 setup'
       - uses: actions/cache@v4
         with:
           path: |
@@ -53,42 +45,18 @@ jobs:
             app/src-tauri/target
           key: windows-ci-rust190-${{ hashFiles('app/src-tauri/Cargo.lock') }}
       - name: Install locked frontend dependencies
-        run: |
-          $ErrorActionPreference = 'Stop'
-          npm ci
-          exit $LASTEXITCODE
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 install'
       - name: Build frontend
-        run: |
-          $ErrorActionPreference = 'Stop'
-          npm run build
-          exit $LASTEXITCODE
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 frontend'
       - name: Check TypeScript
-        run: |
-          $ErrorActionPreference = 'Stop'
-          npx --no-install tsc --noEmit
-          exit $LASTEXITCODE
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 typescript'
       - name: Test frontend
-        run: |
-          $ErrorActionPreference = 'Stop'
-          npm run test:frontend
-          exit $LASTEXITCODE
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 frontend-tests'
       - name: Test desktop helper
-        run: |
-          $ErrorActionPreference = 'Stop'
-          python -B -m unittest discover -s tests -p 'test_desktop*.py'
-          exit $LASTEXITCODE
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 python'
       - name: Test native core and desktop services
-        run: |
-          $ErrorActionPreference = 'Stop'
-          cargo test --manifest-path src-tauri/Cargo.toml --locked --release --lib
-          exit $LASTEXITCODE
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 native'
       - name: Test isolated SSH lifecycle regressions
-        run: |
-          $ErrorActionPreference = 'Stop'
-          cargo test --manifest-path src-tauri/Cargo.toml --locked --release --no-default-features --test ssh_lifecycle
-          exit $LASTEXITCODE
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 ssh'
       - name: Compile Windows application without packaging or signing
-        run: |
-          $ErrorActionPreference = 'Stop'
-          npx --no-install tauri build --no-bundle --ci
-          exit $LASTEXITCODE
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 compile'
