@@ -35,6 +35,7 @@ pub struct AppState {
     pub migrating: AtomicBool,
     pub default_log_root: PathBuf,
     pub preferences: Mutex<crate::preferences::PreferenceStore>,
+    pub background_draft:Mutex<Option<crate::preferences::BackgroundDraft>>,
     pub updates: crate::updates::UpdateService,
 }
 async fn stop_for_exit(state:&AppState) {
@@ -380,8 +381,10 @@ async fn studio_call(
             "settings:background-data"=>Ok(json!(state.preferences.lock().unwrap().background_data()?)),
             "settings:background-image"=>{
                 let file=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title(local_text(&window,"选择背景图片")).add_filter("PNG / JPEG / WebP",&["png","jpg","jpeg","webp"]).pick_file()).await?;
-                if let Some(file)=file{state.preferences.lock().unwrap().save_background_image(&file)}else{Ok(json!({"canceled":true}))}
+                if let Some(file)=file{let draft=crate::preferences::BackgroundDraft::open(&file)?;let preview=draft.preview();*state.background_draft.lock().unwrap()=Some(draft);Ok(preview)}else{Ok(json!({"canceled":true}))}
             },
+            "settings:background-commit"=>{let id:String=argument(&args,0)?;let crop=argument(&args,1)?;let mut pending=state.background_draft.lock().unwrap();let draft=pending.as_ref().filter(|draft|draft.id==id).context("背景预览已结束，请重新选择图片。")?;let result=draft.commit(&state.preferences.lock().unwrap(),crop)?;*pending=None;Ok(result)},
+            "settings:background-cancel"=>{let id:String=argument(&args,0)?;let mut pending=state.background_draft.lock().unwrap();if pending.as_ref().is_some_and(|draft|draft.id==id){*pending=None;}Ok(Value::Null)},
             "settings:install-directory"=>{let executable=std::env::current_exe().context("无法读取软件安装目录。")?;let directory=executable.parent().context("无法读取软件安装目录。")?.to_path_buf();open_directory(window,directory).await?;Ok(Value::Null)},
             "settings:environment-source"=>{let source=argument(&args,0)?;let info=state.preferences.lock().unwrap().save_environment_source(source)?;state.devices.set_environment_source(source);Ok(info)},
             "settings:desktop-mode"=>state.preferences.lock().unwrap().save_desktop_mode(argument(&args,0)?),
@@ -539,6 +542,7 @@ pub fn run() {
                 rebooting:AtomicBool::new(false),
                 updates,
                 preferences: Mutex::new(preferences),
+                background_draft:Mutex::new(None),
                 profiles: Arc::new(Mutex::new(ProfileStore { directory })),
                 devices,
                 desktop,

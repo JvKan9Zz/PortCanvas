@@ -1,5 +1,6 @@
 import {showActivity,withActivity} from './connection-indicator.js';
 import {ColorPicker} from './color-picker.js';
+import {BackgroundCropDialog} from './background-crop.js';
 import {applyGlassOpacity} from './glass.js';
 import {StorageSettings} from './storage-settings.js';
 import {applyBackground} from './background.js';
@@ -39,7 +40,8 @@ export class SettingsDialog {
       $(id).onchange=()=>this.saveGlass($(id));
     }
     $('glassOpacityNumber').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();this.saveGlass($('glassOpacityNumber'));}};
-    $('chooseBackgroundImage').onclick=()=>this.backgroundAction(()=>window.studio.chooseBackgroundImage());
+    this.backgroundCrop=new BackgroundCropDialog();
+    $('chooseBackgroundImage').onclick=()=>this.chooseBackground();
     $('removeBackgroundImage').onclick=()=>this.backgroundAction(()=>window.studio.removeBackgroundImage());
     $('resetBackground').onclick=()=>this.backgroundAction(()=>window.studio.resetBackground());
     for(const option of document.querySelectorAll('input[name="appearance"]'))option.onchange=async()=>{
@@ -71,7 +73,16 @@ export class SettingsDialog {
     const request=(this.backgroundRequest||0)+1;this.backgroundRequest=request;
     const info=this.info||{};let image=null;
     if(info.backgroundImage)try{image=await withActivity($('backgroundPreview'),()=>window.studio.backgroundImageData());}catch(error){this.toast(error.message);}
-    if(request===this.backgroundRequest)applyBackground(info.backgroundColor,image);
+    if(request===this.backgroundRequest)applyBackground(info.backgroundColor,image,info.backgroundCrop);
+  }
+  async chooseBackground(){
+    if(this.backgroundBusy)return;this.backgroundBusy=true;this.render();let draft;
+    try{
+      draft=await withActivity($('settingsPageTitle'),()=>window.studio.chooseBackgroundImage());if(draft.canceled)return;
+      const result=await this.backgroundCrop.open(draft.imageData,crop=>window.studio.commitBackgroundImage(draft.draftId,crop));
+      if(result){this.info=result;await this.refreshBackground();}
+    }catch(error){this.toast(error.message);}
+    finally{if(draft?.draftId)await window.studio.cancelBackgroundImage(draft.draftId).catch(error=>this.toast(error.message));this.backgroundBusy=false;this.render();if($('settingsDialog').open)$('chooseBackgroundImage').focus();}
   }
   async saveGlass(input){
     if(this.savingGlass)return;if(!input.reportValidity())return;

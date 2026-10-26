@@ -23,12 +23,25 @@ pub struct Preferences {
     pub background_color:Option<String>,
     #[serde(default,rename="backgroundImage",skip_serializing_if="Option::is_none")]
     pub background_image:Option<String>,
+    #[serde(default,rename="backgroundCrop",skip_serializing_if="Option::is_none")]
+    pub background_crop:Option<BackgroundCrop>,
     #[serde(default="default_glass_opacity",rename="glassOpacity")]
     pub glass_opacity:u8,
 }
 fn default_glass_opacity()->u8{100}
 impl Default for Preferences{
-    fn default()->Self{Self{language:Language::default(),theme:Theme::default(),desktop_mode:Default::default(),environment_source:EnvironmentSource::default(),appearance:Appearance::default(),background_color:None,background_image:None,glass_opacity:100}}
+    fn default()->Self{Self{language:Language::default(),theme:Theme::default(),desktop_mode:Default::default(),environment_source:EnvironmentSource::default(),appearance:Appearance::default(),background_color:None,background_image:None,background_crop:None,glass_opacity:100}}
+}
+#[derive(Clone,Copy,Debug,Deserialize,Serialize,PartialEq)]
+pub struct BackgroundCrop{pub x:f64,pub y:f64,pub width:f64,pub height:f64}
+impl BackgroundCrop{
+    fn valid(&self)->bool{[self.x,self.y,self.width,self.height].iter().all(|n|n.is_finite())&&self.x>=0.0&&self.y>=0.0&&self.width>0.0&&self.height>0.0&&self.x+self.width<=1.000000001&&self.y+self.height<=1.000000001}
+}
+pub struct BackgroundDraft{pub id:String,bytes:Vec<u8>}
+impl BackgroundDraft{
+    pub fn open(source:&std::path::Path)->Result<Self>{Ok(Self{id:uuid::Uuid::new_v4().simple().to_string(),bytes:image_bytes(source)?})}
+    pub fn preview(&self)->Value{json!({"draftId":self.id,"imageData":image_data(&self.bytes)})}
+    pub fn commit(&self,store:&PreferenceStore,crop:BackgroundCrop)->Result<Value>{store.save_background_bytes(&self.bytes,Some(crop))}
 }
 #[derive(Clone,Copy,Default,Deserialize,Serialize,PartialEq,Debug)]
 #[serde(rename_all="lowercase")]
@@ -59,18 +72,21 @@ fn image_extension(bytes:&[u8])->Option<&'static str>{
 }
 fn image_bytes(path:&std::path::Path)->Result<Vec<u8>>{
     let mut bytes=Vec::new();std::fs::File::open(path)?.take(10*1024*1024+1).read_to_end(&mut bytes)?;
-    anyhow::ensure!(bytes.len()<=10*1024*1024&&image_extension(&bytes).is_some(),"请选择 10 MiB 以内的 PNG、JPEG 或 WebP 图片。");Ok(bytes)
+    validate_image(&bytes)?;Ok(bytes)
 }
+fn validate_image(bytes:&[u8])->Result<()>{anyhow::ensure!(bytes.len()<=10*1024*1024&&image_extension(bytes).is_some(),"请选择 10 MiB 以内的 PNG、JPEG 或 WebP 图片。");Ok(())}
+fn image_data(bytes:&[u8])->String{let extension=image_extension(bytes).unwrap();let mime=if extension=="jpg"{"jpeg"}else{extension};format!("data:image/{};base64,{}",mime,base64::engine::general_purpose::STANDARD.encode(bytes))}
 impl PreferenceStore {
     pub fn read(&self)->Result<Preferences>{
         if !self.file.exists(){return Ok(Preferences::default());}
         let p:Preferences=serde_json::from_slice(&std::fs::read(&self.file)?).context("设置读取失败，原文件保留。")?;
         anyhow::ensure!(p.glass_opacity<=100,"非透明度设置无效，原设置保留。");
         anyhow::ensure!(p.background_color.as_deref().is_none_or(valid_color),"背景颜色配置无效，原设置保留。");
-        anyhow::ensure!(p.background_image.as_deref().is_none_or(valid_image_name),"背景图片配置无效，原设置保留。");Ok(p)
+        anyhow::ensure!(p.background_image.as_deref().is_none_or(valid_image_name),"背景图片配置无效，原设置保留。");
+        anyhow::ensure!(p.background_crop.is_none_or(|crop|crop.valid()),"背景裁剪范围无效，原设置保留。");Ok(p)
     }
     pub fn language(&self)->Language {self.read().map(|p|p.language).unwrap_or_default()}
-    pub fn info(&self)->Result<Value>{let p=self.read()?;Ok(json!({"language":p.language,"theme":p.theme,"appearance":p.appearance,"backgroundColor":p.background_color,"backgroundImage":p.background_image,"glassOpacity":p.glass_opacity,"desktopMode":p.desktop_mode,"environmentSource":p.environment_source,"version":env!("CARGO_PKG_VERSION"),"repository":REPOSITORY,"updatesSupported":cfg!(windows)}))}
+    pub fn info(&self)->Result<Value>{let p=self.read()?;Ok(json!({"language":p.language,"theme":p.theme,"appearance":p.appearance,"backgroundColor":p.background_color,"backgroundImage":p.background_image,"backgroundCrop":p.background_crop,"glassOpacity":p.glass_opacity,"desktopMode":p.desktop_mode,"environmentSource":p.environment_source,"version":env!("CARGO_PKG_VERSION"),"repository":REPOSITORY,"updatesSupported":cfg!(windows)}))}
     pub fn save_language(&self,language:Language)->Result<Value>{let mut p=self.read()?;p.language=language;atomic_json(&self.file,&p)?;self.info()}
     pub fn save_theme(&self,theme:Theme)->Result<Value>{let mut p=self.read()?;p.theme=theme;atomic_json(&self.file,&p)?;self.info()}
     pub fn save_desktop_mode(&self,mode:crate::desktop_settings::DesktopMode)->Result<Value>{let mut p=self.read()?;p.desktop_mode=mode;atomic_json(&self.file,&p)?;self.info()}
@@ -81,22 +97,21 @@ impl PreferenceStore {
     fn discard_image(&self,name:Option<String>){if let Some(name)=name{if let Ok(directory)=self.backgrounds(){let _=std::fs::remove_file(directory.join(name));}}}
     pub fn save_background_color(&self,color:Option<String>)->Result<Value>{
         anyhow::ensure!(color.as_deref().is_none_or(valid_color),"请选择有效的背景颜色。");
-        let mut p=self.read()?;let old=p.background_image.take();p.background_color=color;atomic_json(&self.file,&p)?;self.discard_image(old);self.info()
+        let mut p=self.read()?;let old=p.background_image.take();p.background_color=color;p.background_crop=None;atomic_json(&self.file,&p)?;self.discard_image(old);self.info()
     }
-    pub fn save_background_image(&self,source:&std::path::Path)->Result<Value>{
-        let bytes=image_bytes(source)?;let extension=image_extension(&bytes).unwrap();
+    pub fn save_background_bytes(&self,bytes:&[u8],crop:Option<BackgroundCrop>)->Result<Value>{
+        validate_image(bytes)?;anyhow::ensure!(crop.is_none_or(|crop|crop.valid()),"请选择有效的裁剪范围。");let extension=image_extension(bytes).unwrap();
         let mut p=self.read()?;let old=p.background_image.clone();let directory=self.backgrounds()?;std::fs::create_dir_all(&directory)?;
         let name=format!("{}.{}",uuid::Uuid::new_v4().simple(),extension);let target=directory.join(&name);
-        std::fs::write(&target,bytes)?;p.background_image=Some(name);
+        std::fs::write(&target,bytes)?;p.background_image=Some(name);p.background_crop=crop;
         if let Err(error)=atomic_json(&self.file,&p){let _=std::fs::remove_file(&target);return Err(error);}
         self.discard_image(old);self.info()
     }
-    pub fn remove_background_image(&self)->Result<Value>{let mut p=self.read()?;let old=p.background_image.take();atomic_json(&self.file,&p)?;self.discard_image(old);self.info()}
+    pub fn remove_background_image(&self)->Result<Value>{let mut p=self.read()?;let old=p.background_image.take();p.background_crop=None;atomic_json(&self.file,&p)?;self.discard_image(old);self.info()}
     pub fn background_data(&self)->Result<Option<String>>{
         let Some(name)=self.read()?.background_image else{return Ok(None);};
         let bytes=image_bytes(&self.backgrounds()?.join(name))?;
-        let mime=if image_extension(&bytes)==Some("jpg"){"jpeg"}else{image_extension(&bytes).unwrap()};
-        Ok(Some(format!("data:image/{};base64,{}",mime,base64::engine::general_purpose::STANDARD.encode(bytes))))
+        Ok(Some(image_data(&bytes)))
     }
 }
 #[cfg(test)]mod tests {
@@ -112,14 +127,30 @@ impl PreferenceStore {
         let root=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(uuid::Uuid::new_v4().to_string());std::fs::create_dir_all(&root).unwrap();
         let store=PreferenceStore{file:root.join("settings.json")};store.save_environment_source(EnvironmentSource::Board).unwrap();store.save_background_color(Some("#123456".into())).unwrap();
         let source=root.join("source.png");let bytes=b"\x89PNG\r\n\x1a\nsynthetic fixture";std::fs::write(&source,bytes).unwrap();
-        store.save_background_image(&source).unwrap();let name=store.read().unwrap().background_image.unwrap();assert!(valid_image_name(&name));assert_ne!(source,store.backgrounds().unwrap().join(&name));
+        store.save_background_bytes(&image_bytes(&source).unwrap(),None).unwrap();let name=store.read().unwrap().background_image.unwrap();assert!(valid_image_name(&name));assert_ne!(source,store.backgrounds().unwrap().join(&name));
         assert_eq!(std::fs::read(&source).unwrap(),bytes);assert!(store.background_data().unwrap().unwrap().starts_with("data:image/png;base64,"));
         assert_eq!(store.info().unwrap()["environmentSource"],"board");
         store.remove_background_image().unwrap();assert!(!store.backgrounds().unwrap().join(name).exists());assert_eq!(store.info().unwrap()["backgroundColor"],"#123456");
         let saved=std::fs::read(&store.file).unwrap();assert!(store.save_background_color(Some("url(bad)".into())).is_err());assert_eq!(std::fs::read(&store.file).unwrap(),saved);
-        std::fs::write(&source,b"not an image").unwrap();assert!(store.save_background_image(&source).is_err());assert_eq!(std::fs::read(&store.file).unwrap(),saved);
+        std::fs::write(&source,b"not an image").unwrap();assert!(BackgroundDraft::open(&source).is_err());assert_eq!(std::fs::read(&store.file).unwrap(),saved);
         store.save_background_color(None).unwrap();assert!(store.background_data().unwrap().is_none());
         assert!(!valid_image_name("../../secret.png"));assert!(!valid_image_name("1234.svg"));std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]fn crop_draft_only_commits_confirmed_bytes_and_preserves_previous_settings(){
+        let root=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(uuid::Uuid::new_v4().to_string());std::fs::create_dir_all(&root).unwrap();
+        let store=PreferenceStore{file:root.join("settings.json")};store.save_background_color(Some("#123456".into())).unwrap();store.save_environment_source(EnvironmentSource::Board).unwrap();
+        let source=root.join("photo.png");let bytes=b"\x89PNG\r\n\x1a\noriginal fixture";std::fs::write(&source,bytes).unwrap();
+        let before=std::fs::read(&store.file).unwrap();let draft=BackgroundDraft::open(&source).unwrap();assert_eq!(std::fs::read(&store.file).unwrap(),before);assert!(!store.backgrounds().unwrap().exists());
+        assert!(draft.preview()["imageData"].as_str().unwrap().starts_with("data:image/png;base64,"));
+        std::fs::write(&source,b"changed after preview").unwrap();let crop=BackgroundCrop{x:0.1,y:0.2,width:0.8,height:0.6};draft.commit(&store,crop).unwrap();
+        let p=store.read().unwrap();assert_eq!(p.background_crop,Some(crop));assert_eq!(p.environment_source,EnvironmentSource::Board);assert_eq!(p.background_color.as_deref(),Some("#123456"));
+        assert_eq!(std::fs::read(store.backgrounds().unwrap().join(p.background_image.unwrap())).unwrap(),bytes);assert_eq!(std::fs::read(&source).unwrap(),b"changed after preview");
+        let saved=std::fs::read(&store.file).unwrap();
+        for invalid in [BackgroundCrop{width:0.0,..crop},BackgroundCrop{x:-0.1,..crop},BackgroundCrop{x:0.9,..crop},BackgroundCrop{y:f64::NAN,..crop}]{assert!(draft.commit(&store,invalid).is_err());assert_eq!(std::fs::read(&store.file).unwrap(),saved);}
+        std::fs::write(&source,bytes).unwrap();drop(BackgroundDraft::open(&source).unwrap());assert_eq!(std::fs::read(&store.file).unwrap(),saved);
+        let mut legacy:Value=serde_json::from_slice(&saved).unwrap();legacy.as_object_mut().unwrap().remove("backgroundCrop");atomic_json(&store.file,&legacy).unwrap();assert!(store.read().unwrap().background_crop.is_none());
+        draft.commit(&store,crop).unwrap();store.remove_background_image().unwrap();assert!(store.read().unwrap().background_crop.is_none());
+        draft.commit(&store,crop).unwrap();store.save_background_color(None).unwrap();assert!(store.read().unwrap().background_crop.is_none());std::fs::remove_dir_all(root).unwrap();
     }
     #[test]fn appearance_is_saved_and_other_settings_are_preserved(){
         let root=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(uuid::Uuid::new_v4().to_string());std::fs::create_dir_all(&root).unwrap();
