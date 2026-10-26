@@ -3500,7 +3500,7 @@ dependencies = [
 
 [[package]]
 name = "portcanvas"
-version = "0.5.7"
+version = "0.5.7-beta.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3515,6 +3515,7 @@ dependencies = [
  "ring",
  "russh",
  "russh-sftp",
+ "rustls",
  "security-framework",
  "semver",
  "serde",

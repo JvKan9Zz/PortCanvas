@@ -21,6 +21,7 @@ pub struct DeviceManager {
     inner: Arc<Mutex<Inner>>,
     pub events: EventSink,
     auto_prepare: bool,
+    runtime_cache: Option<std::path::PathBuf>,
 }
 impl DeviceManager {
     pub fn new(events: EventSink) -> Self {
@@ -33,9 +34,13 @@ impl DeviceManager {
             })),
             events,
             auto_prepare: false,
+            runtime_cache: None,
         }
     }
     pub fn with_environment(mut self) -> Self { self.auto_prepare = true; self }
+    pub fn with_runtime_cache(mut self, path: std::path::PathBuf) -> Self {
+        self.auto_prepare = true; self.runtime_cache = Some(path); self
+    }
     pub fn snapshot(&self) -> Value {
         self.inner.lock().unwrap().state.clone()
     }
@@ -115,7 +120,15 @@ impl DeviceManager {
         )
         .await;
         let connection = match result {
-            Ok(mut c) => { c.auto_prepare = self.auto_prepare; Arc::new(c) },
+            Ok(mut c) => {
+                c.auto_prepare = self.auto_prepare;
+                c.runtime_cache = self.runtime_cache.clone();
+                let events = self.events.clone();
+                c.environment_progress = Arc::new(move |name, mut value| {
+                    value["generation"] = json!(generation); events(name, value);
+                });
+                Arc::new(c)
+            },
             Err(e) => {
                 cancel.cancel();
                 self.update(

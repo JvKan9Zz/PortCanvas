@@ -56,6 +56,9 @@ pub struct SshConnection {
     pub profile: Profile,
     pub cancel: CancellationToken,
     pub(crate) auto_prepare: bool,
+    pub(crate) runtime_cache: Option<std::path::PathBuf>,
+    pub(crate) environment_progress: crate::session::EventSink,
+    pub(crate) environment_cancel: Mutex<CancellationToken>,
     pub(crate) environment: Mutex<crate::remote_env::State>,
     pub(crate) preparation: tokio::sync::Mutex<()>,
 }
@@ -137,6 +140,9 @@ impl SshConnection {
                 profile,
                 cancel: cancel.clone(),
                 auto_prepare: false,
+                runtime_cache: None,
+                environment_progress: Arc::new(|_, _| {}),
+                environment_cancel: Mutex::new(CancellationToken::new()),
                 environment: Mutex::new(Default::default()),
                 preparation: tokio::sync::Mutex::new(()),
             })

@@ -4,7 +4,7 @@ import {getCurrentWebviewWindow} from '@tauri-apps/api/webviewWindow';
 type Handler=(data:any)=>void;
 const handlers=new Map<string,Set<Handler>>();let generation=0;
 const on=(event:string,handler:Handler)=>{if(!handlers.has(event))handlers.set(event,new Set());handlers.get(event)!.add(handler);};
-const ready=Promise.all([...['device-state','terminal-state','terminal-data','logs-state','logs-changed','file-state','arena-pose','arena-visibility','update-state'].map(topic=>listen(topic,event=>{
+const ready=Promise.all([...['device-state','terminal-state','terminal-data','logs-state','logs-changed','file-state','arena-pose','arena-visibility','update-state','environment-progress'].map(topic=>listen(topic,event=>{
  const payload=event.payload as any;
  if(topic==='device-state'){if(payload.generation<generation)return;generation=payload.generation;}
  else if(typeof payload?.generation==='number'&&payload.generation<generation)return;
@@ -20,6 +20,7 @@ const startTerminal=async(cols:number,rows:number,key:string="main",deviceKey:st
  try{return await invoke('terminal_subscribe',{cols,rows,channel,terminalKey:key,deviceKey});}catch(error){throw error instanceof Error?error:new Error(String(error));}
 };
 const api={
+ onEnvironment:(h:Handler)=>on('environment-progress',h),cancelEnvironment:()=>call('environment:cancel'),
  setDesktopMode:(mode:string)=>call('settings:desktop-mode',mode),
  settings:()=>call('settings:read'),setLanguage:(language:string)=>call('settings:language',language),setTheme:(theme:string)=>call('settings:theme',theme),checkUpdates:()=>call('settings:updates'),updateState:()=>call('settings:update-state'),downloadUpdate:()=>call('settings:update-download'),cancelUpdate:()=>call('settings:update-cancel'),installUpdate:()=>call('settings:update-install'),onUpdate:(h:Handler)=>on('update-state',h),openRepository:()=>call('settings:repository'),
  arenaMetrics:()=>call('arena:metrics'),arenaCameras:()=>call('arena:cameras'),startArenaCamera:(path:string,fps:number=20)=>call('arena:camera-start',path,fps),arenaCameraFrame:(id:number,sequence:number)=>call('arena:camera-frame',id,sequence),stopArenaCamera:(id:number|null)=>call('arena:camera-stop',id),

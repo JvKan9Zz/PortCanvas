@@ -561,5 +561,22 @@
   "运行环境检查响应过长。": "The environment check response is too large.",
   "运行环境检查响应无效。": "The environment check response is invalid.",
   "运行环境路径无效。": "The environment path is invalid.",
-  "运行环境准备未正常完成。": "Remote environment preparation did not complete successfully."
+  "运行环境准备未正常完成。": "Remote environment preparation did not complete successfully.",
+  "电脑下载组件": "Downloading components on this PC",
+  "通过 SSH 传输组件": "Transferring components over SSH",
+  "板端校验并准备组件": "Verifying and preparing components on the controller",
+  "运行环境已就绪": "Runtime is ready",
+  "运行环境准备未完成": "Runtime preparation did not complete",
+  "运行环境": "Runtime",
+  "使用电脑缓存": "Using PC cache",
+  "{connections} 路下载": "{connections} download connections",
+  "取消准备": "Cancel preparation",
+  "设备已断开。": "Device disconnected.",
+  "已取消运行环境准备": "Runtime preparation canceled",
+  "重试原操作可复用已下载的电脑缓存。": "Retry the original action to reuse downloaded PC packages.",
+  "Beta 自动下载目前支持 Ubuntu 20.04 ARM64 控制器；其他环境请先手动准备组件。": "Beta automatic downloads support Ubuntu 20.04 ARM64 controllers. Prepare missing components manually on other systems.",
+  "运行环境准备超时，请检查电脑网络和 SSH 连接。": "Runtime preparation timed out. Check the PC network and SSH connection.",
+  "电脑下载 {package} 失败，请检查电脑联网后重试。": "The PC could not download {package}. Check its Internet connection and retry.",
+  "组件 {package} 的大小或 SHA-256 校验失败，请重新下载。": "The size or SHA-256 check failed for {package}. Download it again.",
+  "APT 缓存缺少完整组件信息：{package}；请更新设备软件源索引后重试。": "The APT cache lacks complete metadata for {package}. Refresh the device package index and retry."
 }

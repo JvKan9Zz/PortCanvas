@@ -1,6 +1,6 @@
 [package]
 name = "portcanvas"
-version = "0.5.7"
+version = "0.5.7-beta.1"
 edition = "2021"
 rust-version = "1.90"
 license = "MIT"
@@ -22,11 +22,12 @@ path = "examples/compat_probe.rs"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:tauri", "dep:rfd", "dep:tauri-plugin-updater", "dep:reqwest", "windows-sys/Win32_UI_WindowsAndMessaging", "windows-sys/Win32_UI_Shell"]
+desktop = ["dep:tauri", "dep:rfd", "dep:tauri-plugin-updater", "dep:reqwest", "dep:rustls", "windows-sys/Win32_UI_WindowsAndMessaging", "windows-sys/Win32_UI_Shell"]
 
 [dependencies]
 tauri = { version = "2", optional = true, features = [] }
 reqwest = { version = "0.13", optional = true, default-features = false }
+rustls = { version = "0.23", optional = true, default-features = false, features = ["ring", "std"] }
 rfd = { version = "0.15", optional = true }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["rt"] }

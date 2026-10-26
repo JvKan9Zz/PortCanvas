@@ -4,7 +4,7 @@
 
 简体中文 | [English](README.en.md)
 
-统一远程设备工作台 · **Demo V0.5.7**
+统一远程设备工作台 · **Demo V0.5.7 Beta**
 
 本版通过已连接的 SSH 按需检查并准备缺失的远端桌面、终端、文件与摄像头组件；日志可设置容量上限，自动清理最早的已结束记录。Windows 版继续提供软件内更新。
 
@@ -20,11 +20,13 @@
 
 尚无定位生产程序，坐标默认未接入，不生成模拟实时位置。摄像头默认关闭；最小化、离页和退出回收采集，恢复后需手动开启。原生MJPEG减少树莓派采集重编码，但流量及部分电脑占用会提高，实际性能受设备和网络影响。
 
-首次补齐组件时，树莓派需能访问已配置的软件源；使用用户专用缓存，不执行系统级安装、不修改厂商 SDK。远端仍需 Linux、Python 3 及已登录的 X11 桌面。已有环境优先复用，准备完成后可在局域网中继续使用。
+Beta 首次补齐组件由电脑联网下载并缓存，再通过 SSH 传给树莓派，板端无须自行联网下载。界面分别显示下载、传输与板端准备状态；下载最多 32 路，不支持分段时使用单连接。自动下载目前适配 Ubuntu 20.04 ARM64 控制器，需保留可用的 APT 包索引、Python 3、dpkg 和已登录的 X11 桌面。已有组件与电脑缓存优先复用。
 
 ## 下载与使用
 
-[Windows 最新安装包](https://github.com/JvKan9Zz/PortCanvas/releases/latest) · [macOS V0.5.6](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.6) · [使用说明](docs/usage.md) · [定位数据接口](docs/pose-protocol.md)
+[Windows V0.5.7 Beta](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.7-beta.1) · [V0.5.7 Alpha（板端联网）](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.7) · [macOS V0.5.6](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.6) · [使用说明](docs/usage.md) · [定位数据接口](docs/pose-protocol.md)
+
+Beta 是独立预发布，需手动下载安装；原 v0.5.7 作为 Alpha 保留。Beta 不会把同号 Alpha 提示为更新，未来更高版本仍走原签名更新流程。
 
 Windows 提供 x64 安装器，手动安装可选择位置，软件内更新沿用已有目录和配置。Mac 提供面向 macOS 13+ 的 Universal DMG，包含 Intel 与 Apple 芯片代码，使用系统 WKWebView；目前仅适配 Demo V0.5.6，后续可能等正式版推出后再继续适配。两端运行均无需 Node.js、Rust 或 Python。
 
