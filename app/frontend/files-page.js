@@ -1,3 +1,4 @@
+import {showActivity,withActivity} from './connection-indicator.js';
 import {t,locale,onLanguageChange} from './i18n.js';
 import {FileDrag} from './file-drag.js';
 const $=id=>document.getElementById(id);
@@ -21,14 +22,14 @@ export class FilePage {
     $('uploadFiles').onclick=()=>this.transfer('upload');$('downloadFiles').onclick=()=>this.transfer('download');
     $('cancelTransfer').onclick=()=>window.studio.cancelTransfer().catch(error=>toast(error.message));
     $('folderCancel').onclick=()=>$('folderDialog').close();
-    $('folderForm').onsubmit=async e=>{e.preventDefault();$('folderCreate').disabled=true;try{await window.studio.createFolder(this.folderSide,this.panels[this.folderSide].path,$('folderName').value);$('folderDialog').close();await this.load(this.folderSide,this.panels[this.folderSide].path);}catch(error){$('folderError').textContent=t(error.message);}finally{$('folderCreate').disabled=false;}};
+    $('folderForm').onsubmit=async e=>{e.preventDefault();$('folderCreate').disabled=true;try{await withActivity($('folderCreate'),()=>window.studio.createFolder(this.folderSide,this.panels[this.folderSide].path,$('folderName').value));$('folderDialog').close();await this.load(this.folderSide,this.panels[this.folderSide].path);}catch(error){$('folderError').textContent=t(error.message);}finally{$('folderCreate').disabled=false;}};
     window.studio.onFileState(state=>this.transferState(state));
     window.studio.fileState().then(state=>this.transferState(state)).catch(error=>toast(error.message));
     this.drag=new FileDrag(this);
     onLanguageChange(()=>{this.render('local');this.render('remote');this.transferState(this.lastTransferState||{phase:'idle'});this.refreshDrives();$('folderDialogTitle').textContent=t((this.folderSide==='remote'?'远端':'本地')+'新建文件夹');});
   }
   show() {this.visible=true;this.refreshDrives();if(!this.localLoaded)this.load('local','');if(this.connected&&!this.remoteLoaded)this.load('remote',this.panels.remote.path);}
-  async refreshDrives(){try{const drives=await window.studio.localDrives(),placeholder=new Option(t('盘符'),'');placeholder.disabled=true;$('localDrive').replaceChildren(placeholder,...drives.map(d=>new Option(d.label.replace(/(可移动磁盘|本地磁盘|网络磁盘|光驱|内存盘|磁盘)$/,kind=>t(kind)),d.path)));this.selectDrive();}catch(error){this.toast(error.message);}}
+  async refreshDrives(){try{const drives=await window.studio.localDrives(),placeholder=new Option(t('盘符'),'');placeholder.disabled=true;$('localDrive').replaceChildren(placeholder,...drives.map(d=>new Option(d.path,d.path)));this.selectDrive();}catch(error){this.toast(error.message);}}
   selectDrive(){const path=this.panels.local.path,drive=/^[a-z]:[\\/]/i.test(path)?path.slice(0,2).toUpperCase()+'\\':'/';$('localDrive').value=[...$('localDrive').options].some(o=>o.value===drive)?drive:'';}
   hide() {this.visible=false;this.drag.clear();}
   setConnection(state,profileId) {
@@ -44,6 +45,7 @@ export class FilePage {
   }
   controls() {
     for(const side of ['local','remote']) {
+      showActivity($(side+'Refresh'),this.panels[side].loading);
       const panel=this.panels[side],disabled=this.busy||this.removing||panel.loading||(side==='remote'&&!this.connected);
       for(const id of ['Up','Home','Refresh','New','Path','All'])$(side+id).disabled=Boolean(disabled);
       $(side+'PathForm').querySelector('button').disabled=Boolean(disabled);
@@ -110,7 +112,7 @@ export class FilePage {
     const panel=this.panels.remote;
     if(this.busy||this.removing||!this.connected||panel.loading||!panel.selected.size)return;
     this.removing=true;this.drag.clear();this.controls();
-    try{await window.studio.removeRemoteFiles({parent:panel.path,names:[...panel.selected],generation:panel.generation});}
+    try{await withActivity($('remoteDelete'),()=>window.studio.removeRemoteFiles({parent:panel.path,names:[...panel.selected],generation:panel.generation}));}
     catch(error){this.toast(error.message);}
     finally{this.removing=false;this.controls();}
   }
@@ -119,7 +121,7 @@ export class FilePage {
     this.submitting=true;this.drag.clear();
     const side=direction==='upload'?'local':'remote';
     try {
-      await window.studio.transfer({direction,names:[...this.panels[side].selected],localPath:this.panels.local.path,remotePath:this.panels.remote.path,rateLimit:Number($('transferRate').value),...drop});
+      await withActivity($(direction==='upload'?'uploadFiles':'downloadFiles'),()=>window.studio.transfer({direction,names:[...this.panels[side].selected],localPath:this.panels.local.path,remotePath:this.panels.remote.path,rateLimit:Number($('transferRate').value),...drop}));
     } catch(error){this.toast(error.message);}finally{this.submitting=false;}
   }
   transferState(state) {
@@ -127,9 +129,11 @@ export class FilePage {
     const wasBusy=this.busy;this.busy=Boolean(state.busy);
     $('sftpBadge').className='badge '+state.connection;
     $('sftpBadge').lastElementChild.textContent=t(state.connection==='connected'?'SFTP 已连接':state.connection==='connecting'?'正在连接 SFTP':'SFTP 未连接');
+    showActivity($('sftpBadge'),state.connection==='connecting');
     const deleting=state.operation==='delete';
     const titles=deleting?{planning:'检查删除目标',confirming:'确认删除',deleting:'正在删除',canceling:'正在停止删除…',completed:'删除完成',canceled:'已取消删除',failed:'删除失败'}:{idle:'准备传输',planning:'检查文件',confirming:'确认覆盖',transferring:state.direction==='upload'?'正在上传':'正在下载',canceling:'正在取消',completed:'传输完成',canceled:'已取消传输',failed:'传输失败'};
     $('transferTitle').textContent=t(titles[state.phase]||'准备传输');
+    showActivity($('transferTitle'),this.busy&&state.phase!=='confirming');
     document.querySelector('.transfer-status').hidden=state.phase==='idle';
     $('transferMessage').textContent=deleting&&state.phase==='failed'?t('删除未完成，已确认删除 {n} 个项目。{error} 请刷新目录核对。',{n:state.completed||0,error:t(state.message)}):t(state.message);
     $('transferProgress').value=state.phase==='completed'?100:deleting?(state.totalFiles?state.completed/state.totalFiles*100:0):state.totalBytes?Math.min(100,state.bytes/state.totalBytes*100):0;

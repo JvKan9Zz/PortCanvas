@@ -16,6 +16,7 @@ use zeroize::Zeroizing;
 #[derive(Default)]
 struct Counts {
     exec: AtomicUsize,
+    commands: std::sync::Mutex<Vec<Vec<u8>>>,
     eof: AtomicUsize,
     close: AtomicUsize,
     subsystem: AtomicUsize,
@@ -46,7 +47,8 @@ impl server::Handler for MockSsh {
         reply.accept().await;
         Ok(())
     }
-    async fn exec_request(&mut self, id: ChannelId, _: &[u8], session: &mut server::Session) -> Result<(), Self::Error> {
+    async fn exec_request(&mut self, id: ChannelId, command: &[u8], session: &mut server::Session) -> Result<(), Self::Error> {
+        self.counts.commands.lock().unwrap().push(command.to_vec());
         self.counts.exec.fetch_add(1, Ordering::SeqCst);
         self.counts.changed.notify_one();
         session.channel_success(id)?;
@@ -55,9 +57,10 @@ impl server::Handler for MockSsh {
             session.data(id,plan[..10].to_vec())?;session.data(id,plan[10..].to_vec())?;
         }
         if self.environment_reply == 1 {
-            session.data(id, b"PORTCANVAS_ENV={\"ready\":true,\"feature\":\"terminal\",\"binDir\":\"/tmp/fixture's/bin\",\"tmux\":\"/tmp/fixture's/bin/tmux\",\"sftp\":\"/fixture/system/sftp-server\"}\n".to_vec())?;
-            session.exit_status_request(id, 0)?;
-            session.close(id)?;
+            let feature=environment_options(command).and_then(|v|v["feature"].as_str().map(str::to_owned)).unwrap_or_else(||"terminal".into());
+            let packet=serde_json::json!({"ready":true,"feature":feature,"binDir":"/tmp/fixture's/bin","tmux":"/tmp/fixture's/bin/tmux","sftp":"/fixture/system/sftp-server"});
+            session.data(id,format!("PORTCANVAS_ENV={}\n",packet).into_bytes())?;
+            session.exit_status_request(id, 0)?;session.close(id)?;
         }
         Ok(())
     }
@@ -96,6 +99,15 @@ impl server::Handler for MockSsh {
         self.channels.remove(&id);
         Ok(())
     }
+}
+fn environment_options(command:&[u8])->Option<serde_json::Value>{
+    use base64::Engine;
+    String::from_utf8_lossy(command).split(|c:char|!c.is_ascii_alphanumeric()&&!"+/=".contains(c)).filter_map(|token|{
+        let bytes=base64::engine::general_purpose::STANDARD.decode(token).ok()?;
+        let args:serde_json::Value=serde_json::from_slice(&bytes).ok()?;
+        if args[0]!="environment"{return None;}
+        serde_json::from_str(args[1].as_str()?).ok()
+    }).next()
 }
 struct Fixture {
     profile: Profile,
@@ -246,4 +258,17 @@ async fn environment_plan_streams_verified_pc_cache_and_reports_each_phase() {
     assert!(values.iter().any(|v|v["phase"]=="preparing"));assert_eq!(values.last().unwrap()["phase"],"ready");
     assert!(values.iter().all(|v|v["generation"]==devices.generation()));drop(values);
     devices.disconnect().await;std::fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn changing_runtime_source_applies_to_the_next_preparation_on_the_same_ssh_connection(){
+    let fixture=Fixture::with_environment_reply(true).await;
+    let devices=DeviceManager::new(Arc::new(|_,_|{})).with_environment();
+    devices.connect(fixture.profile.clone(),secret(),|_|check(true)).await.unwrap();let connection=devices.connection().unwrap();
+    connection.prepare(studio_core::remote_env::Feature::Terminal,&connection.cancel).await.unwrap();
+    devices.set_environment_source(studio_core::preferences::EnvironmentSource::Board);
+    connection.prepare(studio_core::remote_env::Feature::Files,&connection.cancel).await.unwrap();
+    let commands=fixture.counts.commands.lock().unwrap();let options=commands.iter().filter_map(|c|environment_options(c)).collect::<Vec<_>>();
+    assert_eq!(options.len(),2);assert_eq!(options[0]["source"],"computer");assert_eq!(options[1]["source"],"board");drop(commands);
+    assert!(devices.connection().is_ok());devices.disconnect().await;
 }

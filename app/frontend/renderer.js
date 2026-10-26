@@ -7,7 +7,9 @@ import {ArenaPage} from './arena-page.js';
 import {DesktopLifecycle} from './desktop-lifecycle.js';
 import {observeDesktopStartup} from './desktop-startup.js';
 import {installDesktopInteractions} from './desktop-interactions.js';
+import {setConnectionIndicator,withActivity} from './connection-indicator.js';
 installDesktopInteractions();
+document.querySelectorAll('.page').forEach(section=>section.classList.add('page-enter'));
 const $ = id => document.getElementById(id);
 let devices = [], selected = null, page = 'devices', rfb = null, desktopAttempt = 0;
 let current = {ssh: 'disconnected', desktop: 'disconnected', message: '就绪'}, fit = true, readonly = false;
@@ -73,6 +75,8 @@ function renderDevices() {
 }
 function showPage(next) {
   page = next;
+  const navigation=document.querySelector('.rail nav');
+  navigation.style.setProperty('--nav-index',String([...navigation.querySelectorAll('[data-page]')].findIndex(button=>button.dataset.page===next)));
   for (const button of document.querySelectorAll('[data-page]')) {button.classList.toggle('active', button.dataset.page === next);button.setAttribute('aria-current', button.dataset.page === next ? 'page' : 'false');}
   for (const section of document.querySelectorAll('.page')) section.hidden = section.id !== 'page-' + next;
   if(next==='files')filesPage.show();else filesPage.hide();
@@ -128,9 +132,10 @@ function renderState(state,presentationOnly=false) {
   $('connectionBadge').title=t(state.message);
   document.querySelector('.connection-result').hidden=!connected&&!connecting&&state.ssh!=='error';
   document.querySelector('.connection-result').className = 'connection-result ' + state.ssh;
-  $('resultIcon').replaceChildren(icon(connected ? 'check' : 'connect'));
+  setConnectionIndicator($('resultIcon'),connecting,icon(connected ? 'check' : 'connect'));
   $('goDesktop').hidden = !connected;
   const desktopBusy = state.desktop === 'connecting', desktopLive = state.desktop === 'connected';
+  setConnectionIndicator(document.querySelector('.empty-display'),desktopBusy,icon('desktop'));
   if(desktopBusy&&state.desktopStage==='service')desktopPhase=Math.max(1,desktopPhase);
   $('desktopProgress').hidden=!desktopBusy;$('desktopSteps').hidden=!desktopBusy;
   if(desktopBusy)renderDesktopLoading();
@@ -196,12 +201,12 @@ async function startDesktop() {
 document.querySelectorAll('[data-page]').forEach(button => button.onclick = () => showPage(button.dataset.page));
 async function migrateProfiles(rollback=false){
  for(const id of ['connectDevice','saveDevice','newDevice','removeDevice','importProfiles','rollbackProfiles'])$(id).disabled=true;
- try{const result=await (rollback?window.studio.rollbackProfiles():window.studio.migrateProfiles());if(result.canceled){toast('已取消资料操作。');return;}devices=await window.studio.profiles();fill(devices[0]||null);toast(rollback?'已恢复导入前资料，日志文件保留。':`资料导入完成，新增 ${result.addedDevices} 台设备。备份：${result.backup}`);}catch(error){toast(error.message);}finally{renderState(await window.studio.state());}
+ try{const result=await withActivity($(rollback?'rollbackProfiles':'importProfiles'),()=>rollback?window.studio.rollbackProfiles():window.studio.migrateProfiles());if(result.canceled){toast('已取消资料操作。');return;}devices=await window.studio.profiles();fill(devices[0]||null);toast(rollback?'已恢复导入前资料，日志文件保留。':`资料导入完成，新增 ${result.addedDevices} 台设备。备份：${result.backup}`);}catch(error){toast(error.message);}finally{renderState(await window.studio.state());}
 }
 $('importProfiles').onclick=()=>migrateProfiles(false);$('rollbackProfiles').onclick=()=>migrateProfiles(true);
 $('newDevice').onclick = () => {fill(null);$('name').focus();};
-$('saveDevice').onclick = async () => {try {const saved = await window.studio.save(profile(),$('password').value);devices = await window.studio.profiles();fill(saved);toast(saved.rememberPassword?'配置及加密凭据已保存。':'配置已保存，密码/密钥口令未保存。');} catch (error) {toast(error.message);}};
-$('removeDevice').onclick = async () => {if (selected && await window.studio.remove(selected.id)) {devices = await window.studio.profiles();fill(devices[0] || null);}};
+$('saveDevice').onclick = async () => {try {const saved = await withActivity($('saveDevice'),()=>window.studio.save(profile(),$('password').value));devices = await window.studio.profiles();fill(saved);toast(saved.rememberPassword?'配置及加密凭据已保存。':'配置已保存，密码/密钥口令未保存。');} catch (error) {toast(error.message);}};
+$('removeDevice').onclick = async () => {if (selected && await withActivity($('removeDevice'),()=>window.studio.remove(selected.id))) {devices = await window.studio.profiles();fill(devices[0] || null);}};
 $('deviceForm').onsubmit = async event => {
   event.preventDefault();
   if (['connected', 'connecting'].includes(current.ssh)) {clearRfb();await window.studio.disconnect();return;}
@@ -228,5 +233,5 @@ $('fullscreen').onclick = () => window.studio.fullscreen();
 window.studio.onState(renderState);
 onLanguageChange(()=>{renderAuth();renderState(current,true);renderDesktopModeHint();if(!selected)$('editorTitle').textContent=t('添加一台设备');if(toastMessage)$('toast').textContent=t(toastMessage);});
 (async () => {
-  try {devices = await window.studio.profiles();fill(devices[0] || null);renderState(await window.studio.state());} catch (error) {toast('读取设备配置失败：' + error.message);}
+  try {devices = await withActivity($('deviceList'),()=>window.studio.profiles());fill(devices[0] || null);renderState(await window.studio.state());} catch (error) {toast('读取设备配置失败：' + error.message);}
 })();

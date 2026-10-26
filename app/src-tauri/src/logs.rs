@@ -287,7 +287,7 @@ impl LogService {
             Settings {
                 root: default_root,
                 projects: BTreeMap::new(),
-                max_bytes: None,
+                max_bytes: Some(1024 * 1024 * 1024),
             }
         };
         let store = Arc::new(Mutex::new(Self::configured_store(&settings)?));
@@ -736,6 +736,11 @@ mod retention_tests {
     use super::*;
     fn root() -> PathBuf {
         PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(uuid::Uuid::new_v4().to_string())
+    }
+    #[test]
+    fn new_log_configuration_defaults_to_one_gibibyte() {
+        let root=root();let service=LogService::new(DeviceManager::new(Arc::new(|_,_|{})),root.join("settings.json"),root.join("logs")).unwrap();
+        assert_eq!(service.settings().max_bytes,Some(1024*1024*1024));
     }
     #[tokio::test]
     async fn limit_is_opt_in_validated_persisted_and_can_be_disabled() {

@@ -1,45 +1,17 @@
 :root{
-  --accent:#287aa6;
-  --accent-text:#224f69;
-  --accent-soft:#e6f2fa;
-  --accent-tint:#f1f7fb;
-  --accent-border:#a8cce1;
-  --accent-button:#9bd4f3;
-  --accent-button-hover:#83c6ed;
-  --accent-on-button:#163d54;
-  --accent-selection:#c8e5f7;
-  --accent-selection-text:#163d54;
-  --terminal-cursor:#a4d9f5;
-  --terminal-selection:#294b62;
-  --success:#267457;
+ --accent:#356ce5;--accent-text:#2757b5;--accent-soft:#e6edfc;--accent-tint:#f0f4ff;--accent-border:#b7caf3;
+ --accent-button:#356ce5;--accent-button-hover:#285bc8;--accent-on-button:#fff;--accent-shadow:rgba(53,108,229,.19);
+ --accent-selection:#dce7ff;--accent-selection-text:#234c9f;--terminal-cursor:#a4c4ff;--terminal-selection:#304c73;--success:#287455;
 }
 :root[data-theme=green]{
-  --accent:#166c54;
-  --accent-text:#17543e;
-  --accent-soft:#e3efe8;
-  --accent-tint:#f1f6f3;
-  --accent-border:#9fc5b4;
-  --accent-button:#166c54;
-  --accent-button-hover:#11543f;
-  --accent-on-button:#fff;
-  --accent-selection:#c5e6d9;
-  --accent-selection-text:#173d30;
-  --terminal-cursor:#9cddcb;
-  --terminal-selection:#31524f;
+ --accent:#2b8169;--accent-text:#246650;--accent-soft:#e3f1eb;--accent-tint:#edf7f2;--accent-border:#b2d6c7;
+ --accent-button:#2b8169;--accent-button-hover:#236d58;--accent-on-button:#fff;--accent-shadow:rgba(43,129,105,.17);
+ --accent-selection:#cce9db;--accent-selection-text:#214f40;--terminal-cursor:#a1dec7;--terminal-selection:#304f4a;
 }
 :root[data-theme=graphite]{
-  --accent:#566c7c;
-  --accent-text:#334b5c;
-  --accent-soft:#e9edf0;
-  --accent-tint:#f3f5f7;
-  --accent-border:#b3c0ca;
-  --accent-button:#d8e0e5;
-  --accent-button-hover:#c5d0d8;
-  --accent-on-button:#25343f;
-  --accent-selection:#d5dfe7;
-  --accent-selection-text:#25343f;
-  --terminal-cursor:#d2e0e9;
-  --terminal-selection:#3d4d59;
+ --accent:#5c6b82;--accent-text:#43536b;--accent-soft:#e8edf4;--accent-tint:#f0f3f8;--accent-border:#c0ccdc;
+ --accent-button:#53657f;--accent-button-hover:#44566f;--accent-on-button:#fff;--accent-shadow:rgba(67,83,107,.16);
+ --accent-selection:#d8e2f0;--accent-selection-text:#33445f;--terminal-cursor:#c1d0e5;--terminal-selection:#3b4d69;
 }
 select,textarea{accent-color:var(--accent);caret-color:var(--accent)}
 select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}

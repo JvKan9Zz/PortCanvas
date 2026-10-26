@@ -372,6 +372,18 @@ async fn studio_call(
             "settings:read"=>state.preferences.lock().unwrap().info(),
             "settings:language"=>state.preferences.lock().unwrap().save_language(argument(&args,0)?),
             "settings:theme"=>state.preferences.lock().unwrap().save_theme(argument(&args,0)?),
+            "settings:glass-opacity"=>state.preferences.lock().unwrap().save_glass_opacity(argument(&args,0)?),
+            "settings:appearance"=>state.preferences.lock().unwrap().save_appearance(argument(&args,0)?),
+            "settings:background-color"=>state.preferences.lock().unwrap().save_background_color(argument(&args,0)?),
+            "settings:background-reset"=>state.preferences.lock().unwrap().save_background_color(None),
+            "settings:background-remove-image"=>state.preferences.lock().unwrap().remove_background_image(),
+            "settings:background-data"=>Ok(json!(state.preferences.lock().unwrap().background_data()?)),
+            "settings:background-image"=>{
+                let file=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title(local_text(&window,"选择背景图片")).add_filter("PNG / JPEG / WebP",&["png","jpg","jpeg","webp"]).pick_file()).await?;
+                if let Some(file)=file{state.preferences.lock().unwrap().save_background_image(&file)}else{Ok(json!({"canceled":true}))}
+            },
+            "settings:install-directory"=>{let executable=std::env::current_exe().context("无法读取软件安装目录。")?;let directory=executable.parent().context("无法读取软件安装目录。")?.to_path_buf();open_directory(window,directory).await?;Ok(Value::Null)},
+            "settings:environment-source"=>{let source=argument(&args,0)?;let info=state.preferences.lock().unwrap().save_environment_source(source)?;state.devices.set_environment_source(source);Ok(info)},
             "settings:desktop-mode"=>state.preferences.lock().unwrap().save_desktop_mode(argument(&args,0)?),
             "settings:updates"=>state.updates.check(window.app_handle()).await,
             "settings:update-state"=>Ok(state.updates.snapshot()),
@@ -495,7 +507,10 @@ pub fn run() {
                 }
                 let _ = handle.emit(name, data);
             });
+            let preferences = crate::preferences::PreferenceStore{file:directory.join("settings.json")};
+            let source = preferences.read().map(|p|p.environment_source).unwrap_or_default();
             let devices = DeviceManager::new(events.clone()).with_runtime_cache(directory.join("runtime-cache"));
+            devices.set_environment_source(source);
             let desktop = DesktopService::new(devices.clone());
             let arena = crate::arena::ArenaService::new(devices.clone());
             let pose = crate::arena_pose::PoseService::new(devices.clone(),events.clone());
@@ -523,7 +538,7 @@ pub fn run() {
             app.manage(AppState {
                 rebooting:AtomicBool::new(false),
                 updates,
-                preferences: Mutex::new(crate::preferences::PreferenceStore{file:directory.join("settings.json")}),
+                preferences: Mutex::new(preferences),
                 profiles: Arc::new(Mutex::new(ProfileStore { directory })),
                 devices,
                 desktop,

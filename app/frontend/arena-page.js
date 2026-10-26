@@ -1,3 +1,4 @@
+import {showActivity,withActivity} from './connection-indicator.js';
 import {t,onLanguageChange} from './i18n.js';
 import {sampleRates,metricPath,worldToSvg} from './arena-model.js';
 const $=id=>document.getElementById(id);
@@ -70,14 +71,16 @@ export class ArenaPage {
     $('arenaCameraRate').disabled=active||this.stopping;
     $('arenaCameraDevice').disabled=!this.connected||active||this.loadingDevices||this.stopping||!this.cameraDevices?.length;$('arenaCameraRefresh').disabled=!this.connected||active||this.loadingDevices||this.stopping;
     const live=this.cameraPhase==='connected'&&this.previewUrl&&$('arenaCameraImage').naturalWidth>0;$('arenaCameraImage').hidden=!live;$('arenaCameraEmpty').hidden=live;
-    let message=t(!this.connected?'设备未连接':this.stopping?'正在关闭摄像头…':this.cameraMessage||({connecting:'正在开启摄像头…',error:'摄像头连接失败',connected:'摄像头已开启',idle:'摄像头已关闭'}[this.cameraPhase]));
+    let message=t(!this.connected?'设备未连接':this.loadingDevices?'正在读取摄像头列表…':this.stopping?'正在关闭摄像头…':this.cameraMessage||({connecting:'正在开启摄像头…',error:'摄像头连接失败',connected:'摄像头已开启',idle:'摄像头已关闭'}[this.cameraPhase]));
     if(live&&this.displayFps!=null)message+=' · '+this.displayFps.toFixed(1)+' FPS';
     if($('arenaCameraStatus').textContent!==message)$('arenaCameraStatus').textContent=message;
+    showActivity($('arenaCameraStatus'),this.connected&&(this.loadingDevices||this.stopping||this.cameraPhase==='connecting'||(this.cameraId!==null&&!live)));
     $('arenaCameraStatus').classList.toggle('error',this.cameraPhase==='error');
   }
   renderMetrics(){
     const data=this.latest,percent=n=>Number.isFinite(n)?n.toFixed(1)+'%':'—';
     $('arenaMetricsStatus').textContent=t(!this.connected?'设备未连接':this.metricsError?'读取失败':data?'实时':'正在读取…');$('arenaMetricsStatus').title=this.metricsError||'';
+    showActivity($('arenaMetricsStatus'),this.connected&&!data&&!this.metricsError);
     const memory=data?100*(data.memoryTotal-data.memoryAvailable)/data.memoryTotal:null;
     $('arenaCpu').textContent=percent(data?.cpu);$('arenaCpuBar').value=data?.cpu||0;
     $('arenaMemory').textContent=data?`${bytes(data.memoryTotal-data.memoryAvailable)} / ${bytes(data.memoryTotal)}`:'—';$('arenaMemoryBar').value=memory||0;
@@ -91,7 +94,7 @@ export class ArenaPage {
   }
   async startPose(){
     const intent=++this.poseIntent;
-    try{const state=await window.studio.startArenaPose();if(intent!==this.poseIntent||!this.visible||!this.connected){await window.studio.stopArenaPose(state.id);return;}this.poseId=state.id;this.poseValue=state;this.poseReceived=performance.now();this.renderPose();}
+    try{const state=await withActivity($('arenaMapTitle'),()=>window.studio.startArenaPose());if(intent!==this.poseIntent||!this.visible||!this.connected){await window.studio.stopArenaPose(state.id);return;}this.poseId=state.id;this.poseValue=state;this.poseReceived=performance.now();this.renderPose();}
     catch{if(intent===this.poseIntent){this.poseValue={phase:'unavailable'};this.renderPose();}}
   }
   stopPose(){this.poseIntent++;const id=this.poseId;this.poseId=null;this.poseValue={phase:'unavailable'};this.renderPose();if(id!==null)window.studio.stopArenaPose(id).catch(()=>{});}

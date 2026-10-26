@@ -21,6 +21,10 @@ const startTerminal=async(cols:number,rows:number,key:string="main",deviceKey:st
 };
 const api={
  onEnvironment:(h:Handler)=>on('environment-progress',h),cancelEnvironment:()=>call('environment:cancel'),
+ setGlassOpacity:(value:number)=>call('settings:glass-opacity',value),
+ setBackgroundColor:(color:string)=>call('settings:background-color',color),chooseBackgroundImage:()=>call('settings:background-image'),backgroundImageData:()=>call('settings:background-data'),removeBackgroundImage:()=>call('settings:background-remove-image'),resetBackground:()=>call('settings:background-reset'),
+ setAppearance:(appearance:string)=>call('settings:appearance',appearance),openInstallDirectory:()=>call('settings:install-directory'),
+ setEnvironmentSource:(source:string)=>call('settings:environment-source',source),
  setDesktopMode:(mode:string)=>call('settings:desktop-mode',mode),
  settings:()=>call('settings:read'),setLanguage:(language:string)=>call('settings:language',language),setTheme:(theme:string)=>call('settings:theme',theme),checkUpdates:()=>call('settings:updates'),updateState:()=>call('settings:update-state'),downloadUpdate:()=>call('settings:update-download'),cancelUpdate:()=>call('settings:update-cancel'),installUpdate:()=>call('settings:update-install'),onUpdate:(h:Handler)=>on('update-state',h),openRepository:()=>call('settings:repository'),
  arenaMetrics:()=>call('arena:metrics'),arenaCameras:()=>call('arena:cameras'),startArenaCamera:(path:string,fps:number=20)=>call('arena:camera-start',path,fps),arenaCameraFrame:(id:number,sequence:number)=>call('arena:camera-frame',id,sequence),stopArenaCamera:(id:number|null)=>call('arena:camera-stop',id),

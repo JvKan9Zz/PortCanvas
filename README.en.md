@@ -4,9 +4,9 @@
 
 [简体中文](README.md) | English
 
-A unified remote device workspace · **Demo V0.5.7 Beta**
+A unified remote device workspace · **Demo V0.5.8**
 
-This release checks and prepares missing remote desktop, terminal, file and camera components over the existing SSH connection. Local logs support an optional storage limit with oldest-finished-record cleanup. The Windows edition retains in-app updates.
+This release introduces a liquid-glass style workspace, light/dark/system appearance, custom backgrounds and adjustable opacity. Missing remote components download and cache on the PC by default, then transfer over SSH; board-side downloading is also selectable. New log configurations default to a 1024 MiB limit.
 
 Connect to Linux devices, control their desktops, transfer files, run terminals and read local execution logs from one desktop client.
 
@@ -16,17 +16,17 @@ Connect to Linux devices, control their desktops, transfer files, run terminals 
 | Desktop and files | X11 remote desktop with three picture modes and automatic pause/resume; dual-pane SFTP, drive selection, drag-and-drop transfers, remote deletion, progress and cancellation |
 | Terminals and logs | Multiple terminals, restart/close, reconnectable sessions and an expandable command box with completion; local logs grouped by project/date |
 | Arena | On-demand camera preview at target rates of 8/15/20/30 FPS, device metrics and 60-second history, full-field metric coordinates and a position input interface |
-| Settings | Chinese/English, light blue/green/gray themes and in-app updates for the Windows installer edition |
+| Settings | Chinese/English, three accent colors, light/dark/system appearance, custom background color/image, glass opacity and grouped settings with Windows in-app updates |
 
 No localization producer is connected yet. Position readings stay unavailable rather than showing simulated live data. The camera starts off and stops on minimize, page departure or exit; restoring the workspace does not reopen it. Native MJPEG avoids board-side re-encoding, at the cost of more bandwidth and some host overhead. Results depend on the device and network.
 
-Beta downloads and caches missing components on the PC, then transfers them over SSH; the controller does not need Internet access to download packages. Separate progress indicators cover downloading, transfer and preparation. Downloads use up to 32 connections, falling back to one when ranges are unsupported. Automatic downloads currently target Ubuntu 20.04 ARM64 controllers with usable APT package indexes, Python 3 and dpkg. A logged-in X11 desktop is still required. Existing components and PC caches are reused; packages remain in the SSH user's private cache without system installation or SDK changes.
+By default, the app downloads and caches missing components on the PC, then transfers them over SSH; the controller does not need Internet access to download packages. Separate progress indicators cover downloading, transfer and preparation. Downloads use up to 32 connections, falling back to one when ranges are unsupported. Automatic downloads currently target Ubuntu 20.04 ARM64 controllers with usable APT package indexes, Python 3 and dpkg. A logged-in X11 desktop is still required. Existing components and PC caches are reused; packages remain in the SSH user's private cache without system installation or SDK changes.
 
 ## Download and usage
 
-[Windows V0.5.7 Beta](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.7-beta.1) · [V0.5.7 Alpha (board Internet)](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.7) · [macOS V0.5.6](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.6) · [Usage guide (Chinese)](docs/usage.md) · [Position protocol (Chinese)](docs/pose-protocol.md)
+[Windows V0.5.8](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.8) · [macOS V0.5.6](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.6) · [Usage guide (Chinese)](docs/usage.md) · [Position protocol (Chinese)](docs/pose-protocol.md)
 
-Beta is a separate prerelease installed manually. The original v0.5.7 remains the Alpha edition. Beta skips that same-number Alpha during update checks and retains signed updates to future higher versions.
+Installed Windows editions can check for updates under Settings → About, or use the new installer. Settings → Storage selects the runtime download source; an operation already in progress keeps the source it started with.
 
 The Windows x64 installer lets you choose the installation folder. In-app updates retain that folder and existing configuration. The universal DMG targets macOS 13+ and includes Intel and Apple Silicon code. Demo V0.5.6 is currently the only macOS compatibility release. Further macOS adaptation may wait until the stable version is released; later Windows demos will not automatically receive a Mac build. Both editions use the operating system's webview and need no Node.js, Rust or Python at runtime.
 
@@ -47,5 +47,7 @@ main contains only the current application and necessary documentation. Older ve
 ## License
 
 PortCanvas project code is licensed under [MIT](LICENSE). Third-party components retain their own licenses; see [third-party notices](app/THIRD-PARTY-NOTICES.txt).
+
+The UI bundles PingFang fonts with redistribution permission confirmed by the owner. Terminal output uses a monospace font with PingFang for Chinese. The header wordmark alone uses Macintosh Skeletal Filled Regular with separately confirmed redistribution permission. Fonts retain their separate license and are not covered by the project MIT license.
 
 See [security notes](docs/security.md) for cryptographic dependency status and current security boundaries.

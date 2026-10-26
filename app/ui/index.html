@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PortCanvas · Demo V0.5.7 Beta</title>
+  <title>PortCanvas · Demo V0.5.8</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="themes.css">
   <link rel="stylesheet" href="files.css">
@@ -13,14 +13,15 @@
   <link rel="stylesheet" href="settings.css">
   <link rel="stylesheet" href="arena.css">
   <link rel="stylesheet" href="interaction.css">
+  <link rel="stylesheet" href="workspace.css">
 </head>
 <body>
-<!-- V052-ARENA CONTRACT
-THESIS: Fast on-demand preview beside a real coordinate frame; no vehicle location without valid telemetry.
-OWN-WORLD: Existing PortCanvas gray/white surfaces, selectable blue accent, Plex/system Chinese text and compact bordered controls.
-STORY: Enable camera at a chosen frame rate; read a bottom-left-origin location only when the producer supplies fresh data.
-FIRST VIEWPORT: Left third holds camera above metrics; right two thirds holds the square 3.8m arena and 2.4m platform. Camera starts off.
-FORM: User-specified composition, code-led extension of the established workspace; no concept seed applies.
+<!-- V058-GLASS-ISLANDS CONTRACT
+THESIS: One authenticated device workspace, with four independent islands for navigation, the name/status header, the active task and a persistent terminal.
+OWN-WORLD: User-pinned adjustable liquid-glass styling, cool daylight background, navy text, cobalt/green/graphite accents, bundled PingFang SC, 24px island corners and precise inner controls.
+STORY: Connect securely, move between desktop/files/logs/arena and retain the terminal; choose PC-cache or board downloads in Settings.
+FIRST VIEWPORT: Narrow floating navigation left, a compact brand/status header, and a broad rounded task surface; the terminal opens as a separate right island. Primary connection action stays beside the form.
+FORM: User-pinned glass-island desktop; code-led. Seed d7b336a5 superseded by the user's explicit direction. Signature interaction: the navigation pill glides while the terminal expands independently.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
 -->
 
@@ -52,13 +53,13 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <aside class="rail">
   <div class="mark"><img src="portcanvas.png" draggable="false" alt="PortCanvas" width="48" height="48"></div>
   <nav aria-label="主要页面">
-    <button class="nav-item active" data-page="devices" title="设备连接与管理"><svg><use href="#i-device"/></svg><span>设备</span></button>
-    <button class="nav-item" data-page="desktop" title="远程桌面"><svg><use href="#i-desktop"/></svg><span>桌面</span></button>
-    <button class="nav-item" data-page="files" title="文件管理与传输"><svg><use href="#i-folder"/></svg><span>文件</span></button>
-    <button class="nav-item" data-page="logs" title="本地运行日志"><svg><use href="#i-log"/></svg><span>日志</span></button>
-    <button class="nav-item" data-page="arena" title="赛台"><svg><use href="#i-arena"/></svg><span>赛台</span></button>
+    <button class="nav-item active" data-page="devices" aria-label="设备连接与管理"><svg><use href="#i-device"/></svg><span>设备</span></button>
+    <button class="nav-item" data-page="desktop" aria-label="远程桌面"><svg><use href="#i-desktop"/></svg><span>桌面</span></button>
+    <button class="nav-item" data-page="files" aria-label="文件管理与传输"><svg><use href="#i-folder"/></svg><span>文件</span></button>
+    <button class="nav-item" data-page="logs" aria-label="本地运行日志"><svg><use href="#i-log"/></svg><span>日志</span></button>
+    <button class="nav-item" data-page="arena" aria-label="赛台"><svg><use href="#i-arena"/></svg><span>赛台</span></button>
   </nav>
-  <button id="openSettings" class="nav-item rail-settings" type="button" title="设置" aria-haspopup="dialog"><svg><use href="#i-settings"/></svg><span>设置</span></button>
+  <button id="openSettings" class="nav-item rail-settings" type="button" aria-label="设置" aria-haspopup="dialog"><svg><use href="#i-settings"/></svg><span>设置</span></button>
 </aside>
 <div id="appRoot" class="app">
   <header class="app-header"><div class="wordmark">Port<strong>Canvas</strong></div><div class="header-actions"><button id="toggleTerminal" class="button secondary" type="button" aria-expanded="false" aria-controls="terminalDrawer" hidden><svg><use href="#i-terminal"/></svg>终端</button><div id="connectionBadge" class="badge"><span class="dot"></span><span>设备未连接</span></div></div></header>
@@ -84,7 +85,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     </section>
     <section id="page-desktop" class="page desktop-page" hidden>
       <div class="desktop-heading"><div><h1>远程桌面</h1><p id="desktopSubtitle">远端设备现有桌面会话</p></div><div class="desktop-actions"><button id="startDesktop" class="button primary"><svg><use href="#i-connect"/></svg><span>连接桌面</span></button><button id="stopDesktop" class="button secondary" disabled>断开桌面</button></div></div>
-      <div class="desktop-toolbar"><div class="toolbar-group"><select id="desktopMode" class="desktop-mode" aria-label="桌面画质" title="桌面画质"><option value="smooth">流畅</option><option value="clear">清晰</option><option value="economy">省资源</option></select><button id="fitDesktop" class="tool-button selected" title="适配画布"><svg><use href="#i-fit"/></svg><span>适配</span></button><button id="actualSize" class="tool-button" title="原始像素尺寸">1:1</button></div><div class="toolbar-group"><button id="viewOnly" class="tool-button" title="切换只读模式" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>只读</span></button><button id="rebootDevice" class="tool-button danger" title="重启远端设备" disabled><svg><use href="#i-refresh"/></svg><span>重启设备</span></button><button id="fullscreen" class="tool-button" title="切换全屏"><svg><use href="#i-full"/></svg></button></div></div>
+      <div class="desktop-toolbar"><div class="toolbar-group"><select id="desktopMode" class="desktop-mode" aria-label="桌面画质" title="桌面画质"><option value="smooth">流畅</option><option value="clear">清晰</option><option value="economy">省资源</option></select><button id="fitDesktop" class="tool-button selected"><svg><use href="#i-fit"/></svg><span>适配</span></button><button id="actualSize" class="tool-button" title="原始像素尺寸">1:1</button></div><div class="toolbar-group"><button id="viewOnly" class="tool-button" title="切换只读模式" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>只读</span></button><button id="rebootDevice" class="tool-button danger" disabled><svg><use href="#i-refresh"/></svg><span>重启设备</span></button><button id="fullscreen" class="tool-button" title="切换全屏"><svg><use href="#i-full"/></svg></button></div></div>
       <div class="desktop-stage"><div id="desktopCanvas" class="desktop-canvas"></div><div id="desktopEmpty" class="desktop-empty"><div class="empty-display"><svg><use href="#i-desktop"/></svg></div><h2 id="desktopEmptyTitle">把远端设备桌面带到这里</h2><progress id="desktopProgress" max="5" value="0" aria-label="远程桌面连接进度" hidden></progress><ol id="desktopSteps" class="desktop-steps" aria-label="桌面连接阶段" aria-live="polite" hidden></ol><p id="desktopEmptyText">先连接设备，再打开远程桌面。<br>连接后可直接使用鼠标和键盘操作。</p><button id="desktopEmptyAction" class="button secondary">前往连接设备<svg><use href="#i-arrow"/></svg></button></div></div>
       <div class="desktop-caption"><span id="desktopStatus"><span class="dot"></span>桌面未连接</span></div>
     </section>
@@ -94,14 +95,14 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
       <div class="file-panes">
         <section class="file-pane" data-file-side="local" aria-label="本地文件面板">
           <div class="file-pane-heading"><h2><svg><use href="#i-device"/></svg>本地电脑</h2><button id="localChoose" class="button secondary compact">选择目录</button></div>
-          <div class="file-pane-tools"><button id="localUp" class="tool-button" title="本地上一级" aria-label="本地上一级"><svg><use href="#i-up"/></svg></button><button id="localHome" class="tool-button" title="本地主目录" aria-label="本地主目录"><svg><use href="#i-home"/></svg></button><button id="localRefresh" class="tool-button" title="刷新本地目录" aria-label="刷新本地目录"><svg><use href="#i-refresh"/></svg></button><button id="localNew" class="tool-button" title="本地新建文件夹"><svg><use href="#i-plus"/></svg><span>新建文件夹</span></button></div>
+          <div class="file-pane-tools"><button id="localUp" class="tool-button" title="本地上一级" aria-label="本地上一级"><svg><use href="#i-up"/></svg></button><button id="localHome" class="tool-button" title="本地主目录" aria-label="本地主目录"><svg><use href="#i-home"/></svg></button><button id="localRefresh" class="tool-button" title="刷新本地目录" aria-label="刷新本地目录"><svg><use href="#i-refresh"/></svg></button><button id="localNew" class="tool-button"><svg><use href="#i-plus"/></svg><span>新建文件夹</span></button></div>
           <form id="localPathForm" class="file-path-form"><select id="localDrive" aria-label="本地磁盘" title="快速切换本地盘符"><option value="">盘符</option></select><input id="localPath" aria-label="本地目录路径" placeholder="输入本地目录路径" autocomplete="off" spellcheck="false"><button class="tool-button" type="submit" title="打开本地路径" aria-label="打开本地路径"><svg><use href="#i-arrow"/></svg></button></form>
           <div class="file-table-scroll"><table class="file-table" aria-label="本地文件列表"><colgroup><col class="file-check-col"><col><col class="file-size-col"><col class="file-date-col"></colgroup><thead><tr><th><input id="localAll" type="checkbox" aria-label="全选本地文件"></th><th>名称</th><th>大小</th><th>修改时间</th></tr></thead><tbody id="localFiles"></tbody></table></div>
           <div id="localMessage" class="file-pane-message" role="status">正在读取本地目录…</div>
         </section>
         <section class="file-pane" data-file-side="remote" aria-label="远端文件面板">
-          <div class="file-pane-heading"><h2><svg><use href="#i-folder"/></svg>远端设备</h2><div class="remote-file-actions"><button id="remoteDelete" class="button secondary compact danger" type="button" title="删除选中的远端文件或文件夹" disabled><svg><use href="#i-trash"/></svg>删除</button><button id="filesConnect" class="button secondary compact">连接设备</button></div></div>
-          <div class="file-pane-tools"><button id="remoteUp" class="tool-button" title="远端上一级" aria-label="远端上一级" disabled><svg><use href="#i-up"/></svg></button><button id="remoteHome" class="tool-button" title="远端主目录" aria-label="远端主目录" disabled><svg><use href="#i-home"/></svg></button><button id="remoteRefresh" class="tool-button" title="刷新远端目录" aria-label="刷新远端目录" disabled><svg><use href="#i-refresh"/></svg></button><button id="remoteNew" class="tool-button" title="远端新建文件夹" disabled><svg><use href="#i-plus"/></svg><span>新建文件夹</span></button></div>
+          <div class="file-pane-heading"><h2><svg><use href="#i-folder"/></svg>远端设备</h2><div class="remote-file-actions"><button id="remoteDelete" class="button secondary compact danger" type="button" disabled><svg><use href="#i-trash"/></svg>删除</button><button id="filesConnect" class="button secondary compact">连接设备</button></div></div>
+          <div class="file-pane-tools"><button id="remoteUp" class="tool-button" title="远端上一级" aria-label="远端上一级" disabled><svg><use href="#i-up"/></svg></button><button id="remoteHome" class="tool-button" title="远端主目录" aria-label="远端主目录" disabled><svg><use href="#i-home"/></svg></button><button id="remoteRefresh" class="tool-button" title="刷新远端目录" aria-label="刷新远端目录" disabled><svg><use href="#i-refresh"/></svg></button><button id="remoteNew" class="tool-button" disabled><svg><use href="#i-plus"/></svg><span>新建文件夹</span></button></div>
           <form id="remotePathForm" class="file-path-form"><input id="remotePath" aria-label="远端目录路径" placeholder="连接设备后可浏览远端目录" autocomplete="off" spellcheck="false" disabled><button id="remoteGo" class="tool-button" type="submit" title="打开远端路径" aria-label="打开远端路径" disabled><svg><use href="#i-arrow"/></svg></button></form>
           <div class="file-table-scroll"><table class="file-table" aria-label="远端文件列表"><colgroup><col class="file-check-col"><col><col class="file-size-col"><col class="file-date-col"></colgroup><thead><tr><th><input id="remoteAll" type="checkbox" aria-label="全选远端文件" disabled></th><th>名称</th><th>大小</th><th>修改时间</th></tr></thead><tbody id="remoteFiles"></tbody></table></div>
           <div id="remoteMessage" class="file-pane-message" role="status">请先在设备页面连接远端设备。</div>
@@ -112,8 +113,6 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     </section>
     <section id="page-logs" class="page logs-page" hidden>
       <div class="files-heading"><div><h1>本地运行日志</h1></div><button id="refreshLogs" class="button secondary">刷新</button></div>
-      <div class="log-location"><div><span>保存位置</span><p id="logRootPath"></p></div><button id="openLogDirectory" class="button secondary compact">打开目录</button><button id="chooseLogDirectory" class="button secondary compact">更换位置</button></div>
-      <form id="logStorageForm" class="log-storage"><label for="logStorageLimit">存储上限（MiB）<input id="logStorageLimit" type="number" min="16" max="1048576" step="1" placeholder="不限" aria-describedby="logStorageHint"></label><button id="saveLogStorage" class="button secondary compact" type="submit">保存上限</button><span id="logStorageUsage" role="status"></span><p id="logStorageHint">留空表示不限；设置后自动清理最早的已结束日志，正在记录的日志保留。</p></form>
       <div class="log-filters"><label>项目<select id="logFilterProject"><option value="">全部项目</option></select></label><label>日期<select id="logFilterDay"><option value="">全部日期</option></select></label><label>状态<select id="logFilterStatus"><option value="">全部状态</option><option value="running">记录中</option><option value="succeeded">命令成功</option><option value="failed">命令失败</option><option value="interrupted">记录中断</option><option value="write_error">写入失败</option><option value="session">会话记录</option></select></label><button id="deleteLogs" class="button secondary danger" disabled>清理所选</button></div>
       <p id="logRecordingStatus" class="log-recording" role="status" hidden></p>
       <div class="logs-layout">
@@ -154,8 +153,8 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
             <rect id="arenaFloor" width="3800" height="3800" fill="#30363a"/>
             <image id="arenaPlatform" x="700" y="700" width="2400" height="2400" href="arena-platform.png"/>
             <rect x="700" y="700" width="2400" height="2400" fill="none" stroke="#ecf0f3" stroke-width="10"/>
-            <rect id="arenaYellowStart" x="0" y="700" width="500" height="400" fill="#f6d627"><title>黄色出发区</title></rect>
-            <rect id="arenaBlueStart" x="3300" y="2700" width="500" height="400" fill="#2458ee"><title>蓝色出发区</title></rect>
+            <rect id="arenaYellowStart" aria-label="黄色出发区" x="0" y="700" width="500" height="400" fill="#f6d627"></rect>
+            <rect id="arenaBlueStart" aria-label="蓝色出发区" x="3300" y="2700" width="500" height="400" fill="#2458ee"></rect>
             <rect id="arenaWall" x="-10" y="-10" width="3820" height="3820" fill="none" stroke="#c3423f" stroke-width="20"/>
             <defs><marker id="arenaAxisArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10" fill="none" stroke="#648391" stroke-width="1.5"/></marker></defs>
             <g class="arena-axes" aria-hidden="true">
@@ -188,7 +187,30 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
   </aside>
 
 </div>
-<dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle"><header><h2 id="settingsTitle">设置</h2><button id="closeSettings" class="button secondary compact" type="button" aria-label="关闭设置">×</button></header><div class="settings-row"><label for="settingsLanguage">语言</label><select id="settingsLanguage" autofocus><option value="zh-CN">简体中文</option><option value="en">English</option></select></div><div class="settings-row"><label for="settingsTheme">主题色彩</label><select id="settingsTheme"><option value="blue">浅蓝</option><option value="green">绿色</option><option value="graphite">灰色</option></select></div><section class="settings-repository"><h3>GitHub 仓库</h3><code>JvKan9Zz/PortCanvas</code><div class="settings-actions"><button id="openRepository" class="button secondary compact" type="button">打开仓库</button><button id="checkUpdates" class="button secondary compact" type="button">检查更新</button></div><p id="updateStatus" role="status" hidden></p><progress id="updateProgress" max="100" aria-label="更新下载进度" hidden></progress><pre id="updateNotes" class="update-notes" hidden></pre><div class="settings-actions update-actions"><button id="downloadUpdate" class="button primary compact" type="button" hidden>下载更新</button><button id="installUpdate" class="button primary compact" type="button" hidden>安装并重启</button><button id="cancelUpdate" class="button secondary compact" type="button" hidden>取消更新</button></div></section><div class="settings-row"><span>当前版本</span><strong id="appVersion">—</strong></div></dialog>
+<dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
+  <aside class="settings-sidebar"><h2 id="settingsTitle">设置</h2><nav class="settings-tabs" role="tablist" aria-orientation="vertical" aria-label="设置类别">
+    <button id="settings-tab-general" class="settings-tab" type="button" role="tab" aria-controls="settings-panel-general" aria-selected="true" data-settings-page="general"><svg><use href="#i-settings"/></svg><span>通用</span></button>
+    <button id="settings-tab-storage" class="settings-tab" type="button" role="tab" aria-controls="settings-panel-storage" aria-selected="false" tabindex="-1" data-settings-page="storage"><svg><use href="#i-folder"/></svg><span>存储</span></button>
+    <button id="settings-tab-about" class="settings-tab" type="button" role="tab" aria-controls="settings-panel-about" aria-selected="false" tabindex="-1" data-settings-page="about"><svg><use href="#i-device"/></svg><span>关于</span></button>
+  </nav></aside>
+  <div class="settings-content"><header class="settings-content-heading"><h2 id="settingsPageTitle">通用</h2><button id="closeSettings" class="button secondary compact" type="button" aria-label="关闭设置">×</button></header>
+    <section id="settings-panel-general" class="settings-panel" role="tabpanel" aria-labelledby="settings-tab-general">
+      <div class="settings-row"><label for="settingsLanguage">语言</label><select id="settingsLanguage" autofocus><option value="zh-CN">简体中文</option><option value="en">English</option></select></div>
+      <div class="settings-row"><label for="settingsTheme">主题色彩</label><select id="settingsTheme"><option value="blue">浅蓝</option><option value="green">绿色</option><option value="graphite">灰色</option></select></div>
+      <div class="settings-row"><span id="appearanceLabel" class="settings-label">外观</span><div id="settingsAppearance" class="appearance-options" role="radiogroup" aria-labelledby="appearanceLabel"><label class="appearance-option"><input type="radio" name="appearance" value="light"><span>浅色</span></label><label class="appearance-option"><input type="radio" name="appearance" value="dark"><span>深色</span></label><label class="appearance-option"><input type="radio" name="appearance" value="system"><span>跟随系统</span></label></div></div>
+      <div class="settings-row glass-setting"><label for="glassOpacity">非透明度</label><div class="glass-range"><input id="glassOpacity" type="range" min="0" max="100" step="1" value="100" aria-describedby="glassOpacityHint"><label class="glass-number"><input id="glassOpacityNumber" type="number" min="0" max="100" step="1" value="100" required aria-label="非透明度百分比" aria-describedby="glassOpacityHint"><span aria-hidden="true">%</span></label></div><p id="glassOpacityHint">数值越低越清透，控件内容保持清晰。</p></div>
+      <fieldset class="background-settings"><legend>背景</legend><div id="backgroundPreview" class="background-preview" aria-label="背景预览"></div><div class="background-controls"><div class="background-color-label"><span>颜色</span><input id="backgroundColor" type="hidden" value="#eaf0f8"><button id="backgroundColorButton" class="color-trigger" type="button" aria-label="背景颜色" aria-haspopup="dialog" aria-controls="backgroundColorPicker" aria-expanded="false"><span id="backgroundColorSwatch"></span></button></div><button id="chooseBackgroundImage" class="button secondary compact" type="button">选择图片</button><button id="removeBackgroundImage" class="button secondary compact" type="button" hidden>移除图片</button><button id="resetBackground" class="button secondary compact" type="button">恢复默认</button></div><p>PNG / JPEG / WebP · 最大 10 MiB</p></fieldset><div id="backgroundColorPicker" class="color-picker" popover="auto" role="dialog" aria-label="选择背景颜色" hidden inert><header><strong>选择颜色</strong><span id="colorPickerSample" class="color-picker-sample"></span></header><div id="colorPickerPlane" class="color-picker-plane" aria-hidden="true"><span id="colorPickerThumb"></span></div><label class="color-hue-label"><span>色相</span><input id="colorPickerHue" class="color-hue" type="range" min="0" max="360" step="1" aria-label="色相"></label><div class="color-presets"><button class="color-preset" type="button" data-color="#EAF0F8"></button><button class="color-preset" type="button" data-color="#DCE9FA"></button><button class="color-preset" type="button" data-color="#D7EEE8"></button><button class="color-preset" type="button" data-color="#E7DFF4"></button><button class="color-preset" type="button" data-color="#F2E2D5"></button><button class="color-preset" type="button" data-color="#33465F"></button><button class="color-preset" type="button" data-color="#172331"></button><button class="color-preset" type="button" data-color="#FFFFFF"></button></div><div class="color-values"><label>HEX<input id="colorPickerHex" type="text" maxlength="7" spellcheck="false" aria-label="十六进制颜色"></label><label>R<input id="colorPickerR" type="number" min="0" max="255" step="1" required aria-label="红色"></label><label>G<input id="colorPickerG" type="number" min="0" max="255" step="1" required aria-label="绿色分量"></label><label>B<input id="colorPickerB" type="number" min="0" max="255" step="1" required aria-label="蓝色"></label></div><footer><button id="colorPickerCancel" class="button secondary compact" type="button">取消</button><button id="colorPickerConfirm" class="button primary compact" type="button">确认</button></footer></div>
+    </section>
+    <section id="settings-panel-storage" class="settings-panel" role="tabpanel" aria-labelledby="settings-tab-storage" hidden>
+      <fieldset class="environment-settings"><legend>板端运行环境</legend><p>缺少组件时如何下载</p><div class="environment-options"><label class="environment-option"><input type="radio" name="environmentSource" value="computer"><span><strong>电脑下载后传输</strong><small>电脑联网下载并缓存，通过 SSH 传给设备</small></span><svg aria-hidden="true"><use href="#i-check"/></svg></label><label class="environment-option"><input type="radio" name="environmentSource" value="board"><span><strong>板端自行下载</strong><small>设备通过自己的网络访问软件源</small></span><svg aria-hidden="true"><use href="#i-check"/></svg></label></div><p class="environment-settings-note">影响之后的环境准备，进行中的任务保持当前方式。</p></fieldset>
+      <section class="settings-log-storage"><h3>运行日志</h3><div class="log-location"><div><span>保存位置</span><p id="logRootPath"></p></div><button id="openLogDirectory" class="button secondary compact">打开目录</button><button id="chooseLogDirectory" class="button secondary compact">更换位置</button></div><form id="logStorageForm" class="log-storage"><label for="logStorageLimit">存储上限（MiB）<input id="logStorageLimit" type="number" min="16" max="1048576" step="1" placeholder="不限" aria-describedby="logStorageHint"></label><button id="saveLogStorage" class="button secondary compact" type="submit">保存上限</button><span id="logStorageUsage" role="status"></span><p id="logStorageHint">留空表示不限；设置后自动清理最早的已结束日志，正在记录的日志保留。</p></form><p id="storageSettingsStatus" class="settings-status" role="status" hidden></p></section>
+    </section>
+    <section id="settings-panel-about" class="settings-panel settings-about" role="tabpanel" aria-labelledby="settings-tab-about" hidden>
+      <div class="about-product"><img src="portcanvas.png" alt="PortCanvas" width="76" height="76" draggable="false"><h2>PortCanvas</h2><strong id="appVersion">—</strong></div>
+      <section class="settings-repository"><h3>GitHub 仓库</h3><code>JvKan9Zz/PortCanvas</code><div class="settings-actions"><button id="openRepository" class="button secondary compact" type="button">打开仓库</button><button id="checkUpdates" class="button secondary compact" type="button">检查更新</button><button id="openInstallDirectory" class="button secondary compact" type="button">打开安装目录</button></div><p id="updateStatus" role="status" hidden></p><progress id="updateProgress" max="100" aria-label="更新下载进度" hidden></progress><pre id="updateNotes" class="update-notes" hidden></pre><div class="settings-actions update-actions"><button id="downloadUpdate" class="button primary compact" type="button" hidden>下载更新</button><button id="installUpdate" class="button primary compact" type="button" hidden>安装并重启</button><button id="cancelUpdate" class="button secondary compact" type="button" hidden>取消更新</button></div></section>
+    </section>
+  </div>
+</dialog>
 <div id="toast" class="toast" role="alert" hidden></div>
 <script type="module" src="app.js"></script>
 </body></html>
