@@ -1,3 +1,4 @@
+import {showActivity,withActivity} from './connection-indicator.js';
 import {ColorPicker} from './color-picker.js';
 import {applyGlassOpacity} from './glass.js';
 import {StorageSettings} from './storage-settings.js';
@@ -25,7 +26,7 @@ export class SettingsDialog {
       if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
       else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
     });
-    $('settingsLanguage').onchange=async()=>{const select=$('settingsLanguage'),focused=document.activeElement===select;select.disabled=true;try{const result=await window.studio.setLanguage(select.value);setLanguage(result.language);}catch(error){select.value=getLanguage();toast(error.message);}finally{select.disabled=false;if(focused&&document.activeElement===document.body&&$('settingsDialog').open)select.focus();}};
+    $('settingsLanguage').onchange=async()=>{const select=$('settingsLanguage'),focused=document.activeElement===select;select.disabled=true;try{const result=await withActivity($('settingsPageTitle'),()=>window.studio.setLanguage(select.value));setLanguage(result.language);}catch(error){select.value=getLanguage();toast(error.message);}finally{select.disabled=false;if(focused&&document.activeElement===document.body&&$('settingsDialog').open)select.focus();}};
     for(const option of document.querySelectorAll('input[name="environmentSource"]'))option.onchange=async()=>{
       if(!option.checked||this.savingSource)return;
       this.savingSource=true;this.render();
@@ -47,7 +48,7 @@ export class SettingsDialog {
       finally{this.savingAppearance=false;this.render();}
     };
     $('openInstallDirectory').onclick=()=>window.studio.openInstallDirectory().catch(error=>toast(error.message));
-    $('settingsTheme').onchange=async()=>{const select=$('settingsTheme'),focused=document.activeElement===select;select.disabled=true;try{const result=await window.studio.setTheme(select.value);setTheme(result.theme);}catch(error){select.value=getTheme();toast(error.message);}finally{select.disabled=false;if(focused&&document.activeElement===document.body&&$('settingsDialog').open)select.focus();}};
+    $('settingsTheme').onchange=async()=>{const select=$('settingsTheme'),focused=document.activeElement===select;select.disabled=true;try{const result=await withActivity($('settingsPageTitle'),()=>window.studio.setTheme(select.value));setTheme(result.theme);}catch(error){select.value=getTheme();toast(error.message);}finally{select.disabled=false;if(focused&&document.activeElement===document.body&&$('settingsDialog').open)select.focus();}};
     $('openRepository').onclick=()=>window.studio.openRepository().catch(error=>toast(error.message));
     $('checkUpdates').onclick=()=>this.perform(()=>window.studio.checkUpdates());
     $('downloadUpdate').onclick=()=>this.perform(()=>window.studio.downloadUpdate());
@@ -69,7 +70,7 @@ export class SettingsDialog {
   async refreshBackground(){
     const request=(this.backgroundRequest||0)+1;this.backgroundRequest=request;
     const info=this.info||{};let image=null;
-    if(info.backgroundImage)try{image=await window.studio.backgroundImageData();}catch(error){this.toast(error.message);}
+    if(info.backgroundImage)try{image=await withActivity($('backgroundPreview'),()=>window.studio.backgroundImageData());}catch(error){this.toast(error.message);}
     if(request===this.backgroundRequest)applyBackground(info.backgroundColor,image);
   }
   async saveGlass(input){
@@ -102,6 +103,7 @@ export class SettingsDialog {
     if(document.activeElement!==$('backgroundColor'))$('backgroundColor').value=this.info?.backgroundColor||(document.documentElement.dataset.appearance==='dark'?'#111927':'#eaf0f8');
     for(const id of ['backgroundColor','chooseBackgroundImage','resetBackground'])$(id).disabled=Boolean(this.backgroundBusy);
     $('removeBackgroundImage').hidden=!this.info?.backgroundImage;$('removeBackgroundImage').disabled=Boolean(this.backgroundBusy);
+    showActivity($('settingsPageTitle'),this.savingSource||this.savingAppearance||this.savingGlass||this.backgroundBusy);
     const appearanceIndex=['light','dark','system'].indexOf(getAppearance());$('settingsAppearance').style.setProperty('--appearance-index',Math.max(0,appearanceIndex));
     for(const option of document.querySelectorAll('input[name="appearance"]')){option.checked=option.value===getAppearance();option.disabled=Boolean(this.savingAppearance);}
     if(!['glassOpacity','glassOpacityNumber'].includes(document.activeElement?.id)&&!this.savingGlass){$('glassOpacity').value=String(this.info?.glassOpacity??100);$('glassOpacityNumber').value=$('glassOpacity').value;}
@@ -123,6 +125,7 @@ export class SettingsDialog {
     let message=status==='available'?t('发现新版本 Demo V{version}',{version:update.version}):status==='ready'?t('Demo V{version} 更新已就绪。',{version:update.version}):status==='downloading'?(update.connections?t('正在下载（{connections} 路）：{downloaded} / {total} MiB',{connections:update.connections,downloaded,total}):t('正在连接下载服务…')):status==='updated'?t('已更新至 Demo V{version}。',{version:update.version}):status==='error'?updateError(update.message):t(messages[status]||'');
     if(status==='manual')message=t(update.message);
     $('updateStatus').hidden=!message;if($('updateStatus').textContent!==message)$('updateStatus').textContent=message;
+    showActivity($('updateStatus'),this.acting||busy);
     $('updateStatus').classList.toggle('error',status==='error');
     $('updateProgress').hidden=!['downloading','verifying','ready'].includes(status);
     if(update.total)$('updateProgress').value=Math.min(100,Number(update.downloaded||0)/Number(update.total)*100);else $('updateProgress').removeAttribute('value');

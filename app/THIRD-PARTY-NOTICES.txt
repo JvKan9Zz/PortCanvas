@@ -17537,3 +17537,12 @@ proprietary fonts and are not covered by the PortCanvas MIT License.
 This notice does not grant an independent font license.
 
 The WOFF2 files retain the complete original character maps and glyph order.
+
+Macintosh Skeletal Filled Regular
+Source: https://github.com/npwitk/Macintosh-Skeletal-Filled
+Revision: 889a1d106e9b54ec996bb64593863add023a27e0
+The font derives from Apple Inc. font data. The original repository notice is
+included at ui/fonts/LICENSE-Macintosh-Skeletal.txt. Separate software
+redistribution permission was confirmed by the project maintainer on
+2026-10-26. This font is not covered by the PortCanvas MIT License and this
+notice does not grant an independent font license.

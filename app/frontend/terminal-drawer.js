@@ -1,3 +1,4 @@
+import {showActivity,withActivity} from './connection-indicator.js';
 import {commandContext,completionEdit,commonPrefix} from './command-completion.js';
 import {t,onLanguageChange} from './i18n.js';
 import {terminalTheme,onThemeChange} from './theme.js';
@@ -8,11 +9,11 @@ export class TerminalDrawer {
     this.setupResize();
     onThemeChange(()=>{for(const pane of this.panes.values())if(pane.term)pane.term.options.theme=terminalTheme();});
     $('connectTerminal').onclick=()=>this.connected?this.current?.start():goDevices();
-    $('disconnectTerminal').onclick=()=>this.current&&window.studio.stopTerminal(this.current.key).catch(e=>toast(e.message));
+    $('disconnectTerminal').onclick=()=>this.current&&withActivity($('disconnectTerminal'),()=>window.studio.stopTerminal(this.current.key)).catch(e=>toast(e.message));
     $('clearTerminal').onclick=()=>{this.current?.term?.clear();this.current?.term?.focus();};
     $('newTerminal').onclick=()=>this.create();$('restartTerminal').onclick=()=>this.restart();
     $('logProjectName').oninput=()=>{if(this.current)this.current.projectDraft=$('logProjectName').value;};
-    $('saveLogProject').onclick=async()=>{const pane=this.current;if(!pane)return;const project=$('logProjectName').value;pane.logRequest++;try{pane.log=await window.studio.logProject(project,pane.key);if(pane.projectDraft===project)delete pane.projectDraft;this.renderLog();toast('项目设置已保存，对此终端之后开始的命令生效。');}catch(error){toast(error.message);}};
+    $('saveLogProject').onclick=async()=>{const pane=this.current;if(!pane)return;const project=$('logProjectName').value;pane.logRequest++;try{pane.log=await withActivity($('saveLogProject'),()=>window.studio.logProject(project,pane.key));if(pane.projectDraft===project)delete pane.projectDraft;this.renderLog();toast('项目设置已保存，对此终端之后开始的命令生效。');}catch(error){toast(error.message);}};
     $('terminalTabs').onkeydown=event=>{
       if(event.target.getAttribute('role')!=='tab')return;
       const keys=[...this.panes.keys()],index=keys.indexOf(this.activeKey),next={ArrowLeft:(index+keys.length-1)%keys.length,ArrowRight:(index+1)%keys.length,Home:0,End:keys.length-1}[event.key];
@@ -89,7 +90,7 @@ export class TerminalDrawer {
     const pane=this.current,input=$('terminalCommand');if(!pane||input.disabled)return;
     this.clearCompletions();const serial=this.completionSerial,id=pane.state.id,context=commandContext(input.value,input.selectionStart);
     const menu=$('terminalCompletions'),loading=document.createElement('li');loading.textContent=t('正在补全…');loading.setAttribute('role','status');menu.replaceChildren(loading);menu.hidden=false;input.setAttribute('aria-busy','true');
-    try{const result=await window.studio.completeTerminal(pane.key,id,context.prefix,context.commands,context.directories);
+    try{const result=await withActivity(loading,()=>window.studio.completeTerminal(pane.key,id,context.prefix,context.commands,context.directories));
       if(serial!==this.completionSerial||this.current!==pane||pane.state.id!==id||input.value!==context.value||document.activeElement!==input)return;
       input.setAttribute('aria-busy','false');if(!result.items.length){this.clearCompletions();return;}
       this.completions={items:result.items,index:0,context};
@@ -102,6 +103,7 @@ export class TerminalDrawer {
     const pane=this.current,input=$('terminalCommand'),disabled=!pane||!this.connected||pane.state.phase!=='connected'||pane.sending;
     input.disabled=Boolean(disabled);$('sendCommand').disabled=Boolean(disabled);
     if(input.value!==(pane?.draft||''))input.value=pane?.draft||'';
+    showActivity($('sendCommand'),Boolean(pane?.sending));
     this.renderCommandSize();
   }
 
@@ -137,7 +139,7 @@ export class TerminalDrawer {
     window.addEventListener('resize',()=>setWidth(this.preferredWidth));
     setWidth(null);
   }
-  async reload(){const request=++this.request;this.catalogReady=false;this.render();try{const catalog=await window.studio.terminalList();if(request===this.request)this.apply(catalog);}catch(error){this.toast(error.message);}}
+  async reload(){const request=++this.request;this.catalogReady=false;this.render();try{const catalog=await withActivity($('newTerminal'),()=>window.studio.terminalList());if(request===this.request)this.apply(catalog);}catch(error){this.toast(error.message);}}
   apply(catalog,selected){
     this.request++;this.catalogReady=Boolean(catalog.deviceKey)&&this.connected;
     if(catalog.deviceKey!==this.deviceKey){for(const pane of this.panes.values())pane.dispose();this.panes.clear();this.deviceKey=catalog.deviceKey;this.activeKey='main';}
@@ -172,6 +174,7 @@ export class TerminalDrawer {
     $('disconnectTerminal').disabled=this.busy||(!live&&!busy);$('restartTerminal').disabled=this.busy||busy||!this.connected||!pane||!this.catalogReady;$('newTerminal').disabled=this.busy||!this.connected||!this.catalogReady;$('clearTerminal').disabled=!pane?.term;
     $('logProjectName').disabled=!this.connected||!pane;$('saveLogProject').disabled=this.busy||!this.connected||!this.catalogReady||!pane;
     $('terminalStatus').className='badge '+(live?'connected':state.phase==='error'?'error':'');$('terminalStatus').lastElementChild.textContent=t(live?'会话已连接':busy?'正在连接':state.phase==='error'?'连接失败':'终端未连接');
+    showActivity($('terminalStatus'),this.busy||busy);
     $('terminalMessage').hidden=state.phase!=='error';$('terminalMessage').textContent=t(state.message);
     $('terminalSession').textContent=state.session?t('{host} · 会话 {session}',{host:state.host||t('远端设备'),session:state.session}):t('会话信息将在连接后显示');
     $('terminalConnectionTime').textContent=pane?.connectedAt?t('本次连接 {time}',{time:pane.connectedAt}):'';this.renderLog();this.renderCommand();

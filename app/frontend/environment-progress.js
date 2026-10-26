@@ -1,3 +1,4 @@
+import {showActivity} from './connection-indicator.js';
 import {t,onLanguageChange} from './i18n.js';
 const $=id=>document.getElementById(id);
 const phases={'board-downloading':'板端下载组件',downloading:'电脑下载组件',transferring:'通过 SSH 传输组件',preparing:'板端校验并准备组件',ready:'运行环境已就绪',error:'运行环境准备未完成',canceled:'已取消运行环境准备'};
@@ -7,9 +8,10 @@ function render(){
   const panel=$('environmentStatus');
   panel.hidden=!state;
   $('appRoot').classList.toggle('environment-active',Boolean(state));
-  if(!state)return;
+  if(!state){showActivity($('environmentTitle'),false);return;}
   const busy=['downloading','transferring','preparing','board-downloading'].includes(state.phase);
   $('environmentTitle').textContent=`${t(features[state.feature]||'运行环境')} · ${t(phases[state.phase]||'运行环境')}`;
+  showActivity($('environmentTitle'),busy);
   const measured=['downloading','transferring'].includes(state.phase)&&state.total>0;
   const done=Math.min(Number(state.total)||0,Number(state.done)||0),total=Number(state.total)||0;
   const bytes=measured?`${(done/1048576).toFixed(1)} / ${(total/1048576).toFixed(1)} MiB · ${Math.floor(done/total*100)}%`:'';

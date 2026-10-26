@@ -48,6 +48,6 @@ main contains only the current application and necessary documentation. Older ve
 
 PortCanvas project code is licensed under [MIT](LICENSE). Third-party components retain their own licenses; see [third-party notices](app/THIRD-PARTY-NOTICES.txt).
 
-The UI bundles PingFang fonts with redistribution permission confirmed by the owner. Terminal output uses a monospace font with PingFang for Chinese. Fonts retain their separate license and are not covered by the project MIT license.
+The UI bundles PingFang fonts with redistribution permission confirmed by the owner. Terminal output uses a monospace font with PingFang for Chinese. The header wordmark alone uses Macintosh Skeletal Filled Regular with separately confirmed redistribution permission. Fonts retain their separate license and are not covered by the project MIT license.
 
 See [security notes](docs/security.md) for cryptographic dependency status and current security boundaries.

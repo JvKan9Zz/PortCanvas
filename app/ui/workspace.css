@@ -1,6 +1,7 @@
 @font-face{font-family:'PortCanvas PingFang';src:url('fonts/pingfang-regular.woff2') format('woff2');font-weight:400;font-display:swap}
 @font-face{font-family:'PortCanvas PingFang';src:url('fonts/pingfang-medium.woff2') format('woff2');font-weight:500;font-display:swap}
 @font-face{font-family:'PortCanvas PingFang';src:url('fonts/pingfang-semibold.woff2') format('woff2');font-weight:600 900;font-display:swap}
+@font-face{font-family:'PortCanvas Wordmark';src:url('fonts/macintosh-skeletal-filled-regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
 
 :root{
   --font-ui:'PortCanvas PingFang','PingFang SC',sans-serif;
@@ -362,3 +363,20 @@ body input[type=checkbox]{border-color:#7c8ea8}
 #terminalCommand{scrollbar-width:none}
 #terminalCommand::-webkit-scrollbar{display:none;width:0;height:0}
 .desktop-caption,.panel-label{color:var(--muted)}
+
+/* Hide scrollbar chrome throughout the workspace without disabling scrolling. */
+:root,:root *{scrollbar-width:none!important}
+:root::-webkit-scrollbar,:root *::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+.matrix-loader{--matrix-dot:3px;display:grid;grid-template-columns:repeat(4,var(--matrix-dot));gap:3px;flex:none;color:inherit}
+.matrix-loader>i{width:var(--matrix-dot);height:var(--matrix-dot);border-radius:1px;background:currentColor;opacity:.22;animation:matrix-dot-pulse 1500ms ease-in-out infinite}
+@keyframes matrix-dot-pulse{0%,65%,100%{opacity:.22}20%{opacity:1}}
+.connection-result.connecting .result-icon{color:var(--accent)}
+.desktop-empty:has(#desktopProgress:not([hidden])) .empty-display{display:grid;width:48px;height:48px;margin-bottom:18px;color:#bed1ec}
+.empty-display .matrix-loader{--matrix-dot:4px;gap:4px}
+@media(prefers-reduced-motion:reduce){.matrix-loader>i{animation:none;opacity:.7}}
+.wordmark,.wordmark strong{font-family:'PortCanvas Wordmark',var(--font-ui);font-weight:400;font-synthesis:none;letter-spacing:0;font-feature-settings:'calt' 1,'liga' 1}
+.wordmark{font-size:29px;line-height:1.2}.wordmark strong{color:inherit}
+.activity-indicator{display:inline-grid;vertical-align:middle;margin-inline-end:8px;color:inherit}
+.activity-indicator .matrix-loader{--matrix-dot:2px;gap:2px}
+button>.activity-indicator{margin:0}button.activity-busy>svg,.badge.activity-busy>.dot{display:none}
+.log-detail.activity-busy{position:relative}.log-detail>.activity-indicator{position:absolute;top:16px;right:20px;z-index:1}
