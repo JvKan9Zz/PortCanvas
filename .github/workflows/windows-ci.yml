@@ -1,0 +1,62 @@
+name: Windows CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: cmd
+        working-directory: app
+    env:
+      WCS_TEST_ROOT: ${{ github.workspace }}/app/src-tauri/target/ci-tests
+      WCS_DATA_DIR: ${{ github.workspace }}/app/src-tauri/target/ci-data
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare Rust and isolated test directories
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 setup'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            app/src-tauri/target
+          key: windows-ci-rust190-${{ hashFiles('app/src-tauri/Cargo.lock') }}
+      - name: Install locked frontend dependencies
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 install'
+      - name: Build frontend
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 frontend'
+      - name: Check TypeScript
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 typescript'
+      - name: Test frontend
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 frontend-tests'
+      - name: Test desktop helper
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 python'
+      - name: Test native core and desktop services
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 native'
+      - name: Test isolated SSH lifecycle regressions
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 ssh'
+      - name: Compile Windows application without packaging or signing
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 compile'

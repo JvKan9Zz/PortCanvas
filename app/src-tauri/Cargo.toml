@@ -1,8 +1,9 @@
 [package]
 name = "portcanvas"
-version = "0.5.6"
+version = "0.5.7"
 edition = "2021"
 rust-version = "1.90"
+license = "MIT"
 default-run = "PortCanvas"
 autobins = false
 
@@ -59,6 +60,7 @@ tauri-build = { version = "2", features = [] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
+rand = "0.10"
 
 [profile.release]
 opt-level = "s"

@@ -55,6 +55,9 @@ pub struct SshConnection {
     pub handle: Arc<client::Handle<ClientHandler>>,
     pub profile: Profile,
     pub cancel: CancellationToken,
+    pub(crate) auto_prepare: bool,
+    pub(crate) environment: Mutex<crate::remote_env::State>,
+    pub(crate) preparation: tokio::sync::Mutex<()>,
 }
 impl SshConnection {
     pub async fn connect(
@@ -133,6 +136,9 @@ impl SshConnection {
                 handle: Arc::new(handle),
                 profile,
                 cancel: cancel.clone(),
+                auto_prepare: false,
+                environment: Mutex::new(Default::default()),
+                preparation: tokio::sync::Mutex::new(()),
             })
         };
         network_timeout(network,confirmation).await
@@ -149,7 +155,7 @@ impl SshConnection {
         timeout: Duration,
     ) -> Result<(String, i32)> {
         let mut channel = self.channel().await?;
-        channel.exec(true, command).await?;
+        channel.exec(true, self.remote_command(command)).await?;
         let operation = async {
             let mut output = Vec::new();
             let mut diagnostic = Vec::new();
@@ -182,14 +188,30 @@ impl SshConnection {
                 status,
             ))
         };
-        let result = tokio::select! {_ = self.cancel.cancelled()=>Err(anyhow::anyhow!("设备连接已断开。")),result=tokio::time::timeout(timeout,operation)=>result.context("远端命令超时。")?};
+        let result = tokio::select! {_ = self.cancel.cancelled()=>Err(anyhow::anyhow!("设备连接已断开。")),result=tokio::time::timeout(timeout,operation)=>result.context("远端命令超时。").and_then(|result| result)};
         let _ = channel.close().await;
         result
     }
-    pub async fn sftp(&self) -> Result<russh_sftp::client::SftpSession> {
+    pub async fn sftp_channel(&self) -> Result<SshChannel> {
         let channel = self.channel().await?;
-        channel.request_subsystem(true, "sftp").await?;
-        Ok(russh_sftp::client::SftpSession::new(channel.into_stream()).await?)
+        let binary = self.environment.lock().unwrap().sftp.clone();
+        let opened = if let Some(binary) = binary {
+            channel.exec(true, self.remote_command(&format!("exec {}", quote(&binary)))).await
+        } else { channel.request_subsystem(true, "sftp").await };
+        if let Err(error) = opened { let _ = channel.close().await; return Err(error.into()); }
+        Ok(channel)
+    }
+    pub async fn sftp(&self) -> Result<russh_sftp::client::SftpSession> {
+        let open = async { Ok::<_, anyhow::Error>(russh_sftp::client::SftpSession::new(self.sftp_channel().await?.into_stream()).await?) };
+        let result = tokio::time::timeout(Duration::from_secs(15), open).await.context("SFTP通道准备超时。").and_then(|result| result);
+        match result {
+            Ok(session) => Ok(session),
+            Err(error) if self.auto_prepare => {
+                self.prepare(crate::remote_env::Feature::Files, &self.cancel).await.map_err(|setup| anyhow::anyhow!("SFTP环境准备失败：{setup}；原错误：{error}"))?;
+                Ok(russh_sftp::client::SftpSession::new(self.sftp_channel().await?.into_stream()).await?)
+            },
+            Err(error) => Err(error),
+        }
     }
     pub async fn disconnect(&self) {
         self.cancel.cancel();

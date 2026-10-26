@@ -5,6 +5,7 @@ pub mod i18n;
 pub mod profiles;
 pub mod credentials;
 pub mod ssh;
+pub mod remote_env;
 pub mod session;
 pub mod desktop;
 pub mod desktop_settings;

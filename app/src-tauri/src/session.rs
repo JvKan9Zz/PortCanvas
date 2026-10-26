@@ -20,6 +20,7 @@ struct Inner {
 pub struct DeviceManager {
     inner: Arc<Mutex<Inner>>,
     pub events: EventSink,
+    auto_prepare: bool,
 }
 impl DeviceManager {
     pub fn new(events: EventSink) -> Self {
@@ -31,8 +32,10 @@ impl DeviceManager {
                 state: json!({"ssh":"disconnected","desktop":"disconnected","generation":0,"message":"尚未连接设备"}),
             })),
             events,
+            auto_prepare: false,
         }
     }
+    pub fn with_environment(mut self) -> Self { self.auto_prepare = true; self }
     pub fn snapshot(&self) -> Value {
         self.inner.lock().unwrap().state.clone()
     }
@@ -112,7 +115,7 @@ impl DeviceManager {
         )
         .await;
         let connection = match result {
-            Ok(c) => Arc::new(c),
+            Ok(mut c) => { c.auto_prepare = self.auto_prepare; Arc::new(c) },
             Err(e) => {
                 cancel.cancel();
                 self.update(

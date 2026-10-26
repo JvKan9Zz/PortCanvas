@@ -18,5 +18,9 @@ for path in sorted(glob.glob('/dev/video*')):
         if not effective&(0x00000001|0x00001000):continue
         name=bytes(info[16:48]).split(b'\0',1)[0].decode('utf-8','replace')
         devices.append({'path':path,'name':name,'accessible':os.access(path,os.R_OK|os.W_OK)})
+    except PermissionError:
+        try:name=(Path('/sys/class/video4linux')/Path(path).name/'name').read_text().strip()[:100]
+        except OSError:name=Path(path).name
+        devices.append({'path':path,'name':name,'accessible':False})
     except OSError:continue
 print(json.dumps(devices,ensure_ascii=False))

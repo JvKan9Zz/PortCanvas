@@ -202,6 +202,7 @@ async fn rollback_profiles(window: tauri::WebviewWindow, state: &AppState) -> Re
         LogSettings {
             root: state.default_log_root.clone(),
             projects: Default::default(),
+            max_bytes: None,
         }
     };
     state.logs.replace_settings(settings, false).await?;
@@ -366,7 +367,7 @@ async fn studio_call(
         let origin=validate_window(&window)?;
         anyhow::ensure!(!state.quitting.load(Ordering::SeqCst),"程序正在退出。");
         if state.rebooting.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"desktop:start"|"files:transfer"|"files:remove"|"files:mkdir"|"terminal:new"|"terminal:restart"|"terminal:close"|"terminal:write"){bail!("设备重启请求正在处理中，请稍后重试。");}
-        if state.migrating.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"profiles:save"|"profiles:remove"|"files:transfer"|"files:remove"|"logs:directory"|"logs:project"|"terminal:new"|"terminal:restart"|"terminal:close"){bail!("资料迁移中，请稍后重试。");}
+        if state.migrating.load(Ordering::SeqCst)&&matches!(action.as_str(),"device:connect"|"profiles:save"|"profiles:remove"|"files:transfer"|"files:remove"|"logs:directory"|"logs:project"|"logs:limit"|"terminal:new"|"terminal:restart"|"terminal:close"){bail!("资料迁移中，请稍后重试。");}
         match action.as_str(){
             "settings:read"=>state.preferences.lock().unwrap().info(),
             "settings:language"=>state.preferences.lock().unwrap().save_language(argument(&args,0)?),
@@ -440,6 +441,7 @@ async fn studio_call(
             "profiles:rollback"=>rollback_profiles(window,&state).await,
             "logs:state"=>{let key=optional_text(&args,0)?;Ok(if key.is_empty(){state.logs.snapshot()}else{crate::terminal_pool::validate_key(&key)?;state.logs.terminal_snapshot(&key)})},
             "logs:page"=>state.logs.page(argument::<LogQuery>(&args,0)?).await,
+            "logs:limit"=>state.logs.set_max_bytes(argument(&args,0)?).await,
             "logs:read"=>state.logs.detail(argument(&args,0)?).await,
             "logs:project"=>{let key=terminal_key(&args,1)?;state.terminal.get(&key,None)?;state.logs.set_project_for(&key,argument(&args,0)?).await},
             "logs:directory"=>{state.logs.can_change_root()?;let initial=state.logs.settings().root;let picker=window.clone();let folder=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&picker).set_title(local_text(&picker,"选择电脑本地日志目录")).set_directory(initial).pick_folder()).await?;if let Some(folder)=folder{state.logs.set_root(folder).await}else{Ok(state.logs.snapshot())}},
@@ -492,7 +494,7 @@ pub fn run() {
                 }
                 let _ = handle.emit(name, data);
             });
-            let devices = DeviceManager::new(events.clone());
+            let devices = DeviceManager::new(events.clone()).with_environment();
             let desktop = DesktopService::new(devices.clone());
             let arena = crate::arena::ArenaService::new(devices.clone());
             let pose = crate::arena_pose::PoseService::new(devices.clone(),events.clone());

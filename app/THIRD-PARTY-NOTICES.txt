@@ -131,7 +131,7 @@ cpufeatures 0.3.1 | MIT OR Apache-2.0 | https://github.com/RustCrypto/utils | li
 crc32fast 1.5.3 | MIT OR Apache-2.0 | https://github.com/srijs/rust-crc32fast | license texts: 59, 60
 crossbeam-channel 0.5.17 | MIT OR Apache-2.0 | https://github.com/crossbeam-rs/crossbeam | license texts: 18, 61, 62
 crossbeam-utils 0.8.23 | MIT OR Apache-2.0 | https://github.com/crossbeam-rs/crossbeam | license texts: 18, 61
-crypto-bigint 0.7.5 | Apache-2.0 OR MIT | https://github.com/RustCrypto/crypto-bigint | license texts: 4, 14
+crypto-bigint 0.7.9 | Apache-2.0 OR MIT | https://github.com/RustCrypto/crypto-bigint | license texts: 4, 14
 crypto-common 0.1.7 | MIT OR Apache-2.0 | https://github.com/RustCrypto/traits | license texts: 4, 63
 crypto-common 0.2.2 | MIT OR Apache-2.0 | https://github.com/RustCrypto/traits | license texts: 4, 64
 crypto-primes 0.7.2 | Apache-2.0 OR MIT | https://github.com/entropyxyz/crypto-primes | license texts: 50, 65

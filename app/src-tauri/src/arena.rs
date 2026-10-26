@@ -96,10 +96,12 @@ impl ArenaService {
         let http=self.clone();let http_cancel=cancel.clone();tokio::spawn(async move{http.serve(listener,id,token,http_cancel).await;});
         let service=self.clone();tokio::spawn(async move{
             let operation=async {
+                connection.prepare(crate::remote_env::Feature::Camera, &cancel).await?;
+                {let mut camera=service.camera.lock().unwrap();if camera.id==id{camera.viewer=Instant::now();}}
                 let mut process=tokio::select!{_ = cancel.cancelled()=>return Ok::<(),anyhow::Error>(()),result=connection.channel()=>result?};
                 let result=async {
                     let command=python(include_str!("../resources/camera_stream.py"),json!(["camera",json!({"path":path,"fps":fps}).to_string()]))?;
-                    tokio::select!{_ = cancel.cancelled()=>return Ok(()),result=process.exec(true,command)=>result?};
+                    tokio::select!{_ = cancel.cancelled()=>return Ok(()),result=process.exec(true,connection.remote_command(&command))=>result?};
                     let mut parser=JpegFrames::default();let mut diagnostic=Vec::new();let mut heartbeat=tokio::time::interval(Duration::from_secs(1));
                     let deadline=tokio::time::sleep(Duration::from_secs(12));tokio::pin!(deadline);
                     loop {
@@ -113,7 +115,7 @@ impl ArenaService {
                             Some(russh::ChannelMsg::Data{data})=>for frame in parser.push(&data)?{deadline.as_mut().reset(tokio::time::Instant::now()+Duration::from_secs(12));let mut camera=service.camera.lock().unwrap();if camera.running.as_ref().map(|r|r.id)==Some(id)&&!cancel.is_cancelled(){camera.sequence+=1;camera.latest=Some(frame);camera.phase="connected";service.changed.notify_one();}},
                             Some(russh::ChannelMsg::ExtendedData{data,..})=>{
                                 let count=data.len().min(4000-diagnostic.len());diagnostic.extend_from_slice(&data[..count]);
-                                let text=String::from_utf8_lossy(&diagnostic);for line in text.lines(){if let Some(backend)=line.strip_prefix("PORTCANVAS_CAMERA:"){if matches!(backend,"ffmpeg-copy"|"opencv"){let mut camera=service.camera.lock().unwrap();if camera.id==id{camera.backend=backend.to_string();}}}}
+                                let text=String::from_utf8_lossy(&diagnostic);for line in text.lines(){if let Some(backend)=line.strip_prefix("PORTCANVAS_CAMERA:"){if matches!(backend,"ffmpeg-copy"|"ffmpeg-encode"|"opencv"){let mut camera=service.camera.lock().unwrap();if camera.id==id{camera.backend=backend.to_string();}}}}
                             },
                             Some(russh::ChannelMsg::ExitStatus{..})|None=>{let error=String::from_utf8_lossy(&diagnostic).lines().filter(|line|!line.starts_with("PORTCANVAS_CAMERA:")).collect::<Vec<_>>().join("\n");anyhow::bail!("{}",if error.trim().is_empty(){"摄像头采集已结束。"}else{error.trim()});},
                             _=>{}

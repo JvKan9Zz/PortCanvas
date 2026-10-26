@@ -34,7 +34,7 @@ export class ArenaPage {
   async loadCameras(){
     if(!this.connected||!this.visible||document.hidden)return;
     const epoch=this.epoch;this.loadingDevices=true;this.renderCamera();
-    try{const devices=await window.studio.arenaCameras();if(epoch!==this.epoch)return;const selected=$('arenaCameraDevice').value;this.cameraDevices=devices;const options=devices.map(d=>new Option(`${d.name} · ${d.path}`,d.path));$('arenaCameraDevice').replaceChildren(...options);if(devices.some(d=>d.path===selected))$('arenaCameraDevice').value=selected;this.cameraMessage=devices.length?'':'没有可用摄像头';
+    try{const devices=await window.studio.arenaCameras();if(epoch!==this.epoch)return;const selected=$('arenaCameraDevice').value;this.cameraDevices=devices;const accessible=devices.filter(d=>d.accessible!==false);const options=devices.map(d=>{const option=new Option(`${d.name} · ${d.path}${d.accessible===false?' · '+t('无访问权限'):''}`,d.path);option.disabled=d.accessible===false;return option;});$('arenaCameraDevice').replaceChildren(...options);$('arenaCameraDevice').value=accessible.some(d=>d.path===selected)?selected:accessible[0]?.path||'';this.cameraMessage=!devices.length?'没有可用摄像头':!accessible.length?'摄像头访问权限不足，请联系设备管理员。':'';
     }catch(error){if(epoch!==this.epoch)return;this.cameraDevices=[];this.cameraMessage=error.message;}
     finally{if(epoch===this.epoch){this.loadingDevices=false;this.renderCamera();}}
   }
@@ -64,7 +64,7 @@ export class ArenaPage {
   }
   renderCamera(){
     const active=this.cameraId!==null||this.cameraPhase==='connecting';
-    $('arenaCameraToggle').textContent=t(active?'关闭摄像头':'开启摄像头');$('arenaCameraToggle').disabled=this.stopping||(!active&&(!this.connected||this.loadingDevices||!this.cameraDevices?.length));
+    $('arenaCameraToggle').textContent=t(active?'关闭摄像头':'开启摄像头');$('arenaCameraToggle').disabled=this.stopping||(!active&&(!this.connected||this.loadingDevices||!this.cameraDevices?.some(d=>d.accessible!==false)));
     $('arenaCameraToggle').className='button '+(active?'secondary':'primary')+' compact';$('arenaCameraToggle').setAttribute('aria-pressed',String(active));
     if(!this.cameraDevices?.length&&!this.loadingDevices)$('arenaCameraDevice').replaceChildren(new Option(t('未检测到摄像头'),''));
     $('arenaCameraRate').disabled=active||this.stopping;

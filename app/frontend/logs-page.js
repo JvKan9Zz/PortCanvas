@@ -7,6 +7,15 @@ export class LogsPage{
  constructor({toast}){
   this.toast=toast;this.records=[];this.checked=new Set();this.selected=null;this.visible=false;this.cursor=null;this.history=[];this.request=0;
   $('refreshLogs').onclick=()=>this.refresh();
+  $('logStorageLimit').oninput=()=>{this.limitDirty=true;};
+  $('logStorageForm').onsubmit=async event=>{
+    event.preventDefault();const input=$('logStorageLimit'),button=$('saveLogStorage');
+    if(this.savingLimit||!input.reportValidity())return;
+    const value=input.value,limit=value===''?null:Number(value)*1048576;
+    this.savingLimit=true;button.disabled=true;
+    try{const state=await window.studio.setLogLimit(limit);if(input.value===value)this.limitDirty=false;this.renderStatus(state);this.reset();await this.refresh();this.toast(state.notice||'日志上限已保存。');}
+    catch(error){this.toast(error.message);}finally{this.savingLimit=false;button.disabled=false;}
+  };
   for(const id of ['logFilterProject','logFilterDay','logFilterStatus'])$(id).onchange=()=>{this.reset();this.refresh();};
   $('logPageNext').onclick=()=>{if(!this.page?.hasMore)return;this.history.push(this.cursor);this.cursor=this.page.cursor;this.checked.clear();this.refresh();};
   $('logPageBack').onclick=()=>{if(!this.history.length)return;this.cursor=this.history.pop();this.checked.clear();this.refresh();};
@@ -16,7 +25,7 @@ export class LogsPage{
   $('openLogDirectory').onclick=()=>window.studio.openLogFolder().catch(error=>toast(error.message));
   $('openRunDirectory').onclick=()=>this.selected&&window.studio.openLogFolder(this.selected).catch(error=>toast(error.message));
   window.studio.onLogsChanged(()=>{if(this.visible){clearTimeout(this.refreshTimer);this.refreshTimer=setTimeout(()=>this.refresh(),180);}});
-  onLanguageChange(()=>{if(this.visible)this.refresh();else{this.renderList();this.renderNotice();}});
+  onLanguageChange(()=>{this.renderStorage();if(this.visible)this.refresh();else{this.renderList();this.renderNotice();}});
   window.studio.onLogState(state=>this.renderStatus(state));window.studio.logState().then(state=>this.renderStatus(state)).catch(error=>toast(error.message));
  }
  reset(){this.cursor=null;this.history=[];this.checked.clear();this.request++;}
@@ -24,7 +33,11 @@ export class LogsPage{
   const changed=this.root&&this.root!==state.root;this.root=state.root;
   if(changed){this.selected=null;this.reset();for(const id of ['logFilterProject','logFilterDay','logFilterStatus'])$(id).value='';if(this.visible)this.refresh();}
   $('logRootPath').textContent=state.root;this.statusMessage=state.message;this.statusError=state.phase==='error';this.statusNotice=state.notice||'';this.renderNotice();
+  this.maxBytes=state.maxBytes??null;
+  if(!this.limitDirty&&document.activeElement!==$('logStorageLimit'))$('logStorageLimit').value=this.maxBytes==null?'':String(this.maxBytes/1048576);
+  this.renderStorage();
  }
+ renderStorage(){const used=this.page?.usageBytes;$('logStorageUsage').textContent=used==null?'':t('已用 {size}',{size:bytes(used)})+(this.page.cleaned?t(' · 已自动清理 {n} 份',{n:this.page.cleaned}):'');}
  renderNotice(){const notice=this.page?.notice||this.statusNotice||'';$('logRecordingStatus').textContent=t(this.statusMessage||'')+(notice?' '+t(notice):'');$('logRecordingStatus').classList.toggle('error',this.statusError||Boolean(notice));$('logRecordingStatus').hidden=!this.statusError&&!notice;}
  show(){this.visible=true;this.refresh();this.tick();}
  hide(){this.visible=false;clearTimeout(this.timer);clearTimeout(this.refreshTimer);}
@@ -32,7 +45,7 @@ export class LogsPage{
  async refresh(){const request=++this.request;$('logPageNext').disabled=true;$('logPageBack').disabled=true;
   try{const page=await window.studio.logList({project:$('logFilterProject').value,day:$('logFilterDay').value,status:$('logFilterStatus').value,cursor:this.cursor});if(request!==this.request)return;this.page=page;this.records=page.records;
    for(const id of [...this.checked])if(!this.records.some(r=>r.id===id&&!r.active&&r.status!=='running'))this.checked.delete(id);
-   this.options('logFilterProject',page.projects,'全部项目');this.options('logFilterDay',page.days.map(day=>[day,day]),'全部日期');this.renderList();this.renderNotice();
+   this.options('logFilterProject',page.projects,'全部项目');this.options('logFilterDay',page.days.map(day=>[day,day]),'全部日期');this.renderList();this.renderNotice();this.renderStorage();
    $('logPageBack').disabled=!this.history.length;$('logPageNext').disabled=!page.hasMore;$('logPageNumber').textContent=t('第 {page} 页 · 共 {n} 份',{page:this.history.length+1,n:page.total});
    if(this.selected)await this.readSelected();else this.emptyDetail();
   }catch(error){if(request===this.request)this.toast(error.message);}

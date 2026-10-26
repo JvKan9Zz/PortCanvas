@@ -190,6 +190,9 @@ pub struct LogStore {
     recent: HashMap<String, PathBuf>,
     order: VecDeque<String>,
     pub notice: String,
+    max_bytes: Option<u64>,
+    usage: Option<u64>,
+    pub cleaned: u64,
 }
 impl LogStore {
     pub fn new(root: PathBuf) -> Result<Self> {
@@ -202,7 +205,93 @@ impl LogStore {
             recent: HashMap::new(),
             order: VecDeque::new(),
             notice: String::new(),
+            max_bytes: None,
+            usage: None,
+            cleaned: 0,
         })
+    }
+    fn record_bytes(directory: &Path) -> Result<u64> {
+        let mut size = 0u64;
+        for name in ["run.json", "output.log"] {
+            match fs::symlink_metadata(directory.join(name)) {
+                Ok(meta) if meta.is_file() && !meta.file_type().is_symlink() => size = size.saturating_add(meta.len()),
+                Ok(_) => bail!("日志包含非普通文件，已保留。"),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                Err(error) => return Err(error.into()),
+            }
+        }
+        Ok(size)
+    }
+    fn refresh_usage(&mut self) -> Result<u64> {
+        self.flush()?;
+        let mut used = 0u64;
+        Self::scan(&self.root, |directory, _| {
+            used = used.saturating_add(Self::record_bytes(&directory)?);
+            Ok(true)
+        })?;
+        self.usage = Some(used);
+        Ok(used)
+    }
+    pub fn set_max_bytes(&mut self, limit: Option<u64>) -> Result<()> {
+        self.configure_max_bytes(limit);
+        self.make_room(0, None)
+    }
+    pub fn configure_max_bytes(&mut self, limit: Option<u64>) {
+        self.max_bytes = limit;
+        self.usage = None;
+    }
+    fn make_room(&mut self, extra: u64, protected: Option<&str>) -> Result<()> {
+        let Some(limit) = self.max_bytes else { return Ok(()); };
+        anyhow::ensure!(extra <= limit, "单次日志内容超过存储上限，本地记录已暂停，终端继续运行。");
+        let used = match self.usage { Some(used) => used, None => self.refresh_usage()? };
+        if used.saturating_add(extra) <= limit { return Ok(()); }
+        self.refresh_usage()?;
+        let mut candidates = Vec::new();
+        Self::scan(&self.root, |directory, meta| {
+            let id = meta["id"].as_str().unwrap();
+            if self.writers.contains_key(id) || protected == Some(id) || meta["status"] == "running"
+                || meta["ownerPid"].as_u64().and_then(|pid| u32::try_from(pid).ok()).is_some_and(process_alive) {
+                return Ok(true);
+            }
+            // Automatic retention only owns the two files of a valid record.
+            if !fs::read_dir(&directory)?.all(|entry| entry.is_ok_and(|entry| {
+                matches!(entry.file_name().to_str(), Some("run.json" | "output.log"))
+                    && entry.file_type().is_ok_and(|kind| kind.is_file())
+            })) { return Ok(true); }
+            if let Some(time) = meta["startedAt"].as_str().and_then(|time| chrono::DateTime::parse_from_rfc3339(time).ok()) {
+                candidates.push((time.timestamp_millis(), id.to_string(), directory));
+            }
+            Ok(true)
+        })?;
+        candidates.sort_by(|a, b| (&a.0, &a.1).cmp(&(&b.0, &b.1)));
+        for (_, id, directory) in candidates {
+            if self.usage.unwrap().saturating_add(extra) <= limit { break; }
+            let size = Self::record_bytes(&directory)?;
+            self.delete_record(&directory)?;
+            self.recent.remove(&id);
+            self.usage = Some(self.usage.unwrap().saturating_sub(size));
+            self.cleaned += 1;
+        }
+        anyhow::ensure!(self.usage.unwrap().saturating_add(extra) <= limit,
+            "日志空间不足，当前没有可清理的已结束日志；请提高上限或等待记录封存，终端继续运行。");
+        Ok(())
+    }
+    fn write_meta(&mut self, directory: &Path, meta: &Value) -> Result<()> {
+        let file = directory.join("run.json");
+        let before = fs::metadata(&file).map(|meta| meta.len()).unwrap_or(0);
+        atomic_json(&file, meta)?;
+        if let Some(used) = self.usage.as_mut() {
+            *used = used.saturating_sub(before).saturating_add(fs::metadata(file)?.len());
+        }
+        Ok(())
+    }
+    fn delete_record(&mut self, directory: &Path) -> Result<()> {
+        let root = dunce::canonicalize(&self.root)?;
+        let resolved = dunce::canonicalize(directory)?;
+        anyhow::ensure!(resolved.starts_with(&root) && resolved != root
+            && !fs::symlink_metadata(directory)?.file_type().is_symlink(), "日志路径校验失败。");
+        if let Err(error) = fs::remove_dir_all(directory) { self.usage = None; return Err(error.into()); }
+        Ok(())
     }
     pub fn active(&self) -> usize {
         self.writers.len()
@@ -281,7 +370,7 @@ impl LogStore {
                 meta["complete"] = json!(false);
                 meta["ownerPid"] = Value::Null;
                 meta["message"] = json!("上次记录未正常结束，输出可能不完整。");
-                if let Err(error) = atomic_json(&directory.join("run.json"), meta) {
+                if let Err(error) = self.write_meta(directory, meta) {
                     self.notice = format!("中断状态无法写回：{error}");
                 }
             }
@@ -295,8 +384,11 @@ impl LogStore {
         let mut total = 0;
         let mut qualified = 0;
         let root = self.root.clone();
+        self.flush()?;
+        let mut usage = 0u64;
         Self::scan(&root, |directory, mut meta| {
             self.recover_status(&directory, &mut meta);
+            usage = usage.saturating_add(Self::record_bytes(&directory)?);
             let id = meta["id"].as_str().unwrap().to_string();
             let key = meta["project"]["key"]
                 .as_str()
@@ -346,6 +438,7 @@ impl LogStore {
             }
             Ok(true)
         })?;
+        self.usage = Some(usage);
         let mut rows = heap.into_iter().map(|v| v.0).collect::<Vec<_>>();
         rows.sort_by(|a, b| b.key.cmp(&a.key));
         for row in &rows {
@@ -357,7 +450,7 @@ impl LogStore {
         let cursor = rows.last().map(|r| r.key.clone());
         let records = rows.into_iter().map(|r| r.value).collect::<Vec<_>>();
         Ok(
-            json!({"records":records,"total":total,"hasMore":qualified>200,"cursor":cursor,"projects":projects.into_iter().collect::<Vec<_>>(),"days":days.into_iter().rev().collect::<Vec<_>>(),"notice":self.notice}),
+            json!({"records":records,"total":total,"hasMore":qualified>200,"cursor":cursor,"projects":projects.into_iter().collect::<Vec<_>>(),"days":days.into_iter().rev().collect::<Vec<_>>(),"notice":self.notice,"usageBytes":usage,"maxBytes":self.max_bytes,"cleaned":self.cleaned}),
         )
     }
     fn locate(&mut self, id: &str) -> Result<(PathBuf, Value)> {
@@ -456,8 +549,12 @@ impl LogStore {
                 .context("日志缺口格式无效")?
                 .push(json!({"at":date,"reason":"重新连接后恢复，中断期间输出未采集。"}));
         }
+        let recovery = if recovered { "\n[记录恢复：中断期间的输出缺失]\n" } else { "" };
+        let before = fs::metadata(directory.join("run.json")).map(|m| m.len()).unwrap_or(0);
+        let extra = (serde_json::to_vec_pretty(&meta)?.len() as u64).saturating_sub(before) + recovery.len() as u64;
+        self.make_room(extra, Some(&id))?;
         fs::create_dir_all(&directory)?;
-        atomic_json(&directory.join("run.json"), &meta)?;
+        self.write_meta(&directory, &meta)?;
         let file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -470,16 +567,20 @@ impl LogStore {
         if recovered {
             writer
                 .output
-                .write_all("\n[记录恢复：中断期间的输出缺失]\n".as_bytes())?;
+                .write_all(recovery.as_bytes())?;
             writer.output.flush()?;
+            if let Some(used) = self.usage.as_mut() { *used += recovery.len() as u64; }
         }
         self.writers.insert(id.clone(), writer);
         self.cache(&id, directory);
         Ok(Some(id))
     }
     pub fn append(&mut self, id: &str, text: &str) -> Result<()> {
+        if !self.writers.contains_key(id) { return Ok(()); }
+        self.make_room(text.len() as u64, Some(id))?;
         if let Some(writer) = self.writers.get_mut(id) {
-            writer.output.write_all(text.as_bytes())?;
+            if let Err(error) = writer.output.write_all(text.as_bytes()) { self.usage = None; return Err(error.into()); }
+            if let Some(used) = self.usage.as_mut() { *used += text.len() as u64; }
         }
         Ok(())
     }
@@ -493,6 +594,8 @@ impl LogStore {
         let Some(mut writer) = self.writers.remove(id) else {
             return Ok(());
         };
+        // Final status/gap metadata must still be saved when all data space is in use.
+        self.usage = None;
         let date = now();
         writer.meta["endedAt"] = json!(date);
         writer.meta["endTimeSource"] = json!("computer_observed");
@@ -610,22 +713,118 @@ impl LogStore {
     }
     pub fn remove(&mut self, ids: &[String]) -> Result<Value> {
         let records = self.removable(ids)?;
-        let root = dunce::canonicalize(&self.root)?;
         let mut removed = 0;
         for record in records {
             let directory = PathBuf::from(record["directory"].as_str().unwrap());
-            let resolved = dunce::canonicalize(&directory)?;
-            if !resolved.starts_with(&root)
-                || resolved == root
-                || fs::symlink_metadata(&directory)?.file_type().is_symlink()
-            {
-                bail!("日志路径校验失败。");
-            }
-            fs::remove_dir_all(&directory)?;
+            self.delete_record(&directory)?;
+            self.usage = None;
             self.recent.remove(record["id"].as_str().unwrap());
             removed += 1;
         }
         Ok(json!({"removed":removed}))
+    }
+}
+#[cfg(test)]
+mod retention_tests {
+    use super::*;
+    fn fixture() -> LogStore {
+        let root = PathBuf::from(std::env::var_os("WCS_TEST_ROOT").expect("set WCS_TEST_ROOT to an isolated test directory"));
+        LogStore::new(root.join(uuid::Uuid::new_v4().to_string())).unwrap()
+    }
+    fn marker(sequence: &str) -> Marker {
+        Marker { kind: "begin".into(), shell: "1-1".into(), sequence: sequence.into(), code: Some(0),
+            command: "synthetic-command".into(), cwd: "/fixture/project".into(), project_root: String::new(),
+            end_cwd: String::new(), background_jobs: vec![] }
+    }
+    fn finished(store: &mut LogStore, sequence: &str, year: u32) -> (String, PathBuf) {
+        let marker = marker(sequence);
+        let id = store.begin(&marker, "fixture", "", false, "command").unwrap().unwrap();
+        store.append(&id, "synthetic-output").unwrap();
+        store.finish(&id, Some(&marker), None).unwrap();
+        let (directory, mut meta) = store.locate(&id).unwrap();
+        meta["startedAt"] = json!(format!("{year}-01-01T00:00:00.000Z"));
+        atomic_json(&directory.join("run.json"), &meta).unwrap();
+        store.usage = None;
+        (id, directory)
+    }
+    #[test]
+    fn oldest_finished_log_is_removed_to_admit_new_output() {
+        let mut store = fixture();
+        let (_, oldest) = finished(&mut store, "1", 2020);
+        let (_, newer) = finished(&mut store, "2", 2021);
+        let id = store.begin(&marker("3"), "fixture", "", false, "command").unwrap().unwrap();
+        let ordinary = store.root.join("keep.txt");
+        fs::write(&ordinary, b"ordinary-user-file").unwrap();
+        let used = store.refresh_usage().unwrap();
+        store.set_max_bytes(Some(used + 3)).unwrap();
+        store.append(&id, "中文").unwrap();
+        store.flush().unwrap();
+        assert!(!oldest.exists());
+        assert!(newer.is_dir());
+        assert_eq!(fs::read_to_string(ordinary).unwrap(), "ordinary-user-file");
+        assert_eq!(store.detail(&id).unwrap()["text"], "中文");
+        assert_eq!(store.cleaned, 1);
+        assert!(store.refresh_usage().unwrap() <= store.max_bytes.unwrap());
+    }
+    #[test]
+    fn lowering_limit_prunes_by_time_and_manual_removal_releases_space() {
+        let mut store = fixture();
+        let (_, oldest) = finished(&mut store, "1", 2020);
+        let (newer_id, newer) = finished(&mut store, "2", 2021);
+        let size = LogStore::record_bytes(&newer).unwrap();
+        store.set_max_bytes(Some(size)).unwrap();
+        assert!(!oldest.exists());
+        assert!(newer.exists());
+        store.remove(&[newer_id]).unwrap();
+        assert_eq!(store.refresh_usage().unwrap(), 0);
+        store.set_max_bytes(None).unwrap();
+        assert!(store.begin(&marker("3"), "fixture", "", false, "command").unwrap().is_some());
+    }
+    #[test]
+    fn active_and_unmanaged_records_are_preserved_when_the_limit_cannot_fit() {
+        let mut store = fixture();
+        let (_, unmanaged) = finished(&mut store, "1", 2020);
+        fs::write(unmanaged.join("keep.raw"), b"user-content").unwrap();
+        let id = store.begin(&marker("2"), "fixture", "", false, "command").unwrap().unwrap();
+        store.append(&id, "keep-active").unwrap();
+        store.flush().unwrap();
+        assert!(store.set_max_bytes(Some(1)).is_err());
+        assert!(store.append(&id, "x").is_err());
+        assert_eq!(store.detail(&id).unwrap()["text"], "keep-active");
+        assert_eq!(fs::read(unmanaged.join("keep.raw")).unwrap(), b"user-content");
+        store.set_max_bytes(None).unwrap();
+        store.append(&id, "-continued").unwrap();
+        store.flush().unwrap();
+        assert_eq!(store.detail(&id).unwrap()["text"], "keep-active-continued");
+    }
+    #[test]
+    fn recovering_a_record_cannot_prune_its_own_source() {
+        let mut store = fixture();
+        let marker = marker("1");
+        let id = store.begin(&marker, "fixture", "", false, "command").unwrap().unwrap();
+        store.append(&id, "keep-before-recovery").unwrap();
+        store.finish(&id, None, Some("synthetic disconnect")).unwrap();
+        let (directory, _) = store.locate(&id).unwrap();
+        let output = fs::read(directory.join("output.log")).unwrap();
+        let used = store.refresh_usage().unwrap();
+        store.set_max_bytes(Some(used + 1)).unwrap();
+        assert!(store.begin(&marker, "fixture", "", true, "command").is_err());
+        assert_eq!(fs::read(directory.join("output.log")).unwrap(), output);
+        assert!(directory.join("run.json").exists());
+        assert_eq!(store.cleaned, 0);
+    }
+    #[test]
+    fn another_instance_running_record_is_never_pruned() {
+        let mut store = fixture();
+        let (id, directory) = finished(&mut store, "1", 2020);
+        let mut meta = store.detail(&id).unwrap();
+        for key in ["directory", "file", "text", "bytes", "active", "truncated"] { meta.as_object_mut().unwrap().remove(key); }
+        meta["status"] = json!("running");
+        meta["ownerPid"] = json!(std::process::id());
+        atomic_json(&directory.join("run.json"), &meta).unwrap();
+        assert!(store.set_max_bytes(Some(1)).is_err());
+        assert!(directory.exists());
+        assert_eq!(store.cleaned, 0);
     }
 }
 #[cfg(test)]

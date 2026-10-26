@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PortCanvas · Demo V0.5.6</title>
+  <title>PortCanvas · Demo V0.5.7</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="themes.css">
   <link rel="stylesheet" href="files.css">
@@ -109,6 +109,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     <section id="page-logs" class="page logs-page" hidden>
       <div class="files-heading"><div><h1>本地运行日志</h1></div><button id="refreshLogs" class="button secondary">刷新</button></div>
       <div class="log-location"><div><span>保存位置</span><p id="logRootPath"></p></div><button id="openLogDirectory" class="button secondary compact">打开目录</button><button id="chooseLogDirectory" class="button secondary compact">更换位置</button></div>
+      <form id="logStorageForm" class="log-storage"><label for="logStorageLimit">存储上限（MiB）<input id="logStorageLimit" type="number" min="16" max="1048576" step="1" placeholder="不限" aria-describedby="logStorageHint"></label><button id="saveLogStorage" class="button secondary compact" type="submit">保存上限</button><span id="logStorageUsage" role="status"></span><p id="logStorageHint">留空表示不限；设置后自动清理最早的已结束日志，正在记录的日志保留。</p></form>
       <div class="log-filters"><label>项目<select id="logFilterProject"><option value="">全部项目</option></select></label><label>日期<select id="logFilterDay"><option value="">全部日期</option></select></label><label>状态<select id="logFilterStatus"><option value="">全部状态</option><option value="running">记录中</option><option value="succeeded">命令成功</option><option value="failed">命令失败</option><option value="interrupted">记录中断</option><option value="write_error">写入失败</option><option value="session">会话记录</option></select></label><button id="deleteLogs" class="button secondary danger" disabled>清理所选</button></div>
       <p id="logRecordingStatus" class="log-recording" role="status" hidden></p>
       <div class="logs-layout">

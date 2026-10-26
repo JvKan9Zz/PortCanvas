@@ -73,7 +73,7 @@ fn profiles(bytes: &[u8]) -> Result<ProfileData> {
 }
 fn settings(bytes: &[u8]) -> Result<Settings> {
     let raw: Value = serde_json::from_slice(bytes).context("日志设置JSON无效，原件保留。")?;
-    known_fields(&raw, &["root", "projects"])?;
+    known_fields(&raw, &["root", "projects", "maxBytes"])?;
     serde_json::from_value::<Settings>(raw)?.validate()
 }
 pub struct Plan {
@@ -307,6 +307,7 @@ mod tests {
         let settings = Settings {
             root: logs,
             projects: BTreeMap::new(),
+            max_bytes: None,
         };
         atomic_json(&source.join("log-settings.json"), &settings).unwrap();
         (source, settings)
