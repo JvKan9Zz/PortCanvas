@@ -1,6 +1,7 @@
 {
   "name": "portcanvas",
   "version": "0.5.6",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {

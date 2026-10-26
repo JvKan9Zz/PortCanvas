@@ -186,7 +186,7 @@ impl DesktopService {
                     }
                 )
             };
-            let info = tokio::select! {_=cancel.cancelled()=>Err(anyhow::anyhow!("桌面连接已取消。")),result=tokio::time::timeout(Duration::from_secs(20),ready)=>result.context("桌面启动超时，请确认远端 X11 桌面已登录。")?};
+            let info = tokio::select! {_=cancel.cancelled()=>Err(anyhow::anyhow!("桌面连接已取消。")),result=tokio::time::timeout(Duration::from_secs(20),ready)=>result.context("桌面启动超时，请确认远端 X11 桌面已登录。").and_then(|result| result)};
             let info = match info {
                 Ok(info) => info,
                 Err(e) => {

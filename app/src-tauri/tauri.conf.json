@@ -27,6 +27,7 @@
   "bundle": {
     "active": true,
     "resources": {
+      "../../LICENSE": "LICENSE",
       "../THIRD-PARTY-NOTICES.txt": "THIRD-PARTY-NOTICES.txt"
     },
     "targets": [

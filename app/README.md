@@ -12,9 +12,15 @@ npm run build
 npx tsc --noEmit
 npm run test:frontend
 python -m unittest discover -s tests -p "test_desktop*.py"
-cargo test --manifest-path src-tauri/Cargo.toml --no-default-features --lib
+# Rust tests must use a dedicated existing directory (Git Bash on Windows).
+mkdir -p src-tauri/target/local-tests
+export WCS_TEST_ROOT="$(cygpath -w "$PWD/src-tauri/target/local-tests")"
+cargo test --manifest-path src-tauri/Cargo.toml --locked --lib
+cargo test --manifest-path src-tauri/Cargo.toml --locked --no-default-features --test ssh_lifecycle
 npm run pack
 ```
+
+Windows 的上述示例在 Git Bash 中运行；在 macOS 上将 WCS_TEST_ROOT 设为该目录的绝对路径即可，无需 cygpath。CI 使用 PowerShell 7 并显式创建、传入隔离目录。Windows CI 对 main 和 PR 运行构建、类型检查、前端/Python/Rust 单测与 loopback SSH 回归，并以 --no-bundle 编译应用，不安装、不签名、不发布。
 
 Windows产物在src-tauri/target/release/bundle/nsis/。依赖版本以package-lock.json与Cargo.lock为准。macOS V0.5.6使用独立配置和Universal DMG，最低目标macOS13。在Mac上运行 npm run pack -- --target universal-apple-darwin --bundles dmg；需要安装两个Rust目标。使用ad-hoc签名，不含Apple公证。macos-v056.yml只在本次适配分支或手动指定V0.5.6源码时运行，不跟随后续版本。
 

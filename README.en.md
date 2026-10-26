@@ -39,3 +39,9 @@ Portable builds, wrapper ZIPs, standalone signatures and checksum lists are no l
 | [docs](docs) | Current usage and position-interface documentation |
 
 main contains only the current application and necessary documentation. Older versions and development records remain available in [Releases](https://github.com/JvKan9Zz/PortCanvas/releases) and [Git history](https://github.com/JvKan9Zz/PortCanvas/commits/main/). History is not rewritten.
+
+## License
+
+PortCanvas project code is licensed under [MIT](LICENSE). Third-party components retain their own licenses; see [third-party notices](app/THIRD-PARTY-NOTICES.txt).
+
+See [security notes](docs/security.md) for cryptographic dependency status and current security boundaries.

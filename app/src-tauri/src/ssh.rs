@@ -182,7 +182,7 @@ impl SshConnection {
                 status,
             ))
         };
-        let result = tokio::select! {_ = self.cancel.cancelled()=>Err(anyhow::anyhow!("设备连接已断开。")),result=tokio::time::timeout(timeout,operation)=>result.context("远端命令超时。")?};
+        let result = tokio::select! {_ = self.cancel.cancelled()=>Err(anyhow::anyhow!("设备连接已断开。")),result=tokio::time::timeout(timeout,operation)=>result.context("远端命令超时。").and_then(|result| result)};
         let _ = channel.close().await;
         result
     }

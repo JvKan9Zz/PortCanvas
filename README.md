@@ -39,3 +39,9 @@ Mac 包采用 ad-hoc 签名，未经 Apple 公证，首次打开可能需要你�
 | [docs](docs) | 当前使用与定位接口说明 |
 
 main只保留当前工程与必要说明。旧版本和历史研发资料见[Releases](https://github.com/JvKan9Zz/PortCanvas/releases)与[Git历史](https://github.com/JvKan9Zz/PortCanvas/commits/main/)；历史提交不改写。
+
+## 许可证
+
+PortCanvas 项目代码采用 [MIT 许可证](LICENSE)。第三方组件保留各自许可证，见 [第三方声明](app/THIRD-PARTY-NOTICES.txt)。
+
+加密依赖与现有安全边界见[安全说明](docs/security.md)。

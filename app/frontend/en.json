@@ -526,5 +526,20 @@
   "便携版已停止发布，请改用 Windows 安装器。": "Portable releases have ended. Use the Windows installer.",
   "此版本请使用对应系统的安装包安装。": "Use the installer for your operating system.",
   "无法读取钥匙串凭据，请重新输入或检查钥匙串访问权限。": "Cannot access Keychain credentials. Re-enter them or check Keychain access.",
-  "钥匙串保存失败，配置未更改。": "Keychain storage failed. The configuration was not changed."
+  "钥匙串保存失败，配置未更改。": "Keychain storage failed. The configuration was not changed.",
+  "存储上限（MiB）": "Storage limit (MiB)",
+  "不限": "Unlimited",
+  "保存上限": "Save limit",
+  "留空表示不限；设置后自动清理最早的已结束日志，正在记录的日志保留。": "Leave blank for unlimited storage. A saved limit removes the oldest finished logs; active logs are kept.",
+  "已用 {size}": "Used {size}",
+  " · 已自动清理 {n} 份": " · {n} logs automatically removed",
+  "日志上限已保存。": "Log storage limit saved.",
+  "日志上限应为 16–1048576 MiB，留空表示不设上限。": "Use a whole-number limit of 16–1048576 MiB, or leave it blank for unlimited storage.",
+  "单次日志内容超过存储上限，本地记录已暂停，终端继续运行。": "The incoming log exceeds the storage limit. Recording paused; the terminal keeps running.",
+  "日志空间不足，当前没有可清理的已结束日志；请提高上限或等待记录封存，终端继续运行。": "No finished logs can be removed to make room. Raise the limit or wait for active records to finish; the terminal keeps running.",
+  "日志包含非普通文件，已保留。": "The log contains a non-regular file and was kept.",
+  "本地记录已停止：单次日志内容超过存储上限，本地记录已暂停，终端继续运行。。终端仍可使用。": "Local recording stopped. The incoming log exceeds the storage limit. Recording paused; the terminal keeps running.",
+  "上限已保存。单次日志内容超过存储上限，本地记录已暂停，终端继续运行。": "Limit saved. The incoming log exceeds the storage limit. Recording paused; the terminal keeps running.",
+  "本地记录已停止：日志空间不足，当前没有可清理的已结束日志；请提高上限或等待记录封存，终端继续运行。。终端仍可使用。": "Local recording stopped. No finished logs can be removed to make room. Raise the limit or wait for active records to finish; the terminal keeps running.",
+  "上限已保存。日志空间不足，当前没有可清理的已结束日志；请提高上限或等待记录封存，终端继续运行。": "Limit saved. No finished logs can be removed to make room. Raise the limit or wait for active records to finish; the terminal keeps running."
 }

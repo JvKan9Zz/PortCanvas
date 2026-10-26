@@ -23,6 +23,8 @@ pub struct Settings {
     pub root: PathBuf,
     #[serde(default)]
     pub projects: BTreeMap<String, String>,
+    #[serde(default, rename = "maxBytes", skip_serializing_if = "Option::is_none")]
+    pub max_bytes: Option<u64>,
 }
 
 #[cfg(test)]
@@ -47,6 +49,9 @@ impl Settings {
     pub fn validate(self) -> Result<Self> {
         if !self.root.is_absolute() {
             bail!("日志根目录须为电脑本地绝对路径。");
+        }
+        if self.max_bytes.is_some_and(|bytes| !(16 * 1024 * 1024..=1024u64.pow(4)).contains(&bytes) || bytes % (1024 * 1024) != 0) {
+            bail!("日志上限应为 16–1048576 MiB，留空表示不设上限。");
         }
         if self
             .projects
@@ -98,6 +103,13 @@ struct Capture {
 }
 impl Capture {
     fn active(&self) -> usize { usize::from(self.current.is_some())+usize::from(self.session.is_some()) }
+    // A failed write can still have created writers. Return their ownership so
+    // the observer seals them instead of abandoning records marked as running.
+    fn apply(mut self, store: &mut LogStore, events: Vec<Event>, manual: &str, recovered: bool) -> (Self, Result<bool>, usize) {
+        let result = self.events(store, events, manual, recovered);
+        let active = self.active();
+        (self, result, active)
+    }
     fn close(&mut self, store: &mut LogStore, reason: &str) -> Result<()> {
         let mut error=None;
         for id in self.current.take().map(|(_,id)|id).into_iter().chain(self.session.take().map(|(_,id)|id)) {
@@ -267,6 +279,7 @@ impl LogService {
                     Settings {
                         root: default_root,
                         projects: BTreeMap::new(),
+                        max_bytes: None,
                     }
                 }
             }
@@ -274,9 +287,10 @@ impl LogService {
             Settings {
                 root: default_root,
                 projects: BTreeMap::new(),
+                max_bytes: None,
             }
         };
-        let store = Arc::new(Mutex::new(LogStore::new(settings.root.clone())?));
+        let store = Arc::new(Mutex::new(Self::configured_store(&settings)?));
         Ok(Self {
             inner: Arc::new(Mutex::new(Inner {
                 settings,
@@ -294,6 +308,11 @@ impl LogService {
     }
     pub fn settings(&self) -> Settings {
         self.inner.lock().unwrap().settings.clone()
+    }
+    fn configured_store(settings: &Settings) -> Result<LogStore> {
+        let mut store = LogStore::new(settings.root.clone())?;
+        store.configure_max_bytes(settings.max_bytes);
+        Ok(store)
     }
     pub fn refresh_status(&self) {
         self.update(None, json!({}));
@@ -317,6 +336,8 @@ impl LogService {
             }
         }
         state["root"]=json!(inner.settings.root);state["active"]=json!(inner.store.lock().unwrap().active());
+        state["maxBytes"]=json!(inner.settings.max_bytes);
+        state["notice"]=json!(inner.store.lock().unwrap().notice);
         state["configError"]=json!(inner.invalid||inner.state["phase"]=="error");
         state["terminals"]=json!(terminals);state
     }
@@ -346,9 +367,16 @@ impl LogService {
         operation: impl FnOnce(&mut LogStore) -> Result<T> + Send + 'static,
     ) -> Result<T> {
         let store = self.inner.lock().unwrap().store.clone();
-        tokio::task::spawn_blocking(move || operation(&mut store.lock().unwrap()))
+        let (result, cleaned) = tokio::task::spawn_blocking(move || {
+            let mut store = store.lock().unwrap();
+            let before = store.cleaned;
+            let result = operation(&mut store);
+            (result, store.cleaned != before)
+        })
             .await
-            .context("本地日志工作线程异常。")?
+            .context("本地日志工作线程异常。")?;
+        if cleaned { self.changed(); }
+        result
     }
     fn manual(&self, device: &str, key: &str) -> String {
         self.inner
@@ -498,9 +526,9 @@ impl LogService {
                 last: None,
             };
             let operation=async{loop{tokio::select!{_=worker_cancel.cancelled()=>break,
-                snapshot=snapshots.recv()=>{if let Some(snapshot)=snapshot{let events=vec![Event::Marker(snapshot)];let manual=service.manual(&device,&key);let mut next=capture.clone();let (updated,changed,active)=service.store(move|store|{let changed=next.events(store,events,&manual,true)?;let active=next.active();Ok((next,changed,active))}).await?;capture=updated;service.update_terminal(&key,serial,json!({"active":active}));if changed{service.changed();}}},
+                snapshot=snapshots.recv()=>{if let Some(snapshot)=snapshot{let events=vec![Event::Marker(snapshot)];let manual=service.manual(&device,&key);let next=capture.clone();let (updated,result,active)=service.store(move|store|Ok(next.apply(store,events,&manual,true))).await?;capture=updated;let changed=result?;service.update_terminal(&key,serial,json!({"active":active}));if changed{service.changed();}}},
                 message=channel.wait()=>match message{Some(russh::ChannelMsg::Data{data})=>{buffer.extend_from_slice(&data);if buffer.len()>2*1024*1024{bail!("日志控制行过长，已停止本次记录。");}let mut events=Vec::new();while let Some(end)=buffer.iter().position(|b|*b==b'\n'){let mut line=buffer.drain(..=end).collect::<Vec<_>>();line.pop();if line.last()==Some(&b'\r'){line.pop();}if line.starts_with(b"%end "){if let Some(ready)=ready.take(){let _=ready.send(());}}else if line.starts_with(b"%error "){bail!("设备拒绝日志通道。");}else if line.starts_with(b"%output "){let rest=&line[8..];if let Some(space)=rest.iter().position(|b|*b==b' '){if &rest[..space]==observed_pane.as_bytes(){events.extend(parser.push(&control_output(&rest[space+1..])));}}}}
-                    if !events.is_empty(){let manual=service.manual(&device,&key);let mut next=capture.clone();let (updated,changed,active)=service.store(move|store|{let changed=next.events(store,events,&manual,false)?;let active=next.active();Ok((next,changed,active))}).await?;capture=updated;if changed{service.update_terminal(&key,serial,json!({"active":active}));service.changed();}}},Some(russh::ChannelMsg::Failure)=>bail!("日志通道启动被拒绝。"),None=>bail!("日志通道已关闭，缺失输出不会补造。"),_=>{}}
+                    if !events.is_empty(){let manual=service.manual(&device,&key);let next=capture.clone();let (updated,result,active)=service.store(move|store|Ok(next.apply(store,events,&manual,false))).await?;capture=updated;let changed=result?;if changed{service.update_terminal(&key,serial,json!({"active":active}));service.changed();}}},Some(russh::ChannelMsg::Failure)=>bail!("日志通道启动被拒绝。"),None=>bail!("日志通道已关闭，缺失输出不会补造。"),_=>{}}
             }}Ok::<_,anyhow::Error>(())}.await;
             let events = parser.flush();
             let manual = service.manual(&device,&key);
@@ -608,6 +636,27 @@ impl LogService {
         inner.invalid = false;
         Ok(())
     }
+    pub async fn set_max_bytes(&self, max_bytes: Option<u64>) -> Result<Value> {
+        let _lifecycle = self.lifecycle.lock().await;
+        let inner = self.inner.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut inner = inner.lock().unwrap();
+            let mut settings = inner.settings.clone();
+            settings.max_bytes = max_bytes;
+            let settings = settings.validate()?;
+            let repaired = inner.invalid;
+            Self::save_settings(&mut inner, &settings)?;
+            inner.settings = settings;
+            if repaired { inner.state = json!({"phase":"idle","message":"日志设置已修复，重新连接终端后开始记录；原设置已备份。"}); }
+            let mut store = inner.store.lock().unwrap();
+            store.notice.clear();
+            if let Err(error) = store.set_max_bytes(max_bytes) { store.notice = format!("上限已保存。{error}"); }
+            Ok::<_, anyhow::Error>(())
+        }).await??;
+        self.update(None, json!({}));
+        self.changed();
+        Ok(self.snapshot())
+    }
     pub async fn set_project(&self, project: String) -> Result<Value> {self.set_project_for("main",project).await}
     pub async fn set_project_for(&self, terminal_key:&str, project: String) -> Result<Value> {
         let key = project_key(&self.devices.connection()?.profile.terminal_name(),terminal_key);
@@ -647,6 +696,7 @@ impl LogService {
         Ok(())
     }
     pub async fn set_root(&self, path: PathBuf) -> Result<Value> {
+        let _lifecycle = self.lifecycle.lock().await;
         self.can_change_root()?;
         if !path.is_dir() {
             bail!("请选择电脑本地文件夹。");
@@ -665,7 +715,7 @@ impl LogService {
             if persist {
                 Self::save_settings(&mut inner, &settings)?;
             }
-            inner.store = Arc::new(Mutex::new(LogStore::new(settings.root.clone())?));
+            inner.store = Arc::new(Mutex::new(Self::configured_store(&settings)?));
             inner.settings = settings;
             inner.states.clear();inner.observers.clear();
             inner.invalid = false;
@@ -678,5 +728,70 @@ impl LogService {
         );
         self.changed();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod retention_tests {
+    use super::*;
+    fn root() -> PathBuf {
+        PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(uuid::Uuid::new_v4().to_string())
+    }
+    #[tokio::test]
+    async fn limit_is_opt_in_validated_persisted_and_can_be_disabled() {
+        let root = root();
+        let file = root.join("settings.json");
+        let logs = root.join("logs");
+        fs::create_dir_all(&root).unwrap();
+        atomic_json(&file, &json!({"root":logs,"projects":{}})).unwrap();
+        let devices = DeviceManager::new(Arc::new(|_, _| {}));
+        let service = LogService::new(devices.clone(), file.clone(), logs.clone()).unwrap();
+        assert!(service.settings().max_bytes.is_none());
+        let before = fs::read(&file).unwrap();
+        for limit in [0, 15 * 1024 * 1024, 16 * 1024 * 1024 + 1, 1024u64.pow(4) + 1] {
+            assert!(service.set_max_bytes(Some(limit)).await.is_err());
+            assert_eq!(fs::read(&file).unwrap(), before);
+        }
+        let limit = 16 * 1024 * 1024;
+        assert_eq!(service.set_max_bytes(Some(limit)).await.unwrap()["maxBytes"], limit);
+        let reopened = LogService::new(devices, file.clone(), logs).unwrap();
+        assert_eq!(reopened.settings().max_bytes, Some(limit));
+        reopened.set_max_bytes(None).await.unwrap();
+        assert!(reopened.settings().max_bytes.is_none());
+        assert!(serde_json::from_slice::<Value>(&fs::read(file).unwrap()).unwrap().get("maxBytes").is_none());
+    }
+    #[test]
+    fn quota_failure_returns_writer_ownership_for_sealing() {
+        let mut store = LogStore::new(root()).unwrap();
+        store.set_max_bytes(Some(4096)).unwrap();
+        let capture = Capture { device:"fixture".into(), context:None, manual:String::new(), current:None,
+            session:None, segment:0, last:None };
+        let marker = Marker { kind:"begin".into(), shell:"1-1".into(), sequence:"1".into(), code:None,
+            command:"synthetic-command".into(), cwd:"/fixture".into(), project_root:String::new(),
+            end_cwd:String::new(), background_jobs:vec![] };
+        let (mut capture, result, active) = capture.apply(&mut store,
+            vec![Event::Marker(marker), Event::Text("x".repeat(8192))], "", false);
+        assert!(result.is_err());
+        assert_eq!(active, 1);
+        assert_eq!(store.active(), 1);
+        capture.close(&mut store, "synthetic quota failure").unwrap();
+        assert_eq!(store.active(), 0);
+        let page = store.list(Query::default()).unwrap();
+        assert_eq!(page["records"][0]["status"], "interrupted");
+        assert_eq!(page["records"][0]["complete"], false);
+    }
+    #[tokio::test]
+    async fn changing_root_and_limit_keeps_both_settings() {
+        let root = root();
+        let file = root.join("settings.json");
+        let target = root.join("new-logs");
+        fs::create_dir_all(&target).unwrap();
+        let service = LogService::new(DeviceManager::new(Arc::new(|_, _| {})), file.clone(), root.join("logs")).unwrap();
+        let (limit, directory) = tokio::join!(service.set_max_bytes(Some(16 * 1024 * 1024)), service.set_root(target.clone()));
+        limit.unwrap();
+        directory.unwrap();
+        let saved: Settings = serde_json::from_slice(&fs::read(file).unwrap()).unwrap();
+        assert_eq!(saved.max_bytes, Some(16 * 1024 * 1024));
+        assert_eq!(saved.root, dunce::canonicalize(target).unwrap());
     }
 }
