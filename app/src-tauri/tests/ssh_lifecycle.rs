@@ -18,6 +18,7 @@ struct Counts {
     exec: AtomicUsize,
     eof: AtomicUsize,
     close: AtomicUsize,
+    subsystem: AtomicUsize,
     changed: Notify,
 }
 impl Counts {
@@ -49,10 +50,17 @@ impl server::Handler for MockSsh {
         self.counts.changed.notify_one();
         session.channel_success(id)?;
         if self.environment_reply {
-            session.data(id, b"PORTCANVAS_ENV={\"ready\":true,\"feature\":\"terminal\",\"binDir\":\"/tmp/fixture's/bin\",\"tmux\":\"/tmp/fixture's/bin/tmux\",\"sftp\":null}\n".to_vec())?;
+            session.data(id, b"PORTCANVAS_ENV={\"ready\":true,\"feature\":\"terminal\",\"binDir\":\"/tmp/fixture's/bin\",\"tmux\":\"/tmp/fixture's/bin/tmux\",\"sftp\":\"/fixture/system/sftp-server\"}\n".to_vec())?;
             session.exit_status_request(id, 0)?;
             session.close(id)?;
         }
+        Ok(())
+    }
+    async fn subsystem_request(&mut self, id: ChannelId, name: &str, session: &mut server::Session) -> Result<(), Self::Error> {
+        assert_eq!(name, "sftp");
+        self.counts.subsystem.fetch_add(1, Ordering::SeqCst);
+        self.counts.changed.notify_one();
+        session.channel_success(id)?;
         Ok(())
     }
     async fn channel_eof(&mut self, id: ChannelId, session: &mut server::Session) -> Result<(), Self::Error> {
@@ -171,6 +179,12 @@ async fn environment_preparation_is_cached_and_quotes_private_paths() {
     assert_eq!(fixture.counts.exec.load(Ordering::SeqCst), 1);
     assert!(connection.remote_command("printf test").contains("'/tmp/fixture'\\''s/bin'"));
     assert!(connection.remote_command("printf test").ends_with("printf test"));
+    let channel = connection.sftp_channel().await.unwrap();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while fixture.counts.subsystem.load(Ordering::SeqCst) == 0 { fixture.counts.changed.notified().await; }
+    }).await.expect("terminal preparation must not replace the existing SFTP subsystem");
+    channel.close().await.unwrap();
+    assert_eq!(fixture.counts.exec.load(Ordering::SeqCst), 1);
     devices.disconnect().await;
 }
 

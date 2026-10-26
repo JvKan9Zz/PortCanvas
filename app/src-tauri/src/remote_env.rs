@@ -95,7 +95,7 @@ impl SshConnection {
         let mut state = self.environment.lock().unwrap();
         state.bin_dir = reply.bin_dir;
         state.tmux = reply.tmux;
-        state.sftp = reply.sftp;
+        if feature == Feature::Files { state.sftp = reply.sftp; }
         state.completed.insert(feature);
         Ok(())
     }
