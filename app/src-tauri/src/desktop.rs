@@ -128,6 +128,7 @@ impl DesktopService {
             json!({"desktop":"connecting","desktopStage":"prepare","message":"正在打开远程桌面…"}),
         );
         let operation = async {
+            connection.prepare(crate::remote_env::Feature::Desktop, &cancel).await?;
             let config = json!({"display":connection.profile.display,"xauthority":connection.profile.xauthority,"tuning":mode.tuning()});
             let command = python(
                 include_str!("../resources/desktop.py"),
@@ -141,7 +142,7 @@ impl DesktopService {
                 let _ = process.close().await;
                 bail!("桌面连接已取消。");
             }
-            process.exec(true, command).await?;
+            process.exec(true, connection.remote_command(&command)).await?;
             self.devices.update(generation,json!({"desktopStage":"service"}));
             let ready = async {
                 let mut output = String::new();

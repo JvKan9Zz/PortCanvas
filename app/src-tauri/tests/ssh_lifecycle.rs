@@ -32,6 +32,7 @@ impl Counts {
 struct MockSsh {
     counts: Arc<Counts>,
     channels: HashMap<ChannelId, Channel<server::Msg>>,
+    environment_reply: bool,
 }
 impl server::Handler for MockSsh {
     type Error = russh::Error;
@@ -45,7 +46,13 @@ impl server::Handler for MockSsh {
     }
     async fn exec_request(&mut self, id: ChannelId, _: &[u8], session: &mut server::Session) -> Result<(), Self::Error> {
         self.counts.exec.fetch_add(1, Ordering::SeqCst);
+        self.counts.changed.notify_one();
         session.channel_success(id)?;
+        if self.environment_reply {
+            session.data(id, b"PORTCANVAS_ENV={\"ready\":true,\"feature\":\"terminal\",\"binDir\":\"/tmp/fixture's/bin\",\"tmux\":\"/tmp/fixture's/bin/tmux\",\"sftp\":null}\n".to_vec())?;
+            session.exit_status_request(id, 0)?;
+            session.close(id)?;
+        }
         Ok(())
     }
     async fn channel_eof(&mut self, id: ChannelId, session: &mut server::Session) -> Result<(), Self::Error> {
@@ -69,6 +76,9 @@ struct Fixture {
 }
 impl Fixture {
     async fn new() -> Self {
+        Self::with_environment_reply(false).await
+    }
+    async fn with_environment_reply(environment_reply: bool) -> Self {
         // Fresh in-memory key: no committed or on-disk private-key fixture.
         let key = russh::keys::PrivateKey::random(&mut rand::rng(), russh::keys::Algorithm::Ed25519).unwrap();
         let config = Arc::new(server::Config {
@@ -81,7 +91,7 @@ impl Fixture {
         let state = counts.clone();
         let listener = tokio::spawn(async move {
             while let Ok((stream, _)) = listener.accept().await {
-                let handler = MockSsh { counts: state.clone(), channels: HashMap::new() };
+                let handler = MockSsh { counts: state.clone(), channels: HashMap::new(), environment_reply };
                 let config = config.clone();
                 tokio::spawn(async move {
                     if let Ok(session) = server::run_stream(config, stream, handler).await { let _ = session.await; }
@@ -147,4 +157,40 @@ async fn explicit_close_is_observable_by_the_fixture() {
     channel.close().await.unwrap();
     fixture.counts.wait_for_cleanup().await;
     connection.disconnect().await;
+}
+
+#[tokio::test]
+async fn environment_preparation_is_cached_and_quotes_private_paths() {
+    let fixture = Fixture::with_environment_reply(true).await;
+    let devices = DeviceManager::new(Arc::new(|_, _| {})).with_environment();
+    devices.connect(fixture.profile.clone(), secret(), |_| check(true)).await.unwrap();
+    let connection = devices.connection().unwrap();
+    for _ in 0..2 {
+        connection.prepare(studio_core::remote_env::Feature::Terminal, &connection.cancel).await.unwrap();
+    }
+    assert_eq!(fixture.counts.exec.load(Ordering::SeqCst), 1);
+    assert!(connection.remote_command("printf test").contains("'/tmp/fixture'\\''s/bin'"));
+    assert!(connection.remote_command("printf test").ends_with("printf test"));
+    devices.disconnect().await;
+}
+
+#[tokio::test]
+async fn canceling_environment_preparation_closes_only_the_owned_channel() {
+    let fixture = Fixture::new().await;
+    let devices = DeviceManager::new(Arc::new(|_, _| {})).with_environment();
+    devices.connect(fixture.profile.clone(), secret(), |_| check(true)).await.unwrap();
+    let connection = devices.connection().unwrap();
+    let cancel = CancellationToken::new();
+    let preparing = {
+        let connection = connection.clone(); let cancel = cancel.clone();
+        tokio::spawn(async move { connection.prepare(studio_core::remote_env::Feature::Desktop, &cancel).await })
+    };
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while fixture.counts.exec.load(Ordering::SeqCst) == 0 { fixture.counts.changed.notified().await; }
+    }).await.unwrap();
+    cancel.cancel();
+    assert!(preparing.await.unwrap().unwrap_err().to_string().contains("取消"));
+    fixture.counts.wait_for_cleanup().await;
+    assert!(devices.connection().is_ok());
+    devices.disconnect().await;
 }

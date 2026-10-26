@@ -1,4 +1,4 @@
-# PortCanvas Demo V0.5.6
+# PortCanvas Demo V0.5.7
 
 Tauri 2 + Rust + WebView2桌面客户端。Rust负责SSH、SFTP、桌面转发、PTY/tmux、本地日志、设置与按需摄像头；前端使用noVNC与xterm。Node仅用于构建，电脑端运行无需Node/Python。
 
@@ -11,7 +11,7 @@ npm ci
 npm run build
 npx tsc --noEmit
 npm run test:frontend
-python -m unittest discover -s tests -p "test_desktop*.py"
+python -m unittest discover -s tests -p "test_*.py"
 # Rust tests must use a dedicated existing directory (Git Bash on Windows).
 mkdir -p src-tauri/target/local-tests
 export WCS_TEST_ROOT="$(cygpath -w "$PWD/src-tauri/target/local-tests")"
@@ -47,3 +47,6 @@ Windows产物在src-tauri/target/release/bundle/nsis/。依赖版本以package-l
 Windows构建通过TAURI_SIGNING_PRIVATE_KEY与TAURI_SIGNING_PRIVATE_KEY_PASSWORD提供既有更新密钥。只将安装器签名内容写入latest.json的windows-x86_64条目；不单发.sig、portable.bin、SHA256SUMS或说明ZIP。旧版更新器依赖releases/latest/download/latest.json，因此保留此清单。GitHub自动提供源码归档，Mac DMG只在v0.5.6发布。
 
 更新在用户点击后下载，默认32路分段，不支持Range时回退单连接；可取消，完整文件通过版本签名校验后才允许安装。安装前停止本机连接并封存日志，远端持久会话保留；文件操作或迁移进行中不允许安装。正式版固定HTTPS与内置公钥。
+
+
+远端依赖准备实现在 resources/prepare_environment.py 与 remote_env.rs。按功能调用、连接内去重、取消/心跳看门狗及独立暂存发布；现有 SFTP 路径优先，缺组件才按当前账号补齐。软件缓存与系统安装分开，不运行维护脚本、不修改 SDK。详见 docs/usage.md 的 V0.5.7 环境表。

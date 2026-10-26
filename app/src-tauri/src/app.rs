@@ -494,7 +494,7 @@ pub fn run() {
                 }
                 let _ = handle.emit(name, data);
             });
-            let devices = DeviceManager::new(events.clone());
+            let devices = DeviceManager::new(events.clone()).with_environment();
             let desktop = DesktopService::new(devices.clone());
             let arena = crate::arena::ArenaService::new(devices.clone());
             let pose = crate::arena_pose::PoseService::new(devices.clone(),events.clone());

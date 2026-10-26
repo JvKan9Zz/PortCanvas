@@ -1,4 +1,8 @@
 # Loaded only by the Studio logging shell, never written to ~/.bashrc.
+if [[ ${PORTCANVAS_RUNTIME_LD_SET+x} ]]; then
+    if [[ $PORTCANVAS_RUNTIME_LD_SET == x ]]; then export LD_LIBRARY_PATH="$PORTCANVAS_RUNTIME_LD_VALUE"; else unset LD_LIBRARY_PATH; fi
+    unset PORTCANVAS_RUNTIME_LD_SET PORTCANVAS_RUNTIME_LD_VALUE
+fi
 if [[ -r ~/.bashrc ]]; then source ~/.bashrc; fi
 HISTFILE=/dev/null
 HISTCONTROL=
@@ -7,7 +11,7 @@ HISTSIZE=500
 set -o history
 shopt -s cmdhist lithist
 __wcs_shell="${BASHPID}-${RANDOM}${RANDOM}"
-__wcs_tmux() { tmux -L wcs-terminal "$@"; }
+__wcs_tmux() { "${PORTCANVAS_TMUX:-tmux}" -L wcs-terminal "$@"; }
 __wcs_b64() { printf '%s' "$1" | base64 -w 0; }
 __wcs_publish() {
     __wcs_tmux set-option -w -t "$TMUX_PANE" @wcs_run "$(__wcs_b64 "$1")" 2>/dev/null

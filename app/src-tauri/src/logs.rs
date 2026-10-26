@@ -481,7 +481,7 @@ impl LogService {
         let executed = channel
             .exec(
                 true,
-                format!("exec tmux -L wcs-terminal -C attach-session -t {name}"),
+                connection.remote_command(&format!("exec tmux -L wcs-terminal -C attach-session -t {name}")),
             )
             .await;
         if let Err(error) = executed {

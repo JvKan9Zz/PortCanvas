@@ -56,9 +56,13 @@ def send(payload):
 def next_deadline(now,previous):
     return previous+1/fps if now-previous<1/fps else now+1/fps
 
-def copied_mjpeg(executable):
+def copied_mjpeg(executable,copy=True):
     global child
-    command=[executable,'-nostdin','-hide_banner','-loglevel','error','-f','v4l2','-input_format','mjpeg','-framerate','30','-video_size','640x480','-i',path,'-an','-c:v','copy','-bsf:v','mjpeg2jpeg','-f','mpjpeg','-flush_packets','1','pipe:1']
+    command=[executable,'-nostdin','-hide_banner','-loglevel','error','-f','v4l2']
+    if copy:command+=['-input_format','mjpeg']
+    command+=['-framerate','30','-video_size','640x480','-i',path,'-an']
+    command+=['-c:v','copy','-bsf:v','mjpeg2jpeg'] if copy else ['-c:v','mjpeg','-q:v','6','-threads','1']
+    command+=['-f','mpjpeg','-flush_packets','1','pipe:1']
     with child_lock:
         if stopping.is_set():return
         child=subprocess.Popen(command,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,bufsize=65536)
@@ -69,7 +73,7 @@ def copied_mjpeg(executable):
             if not data:break
             diagnostic.extend(data[:max(0,3500-len(diagnostic))])
     threading.Thread(target=errors,daemon=True).start()
-    print('PORTCANVAS_CAMERA:ffmpeg-copy',file=sys.stderr,flush=True)
+    print('PORTCANVAS_CAMERA:'+('ffmpeg-copy' if copy else 'ffmpeg-encode'),file=sys.stderr,flush=True)
     reader=process.stdout;deadline=time.monotonic()
     while True:
         length=None
@@ -116,7 +120,12 @@ threading.Thread(target=disconnected,daemon=True).start()
 try:
     executable=shutil.which('ffmpeg')
     if executable and config.get('backend')!='opencv' and native_mjpeg():copied_mjpeg(executable)
-    else:opencv_preview()
+    else:
+        try:import cv2
+        except Exception:
+            if executable:copied_mjpeg(executable,False)
+            else:raise RuntimeError('缺少 FFmpeg/OpenCV，请重新连接并准备远端运行环境')
+        else:opencv_preview()
 except Exception as error:
     print(str(error),file=sys.stderr,flush=True);sys.exit(1)
 finally:stop_child()

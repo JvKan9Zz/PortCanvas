@@ -274,6 +274,7 @@ impl TerminalService {
         mut input: mpsc::Receiver<Input>,
         sink: OutputSink,
     ) -> Result<()> {
+        connection.prepare(crate::remote_env::Feature::Terminal, &cancel).await?;
         let name = self.name(&connection.profile);
         let command=python(include_str!("../resources/log-bootstrap.py"),json!(["logs",json!({"session":name,"source":include_str!("../resources/log-shell.bash").replace("\r\n","\n")}).to_string()]))?;
         let (output, _) = tokio::select! {_=cancel.cancelled()=>bail!("终端连接已取消。"),result=connection.exec(&command,250000,Duration::from_secs(12))=>result?};
@@ -291,7 +292,7 @@ impl TerminalService {
         channel
             .exec(
                 true,
-                format!("exec tmux -L wcs-terminal -f /dev/null attach-session -t ={name}"),
+                connection.remote_command(&format!("exec tmux -L wcs-terminal -f /dev/null attach-session -t ={name}")),
             )
             .await?;
         let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
@@ -310,6 +311,7 @@ impl TerminalService {
     pub async fn reset(&self,remove:bool)->Result<Value>{
         let _operation=self.operation.lock().await;
         let (generation,connection)=self.devices.connection_with_generation()?;
+        connection.prepare(crate::remote_env::Feature::Terminal, &connection.cancel).await?;
         anyhow::ensure!(connection.profile.terminal_name()==self.device_key,"设备连接已变化。");
         self.stop();
         if let Some(logs)=&self.logs{logs.close_terminal(&self.key,if remove{"用户关闭此终端。"}else{"用户手动重启此终端。"}).await?;}

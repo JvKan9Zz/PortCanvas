@@ -4,9 +4,9 @@
 
 [简体中文](README.md) | English
 
-A unified remote device workspace · **Demo V0.5.6**
+A unified remote device workspace · **Demo V0.5.7**
 
-This release limits text selection in the application shell and disables the browser context menu on empty areas. Editing fields, logs and diagnostic details remain selectable. It also adds a one-time universal macOS package.
+This release checks and prepares missing remote desktop, terminal, file and camera components over the existing SSH connection. Local logs support an optional storage limit with oldest-finished-record cleanup. The Windows edition retains in-app updates.
 
 Connect to Linux devices, control their desktops, transfer files, run terminals and read local execution logs from one desktop client.
 
@@ -19,6 +19,8 @@ Connect to Linux devices, control their desktops, transfer files, run terminals 
 | Settings | Chinese/English, light blue/green/gray themes and in-app updates for the Windows installer edition |
 
 No localization producer is connected yet. Position readings stay unavailable rather than showing simulated live data. The camera starts off and stops on minimize, page departure or exit; restoring the workspace does not reopen it. Native MJPEG avoids board-side re-encoding, at the cost of more bandwidth and some host overhead. Results depend on the device and network.
+
+First-time component preparation requires the Linux device to reach its configured package repositories. Packages are extracted into a private user cache, without system installation or SDK changes. Linux, Python 3 and a logged-in X11 desktop remain prerequisites. Existing components are reused; prepared devices can continue working over the local network.
 
 ## Download and usage
 
