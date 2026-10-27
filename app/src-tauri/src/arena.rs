@@ -23,7 +23,7 @@ impl JpegFrames {
     }
 }
 struct Running {id:u64,cancel:CancellationToken,done:CancellationToken}
-struct Camera {id:u64,generation:u64,phase:&'static str,message:String,path:String,backend:String,url:String,fps:u32,sent:u64,sent_bytes:u64,meter:Instant,meter_count:u64,stream_fps:Option<f64>,sequence:u64,latest:Option<Vec<u8>>,viewer:Instant,running:Option<Running>}
+struct Camera {id:u64,generation:u64,phase:&'static str,message:String,path:String,backend:String,url:String,fps:u32,sent:u64,sent_bytes:u64,meter:Instant,meter_count:u64,stream_fps:Option<f64>,sequence:u64,latest:Option<Arc<Vec<u8>>>,viewer:Instant,running:Option<Running>}
 #[derive(Clone)]
 pub struct ArenaService {devices:DeviceManager,camera:Arc<Mutex<Camera>>,gate:Arc<tokio::sync::Mutex<()>>,changed:Arc<tokio::sync::Notify>}
 impl ArenaService {
@@ -112,7 +112,7 @@ impl ArenaService {
                             message=process.wait()=>message
                         };
                         match message {
-                            Some(russh::ChannelMsg::Data{data})=>for frame in parser.push(&data)?{deadline.as_mut().reset(tokio::time::Instant::now()+Duration::from_secs(12));let mut camera=service.camera.lock().unwrap();if camera.running.as_ref().map(|r|r.id)==Some(id)&&!cancel.is_cancelled(){camera.sequence+=1;camera.latest=Some(frame);camera.phase="connected";service.changed.notify_one();}},
+                            Some(russh::ChannelMsg::Data{data})=>for frame in parser.push(&data)?{deadline.as_mut().reset(tokio::time::Instant::now()+Duration::from_secs(12));let mut camera=service.camera.lock().unwrap();if camera.running.as_ref().map(|r|r.id)==Some(id)&&!cancel.is_cancelled(){camera.sequence+=1;camera.latest=Some(Arc::new(frame));camera.phase="connected";service.changed.notify_one();}},
                             Some(russh::ChannelMsg::ExtendedData{data,..})=>{
                                 let count=data.len().min(4000-diagnostic.len());diagnostic.extend_from_slice(&data[..count]);
                                 let text=String::from_utf8_lossy(&diagnostic);for line in text.lines(){if let Some(backend)=line.strip_prefix("PORTCANVAS_CAMERA:"){if matches!(backend,"ffmpeg-copy"|"ffmpeg-encode"|"opencv"){let mut camera=service.camera.lock().unwrap();if camera.id==id{camera.backend=backend.to_string();}}}}

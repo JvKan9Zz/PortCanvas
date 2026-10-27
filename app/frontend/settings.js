@@ -3,7 +3,7 @@ import {ColorPicker} from './color-picker.js';
 import {BackgroundCropDialog} from './background-crop.js';
 import {applyGlassOpacity} from './glass.js';
 import {StorageSettings} from './storage-settings.js';
-import {applyBackground} from './background.js';
+import {applyBackground,setBackgroundVolume,setBackgroundHidden,refreshBackgroundPlayback} from './background.js';
 import {t,setLanguage,getLanguage,onLanguageChange} from './i18n.js';
 import {getTheme,setTheme,getAppearance,setAppearance,onThemeChange} from './theme.js';
 const $=id=>document.getElementById(id);
@@ -17,10 +17,10 @@ export class SettingsDialog {
       const next={ArrowUp:(index+tabs.length-1)%tabs.length,ArrowDown:(index+1)%tabs.length,Home:0,End:tabs.length-1}[event.key];
       if(next!==undefined){event.preventDefault();this.selectCategory(tabs[next].dataset.settingsPage);tabs[next].focus();}
     };
-    $('openSettings').onclick=()=>{$('settingsDialog').showModal();this.selectCategory(this.category);this.render();};
+    $('openSettings').onclick=()=>{$('settingsDialog').showModal();this.selectCategory(this.category);this.render();refreshBackgroundPlayback();};
     $('closeSettings').onclick=()=>this.close();
     $('settingsDialog').addEventListener('cancel',event=>{event.preventDefault();this.close();});
-    $('settingsDialog').addEventListener('close',()=>{this.storage.hide();$('openSettings').focus();});
+    $('settingsDialog').addEventListener('close',()=>{this.storage.hide();refreshBackgroundPlayback();$('openSettings').focus();});
     $('settingsDialog').addEventListener('keydown',event=>{
       if(event.key!=='Tab')return;
       const controls=[...$('settingsDialog').querySelectorAll('button:not(:disabled),select:not(:disabled),input:not(:disabled)')].filter(element=>element.tabIndex>=0&&!element.closest('[inert]')&&element.getClientRects().length>0),first=controls[0],last=controls.at(-1);
@@ -42,6 +42,13 @@ export class SettingsDialog {
     $('glassOpacityNumber').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();this.saveGlass($('glassOpacityNumber'));}};
     this.backgroundCrop=new BackgroundCropDialog();
     $('chooseBackgroundImage').onclick=()=>this.chooseBackground();
+    $('chooseBackgroundVideo').onclick=()=>this.chooseBackground(true);
+    $('cancelBackgroundImport').onclick=()=>window.studio.cancelBackgroundImport().catch(error=>toast(error.message));
+    window.studio.onBackgroundProgress(({copied,total})=>{if(!this.backgroundBusy)return;$('backgroundImport').hidden=false;$('backgroundImportProgress').value=total?copied/total*100:0;$('backgroundImportText').textContent=t('正在导入 {copied} / {total} MiB',{copied:(copied/1048576).toFixed(1),total:(total/1048576).toFixed(1)});});
+    window.studio.onArenaVisibility(({hidden})=>{setBackgroundHidden(hidden);this.backgroundCrop.setHidden(hidden);});
+    $('backgroundVolume').oninput=()=>{setBackgroundVolume($('backgroundVolume').value);$('backgroundVolumeValue').value=$('backgroundVolume').value+'%';};
+    $('backgroundVolume').onchange=async()=>{const input=$('backgroundVolume');setBackgroundVolume(input.value);input.disabled=true;try{const result=await withActivity($('backgroundVolumeRow'),()=>window.studio.setBackgroundVolume(Number(input.value)));this.info={...this.info,backgroundVolume:result.backgroundVolume};}catch(error){toast(error.message);setBackgroundVolume(this.info?.backgroundVolume??0);}finally{input.disabled=false;input.value=String(this.info?.backgroundVolume??0);$('backgroundVolumeValue').value=input.value+'%';}};
+    $('enableBackgroundAudio').onclick=()=>setBackgroundVolume(this.info?.backgroundVolume??0);
     $('removeBackgroundImage').onclick=()=>this.backgroundAction(()=>window.studio.removeBackgroundImage());
     $('resetBackground').onclick=()=>this.backgroundAction(()=>window.studio.resetBackground());
     for(const option of document.querySelectorAll('input[name="appearance"]'))option.onchange=async()=>{
@@ -68,21 +75,23 @@ export class SettingsDialog {
     tabs.forEach((tab,index)=>{const selected=tab.dataset.settingsPage===category;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;$('settings-panel-'+tab.dataset.settingsPage).hidden=!selected;if(selected)document.querySelector('.settings-tabs').style.setProperty('--settings-index',index);});
     $('settingsPageTitle').textContent=t({general:'通用',storage:'存储',about:'关于'}[category]);
     if(category==='storage')this.storage.show();else this.storage.hide();
+    refreshBackgroundPlayback();
   }
   async refreshBackground(){
     const request=(this.backgroundRequest||0)+1;this.backgroundRequest=request;
     const info=this.info||{};let image=null;
-    if(info.backgroundImage)try{image=await withActivity($('backgroundPreview'),()=>window.studio.backgroundImageData());}catch(error){this.toast(error.message);}
-    if(request===this.backgroundRequest)applyBackground(info.backgroundColor,image,info.backgroundCrop);
+    if(info.backgroundImage||info.backgroundVideo)try{image=await withActivity($('backgroundPreview'),()=>window.studio.backgroundImageData());}catch(error){this.toast(error.message);}
+    if(request===this.backgroundRequest)applyBackground(info.backgroundColor,image,info.backgroundCrop,Boolean(info.backgroundVideo),info.backgroundVolume??0);
   }
-  async chooseBackground(){
+  async chooseBackground(video=false){
     if(this.backgroundBusy)return;this.backgroundBusy=true;this.render();let draft;
     try{
-      draft=await withActivity($('settingsPageTitle'),()=>window.studio.chooseBackgroundImage());if(draft.canceled)return;
-      const result=await this.backgroundCrop.open(draft.imageData,crop=>window.studio.commitBackgroundImage(draft.draftId,crop));
+      draft=await withActivity($('settingsPageTitle'),()=>video?window.studio.chooseBackgroundVideo():window.studio.chooseBackgroundImage());if(draft.canceled)return;
+      $('backgroundImport').hidden=true;
+      const result=await this.backgroundCrop.open(draft.imageData,crop=>window.studio.commitBackgroundImage(draft.draftId,crop),Boolean(draft.video));
       if(result){this.info=result;await this.refreshBackground();}
     }catch(error){this.toast(error.message);}
-    finally{if(draft?.draftId)await window.studio.cancelBackgroundImage(draft.draftId).catch(error=>this.toast(error.message));this.backgroundBusy=false;this.render();if($('settingsDialog').open)$('chooseBackgroundImage').focus();}
+    finally{if(draft?.draftId)await window.studio.cancelBackgroundImage(draft.draftId).catch(error=>this.toast(error.message));this.backgroundBusy=false;$('backgroundImport').hidden=true;this.render();if($('settingsDialog').open)$(video?'chooseBackgroundVideo':'chooseBackgroundImage').focus();}
   }
   async saveGlass(input){
     if(this.savingGlass)return;if(!input.reportValidity())return;
@@ -112,8 +121,9 @@ export class SettingsDialog {
   render(){
     $('settingsPageTitle').textContent=t({general:'通用',storage:'存储',about:'关于'}[this.category]);
     if(document.activeElement!==$('backgroundColor'))$('backgroundColor').value=this.info?.backgroundColor||(document.documentElement.dataset.appearance==='dark'?'#111927':'#eaf0f8');
-    for(const id of ['backgroundColor','chooseBackgroundImage','resetBackground'])$(id).disabled=Boolean(this.backgroundBusy);
-    $('removeBackgroundImage').hidden=!this.info?.backgroundImage;$('removeBackgroundImage').disabled=Boolean(this.backgroundBusy);
+    for(const id of ['backgroundColor','chooseBackgroundImage','chooseBackgroundVideo','resetBackground'])$(id).disabled=Boolean(this.backgroundBusy);
+    $('removeBackgroundImage').hidden=!(this.info?.backgroundImage||this.info?.backgroundVideo);$('removeBackgroundImage').disabled=Boolean(this.backgroundBusy);
+    $('backgroundVolumeRow').hidden=!this.info?.backgroundVideo;if(document.activeElement!==$('backgroundVolume')&&!$('backgroundVolume').disabled){$('backgroundVolume').value=String(this.info?.backgroundVolume??0);$('backgroundVolumeValue').value=$('backgroundVolume').value+'%';}
     showActivity($('settingsPageTitle'),this.savingSource||this.savingAppearance||this.savingGlass||this.backgroundBusy);
     const appearanceIndex=['light','dark','system'].indexOf(getAppearance());$('settingsAppearance').style.setProperty('--appearance-index',Math.max(0,appearanceIndex));
     for(const option of document.querySelectorAll('input[name="appearance"]')){option.checked=option.value===getAppearance();option.disabled=Boolean(this.savingAppearance);}

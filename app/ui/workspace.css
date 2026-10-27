@@ -391,7 +391,7 @@ button>.activity-indicator{margin:0}button.activity-busy>svg,.badge.activity-bus
 .background-crop-dialog::backdrop{background:rgba(12,26,47,.4);backdrop-filter:blur(10px)}
 .background-crop-dialog header{margin-bottom:16px}.background-crop-dialog h2{margin:0;font-size:18px;font-weight:600}
 .crop-stage{position:relative;width:100%;height:min(430px,56vh);min-height:190px;overflow:hidden;border-radius:14px;background:#172331}
-.crop-stage>img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
+.crop-stage>img,.crop-stage>video{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
 .crop-selection{position:absolute;border:2px solid #fff;border-radius:2px;box-shadow:0 0 0 999px rgba(2,10,22,.55);cursor:move;touch-action:none;outline-offset:5px}
 .crop-selection>i{position:absolute;width:13px;height:13px;border:2px solid #fff;border-radius:4px;background:#2886e8}
 .crop-selection>i::before{content:'';position:absolute;inset:-8px}
@@ -401,3 +401,35 @@ button>.activity-indicator{margin:0}button.activity-busy>svg,.badge.activity-bus
 @starting-style{.background-crop-dialog[open]{opacity:0;transform:translateY(6px) scale(.985)}}
 :root[data-appearance=dark] .background-crop-dialog{background:#1b293e;border-color:#415673}
 @media(prefers-reduced-motion:reduce){.background-crop-dialog{transition:none}}
+
+/* Background media stays below the four work areas. */
+#workspaceVideo{position:fixed;left:0;top:0;width:100vw;height:100vh;object-fit:cover;z-index:0;pointer-events:none}
+.rail{z-index:1}.app{position:relative;z-index:1}
+:root[data-appearance=dark] #workspaceVideo{filter:brightness(.52)}
+.background-preview{position:relative;overflow:hidden}
+#backgroundVideoPreview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+:root[data-appearance=dark][data-background-video=true] .background-preview{filter:brightness(.52)}
+.background-volume{display:flex;align-items:center;gap:12px;margin-top:16px}
+.background-volume label{flex:none}.background-volume input{margin:0;width:180px;max-width:50%;height:24px;border:0;box-shadow:none;padding:0;accent-color:var(--accent)}
+.background-volume output{min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+.background-import{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:12px}
+.background-import progress{width:100%;height:5px;accent-color:var(--accent)}.background-import span{font-size:12px;flex:1}
+#enableBackgroundAudio{margin-top:10px}
+.device-list-panel{background:transparent;border:0;padding:14px;gap:12px;min-height:530px}
+.device-library{display:flex;flex:1;flex-direction:column;min-height:190px;overflow:hidden;border:1px solid var(--line);border-radius:17px;background:rgba(244,248,255,.6)}
+.device-library .panel-label{padding:17px 15px 12px;flex:none}.device-library .panel-label strong{font-size:12px;font-weight:500}
+.device-library .device-list{flex:1;min-height:110px;overflow:auto;border:0;background:transparent;margin:0 8px 10px;padding:0 3px;border-radius:0}
+.device-library .no-devices{flex:1;display:flex;align-items:center;justify-content:center;margin:0;padding:16px;text-align:center}
+.discovery-footer{padding:0 14px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.discovery-footer>span{font-size:11px;color:var(--muted);width:100%;overflow-wrap:anywhere}
+.discovery-footer .button{height:29px;padding:0 10px;font-size:11px;margin-left:auto}
+.discovered-device{align-items:center;justify-content:space-between;gap:8px;padding:11px 8px}.discovered-device strong{font-variant-numeric:tabular-nums;font-size:12px}.discovery-connect{font-size:11px;color:var(--accent-text);flex:none}
+.quick-connect-dialog{width:min(420px,calc(100vw - 40px));margin:auto;padding:26px;border:1px solid var(--glass-edge);border-radius:22px;background:#f6f9fe;color:var(--ink);box-shadow:0 24px 80px rgba(10,28,55,.25);opacity:1;transform:none;transition:opacity 160ms,transform 180ms var(--ease-out),display 180ms allow-discrete,overlay 180ms allow-discrete}
+.quick-connect-dialog:not([open]){opacity:0;transform:translateY(6px) scale(.985)}
+@starting-style{.quick-connect-dialog[open]{opacity:0;transform:translateY(6px) scale(.985)}}
+.quick-connect-dialog::backdrop{background:rgba(12,26,47,.4);backdrop-filter:blur(10px)}
+.quick-connect-dialog header{margin-bottom:22px}.quick-connect-dialog h2{font-size:18px}.quick-connect-dialog header p{font-size:13px;font-variant-numeric:tabular-nums}
+.quick-connect-dialog form>label{margin-bottom:16px}.quick-connect-dialog .remember-choice{display:flex;gap:9px;align-items:center}.quick-connect-dialog footer{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+:root[data-appearance=dark] .device-list-panel{background:transparent;border:0}
+:root[data-appearance=dark] .device-library{background:rgba(23,38,59,.58)}
+:root[data-appearance=dark] .quick-connect-dialog{background:#1b293e;border-color:#415673}
