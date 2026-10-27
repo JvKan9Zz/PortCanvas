@@ -24,13 +24,13 @@
 
 ## 下载与使用
 
-[Windows V0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS V0.5.6](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.6) · [使用说明](docs/usage.md) · [定位数据接口](docs/pose-protocol.md)
+[Windows V0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS V0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [使用说明](docs/usage.md) · [定位数据接口](docs/pose-protocol.md)
 
 Windows 已安装版可在“设置 → 关于”检查更新，也可下载新安装器覆盖安装。 v0.5.8 可直接检查并升级到 v0.5.95；图片和视频均可先框选再应用。运行环境下载方式在“设置 → 存储”中选择；正在准备的任务保持启动时的方式。
 
-V0.5.95 调整设备页在大窗口中的布局，简化设备列表背景，并补齐连接详情的展开、收起动画。默认与纯色背景减少模糊合成，视频预览复用主视频画面；图片与视频背景继续保留玻璃效果。启动后自动检查更新，有可用版本时在顶部名称右侧提示。
+V0.5.95 调整设备页在大窗口中的布局，简化设备列表背景，并补齐连接详情的展开、收起动画。默认与纯色背景减少模糊合成，视频预览复用主视频画面；图片与视频背景继续保留玻璃效果。Windows 启动后自动检查更新，有可用版本时在顶部名称右侧提示。
 
-Windows 提供 x64 安装器，手动安装可选择位置，软件内更新沿用已有目录和配置。Mac 提供面向 macOS 13+ 的 Universal DMG，包含 Intel 与 Apple 芯片代码，使用系统 WKWebView；目前仅适配 Demo V0.5.6，后续可能等正式版推出后再继续适配。两端运行均无需 Node.js、Rust 或 Python。
+Windows 提供 x64 安装器，手动安装可选择位置，软件内更新沿用已有目录和配置。Mac 提供面向 macOS 13+ 的 Universal DMG，包含 Intel 与 Apple 芯片代码，使用系统 WKWebView；本次补充 Demo V0.5.95 适配，后续可能等正式版推出后再继续适配；Mac 暂不提供应用内更新。两端运行均无需 Node.js、Rust 或 Python。
 
 Mac 包采用 ad-hoc 签名，未经 Apple 公证，首次打开可能需要你按 macOS 提示在“隐私与安全性”中手动允许。Windows 使用 DPAPI，Mac 使用钥匙串保护保存的凭据；加密资料不支持直接跨系统解密。
 

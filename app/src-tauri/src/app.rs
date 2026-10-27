@@ -226,6 +226,13 @@ async fn open_repository(window:tauri::WebviewWindow)->Result<()> {
         Ok::<_,anyhow::Error>(())
     }).await?
 }
+fn installation_directory(executable:&std::path::Path)->Result<PathBuf>{
+    #[cfg(target_os="macos")]
+    if let Some(bundle)=executable.ancestors().find(|path|path.extension().is_some_and(|extension|extension=="app")){
+        return Ok(bundle.parent().context("无法读取软件安装目录。")?.to_path_buf());
+    }
+    Ok(executable.parent().context("无法读取软件安装目录。")?.to_path_buf())
+}
 async fn open_directory(window: tauri::WebviewWindow, path: PathBuf) -> Result<()> {
     tokio::task::spawn_blocking(move || {
         std::fs::create_dir_all(&path)?;
@@ -396,7 +403,7 @@ async fn studio_call(
             },
             "settings:background-commit"=>{let id:String=argument(&args,0)?;let crop=argument(&args,1)?;let mut pending=state.background_draft.lock().unwrap();let draft=pending.as_ref().filter(|draft|draft.id==id).context("背景预览已结束，请重新选择。")?;let result=draft.commit(&state.preferences.lock().unwrap(),crop)?;*pending=None;state.background_media.draft(None);Ok(result)},
             "settings:background-cancel"=>{let id:String=argument(&args,0)?;let mut pending=state.background_draft.lock().unwrap();if pending.as_ref().is_some_and(|draft|draft.id==id){*pending=None;state.background_media.draft(None);}Ok(Value::Null)},
-            "settings:install-directory"=>{let executable=std::env::current_exe().context("无法读取软件安装目录。")?;let directory=executable.parent().context("无法读取软件安装目录。")?.to_path_buf();open_directory(window,directory).await?;Ok(Value::Null)},
+            "settings:install-directory"=>{let executable=std::env::current_exe().context("无法读取软件安装目录。")?;open_directory(window,installation_directory(&executable)?).await?;Ok(Value::Null)},
             "settings:environment-source"=>{let source=argument(&args,0)?;let info=state.preferences.lock().unwrap().save_environment_source(source)?;state.devices.set_environment_source(source);Ok(info)},
             "settings:desktop-mode"=>state.preferences.lock().unwrap().save_desktop_mode(argument(&args,0)?),
             "settings:updates"=>state.updates.check(window.app_handle()).await,
@@ -483,6 +490,12 @@ async fn studio_call(
         }
     }.await;
     result.map_err(|e| e.to_string())
+}
+#[cfg(test)]mod install_directory_tests{
+    use super::*;
+    #[test]fn unpackaged_executable_uses_its_parent(){assert_eq!(installation_directory(std::path::Path::new("temporary/PortCanvas")).unwrap(),PathBuf::from("temporary"));}
+    #[cfg(target_os="macos")]
+    #[test]fn mac_bundle_opens_the_containing_folder(){assert_eq!(installation_directory(std::path::Path::new("/Users/demo/My Apps/PortCanvas.app/Contents/MacOS/PortCanvas")).unwrap(),PathBuf::from("/Users/demo/My Apps"));}
 }
 pub fn run() {
     let executable = std::env::current_exe().expect("application executable");
