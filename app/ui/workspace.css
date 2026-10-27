@@ -368,6 +368,7 @@ body input[type=checkbox]{border-color:#7c8ea8}
 /* Hide scrollbar chrome throughout the workspace without disabling scrolling. */
 :root,:root *{scrollbar-width:none!important}
 :root::-webkit-scrollbar,:root *::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+:root::-webkit-scrollbar-thumb,:root *::-webkit-scrollbar-thumb,:root::-webkit-scrollbar-track,:root *::-webkit-scrollbar-track{background:transparent!important;border:0!important}
 .matrix-loader{--matrix-dot:3px;display:grid;grid-template-columns:repeat(4,var(--matrix-dot));gap:3px;flex:none;color:inherit}
 .matrix-loader>i{width:var(--matrix-dot);height:var(--matrix-dot);border-radius:1px;background:currentColor;opacity:.22;animation:matrix-dot-pulse 1500ms ease-in-out infinite}
 @keyframes matrix-dot-pulse{0%,65%,100%{opacity:.22}20%{opacity:1}}
@@ -448,3 +449,7 @@ button>.activity-indicator{margin:0}button.activity-busy>svg,.badge.activity-bus
 .brand-heading{display:flex;align-items:center;gap:14px;min-width:0}
 .update-notice{height:28px;padding:0 10px;gap:6px;font-size:11px;color:var(--accent-text);background:var(--accent-tint);border:1px solid var(--accent-border);border-radius:999px;box-shadow:none}
 .update-notice svg{width:13px;height:13px}.update-notice:hover{background:var(--accent-soft)}
+
+@supports not (appearance:base-select){
+ body select:not([multiple]){appearance:none;-webkit-appearance:none;padding-inline-end:30px;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 15px) center,calc(100% - 10px) center;background-size:5px 5px;background-repeat:no-repeat}
+}
