@@ -1,6 +1,6 @@
 [package]
 name = "portcanvas"
-version = "0.5.8"
+version = "0.5.9"
 edition = "2021"
 rust-version = "1.90"
 license = "MIT"
@@ -43,6 +43,7 @@ semver = "1"
 chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1"
 futures-util = "0.3"
+if-addrs = "=0.14.0"
 tokio-tungstenite = "0.28"
 zeroize = "1"
 dunce = "1"

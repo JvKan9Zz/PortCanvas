@@ -1,4 +1,4 @@
-# PortCanvas Demo V0.5.8
+# PortCanvas Demo V0.5.9
 
 Tauri 2 + Rust + WebView2桌面客户端。Rust负责SSH、SFTP、桌面转发、PTY/tmux、本地日志、设置与按需摄像头；前端使用noVNC与xterm。Node仅用于构建，电脑端运行无需Node/Python。
 
@@ -55,4 +55,7 @@ Windows构建通过TAURI_SIGNING_PRIVATE_KEY与TAURI_SIGNING_PRIVATE_KEY_PASSWOR
 
 connection-indicator.js 提供4×4随机点阵与可重入异步等待提示，连接阶段保持同一图案，操作结束/失败收回。各页按已有busy状态或实际IPC Promise显示，下载/传输的真实进度仍保留；后台稳定采样不反复闪动。全局隐藏滚动条但不修改滚动权限。
 
-背景裁剪由 background-crop.js/crop-model.js 负责选框与等比投影；background.js 将归一化范围映射到背景尺寸和位置。Native BackgroundDraft 只在内存缓存选择时字节，确认后原子保存受管原图及 backgroundCrop；取消不改旧设置。v0.5.8 同号补充不改版本/原标签，现有 Release 的包与更新清单成对替换，发布说明链接实际补充源码，已装同版本需手动覆盖。
+背景裁剪由 background-crop.js/crop-model.js 负责选框与等比投影；background.js 将归一化范围映射到背景尺寸和位置。Native BackgroundDraft 将图片或视频复制为应用内临时文件，确认后原子保存受管原件及 backgroundCrop；取消不改旧设置并清理草稿。v0.5.9 使用正常递增版本，v0.5.8 可通过软件内检查更新升级。
+
+
+V0.5.9：discovery.rs 从活动 IPv4 接口创建有界探测列表，只读取 SSH banner；discovery.js 维护发现列表与快捷登录，认证仍复用原 device:connect。preferences.rs 将导入草稿存为本地文件而非 RAM/Base64，background_media.rs 仅在 127.0.0.1 的随机端口/令牌路径服务当前背景或草稿，支持 GET/HEAD/Range，并以有界缓冲传输。background.js 管理背景、裁剪投影、视频音量及可见性；关闭裁剪或预览会卸载对应媒体。背景文件不进入安装包。

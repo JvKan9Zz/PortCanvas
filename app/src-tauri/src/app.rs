@@ -36,9 +36,13 @@ pub struct AppState {
     pub default_log_root: PathBuf,
     pub preferences: Mutex<crate::preferences::PreferenceStore>,
     pub background_draft:Mutex<Option<crate::preferences::BackgroundDraft>>,
+    pub background_media:crate::background_media::BackgroundMedia,
+    pub background_import:Mutex<tokio_util::sync::CancellationToken>,
+    pub discovery:crate::discovery::Discovery,
     pub updates: crate::updates::UpdateService,
 }
 async fn stop_for_exit(state:&AppState) {
+    state.discovery.cancel();state.background_import.lock().unwrap().cancel();state.background_media.stop();
     state.updates.cancel();
     state.terminal.stop_all();
     state.files.cancel();
@@ -378,13 +382,20 @@ async fn studio_call(
             "settings:background-color"=>state.preferences.lock().unwrap().save_background_color(argument(&args,0)?),
             "settings:background-reset"=>state.preferences.lock().unwrap().save_background_color(None),
             "settings:background-remove-image"=>state.preferences.lock().unwrap().remove_background_image(),
-            "settings:background-data"=>Ok(json!(state.preferences.lock().unwrap().background_data()?)),
-            "settings:background-image"=>{
-                let file=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title(local_text(&window,"选择背景图片")).add_filter("PNG / JPEG / WebP",&["png","jpg","jpeg","webp"]).pick_file()).await?;
-                if let Some(file)=file{let draft=crate::preferences::BackgroundDraft::open(&file)?;let preview=draft.preview();*state.background_draft.lock().unwrap()=Some(draft);Ok(preview)}else{Ok(json!({"canceled":true}))}
+            "settings:background-data"=>Ok(json!(state.background_media.saved(state.preferences.lock().unwrap().background_path()?))),
+            "settings:background-volume"=>state.preferences.lock().unwrap().save_background_volume(argument(&args,0)?),
+            "settings:background-import-cancel"=>{state.background_import.lock().unwrap().cancel();Ok(Value::Null)},
+            "settings:background-image"|"settings:background-video"=>{
+                let video=action=="settings:background-video";let picker=window.clone();
+                let file=tokio::task::spawn_blocking(move||{let dialog=rfd::FileDialog::new().set_parent(&picker);if video{dialog.set_title(local_text(&picker,"选择背景视频")).add_filter("MP4 / WebM",&["mp4","m4v","webm"]).pick_file()}else{dialog.set_title(local_text(&picker,"选择背景图片")).add_filter("PNG / JPEG / WebP",&["png","jpg","jpeg","webp"]).pick_file()}}).await?;
+                if let Some(file)=file{
+                    let cancel=tokio_util::sync::CancellationToken::new();*state.background_import.lock().unwrap()=cancel.clone();let directory=state.preferences.lock().unwrap().backgrounds()?;let events=window.clone();
+                    let draft=tokio::task::spawn_blocking(move||{let mut last=std::time::Instant::now()-std::time::Duration::from_secs(1);crate::preferences::BackgroundDraft::open(&file,&directory,video,move|copied,total|{anyhow::ensure!(!cancel.is_cancelled(),"已取消背景导入。");if copied==total||last.elapsed()>=std::time::Duration::from_millis(100){let _=events.emit("background-progress",json!({"copied":copied,"total":total}));last=std::time::Instant::now();}Ok(())})}).await??;
+                    let url=state.background_media.draft(Some(draft.path.clone())).unwrap();let preview=json!({"draftId":draft.id,"imageData":url,"video":video});*state.background_draft.lock().unwrap()=Some(draft);Ok(preview)
+                }else{Ok(json!({"canceled":true}))}
             },
-            "settings:background-commit"=>{let id:String=argument(&args,0)?;let crop=argument(&args,1)?;let mut pending=state.background_draft.lock().unwrap();let draft=pending.as_ref().filter(|draft|draft.id==id).context("背景预览已结束，请重新选择图片。")?;let result=draft.commit(&state.preferences.lock().unwrap(),crop)?;*pending=None;Ok(result)},
-            "settings:background-cancel"=>{let id:String=argument(&args,0)?;let mut pending=state.background_draft.lock().unwrap();if pending.as_ref().is_some_and(|draft|draft.id==id){*pending=None;}Ok(Value::Null)},
+            "settings:background-commit"=>{let id:String=argument(&args,0)?;let crop=argument(&args,1)?;let mut pending=state.background_draft.lock().unwrap();let draft=pending.as_ref().filter(|draft|draft.id==id).context("背景预览已结束，请重新选择。")?;let result=draft.commit(&state.preferences.lock().unwrap(),crop)?;*pending=None;state.background_media.draft(None);Ok(result)},
+            "settings:background-cancel"=>{let id:String=argument(&args,0)?;let mut pending=state.background_draft.lock().unwrap();if pending.as_ref().is_some_and(|draft|draft.id==id){*pending=None;state.background_media.draft(None);}Ok(Value::Null)},
             "settings:install-directory"=>{let executable=std::env::current_exe().context("无法读取软件安装目录。")?;let directory=executable.parent().context("无法读取软件安装目录。")?.to_path_buf();open_directory(window,directory).await?;Ok(Value::Null)},
             "settings:environment-source"=>{let source=argument(&args,0)?;let info=state.preferences.lock().unwrap().save_environment_source(source)?;state.devices.set_environment_source(source);Ok(info)},
             "settings:desktop-mode"=>state.preferences.lock().unwrap().save_desktop_mode(argument(&args,0)?),
@@ -401,19 +412,23 @@ async fn studio_call(
                 let store=state.profiles.lock().unwrap();let mut data=store.read()?;let removed=data.devices.iter().find(|p|p.id==id).cloned();data.devices.retain(|p|p.id!=id);if let Some(removed)=removed{if !data.devices.iter().any(|p|p.address()==removed.address()){data.host_keys.remove(&removed.address());}}store.write(&data)?;Ok(json!(true))},
             "environment:cancel"=>{state.devices.connection()?.environment_cancel.lock().unwrap().cancel();Ok(json!({"canceled":true}))},
             "device:state"=>Ok(state.devices.snapshot()),
+            "discovery:start"=>Ok(state.discovery.start()),
+            "discovery:state"=>Ok(state.discovery.snapshot()),
+            "discovery:cancel"=>{state.discovery.cancel();Ok(state.discovery.snapshot())},
             "device:reboot"=>reboot_device(window,&state).await,
             "device:disconnect"=>{tokio::join!(state.arena.stop(None),state.pose.stop(None));state.devices.disconnect().await;state.desktop.stop(None).await;Ok(state.devices.snapshot())},
             "device:connect"=>{
                 let mut profile:Profile=argument::<Profile>(&args,0)?.validate()?;profile.encrypted_secret=None;
+                state.discovery.cancel();
                 let supplied=match args.get_mut(1).map(Value::take){Some(Value::String(p))=>zeroize::Zeroizing::new(p),None|Some(Value::Null)=>zeroize::Zeroizing::new(String::new()),_=>bail!("凭据参数无效。")};
                 let password=state.profiles.lock().unwrap().connection_secret(&profile,supplied)?;
                 let store=state.profiles.clone();let address=profile.address();let dialog=window.clone();
-                state.devices.connect(profile,password,move|cancel|{let callback:HostCheck=Arc::new(move|fingerprint|{let store=store.clone();let address=address.clone();let dialog=dialog.clone();let cancel=cancel.clone();Box::pin(async move{
+                let result=state.devices.connect(profile,password,move|cancel|{let callback:HostCheck=Arc::new(move|fingerprint|{let store=store.clone();let address=address.clone();let dialog=dialog.clone();let cancel=cancel.clone();Box::pin(async move{
                     let known=store.lock().unwrap().read()?.host_keys.get(&address).cloned();
                     if let Some(known)=known{anyhow::ensure!(known==fingerprint,"主机身份已变化，已停止连接。请核实设备身份，不会自动信任新密钥。");return Ok(!cancel.is_cancelled());}
                     let accepted=confirm(dialog,"首次连接设备".into(),format!("确认这台设备的 SSH 身份：\n{address}\n{fingerprint}\n请与设备或已信任客户端核对，确认后才会保存信任记录。")).await?;
                     if !accepted||cancel.is_cancelled(){return Ok(false);}store.lock().unwrap().trust(&address,&fingerprint)?;Ok(true)
-                })});callback}).await
+                })});callback}).await?;Ok(result)
             },
             "arena:metrics"=>{state.pose.touch();state.arena.metrics().await},
             "arena:cameras"=>state.arena.cameras().await,
@@ -511,6 +526,9 @@ pub fn run() {
                 let _ = handle.emit(name, data);
             });
             let preferences = crate::preferences::PreferenceStore{file:directory.join("settings.json")};
+            preferences.cleanup_drafts()?;
+            let background_media=tauri::async_runtime::block_on(crate::background_media::BackgroundMedia::new())?;
+            let discovery=crate::discovery::Discovery::new(events.clone());
             let source = preferences.read().map(|p|p.environment_source).unwrap_or_default();
             let devices = DeviceManager::new(events.clone()).with_runtime_cache(directory.join("runtime-cache"));
             devices.set_environment_source(source);
@@ -543,6 +561,9 @@ pub fn run() {
                 updates,
                 preferences: Mutex::new(preferences),
                 background_draft:Mutex::new(None),
+                background_media,
+                background_import:Mutex::new(tokio_util::sync::CancellationToken::new()),
+                discovery,
                 profiles: Arc::new(Mutex::new(ProfileStore { directory })),
                 devices,
                 desktop,

@@ -1,5 +1,6 @@
 import {t,onLanguageChange} from './i18n.js';
 import {SettingsDialog} from './settings.js';
+import {DeviceDiscovery} from './discovery.js';
 import {FilePage} from './files-page.js';
 import {TerminalDrawer} from './terminal-drawer.js';
 import {LogsPage} from './logs-page.js';
@@ -22,6 +23,9 @@ let terminalExpanded=false;
 const terminalDrawer = new TerminalDrawer({toast,goDevices:()=>showPage('devices')});
 const logsPage = new LogsPage({toast});
 const settingsDialog = new SettingsDialog({toast});
+const discovery=new DeviceDiscovery({profiles:()=>devices,connection:()=>current.ssh,toast,connect:async(device,password)=>{
+  const saved=await window.studio.save(device,password);devices=await window.studio.profiles();fill(saved);await window.studio.connect(saved,password);
+}});
 const arenaPage = new ArenaPage();
 let nativeHidden=false;
 let desktopPhase=0,desktopStartupCleanup=()=>{},rebootPending=false;
@@ -161,6 +165,7 @@ function renderState(state,presentationOnly=false) {
   if (!connected && rfb) clearRfb();
   renderDevices();
   updateDesktopActivity();
+  discovery.refresh();
   if(revealConnectionResult)requestAnimationFrame(()=>document.querySelector('.connection-result').scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'}));
 }
 async function startDesktop() {

@@ -4,7 +4,7 @@ import {getCurrentWebviewWindow} from '@tauri-apps/api/webviewWindow';
 type Handler=(data:any)=>void;
 const handlers=new Map<string,Set<Handler>>();let generation=0;
 const on=(event:string,handler:Handler)=>{if(!handlers.has(event))handlers.set(event,new Set());handlers.get(event)!.add(handler);};
-const ready=Promise.all([...['device-state','terminal-state','terminal-data','logs-state','logs-changed','file-state','arena-pose','arena-visibility','update-state','environment-progress'].map(topic=>listen(topic,event=>{
+const ready=Promise.all([...['device-state','terminal-state','terminal-data','logs-state','logs-changed','file-state','arena-pose','arena-visibility','update-state','environment-progress','discovery-state','background-progress'].map(topic=>listen(topic,event=>{
  const payload=event.payload as any;
  if(topic==='device-state'){if(payload.generation<generation)return;generation=payload.generation;}
  else if(typeof payload?.generation==='number'&&payload.generation<generation)return;
@@ -20,6 +20,8 @@ const startTerminal=async(cols:number,rows:number,key:string="main",deviceKey:st
  try{return await invoke('terminal_subscribe',{cols,rows,channel,terminalKey:key,deviceKey});}catch(error){throw error instanceof Error?error:new Error(String(error));}
 };
 const api={
+ discover:()=>call('discovery:start'),discoveryState:()=>call('discovery:state'),cancelDiscovery:()=>call('discovery:cancel'),onDiscovery:(h:Handler)=>on('discovery-state',h),
+ chooseBackgroundVideo:()=>call('settings:background-video'),setBackgroundVolume:(value:number)=>call('settings:background-volume',value),cancelBackgroundImport:()=>call('settings:background-import-cancel'),onBackgroundProgress:(h:Handler)=>on('background-progress',h),
  onEnvironment:(h:Handler)=>on('environment-progress',h),cancelEnvironment:()=>call('environment:cancel'),
  setGlassOpacity:(value:number)=>call('settings:glass-opacity',value),
  setBackgroundColor:(color:string)=>call('settings:background-color',color),chooseBackgroundImage:()=>call('settings:background-image'),backgroundImageData:()=>call('settings:background-data'),removeBackgroundImage:()=>call('settings:background-remove-image'),resetBackground:()=>call('settings:background-reset'),

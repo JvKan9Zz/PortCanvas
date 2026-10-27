@@ -1,6 +1,8 @@
 pub mod arena;
 pub mod arena_pose;
 pub mod preferences;
+pub mod background_media;
+pub mod discovery;
 pub mod i18n;
 pub mod profiles;
 pub mod credentials;
