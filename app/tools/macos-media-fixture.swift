@@ -10,6 +10,7 @@ for y in 0..<180 { for x in 0..<320 {
 } }
 try image.representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent("background.png"))
 let movie = directory.appendingPathComponent("background.mp4")
+if FileManager.default.fileExists(atPath: movie.path) { try FileManager.default.removeItem(at: movie) }
 let writer = try AVAssetWriter(outputURL: movie, fileType: .mp4)
 let input = AVAssetWriterInput(mediaType: .video, outputSettings: [AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: 320, AVVideoHeightKey: 180])
 let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB, kCVPixelBufferWidthKey as String: 320, kCVPixelBufferHeightKey as String: 180])
