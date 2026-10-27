@@ -4,6 +4,7 @@ const $=id=>document.getElementById(id);
 export class ColorPicker{
  constructor(commit){
   this.commit=commit;this.panel=$('backgroundColorPicker');this.trigger=$('backgroundColorButton');this.panel.hidden=true;this.panel.inert=true;
+  if(!this.panel.showPopover){this.panel.dataset.inline='true';this.panel.closest('dialog').append(this.panel);document.addEventListener('pointerdown',event=>{if(this.open&&!this.panel.contains(event.target)&&!this.trigger.contains(event.target))this.close(false);});}
   this.trigger.onclick=()=>this.open?this.close():this.show();
   $('colorPickerCancel').onclick=()=>this.close();$('colorPickerConfirm').onclick=()=>this.confirm();
   $('colorPickerHue').oninput=()=>{this.hsv.h=Number($('colorPickerHue').value);this.render();};
@@ -29,7 +30,12 @@ export class ColorPicker{
   this.panel.style.visibility='hidden';if(this.panel.showPopover)this.panel.showPopover();this.render();this.position();this.panel.style.visibility='';
   this.trigger.setAttribute('aria-expanded','true');$('colorPickerHex').focus();$('colorPickerHex').select();
  }
- position(){const anchor=this.trigger.getBoundingClientRect(),rect=this.panel.getBoundingClientRect();this.panel.style.left=Math.max(12,Math.min(anchor.left,innerWidth-rect.width-12))+'px';this.panel.style.top=(anchor.bottom+rect.height+9<=innerHeight?anchor.bottom+8:Math.max(12,anchor.top-rect.height-8))+'px';}
+ position(){
+  const anchor=this.trigger.getBoundingClientRect(),rect=this.panel.getBoundingClientRect(),parent=this.panel.dataset.inline?this.panel.offsetParent:null;
+  const bounds=parent?parent.getBoundingClientRect():{left:0,top:0,right:innerWidth,bottom:innerHeight};
+  const left=Math.max(bounds.left+12,Math.min(anchor.left,bounds.right-rect.width-12)),top=anchor.bottom+rect.height+9<=bounds.bottom?anchor.bottom+8:Math.max(bounds.top+12,anchor.top-rect.height-8);
+  this.panel.style.left=(left-bounds.left-(parent?.clientLeft||0))+'px';this.panel.style.top=(top-bounds.top-(parent?.clientTop||0))+'px';
+ }
  close(focus=true){
   this.open=false;this.panel.inert=true;if(this.panel.hidePopover&&this.panel.matches(':popover-open'))this.panel.hidePopover();else if(!this.panel.hidePopover)this.panel.hidden=true;
   this.trigger.setAttribute('aria-expanded','false');if(focus&&this.trigger.isConnected)this.trigger.focus();

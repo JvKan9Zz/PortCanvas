@@ -332,6 +332,7 @@ body input[type=checkbox]{border-color:#7c8ea8}
 .color-trigger>span{display:block;width:100%;height:100%;border-radius:5px;border:1px solid rgba(80,106,145,.08)}
 .color-picker{position:fixed;inset:auto;margin:0;left:0;top:0;width:286px;max-width:calc(100vw - 24px);padding:14px;border:1px solid rgba(205,219,240,.88);border-radius:18px;background:rgba(250,252,255,.97);backdrop-filter:blur(22px) saturate(130%);color:var(--ink);box-shadow:0 14px 45px rgba(33,58,98,.19),inset 0 1px 0 #fff;opacity:0;translate:0 5px;transition:opacity 140ms,translate 200ms var(--ease-out),display 200ms allow-discrete,overlay 200ms allow-discrete}
 .color-picker:popover-open{opacity:1;translate:0 0}.color-picker:not(:popover-open){pointer-events:none}
+.color-picker[data-inline=true]{position:absolute;opacity:1;translate:0 0;pointer-events:auto;z-index:5}
 @starting-style{.color-picker:popover-open{opacity:0;translate:0 5px}}
 .color-picker>header{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px}.color-picker>header strong{font-size:13px;font-weight:500}.color-picker-sample{width:25px;height:25px;border:1px solid var(--line);border-radius:8px}
 .color-picker-plane{position:relative;height:133px;border:1px solid rgba(80,105,145,.13);border-radius:10px;background-image:linear-gradient(to top,#000,transparent),linear-gradient(to right,#fff,transparent);cursor:crosshair;touch-action:none}

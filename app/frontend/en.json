@@ -669,5 +669,6 @@
   "背景预览已结束，请重新选择。": "The background preview has ended. Select the media again.",
   "局域网搜索失败：{error}": "LAN search failed: {error}",
   "查看可用更新": "View available update",
-  "新版本 V{version}": "Update V{version}"
+  "新版本 V{version}": "Update V{version}",
+  "macOS 适配版暂不提供应用内更新，请前往发布页面下载。": "This macOS compatibility edition does not support in-app updates. Download releases from the repository."
 }

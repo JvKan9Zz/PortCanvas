@@ -24,17 +24,17 @@ By default, the app downloads and caches missing components on the PC, then tran
 
 ## Download and usage
 
-[Windows V0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS V0.5.6](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.6) · [Usage guide (Chinese)](docs/usage.md) · [Position protocol (Chinese)](docs/pose-protocol.md)
+[Windows V0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS V0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [Usage guide (Chinese)](docs/usage.md) · [Position protocol (Chinese)](docs/pose-protocol.md)
 
 Installed Windows editions can check for updates under Settings → About, or use the new installer. Version 0.5.8 can update directly to 0.5.9. Background images and videos can be cropped before applying. Settings → Storage selects the runtime download source; an operation already in progress keeps the source it started with.
 
-The Windows x64 installer lets you choose the installation folder. In-app updates retain that folder and existing configuration. The universal DMG targets macOS 13+ and includes Intel and Apple Silicon code. Demo V0.5.6 is currently the only macOS compatibility release. Further macOS adaptation may wait until the stable version is released; later Windows demos will not automatically receive a Mac build. Both editions use the operating system's webview and need no Node.js, Rust or Python at runtime.
+The Windows x64 installer lets you choose the installation folder. In-app updates retain that folder and existing configuration. The universal DMG targets macOS 13+ and includes Intel and Apple Silicon code. A Demo V0.5.95 macOS compatibility build is available. In-app updates are not supported on Mac. Further macOS adaptation may wait until the stable version is released; later Windows demos will not automatically receive a Mac build. Both editions use the operating system's webview and need no Node.js, Rust or Python at runtime.
 
 The Mac package uses an ad-hoc signature and is not notarized by Apple. First launch may require manual approval in macOS Privacy & Security. Saved credentials use Windows DPAPI or macOS Keychain and cannot be decrypted directly on the other operating system.
 
 Portable builds, wrapper ZIPs, standalone signatures and checksum lists are no longer published. Besides installers and GitHub's source archives, releases retain only the latest.json needed by the Windows in-app updater; its signature is embedded in that manifest.
 
-V0.5.95 improves the device page layout, removes an extra device-list background and animates connection details in both directions. Default and solid backgrounds skip unnecessary blur; video previews reuse the playing video. Image and video backgrounds retain their glass effects. The app checks for updates on startup and shows available versions beside the brand name.
+V0.5.95 improves the device page layout, removes an extra device-list background and animates connection details in both directions. Default and solid backgrounds skip unnecessary blur; video previews reuse the playing video. Image and video backgrounds retain their glass effects. The Windows app checks for updates on startup and shows available versions beside the brand name.
 
 ## Source
 

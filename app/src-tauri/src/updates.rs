@@ -32,7 +32,7 @@ impl UpdateService {
     pub fn new(events: EventSink, portable: bool) -> Self {
         Self {
             inner: Mutex::new(Pending {
-                state: if cfg!(target_os="macos"){json!({"status":"manual","message":"macOS 版固定为 Demo V0.5.6，暂不提供后续自动更新。"})}else{json!({"status":"idle"})},
+                state: if cfg!(target_os="macos"){json!({"status":"manual","message":"macOS 适配版暂不提供应用内更新，请前往发布页面下载。"})}else{json!({"status":"idle"})},
                 update: None,
                 bytes: None,
                 cancel: CancellationToken::new(),
@@ -70,7 +70,7 @@ impl UpdateService {
             inner.state = json!({"status":"checking"});
         }
         self.publish(json!({}));
-        if !cfg!(windows)||self.portable{return Ok(self.publish(json!({"status":"manual","message":if self.portable{"便携版已停止发布，请改用 Windows 安装器。"}else{"macOS 版固定为 Demo V0.5.6，暂不提供后续自动更新。"}})));}
+        if !cfg!(windows)||self.portable{return Ok(self.publish(json!({"status":"manual","message":if self.portable{"便携版已停止发布，请改用 Windows 安装器。"}else{"macOS 适配版暂不提供应用内更新，请前往发布页面下载。"}})));}
         let result=async {
             let mut builder=app.updater_builder().timeout(Duration::from_secs(20))
                 .version_comparator(|current, release| should_offer(&current, &release.version));
