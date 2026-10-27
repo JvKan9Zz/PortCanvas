@@ -355,7 +355,7 @@ body input[type=checkbox]{border-color:#7c8ea8}
 .device-list{margin:0 12px 16px;padding:8px;border:1px solid var(--line);border-radius:14px;flex:1;min-height:260px;background:rgba(255,255,255,.23);overflow:auto}
 .device-list:has(.no-devices){display:grid;place-items:center}
 .device-list>.no-devices{margin:0;padding:22px 12px;text-align:center;font-size:13px;line-height:1.6;color:var(--muted)}
-:root[data-appearance=dark] .device-list{background:rgba(15,26,43,.2)}
+:root[data-appearance=dark] .device-list{background:transparent}
 :root:not([data-appearance=dark]) .device-workspace{background:rgba(255,255,255,var(--glass-workspace-alpha,.48))}
 .rail .nav-item:not(.active),.rail .nav-item:not(.active):hover{background:transparent}
 .glass-number input{margin:0;line-height:20px}
@@ -405,7 +405,7 @@ button>.activity-indicator{margin:0}button.activity-busy>svg,.badge.activity-bus
 /* Background media stays below the four work areas. */
 #workspaceVideo{position:fixed;left:0;top:0;width:100vw;height:100vh;object-fit:cover;z-index:0;pointer-events:none}
 .rail{z-index:1}.app{position:relative;z-index:1}
-:root[data-appearance=dark] #workspaceVideo{filter:brightness(.52)}
+:root[data-appearance=dark][data-background-video=true] body::after{content:'';position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:0;pointer-events:none}
 .background-preview{position:relative;overflow:hidden}
 #backgroundVideoPreview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
 :root[data-appearance=dark][data-background-video=true] .background-preview{filter:brightness(.52)}
@@ -433,3 +433,17 @@ button>.activity-indicator{margin:0}button.activity-busy>svg,.badge.activity-bus
 :root[data-appearance=dark] .device-list-panel{background:transparent;border:0}
 :root[data-appearance=dark] .device-library{background:rgba(23,38,59,.58)}
 :root[data-appearance=dark] .quick-connect-dialog{background:#1b293e;border-color:#415673}
+
+/* Device work area follows the window; the transparent carrier owns only reveal layout. */
+.device-page{display:flex;flex-direction:column;overflow:auto}
+.device-page>.page-heading{flex:none}
+.device-workspace{flex:1 0 auto}
+.device-page .connection-editor{display:flex;flex-direction:column;justify-content:center}
+.device-page .fields{row-gap:clamp(18px,3vh,36px)}
+.connection-details{display:flow-root;flex:none}
+
+/* Smooth fills need only the glass tint and rims; media retains real backdrop blur. */
+:root:not([data-background-image=true]):not([data-background-video=true]) :is(.rail,.app>main,.terminal-drawer,.app>.app-header){backdrop-filter:none;-webkit-backdrop-filter:none}
+.brand-heading{display:flex;align-items:center;gap:14px;min-width:0}
+.update-notice{height:28px;padding:0 10px;gap:6px;font-size:11px;color:var(--accent-text);background:var(--accent-tint);border:1px solid var(--accent-border);border-radius:999px;box-shadow:none}
+.update-notice svg{width:13px;height:13px}.update-notice:hover{background:var(--accent-soft)}

@@ -1,5 +1,6 @@
 import {t,onLanguageChange} from './i18n.js';
 import {SettingsDialog} from './settings.js';
+import {ConnectionDetails} from './connection-details.js';
 import {DeviceDiscovery} from './discovery.js';
 import {FilePage} from './files-page.js';
 import {TerminalDrawer} from './terminal-drawer.js';
@@ -12,6 +13,7 @@ import {setConnectionIndicator,withActivity} from './connection-indicator.js';
 installDesktopInteractions();
 document.querySelectorAll('.page').forEach(section=>section.classList.add('page-enter'));
 const $ = id => document.getElementById(id);
+const connectionDetails=new ConnectionDetails($('connectionDetails'));
 let devices = [], selected = null, page = 'devices', rfb = null, desktopAttempt = 0;
 let current = {ssh: 'disconnected', desktop: 'disconnected', message: '就绪'}, fit = true, readonly = false;
 let toastTimer,toastMessage;
@@ -112,12 +114,14 @@ function renderState(state,presentationOnly=false) {
   current = state;
   if(!presentationOnly){filesPage.setConnection(state,selected?.id);terminalDrawer.setConnection(state);arenaPage.setConnection(state);}
   const connected = state.ssh === 'connected', connecting = state.ssh === 'connecting';
+  const detailsVisible=connected||connecting||state.ssh==='error';
   const status = connected ? '设备已连接' : connecting ? '正在连接设备' : state.ssh === 'error' ? '连接失败' : '设备未连接';
   $('connectionBadge').className = 'badge ' + state.ssh;
   $('connectionBadge').lastElementChild.textContent = t(status);
   $('connectDevice').querySelector('span').textContent = t(connecting ? '取消连接' : connected ? '断开设备' : '连接设备');
   for (const id of ['name', 'host', 'port', 'username', 'password', 'authMethod','privateKeyPath','rememberPassword','choosePrivateKey','display', 'xauthority', 'saveDevice', 'newDevice', 'removeDevice', 'importProfiles', 'rollbackProfiles']) $(id).disabled = connected || connecting;
-  $('resultTitle').textContent = t(connected ? '设备连接成功' : connecting ? '正在建立连接' : state.ssh === 'error' ? '连接失败' : '准备连接');
+  if(detailsVisible){
+  $('resultTitle').textContent = t(connected ? '设备连接成功' : connecting ? '正在建立连接' : '连接失败');
   const stepIndex=connectionSteps.findIndex(([key])=>key===state.connectionStage);
   $('connectionTarget').textContent=state.connectionTarget||'';
   $('connectionTarget').hidden=!state.connectionTarget;
@@ -134,10 +138,12 @@ function renderState(state,presentationOnly=false) {
   $('connectionAdvice').textContent=t(connectionAdvice[state.connectionStage]||'');
   $('resultMessage').textContent = t(state.message);
   $('connectionBadge').title=t(state.message);
-  document.querySelector('.connection-result').hidden=!connected&&!connecting&&state.ssh!=='error';
   document.querySelector('.connection-result').className = 'connection-result ' + state.ssh;
   setConnectionIndicator($('resultIcon'),connecting,icon(connected ? 'check' : 'connect'));
   $('goDesktop').hidden = !connected;
+  }
+  if(!detailsVisible&&$('connectionDetails').contains(document.activeElement))$('connectDevice').focus();
+  const detailsTransition=connectionDetails.setVisible(detailsVisible);
   const desktopBusy = state.desktop === 'connecting', desktopLive = state.desktop === 'connected';
   setConnectionIndicator(document.querySelector('.empty-display'),desktopBusy,icon('desktop'));
   if(desktopBusy&&state.desktopStage==='service')desktopPhase=Math.max(1,desktopPhase);
@@ -166,7 +172,11 @@ function renderState(state,presentationOnly=false) {
   renderDevices();
   updateDesktopActivity();
   discovery.refresh();
-  if(revealConnectionResult)requestAnimationFrame(()=>document.querySelector('.connection-result').scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'}));
+  if(revealConnectionResult)detailsTransition.then(shown=>{
+    if(!shown||page!=='devices'||!['connecting','error'].includes(current.ssh))return;
+    const bounds=$('connectionDetails').getBoundingClientRect(),viewport=$('page-devices').getBoundingClientRect();
+    if(bounds.bottom>viewport.bottom||bounds.top<viewport.top)document.querySelector('.connection-result').scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'});
+  });
 }
 async function startDesktop() {
   clearRfb();

@@ -3,6 +3,7 @@ import {ColorPicker} from './color-picker.js';
 import {BackgroundCropDialog} from './background-crop.js';
 import {applyGlassOpacity} from './glass.js';
 import {StorageSettings} from './storage-settings.js';
+import {checkStartupUpdate,hasAvailableUpdate} from './startup-update.js';
 import {applyBackground,setBackgroundVolume,setBackgroundHidden,refreshBackgroundPlayback} from './background.js';
 import {t,setLanguage,getLanguage,onLanguageChange} from './i18n.js';
 import {getTheme,setTheme,getAppearance,setAppearance,onThemeChange} from './theme.js';
@@ -17,7 +18,8 @@ export class SettingsDialog {
       const next={ArrowUp:(index+tabs.length-1)%tabs.length,ArrowDown:(index+1)%tabs.length,Home:0,End:tabs.length-1}[event.key];
       if(next!==undefined){event.preventDefault();this.selectCategory(tabs[next].dataset.settingsPage);tabs[next].focus();}
     };
-    $('openSettings').onclick=()=>{$('settingsDialog').showModal();this.selectCategory(this.category);this.render();refreshBackgroundPlayback();};
+    $('openSettings').onclick=()=>this.open();
+    $('updateNotice').onclick=()=>this.open('about');
     $('closeSettings').onclick=()=>this.close();
     $('settingsDialog').addEventListener('cancel',event=>{event.preventDefault();this.close();});
     $('settingsDialog').addEventListener('close',()=>{this.storage.hide();refreshBackgroundPlayback();$('openSettings').focus();});
@@ -64,11 +66,13 @@ export class SettingsDialog {
     $('installUpdate').onclick=()=>this.perform(()=>window.studio.installUpdate());
     $('cancelUpdate').onclick=()=>window.studio.cancelUpdate().catch(error=>toast(error.message));
     window.studio.onUpdate(update=>{this.update=update;this.render();});
-    window.studio.updateState().then(update=>{if(!this.update)this.update=update;this.render();}).catch(error=>toast(error.message));
+    const initialUpdate=window.studio.updateState().then(update=>{if(!this.update)this.update=update;this.render();return update;}).catch(error=>{toast(error.message);});
     onLanguageChange(()=>this.render());
     onThemeChange(()=>this.render());
-    window.studio.settings().then(info=>{this.info=info;applyGlassOpacity(info.glassOpacity??100);setTheme(info.theme);setAppearance(info.appearance);setLanguage(info.language);this.refreshBackground();this.render();}).catch(error=>toast(error.message));
+    const initialSettings=window.studio.settings().then(info=>{this.info=info;applyGlassOpacity(info.glassOpacity??100);setTheme(info.theme);setAppearance(info.appearance);setLanguage(info.language);this.refreshBackground();this.render();return info;}).catch(error=>{toast(error.message);});
+    Promise.all([initialSettings,initialUpdate]).then(async([info,update])=>{if(!info||!update)return;const result=await checkStartupUpdate(info,this.update,()=>window.studio.checkUpdates());if(result){this.update=result;this.render();}});
   }
+  open(category=this.category){if(!$('settingsDialog').open)$('settingsDialog').showModal();this.selectCategory(category);this.render();refreshBackgroundPlayback();}
   selectCategory(category){
     this.category=category;
     const tabs=[...document.querySelectorAll('[data-settings-page]')];
@@ -136,6 +140,8 @@ export class SettingsDialog {
       option.checked=option.value===(this.info?.environmentSource||'computer');option.disabled=Boolean(this.savingSource);
     }
     const update=this.update||{},status=update.status||'idle',busy=['checking','downloading','verifying','installing'].includes(status);
+    $('updateNotice').hidden=!hasAvailableUpdate(update);
+    $('updateNotice').querySelector('span').textContent=t('新版本 V{version}',{version:update.version||''});
     $('checkUpdates').disabled=this.acting||busy||this.info?.updatesSupported===false;$('checkUpdates').textContent=t(status==='checking'?'正在检查…':'检查更新');
     $('downloadUpdate').hidden=!update.version||!['available','canceled','error'].includes(status);
     $('downloadUpdate').disabled=this.acting||busy;
