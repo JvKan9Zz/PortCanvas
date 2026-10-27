@@ -50,7 +50,7 @@ export class BackgroundCropDialog{
   Object.assign(this.selection.style,{left:left+this.crop.x*this.box.width+'px',top:top+this.crop.y*this.box.height+'px',width:this.crop.width*this.box.width+'px',height:this.crop.height*this.box.height+'px'});
  }
  cancel(){if(!this.busy)this.finish(null);}
- setHidden(hidden){this.nativeHidden=Boolean(hidden);if(this.dialog.open&&!this.video.hidden&&!this.nativeHidden&&!document.hidden)this.video.play().catch(()=>{});else this.video.pause();}
- release(){this.video.pause();this.video.removeAttribute('src');this.video.load();$('cropImage').removeAttribute('src');}
+ setHidden(hidden){this.nativeHidden=Boolean(hidden);if(!this.video.getAttribute('src'))return;if(this.dialog.open&&!this.video.hidden&&!this.nativeHidden&&!document.hidden)this.video.play().catch(()=>{});else this.video.pause();}
+ release(){if(this.video.getAttribute('src')){this.video.pause();this.video.removeAttribute('src');this.video.load();}$('cropImage').removeAttribute('src');}
  finish(result){this.drag=null;this.dialog.close();this.release();const resolve=this.resolve;this.resolve=null;this.commit=null;resolve?.(result);}
 }
