@@ -4,7 +4,7 @@
 
 [简体中文](README.md) | English
 
-A unified remote device workspace · **Demo V0.5.9**
+A unified remote device workspace · **Demo V0.5.95**
 
 This release adds startup LAN SSH discovery and image/video backgrounds with volume control. It removes the image size cap and fixes large images appearing only in the preview. Backgrounds stream from local files, and closed previews release their decoder resources. The liquid-glass workspace, light/dark/system appearance and adjustable opacity remain available. Missing remote components download and cache on the PC by default, then transfer over SSH; board-side downloading is also selectable. New log configurations default to a 1024 MiB limit.
 
@@ -24,7 +24,7 @@ By default, the app downloads and caches missing components on the PC, then tran
 
 ## Download and usage
 
-[Windows V0.5.9](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.9) · [macOS V0.5.6](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.6) · [Usage guide (Chinese)](docs/usage.md) · [Position protocol (Chinese)](docs/pose-protocol.md)
+[Windows V0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS V0.5.6](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.6) · [Usage guide (Chinese)](docs/usage.md) · [Position protocol (Chinese)](docs/pose-protocol.md)
 
 Installed Windows editions can check for updates under Settings → About, or use the new installer. Version 0.5.8 can update directly to 0.5.9. Background images and videos can be cropped before applying. Settings → Storage selects the runtime download source; an operation already in progress keeps the source it started with.
 
@@ -33,6 +33,8 @@ The Windows x64 installer lets you choose the installation folder. In-app update
 The Mac package uses an ad-hoc signature and is not notarized by Apple. First launch may require manual approval in macOS Privacy & Security. Saved credentials use Windows DPAPI or macOS Keychain and cannot be decrypted directly on the other operating system.
 
 Portable builds, wrapper ZIPs, standalone signatures and checksum lists are no longer published. Besides installers and GitHub's source archives, releases retain only the latest.json needed by the Windows in-app updater; its signature is embedded in that manifest.
+
+V0.5.95 improves the device page layout, removes an extra device-list background and animates connection details in both directions. Default and solid backgrounds skip unnecessary blur; video previews reuse the playing video. Image and video backgrounds retain their glass effects. The app checks for updates on startup and shows available versions beside the brand name.
 
 ## Source
 

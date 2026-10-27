@@ -667,5 +667,7 @@
   "背景音量须为 0–100。": "Background volume must be between 0 and 100.",
   "已取消背景导入。": "Background import canceled.",
   "背景预览已结束，请重新选择。": "The background preview has ended. Select the media again.",
-  "局域网搜索失败：{error}": "LAN search failed: {error}"
+  "局域网搜索失败：{error}": "LAN search failed: {error}",
+  "查看可用更新": "View available update",
+  "新版本 V{version}": "Update V{version}"
 }
