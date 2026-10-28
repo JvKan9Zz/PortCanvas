@@ -2,6 +2,16 @@
 
 Tauri 2 + Rust + WebView2桌面客户端。Rust负责SSH、SFTP、桌面转发、PTY/tmux、本地日志、设置与按需摄像头；前端使用noVNC与xterm。Node仅用于构建，电脑端运行无需Node/Python。
 
+## v0.6.0 原生迁移基线
+
+当前开发范围为 Windows x64，macOS 适配按需另行安排。原生替代链路通过验证前保留当前实现；此处的源码清单不代表功能或性能验收通过。
+
+使用 Python 3.11+ 从 Git 提交生成命令、事件、平台依赖、远端辅助脚本、数据位置与更新契约的索引（只读取仓库中的已提交源码，不读取用户配置）：
+
+```bash
+python tools/native_baseline.py --ref v0.5.95 --output src-tauri/target/native-baseline.json
+```
+
 ## 构建
 
 需要Node、Rust MSVC、VS C++ Build Tools、Windows SDK与WebView2。在本目录且MSVC环境已就绪时运行：
