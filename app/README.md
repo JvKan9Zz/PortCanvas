@@ -12,6 +12,8 @@ Tauri 2 + Rust + WebView2桌面客户端。Rust负责SSH、SFTP、桌面转发�
 python tools/native_baseline.py --ref v0.5.95 --output src-tauri/target/native-baseline.json
 ```
 
+[native-probe](native-probe/README.md) 是独立的 Windows 原生链路验证工程，覆盖 VT、受控 RFB、系统视频解码与版本签名契约。它不替换当前程序，完整 M1 功能与性能门禁仍需逐项验证。
+
 ## 构建
 
 需要Node、Rust MSVC、VS C++ Build Tools、Windows SDK与WebView2。在本目录且MSVC环境已就绪时运行：

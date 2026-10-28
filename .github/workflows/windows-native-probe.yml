@@ -1,0 +1,41 @@
+name: Windows native probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['app/native-probe/**', '.github/workflows/windows-native-probe.yml']
+  push:
+    branches: [main]
+    paths: ['app/native-probe/**', '.github/workflows/windows-native-probe.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: cmd
+        working-directory: app/native-probe
+    env:
+      WCS_TEST_ROOT: ${{ github.workspace }}/app/native-probe/target/isolated-tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare Rust and isolated data
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File ci.ps1 setup'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            app/native-probe/target
+          key: native-probe-rust190-${{ hashFiles('app/native-probe/Cargo.lock') }}
+      - name: Test native terminal, RFB, system codecs and update signatures
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File ci.ps1 test'
+      - name: Compile the Windows native GUI without bundling or signing
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File ci.ps1 build'
