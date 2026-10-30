@@ -5,7 +5,6 @@ use crate::{
     migration::Plan as MigrationPlan,
     profiles::Profile,
     session::EventSink,
-    ssh::HostCheck,
     terminal::OutputSink,
 };
 use anyhow::{bail, Context, Result};
@@ -393,29 +392,23 @@ async fn studio_call(
             "settings:update-install"=>install_update(window,&state).await,
             "settings:repository"=>{open_repository(window).await?;Ok(Value::Null)},
             "profiles:list"=>Ok(json!(state.profiles.lock().unwrap().read()?.devices.iter().map(Profile::public_value).collect::<Vec<_>>())),
-            "profiles:save"=>{anyhow::ensure!(!matches!(state.devices.snapshot()["ssh"].as_str(),Some("connected"|"connecting")),"请先断开设备再修改配置。");let profile:Profile=argument(&args,0)?;let secret=match args.get_mut(1).map(Value::take){Some(Value::String(p))=>zeroize::Zeroizing::new(p),None|Some(Value::Null)=>zeroize::Zeroizing::new(String::new()),_=>bail!("凭据参数无效。")};Ok(state.profiles.lock().unwrap().save(profile,&secret)?.public_value())},
+            "profiles:save"=>{let profile:Profile=argument(&args,0)?;let secret=match args.get_mut(1).map(Value::take){Some(Value::String(p))=>zeroize::Zeroizing::new(p),None|Some(Value::Null)=>zeroize::Zeroizing::new(String::new()),_=>bail!("凭据参数无效。")};Ok(state.services.save_profile(profile,&secret)?.public_value())},
             "profiles:choose-key"=>{let file=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title(local_text(&window,"选择SSH私钥（OpenSSH / PEM / PPK）")).add_filter(local_text(&window,"所有私钥文件"),&["*"]).pick_file()).await?;Ok(json!(file.map(|p|p.to_string_lossy().into_owned())))},
-            "profiles:remove"=>{let id:String=argument(&args,0)?;if !confirm(window.clone(),"移除设备配置".into(),"仅移除本机连接配置，是否继续？".into()).await?{return Ok(json!(false));}if state.devices.snapshot()["deviceId"]==id{state.devices.disconnect().await;}
-                let store=state.profiles.lock().unwrap();let mut data=store.read()?;let removed=data.devices.iter().find(|p|p.id==id).cloned();data.devices.retain(|p|p.id!=id);if let Some(removed)=removed{if !data.devices.iter().any(|p|p.address()==removed.address()){data.host_keys.remove(&removed.address());}}store.write(&data)?;Ok(json!(true))},
+            "profiles:remove"=>{let id:String=argument(&args,0)?;if !confirm(window.clone(),"移除设备配置".into(),"仅移除本机连接配置，是否继续？".into()).await?{return Ok(json!(false));}state.services.remove_profile(&id).await?;Ok(json!(true))},
             "environment:cancel"=>{state.devices.cancel_environment()?;Ok(json!({"canceled":true}))},
             "device:state"=>Ok(state.devices.snapshot()),
             "discovery:start"=>Ok(state.discovery.start()),
             "discovery:state"=>Ok(state.discovery.snapshot()),
             "discovery:cancel"=>{state.discovery.cancel();Ok(state.discovery.snapshot())},
             "device:reboot"=>reboot_device(window,&state).await,
-            "device:disconnect"=>{tokio::join!(state.arena.stop(None),state.pose.stop(None));state.devices.disconnect().await;state.desktop.stop(None).await;Ok(state.devices.snapshot())},
+            "device:disconnect"=>Ok(state.services.disconnect().await),
             "device:connect"=>{
-                let mut profile:Profile=argument::<Profile>(&args,0)?.validate()?;profile.encrypted_secret=None;
-                state.discovery.cancel();
+                let profile:Profile=argument(&args,0)?;
                 let supplied=match args.get_mut(1).map(Value::take){Some(Value::String(p))=>zeroize::Zeroizing::new(p),None|Some(Value::Null)=>zeroize::Zeroizing::new(String::new()),_=>bail!("凭据参数无效。")};
-                let password=state.profiles.lock().unwrap().connection_secret(&profile,supplied)?;
-                let store=state.profiles.clone();let address=profile.address();let dialog=window.clone();
-                let result=state.devices.connect(profile,password,move|cancel|{let callback:HostCheck=Arc::new(move|fingerprint|{let store=store.clone();let address=address.clone();let dialog=dialog.clone();let cancel=cancel.clone();Box::pin(async move{
-                    let known=store.lock().unwrap().read()?.host_keys.get(&address).cloned();
-                    if let Some(known)=known{anyhow::ensure!(known==fingerprint,"主机身份已变化，已停止连接。请核实设备身份，不会自动信任新密钥。");return Ok(!cancel.is_cancelled());}
-                    let accepted=confirm(dialog,"首次连接设备".into(),format!("确认这台设备的 SSH 身份：\n{address}\n{fingerprint}\n请与设备或已信任客户端核对，确认后才会保存信任记录。")).await?;
-                    if !accepted||cancel.is_cancelled(){return Ok(false);}store.lock().unwrap().trust(&address,&fingerprint)?;Ok(true)
-                })});callback}).await?;Ok(result)
+                let confirm:crate::application::HostConfirmation=Arc::new(move|identity,_cancel|{
+                    let window=window.clone();Box::pin(async move{confirm(window,"首次连接设备".into(),format!("确认这台设备的 SSH 身份：\n{}\n{}\n请与设备或已信任客户端核对，确认后才会保存信任记录。",identity.address,identity.fingerprint)).await})
+                });
+                state.services.connect(profile,supplied,confirm).await
             },
             "arena:metrics"=>{state.pose.touch();state.arena.metrics().await},
             "arena:cameras"=>state.arena.cameras().await,

@@ -16,6 +16,8 @@ python tools/native_baseline.py --ref v0.5.95 --output src-tauri/target/native-b
 
 [core](core/README.md) 是新旧入口共用的业务服务库，独立编译/测试不依赖Tauri。src-tauri保留旧界面、平台对话框、窗口及更新安装适配；原生工程可直接使用同一份SSH、终端、文件、日志和数据服务。实机验证按用户要求统一后置到整套流程完成后。
 
+原生工程现有 `PortCanvasNative.exe` 设备/连接与基础设置入口，默认使用独立的 `PortCanvas/NativeDevelopment` 资料目录；`PortCanvasNativeProbe.exe` 继续承担受控链路实验。当前是 M3 首批页面，终端、桌面、文件、赛台、日志浏览、背景与更新迁移仍待集成，尚不替换正式版。
+
 ## 构建
 
 需要Node、Rust MSVC、VS C++ Build Tools、Windows SDK与WebView2。在本目录且MSVC环境已就绪时运行：
@@ -29,7 +31,7 @@ python -m unittest discover -s tests -p "test_*.py"
 # Rust tests must use a dedicated existing directory (Git Bash on Windows).
 mkdir -p src-tauri/target/local-tests
 export WCS_TEST_ROOT="$(cygpath -w "$PWD/src-tauri/target/local-tests")"
-cargo test --manifest-path core/Cargo.toml --locked --features downloads --lib
+cargo test --manifest-path core/Cargo.toml --locked --features downloads
 cargo test --manifest-path src-tauri/Cargo.toml --locked --lib
 cargo test --manifest-path src-tauri/Cargo.toml --locked --no-default-features --test ssh_lifecycle
 npm run pack

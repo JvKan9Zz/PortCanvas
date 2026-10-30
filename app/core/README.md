@@ -8,6 +8,8 @@ This crate has no Tauri dependency or build script. The optional `downloads` fea
 
 Existing JSON fields, DPAPI identity context, tmux names, logging protocols, cancellation and timeout behavior are retained. Moving the crate does not constitute a new data migration; unknown-field preservation remains a separate migration requirement. The crate version remains aligned with the legacy 0.5.95 metadata until the application version is changed deliberately.
 
+`application` provides UI-independent save/remove/connect/disconnect actions. A caller supplies an asynchronous `HostConfirmation` for unknown SSH keys; known-key matching, changed-key rejection, credential resolution and the post-confirmation cancellation check stay in the shared core. The loopback integration tests exercise these rules without a window or device. The caller confirms profile removal before calling the shared removal action.
+
 ## Windows tests
 
 Use Rust 1.90+ and the MSVC environment. From this directory in Git Bash:
@@ -15,7 +17,7 @@ Use Rust 1.90+ and the MSVC environment. From this directory in Git Bash:
 ```bash
 mkdir -p target/local-tests
 export WCS_TEST_ROOT="$(cygpath -w "$PWD/target/local-tests")"
-cargo test --locked --features downloads --lib
+cargo test --locked --features downloads
 cargo tree --locked --features downloads --target x86_64-pc-windows-msvc -e normal,build
 ```
 

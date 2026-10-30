@@ -20,4 +20,5 @@ pub mod log_store;
 pub mod logs;
 pub mod migration;
 pub mod services;
+pub mod application;
 #[cfg(feature="downloads")]pub mod download;

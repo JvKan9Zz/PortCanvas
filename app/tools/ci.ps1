@@ -28,7 +28,7 @@ switch ($Check) {
     'typescript' { Invoke-Checked 'npx.cmd' @('--no-install', 'tsc', '--noEmit') }
     'frontend-tests' { Invoke-Checked 'npm.cmd' @('run', 'test:frontend') }
     'python' { Invoke-Checked 'python.exe' @('-B', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py') }
-    'core' { Invoke-Checked 'cargo.exe' @('test', '--manifest-path', 'core/Cargo.toml', '--locked', '--features', 'downloads', '--lib') }
+    'core' { Invoke-Checked 'cargo.exe' @('test', '--manifest-path', 'core/Cargo.toml', '--locked', '--features', 'downloads') }
     'native' { Invoke-Checked 'cargo.exe' @('test', '--manifest-path', 'src-tauri/Cargo.toml', '--locked', '--release', '--lib') }
     'ssh' { Invoke-Checked 'cargo.exe' @('test', '--manifest-path', 'src-tauri/Cargo.toml', '--locked', '--release', '--no-default-features', '--test', 'ssh_lifecycle') }
     'compile' { Invoke-Checked 'npx.cmd' @('--no-install', 'tauri', 'build', '--no-bundle', '--ci') }

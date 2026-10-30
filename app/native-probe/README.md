@@ -1,10 +1,20 @@
-# Windows native feasibility probe
+# Windows native workbench and feasibility probe
 
-An isolated v0.6.0 development probe. It does not replace the current PortCanvas application or read its profiles, credentials, settings or logs. macOS adaptation is outside the current scope.
+An isolated v0.6.0 development application. It does not replace the current PortCanvas application. macOS adaptation is outside the current scope.
 
 The window uses Slint/winit/FemtoVG and native OpenGL. The terminal uses `alacritty_terminal`; RFB uses `vnc-rs` over an owned loopback fixture; H.264 decoding and test-video generation use Windows Media Foundation. Native signature verification accepts the existing signer's format and requires its authenticated version field. There is no Tauri, WebView, noVNC or xterm dependency in this crate's active Windows build graph.
 
 The crate now links [the shared business services](../core/README.md). With `WCS_TEST_ROOT` set, `PortCanvasNativeProbe.exe --core-smoke` constructs, reads and shuts down those services in an isolated data directory without opening a window or connecting a device. The graphical prototype still uses controlled local data; real-controller validation is scheduled after the development and local-regression flow.
+
+## Native application
+
+`PortCanvasNative.exe` is the default GUI binary. It provides saved device profiles, password/private-key SSH authentication, host identity confirmation, connection progress/cancellation/disconnect, explicit LAN discovery, language, appearance, desktop quality and runtime-source preferences, and the local log-size limit. Both the legacy and native adapters use `core::application` for profile actions and SSH trust policy. Connection details and errors come from the shared services; switching pages or appearance does not reconnect the device.
+
+The default development data directory is `%LOCALAPPDATA%/PortCanvas/NativeDevelopment`. Set an absolute `WCS_DATA_DIR` to use isolated fixtures. It does not automatically import production profiles or migrate data. Saved credentials use the shared Windows protection mechanism. The window does not scan the LAN automatically; discovery starts only when Search is pressed. Do not point the development build at the sole copy of production data.
+
+This is the first M3 increment. Log browsing, background/theme options, the remaining window interactions, and feature parity are still outstanding. Terminal, remote desktop, files, arena and media pages are not yet integrated into this application. The separate `PortCanvasNativeProbe.exe` remains available for controlled renderer/codec/input experiments.
+
+For local SSH GUI checks, `cargo build --locked --example workbench_fixture` builds an owned loopback server. With an isolated `WCS_TEST_ROOT`, it writes `fixture-ready.json` containing its ephemeral port and data directory. Launch the application with `WCS_DATA_DIR` set to that directory. The fixture accepts only synthetic credentials, executes no commands, and exits after ten minutes or when `fixture-stop` appears. Its final report contains the successful authentication count. No private key is written to disk.
 
 ## Build and test
 
@@ -15,6 +25,7 @@ mkdir -p target/local-tests
 export WCS_TEST_ROOT="$(cygpath -w "$PWD/target/local-tests")"
 cargo test --locked
 cargo build --locked --features gui --release
+target/release/PortCanvasNative.exe
 ```
 
 To generate a disposable, silent 320×180 H.264 fixture and run the window:
@@ -30,7 +41,7 @@ The fixture destination must not exist. The report is optional and contains loca
 
 ## Acceptance boundary
 
-This is an experimental M1 probe, not feature parity or a performance result. It currently tests VT parsing/scrollback/selection, native text submission, a synthetic RFB client/server path, system H.264 video and signed-version checks. Direct terminal IME composition, live SSH PTY/tmux, all terminal modes, every RFB encoding/filter, real x11vnc latency, production clipboard behavior, audio/codecs, background editing/compositing, DPI/accessibility coverage and the actual installer/update migration remain outstanding. Input-queue saturation is not qualified for real remote use. No real device connection is exposed.
+The separate M1 probe tests VT parsing/scrollback/selection, native text submission, a synthetic RFB client/server path, system H.264 video and signed-version checks. Direct terminal IME composition, live SSH PTY/tmux, all terminal modes, every RFB encoding/filter, real x11vnc latency, production clipboard behavior, audio/codecs, background editing/compositing, DPI/accessibility coverage and the actual installer/update migration remain outstanding. Input-queue saturation is not qualified for real remote use. Local loopback SSH/GUI checks do not establish real-controller compatibility or a performance result.
 
 Slint 1.16.1 showed repeated missing-CJK-segmentation diagnostics in the tested Windows text path. This probe pins 1.15.1, whose text and controls were checked locally. This is a prototype choice, not a frozen final GUI decision; egui/eframe remains an alternative to compare when the remaining gates can be measured.
 
