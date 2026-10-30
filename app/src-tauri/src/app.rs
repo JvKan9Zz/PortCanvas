@@ -1,14 +1,12 @@
 use crate::{
-    desktop::DesktopService,
-    files::{Confirmation, FileService, Side, Transfer, Removal},
+    files::{Confirmation, Side, Transfer, Removal},
     log_store::Query as LogQuery,
-    logs::{LogService, Settings as LogSettings},
+    logs::Settings as LogSettings,
     migration::Plan as MigrationPlan,
-    profiles::{Profile, ProfileStore},
-    session::{DeviceManager, EventSink},
+    profiles::Profile,
+    session::EventSink,
     ssh::HostCheck,
     terminal::OutputSink,
-    terminal_pool::TerminalPool,
 };
 use anyhow::{bail, Context, Result};
 use serde::de::DeserializeOwned;
@@ -17,39 +15,21 @@ use std::{
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc,
     },
 };
 use tauri::{Emitter, Manager};
 pub struct AppState {
-    pub rebooting:AtomicBool,
-    pub profiles: Arc<Mutex<ProfileStore>>,
-    pub devices: DeviceManager,
-    pub desktop: DesktopService,
-    pub arena: crate::arena::ArenaService,
-    pub pose: crate::arena_pose::PoseService,
-    pub quitting: AtomicBool,
-    pub files: FileService,
-    pub terminal: TerminalPool,
-    pub logs: LogService,
-    pub migrating: AtomicBool,
-    pub default_log_root: PathBuf,
-    pub preferences: Mutex<crate::preferences::PreferenceStore>,
-    pub background_draft:Mutex<Option<crate::preferences::BackgroundDraft>>,
+    pub services:Arc<crate::services::Services>,
     pub background_media:crate::background_media::BackgroundMedia,
-    pub background_import:Mutex<tokio_util::sync::CancellationToken>,
-    pub discovery:crate::discovery::Discovery,
-    pub updates: crate::updates::UpdateService,
+    pub updates:crate::updates::UpdateService,
+}
+impl std::ops::Deref for AppState {
+    type Target=crate::services::Services;
+    fn deref(&self)->&Self::Target {&self.services}
 }
 async fn stop_for_exit(state:&AppState) {
-    state.discovery.cancel();state.background_import.lock().unwrap().cancel();state.background_media.stop();
-    state.updates.cancel();
-    state.terminal.stop_all();
-    state.files.cancel();
-    tokio::join!(state.arena.stop(None),state.pose.stop(None));
-    state.desktop.stop(None).await;
-    state.devices.disconnect().await;
-    let _=state.logs.close().await;
+    state.updates.cancel();state.background_media.stop();state.services.shutdown().await;
 }
 async fn install_update(window:tauri::WebviewWindow,state:&AppState)->Result<Value> {
     anyhow::ensure!(!state.files.snapshot()["busy"].as_bool().unwrap_or(false)&&!state.migrating.load(Ordering::SeqCst),"请等待文件传输或资料迁移结束后再安装更新。");
@@ -417,7 +397,7 @@ async fn studio_call(
             "profiles:choose-key"=>{let file=tokio::task::spawn_blocking(move||rfd::FileDialog::new().set_parent(&window).set_title(local_text(&window,"选择SSH私钥（OpenSSH / PEM / PPK）")).add_filter(local_text(&window,"所有私钥文件"),&["*"]).pick_file()).await?;Ok(json!(file.map(|p|p.to_string_lossy().into_owned())))},
             "profiles:remove"=>{let id:String=argument(&args,0)?;if !confirm(window.clone(),"移除设备配置".into(),"仅移除本机连接配置，是否继续？".into()).await?{return Ok(json!(false));}if state.devices.snapshot()["deviceId"]==id{state.devices.disconnect().await;}
                 let store=state.profiles.lock().unwrap();let mut data=store.read()?;let removed=data.devices.iter().find(|p|p.id==id).cloned();data.devices.retain(|p|p.id!=id);if let Some(removed)=removed{if !data.devices.iter().any(|p|p.address()==removed.address()){data.host_keys.remove(&removed.address());}}store.write(&data)?;Ok(json!(true))},
-            "environment:cancel"=>{state.devices.connection()?.environment_cancel.lock().unwrap().cancel();Ok(json!({"canceled":true}))},
+            "environment:cancel"=>{state.devices.cancel_environment()?;Ok(json!({"canceled":true}))},
             "device:state"=>Ok(state.devices.snapshot()),
             "discovery:start"=>Ok(state.discovery.start()),
             "discovery:state"=>Ok(state.discovery.snapshot()),
@@ -514,81 +494,18 @@ pub fn run() {
             let directory = std::env::var_os("WCS_DATA_DIR")
                 .map(PathBuf::from)
                 .unwrap_or(app.path().app_data_dir()?);
-            if !directory.is_absolute() {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "应用数据目录须为绝对路径",
-                )
-                .into());
-            }
-            let handle = app.handle().clone();
-            let events: EventSink = Arc::new(move |name, data| {
-                if name == "device-state" {
-                    if let Some(state) = handle.try_state::<AppState>() {
-                        if data["ssh"] != "connected" {
-                            state.files.invalidate();
-                            state.terminal.stop_all();
-                            state
-                                .logs
-                                .detach("设备连接已关闭，未收到的输出保留为缺失。");
-                        } else {
-                            state.logs.refresh_status();
-                        }
-                    }
-                }
-                let _ = handle.emit(name, data);
-            });
-            let preferences = crate::preferences::PreferenceStore{file:directory.join("settings.json")};
-            preferences.cleanup_drafts()?;
+            let handle=app.handle().clone();
+            let events:EventSink=Arc::new(move |name,data|{let _=handle.emit(name,data);});
+            let documents=app.path().document_dir()?;
+            let local_files=if cfg!(target_os="macos"){app.path().home_dir()?}else{documents.clone()};
+            let namespace=std::env::var("WCS_SESSION_NAMESPACE").ok().filter(|s|!s.is_empty());
+            let services=crate::services::Services::new(crate::services::Paths{
+                data:directory.clone(),documents,local_files,portable,
+            },events.clone(),namespace)?;
             let background_media=tauri::async_runtime::block_on(crate::background_media::BackgroundMedia::new())?;
-            let discovery=crate::discovery::Discovery::new(events.clone());
-            let source = preferences.read().map(|p|p.environment_source).unwrap_or_default();
-            let devices = DeviceManager::new(events.clone()).with_runtime_cache(directory.join("runtime-cache"));
-            devices.set_environment_source(source);
-            let desktop = DesktopService::new(devices.clone());
-            let arena = crate::arena::ArenaService::new(devices.clone());
-            let pose = crate::arena_pose::PoseService::new(devices.clone(),events.clone());
-            let files = FileService::new(devices.clone(), if cfg!(target_os="macos"){app.path().home_dir()?}else{app.path().document_dir()?});
-            let namespace = std::env::var("WCS_SESSION_NAMESPACE")
-                .ok()
-                .filter(|s| !s.is_empty());
-            let documents = app.path().document_dir()?;
-            let legacy = documents.join("Wheel Combat Studio/Logs");
-            let default_log_root = if portable||cfg!(target_os="macos") {
-                directory.join("logs")
-            } else if legacy.is_dir() {
-                legacy
-            } else {
-                documents.join("PortCanvas/Logs")
-            };
-            let logs = LogService::new(
-                devices.clone(),
-                directory.join("log-settings.json"),
-                default_log_root.clone(),
-            )?;
-            let terminal = TerminalPool::new(devices.clone(),logs.clone(),namespace,directory.join("terminals.json"));
             let updates=crate::updates::UpdateService::new(events,portable);
             if portable {if let Some(result)=crate::portable_update::result(&directory){updates.restore_result(result);}}
-            app.manage(AppState {
-                rebooting:AtomicBool::new(false),
-                updates,
-                preferences: Mutex::new(preferences),
-                background_draft:Mutex::new(None),
-                background_media,
-                background_import:Mutex::new(tokio_util::sync::CancellationToken::new()),
-                discovery,
-                profiles: Arc::new(Mutex::new(ProfileStore { directory })),
-                devices,
-                desktop,
-                arena,
-                pose,
-                files,
-                terminal,
-                logs,
-                migrating: AtomicBool::new(false),
-                default_log_root,
-                quitting: AtomicBool::new(false),
-            });
+            app.manage(AppState{services,background_media,updates});
             Ok(())
         })
         .on_window_event(|window, event| {

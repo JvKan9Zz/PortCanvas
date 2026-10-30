@@ -3,7 +3,7 @@ use std::{collections::BTreeMap,sync::OnceLock};
 static WORDS:OnceLock<BTreeMap<String,String>>=OnceLock::new();
 pub fn text(input:&str,language:Language)->String {
     if language!=Language::English{return input.into();}
-    let words=WORDS.get_or_init(||serde_json::from_str(include_str!("../../frontend/en.json")).expect("built-in language catalog"));
+    let words=WORDS.get_or_init(||serde_json::from_str(include_str!("../resources/en.json")).expect("built-in language catalog"));
     if let Some(value)=words.get(input){return value.clone();}
     let token=regex::Regex::new(r"\{(\w+)\}").unwrap();
     let mut patterns=words.iter().filter(|(key,_)|key.contains('{')).collect::<Vec<_>>();

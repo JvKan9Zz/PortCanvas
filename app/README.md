@@ -14,6 +14,8 @@ python tools/native_baseline.py --ref v0.5.95 --output src-tauri/target/native-b
 
 [native-probe](native-probe/README.md) 是独立的 Windows 原生链路验证工程，覆盖 VT、受控 RFB、系统视频解码与版本签名契约。它不替换当前程序，完整 M1 功能与性能门禁仍需逐项验证。
 
+[core](core/README.md) 是新旧入口共用的业务服务库，独立编译/测试不依赖Tauri。src-tauri保留旧界面、平台对话框、窗口及更新安装适配；原生工程可直接使用同一份SSH、终端、文件、日志和数据服务。实机验证按用户要求统一后置到整套流程完成后。
+
 ## 构建
 
 需要Node、Rust MSVC、VS C++ Build Tools、Windows SDK与WebView2。在本目录且MSVC环境已就绪时运行：
@@ -27,6 +29,7 @@ python -m unittest discover -s tests -p "test_*.py"
 # Rust tests must use a dedicated existing directory (Git Bash on Windows).
 mkdir -p src-tauri/target/local-tests
 export WCS_TEST_ROOT="$(cygpath -w "$PWD/src-tauri/target/local-tests")"
+cargo test --manifest-path core/Cargo.toml --locked --features downloads --lib
 cargo test --manifest-path src-tauri/Cargo.toml --locked --lib
 cargo test --manifest-path src-tauri/Cargo.toml --locked --no-default-features --test ssh_lifecycle
 npm run pack
@@ -61,7 +64,7 @@ Windows构建通过TAURI_SIGNING_PRIVATE_KEY与TAURI_SIGNING_PRIVATE_KEY_PASSWOR
 更新在用户点击后下载，默认32路分段，不支持Range时回退单连接；可取消，完整文件通过版本签名校验后才允许安装。安装前停止本机连接并封存日志，远端持久会话保留；文件操作或迁移进行中不允许安装。正式版固定HTTPS与内置公钥。
 
 
-远端依赖准备实现在 resources/prepare_environment.py 与 remote_env.rs，电脑下载/缓存位于 runtime_download.rs，复用 update_download.rs 的 32 路传输。按功能调用、连接内去重、取消/心跳看门狗及独立暂存发布；现有 SFTP 路径优先，缺组件才按当前账号补齐。软件缓存与系统安装分开，不运行维护脚本、不修改 SDK。EnvironmentSource 默认 Computer，设置可选 Board；每次准备在持有功能锁后快照下载来源。Computer 读取现有 APT 索引并经电脑 HTTPS 缓存和长度帧传包；Board 通过 apt-get download 下载同版本包；两者共用校验、解包和原子发布逻辑，取消通过 EOF/Close 回收本次准备。详见 ../docs/usage.md 的 V0.5.8 环境表。
+远端依赖准备实现在 core/resources/prepare_environment.py 与 core/src/remote_env.rs，电脑下载/缓存位于 core/src/runtime_download.rs，复用 core/src/download.rs 的 32 路传输。按功能调用、连接内去重、取消/心跳看门狗及独立暂存发布；现有 SFTP 路径优先，缺组件才按当前账号补齐。软件缓存与系统安装分开，不运行维护脚本、不修改 SDK。EnvironmentSource 默认 Computer，设置可选 Board；每次准备在持有功能锁后快照下载来源。Computer 读取现有 APT 索引并经电脑 HTTPS 缓存和长度帧传包；Board 通过 apt-get download 下载同版本包；两者共用校验、解包和原子发布逻辑，取消通过 EOF/Close 回收本次准备。详见 ../docs/usage.md 的 V0.5.8 环境表。
 
 界面统一入口为 ui/workspace.css。theme.js 负责主题色彩和 light/dark/system 外观，glass.js 映射非透明度，background.js 仅设置背景展示。settings.js 组合分组设置、ColorPicker 与 StorageSettings；偏好和背景受管副本由 preferences.rs 持久化。ui/fonts 内置三种字重的完整 PingFang WOFF2；许可边界见字体 NOTICE 和第三方声明。终端/原始日志用系统等宽字体加中文回退；顶部 wordmark 单独使用完整转换的 Macintosh Skeletal Filled Regular，来源、原许可及用户单独确认的分发权限见字体 NOTICE。
 

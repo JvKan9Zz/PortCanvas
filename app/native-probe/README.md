@@ -4,6 +4,8 @@ An isolated v0.6.0 development probe. It does not replace the current PortCanvas
 
 The window uses Slint/winit/FemtoVG and native OpenGL. The terminal uses `alacritty_terminal`; RFB uses `vnc-rs` over an owned loopback fixture; H.264 decoding and test-video generation use Windows Media Foundation. Native signature verification accepts the existing signer's format and requires its authenticated version field. There is no Tauri, WebView, noVNC or xterm dependency in this crate's active Windows build graph.
 
+The crate now links [the shared business services](../core/README.md). With `WCS_TEST_ROOT` set, `PortCanvasNativeProbe.exe --core-smoke` constructs, reads and shuts down those services in an isolated data directory without opening a window or connecting a device. The graphical prototype still uses controlled local data; real-controller validation is scheduled after the development and local-regression flow.
+
 ## Build and test
 
 Windows x64, Rust 1.90+, the MSVC build environment and Windows system media codecs are required. From this directory in Git Bash:

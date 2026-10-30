@@ -22,45 +22,32 @@ path = "examples/compat_probe.rs"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:tauri", "dep:rfd", "dep:tauri-plugin-updater", "dep:reqwest", "dep:rustls", "windows-sys/Win32_UI_WindowsAndMessaging", "windows-sys/Win32_UI_Shell"]
+desktop = ["dep:tauri", "dep:tauri-build", "dep:rfd", "dep:tauri-plugin-updater", "dep:reqwest", "portcanvas-core/downloads", "windows-sys/Win32_UI_WindowsAndMessaging", "windows-sys/Win32_UI_Shell"]
 
 [dependencies]
+portcanvas-core = { path = "../core" }
 tauri = { version = "2", optional = true, features = [] }
 reqwest = { version = "0.13", optional = true, default-features = false }
-rustls = { version = "0.23", optional = true, default-features = false, features = ["ring", "std"] }
 rfd = { version = "0.15", optional = true }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["rt"] }
-russh = { version = "=0.64.1", default-features = false, features = ["ring", "rsa"] }
-russh-sftp = "=3.0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
-sha2 = "0.10"
-base64 = "0.22"
-regex = "1"
 semver = "1"
-chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1"
-futures-util = "0.3"
-if-addrs = "=0.14.0"
-tokio-tungstenite = "0.28"
 zeroize = "1"
-dunce = "1"
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_Networking_WinHttp"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_Storage_FileSystem"] }
 tauri-plugin-updater = { version = "=2.14.0", default-features = false, features = ["rustls-tls", "system-proxy"], optional = true }
 
-[target.'cfg(unix)'.dependencies]
-libc = "0.2"
 
-[target.'cfg(target_os = "macos")'.dependencies]
-security-framework = "3.7"
-ring = "0.17"
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2", optional = true, features = [] }
 
 [dev-dependencies]
+russh = { version = "=0.64.1", default-features = false, features = ["ring", "rsa"] }
+base64 = "0.22"
 tokio = { version = "1", features = ["test-util"] }
 rand = "0.10"
 

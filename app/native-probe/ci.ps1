@@ -1,4 +1,4 @@
-param([ValidateSet('setup','test','build')][string]$Check)
+param([ValidateSet('setup','test','build','smoke')][string]$Check)
 $ErrorActionPreference='Stop'
 if($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -ne 7){throw 'PowerShell 7 required'}
 switch($Check){
@@ -12,4 +12,5 @@ switch($Check){
     }
     test {& cargo.exe +1.90.0 test --locked;exit $LASTEXITCODE}
     build {& cargo.exe +1.90.0 build --locked --features gui;exit $LASTEXITCODE}
+    smoke {& ./target/debug/PortCanvasNativeProbe.exe --core-smoke;exit $LASTEXITCODE}
 }

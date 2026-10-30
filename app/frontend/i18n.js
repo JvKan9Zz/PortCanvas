@@ -1,4 +1,4 @@
-import english from './en.json';
+import english from '../core/resources/en.json';
 let language='zh-CN';const listeners=new Set();const bindings=[];
 const patterns=Object.entries(english).filter(([key])=>/\{\w+\}/.test(key)).sort(([a],[b])=>b.replace(/\{\w+\}/g,'').length-a.replace(/\{\w+\}/g,'').length).map(([key,value])=>{
   const names=[];let at=0,source='';for(const match of key.matchAll(/\{(\w+)\}/g)){source+=escape(key.slice(at,match.index))+'(.*?)';names.push(match[1]);at=match.index+match[0].length;}source+=escape(key.slice(at));return{regex:new RegExp('^'+source+'$','s'),names,value};

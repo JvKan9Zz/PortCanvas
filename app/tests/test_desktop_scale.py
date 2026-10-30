@@ -8,7 +8,7 @@ from fractions import Fraction
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-source=Path(__file__).resolve().parents[1]/'src-tauri/resources/desktop.py'
+source=Path(__file__).resolve().parents[1]/'core/resources/desktop.py'
 function=next(node for node in ast.parse(source.read_text(encoding='utf-8')).body if isinstance(node,ast.FunctionDef) and node.name=='scale_options')
 namespace={'ctypes':ctypes,'os':os,'Fraction':Fraction}
 exec(compile(ast.Module(body=[function],type_ignores=[]),str(source),'exec'),namespace)

@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-RESOURCES = Path(__file__).resolve().parents[1] / 'src-tauri/resources'
+RESOURCES = Path(__file__).resolve().parents[1] / 'core/resources'
 
 class CameraHelpersTests(unittest.TestCase):
     def select_backend(self, cv2_available, ffmpeg='/fixture/ffmpeg', native=False, import_error=ImportError):
