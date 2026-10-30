@@ -41,6 +41,7 @@ ring = "0.17"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
+rand = "0.10"
 
 [profile.release]
 opt-level = "s"

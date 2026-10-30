@@ -670,5 +670,18 @@
   "局域网搜索失败：{error}": "LAN search failed: {error}",
   "查看可用更新": "View available update",
   "新版本 V{version}": "Update V{version}",
-  "macOS 适配版暂不提供应用内更新，请前往发布页面下载。": "This macOS compatibility edition does not support in-app updates. Download releases from the repository."
+  "macOS 适配版暂不提供应用内更新，请前往发布页面下载。": "This macOS compatibility edition does not support in-app updates. Download releases from the repository.",
+  "私钥": "Private key",
+  "记住凭据": "Remember credential",
+  "已保存凭据时可留空": "Leave blank to use a matching saved credential",
+  "断开连接": "Disconnect",
+  "搜索": "Search",
+  "已连接": "Connected",
+  "日志上限（MiB）": "Log limit (MiB)",
+  "资料位置": "Data directory",
+  "保存": "Save",
+  "确认移除": "Confirm removal",
+  "信任并连接": "Trust and connect",
+  "请核对目标设备的SSH身份": "Verify the target SSH identity",
+  "设备已断开": "Device disconnected"
 }

@@ -4,10 +4,16 @@ version = "0.6.0-dev.1"
 edition = "2021"
 rust-version = "1.90"
 license = "MIT"
+default-run = "PortCanvasNative"
 
 [features]
 default = []
-gui = ["dep:slint", "dep:arboard"]
+gui = ["dep:slint", "dep:arboard", "dep:rfd"]
+
+[[bin]]
+name = "PortCanvasNative"
+path = "src/workbench_main.rs"
+required-features = ["gui"]
 
 [[bin]]
 name = "PortCanvasNativeProbe"
@@ -18,6 +24,9 @@ required-features = ["gui"]
 portcanvas-core = { path = "../core", features = ["downloads"] }
 alacritty_terminal = "=0.26.0"
 anyhow = "1"
+rfd = { version = "0.15", optional = true }
+zeroize = "1"
+tokio-util = { version = "0.7", features = ["rt"] }
 base64 = "0.22"
 minisign-verify = "=0.3.0"
 semver = "1"
@@ -30,10 +39,12 @@ slint = { version = "=1.15.1", optional = true, default-features = false, featur
 arboard = { version = "3.6", optional = true, default-features = false }
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61", features = ["Win32_Media_MediaFoundation", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Variant"] }
+windows = { version = "0.61", features = ["Win32_Media_MediaFoundation", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_UI_Shell"] }
 
 [dev-dependencies]
 flate2 = "1"
+russh = { version = "=0.64.1", default-features = false, features = ["ring", "rsa"] }
+rand = "0.10"
 
 [profile.release]
 opt-level = "s"
