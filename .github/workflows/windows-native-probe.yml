@@ -3,10 +3,10 @@ name: Windows native probe
 on:
   pull_request:
     branches: [main]
-    paths: ['app/native-probe/**', '.github/workflows/windows-native-probe.yml']
+    paths: ['app/native-probe/**', 'app/core/**', '.github/workflows/windows-native-probe.yml']
   push:
     branches: [main]
-    paths: ['app/native-probe/**', '.github/workflows/windows-native-probe.yml']
+    paths: ['app/native-probe/**', 'app/core/**', '.github/workflows/windows-native-probe.yml']
 
 permissions:
   contents: read
@@ -39,3 +39,5 @@ jobs:
         run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File ci.ps1 test'
       - name: Compile the Windows native GUI without bundling or signing
         run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File ci.ps1 build'
+      - name: Run native shared-service smoke test without opening a window
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File ci.ps1 smoke'

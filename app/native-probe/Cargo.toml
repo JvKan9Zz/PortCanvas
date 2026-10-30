@@ -15,6 +15,7 @@ path = "src/main.rs"
 required-features = ["gui"]
 
 [dependencies]
+portcanvas-core = { path = "../core", features = ["downloads"] }
 alacritty_terminal = "=0.26.0"
 anyhow = "1"
 base64 = "0.22"

@@ -64,6 +64,10 @@ impl DeviceManager {
     pub fn connection(&self) -> Result<Arc<SshConnection>> {
         self.connection_with_generation().map(|(_, c)| c)
     }
+    pub fn cancel_environment(&self) -> Result<()> {
+        self.connection()?.environment_cancel.lock().unwrap().cancel();
+        Ok(())
+    }
     pub fn update(&self, generation: u64, patch: Value) {
         let state = {
             let mut inner = self.inner.lock().unwrap();

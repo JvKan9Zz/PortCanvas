@@ -41,9 +41,10 @@ def inventory(root, ref):
     actions = sorted({name for arm in arms for name in re.findall(r'"([^"]+)"', arm)})
     bridge_actions = sorted(set(re.findall(r"call\('([^']+)'", source(bridge))))
     cargo = tomllib.loads(source("app/src-tauri/Cargo.toml"))
+    service_root = "app/core" if "app/core/src/lib.rs" in paths else "app/src-tauri"
     config = json.loads(source("app/src-tauri/tauri.conf.json"))
     package = json.loads(source("app/package.json"))
-    rust = [p for p in paths if p.startswith("app/src-tauri/src/") and p.endswith(".rs")]
+    rust = [p for p in paths if p.startswith(("app/src-tauri/src/", service_root + "/src/")) and p.endswith(".rs")]
     return {
         "commit": commit,
         "tree": git(root, "rev-parse", f"{commit}^{{tree}}"),
@@ -61,7 +62,7 @@ def inventory(root, ref):
         "tauriCommands": located(app, r"^async fn terminal_subscribe|^async fn studio_call|invoke_handler"),
         "events": located(bridge, r"^const ready="),
         "entrypoints": [p for p in paths if p.startswith(("app/frontend/", "app/ui/"))],
-        "remoteHelpers": [p for p in paths if p.startswith("app/src-tauri/resources/")],
+        "remoteHelpers": [p for p in paths if p.startswith(service_root + "/resources/") and p.endswith((".py", ".sh", ".bash"))],
         "rustModules": {
             path: {
                 "platformReferences": located(path, r"tauri::|rfd::|tauri_plugin|cfg\(windows\)|windows_sys::"),
@@ -75,15 +76,15 @@ def inventory(root, ref):
         "rustFeatures": cargo["features"],
         "rustDependencies": cargo["dependencies"],
         "rustBuildDependencies": cargo["build-dependencies"],
+        "serviceCrate": tomllib.loads(source("app/core/Cargo.toml")) if service_root == "app/core" else None,
         "dataReferences": {
             path: located(path, r"\.json|backgrounds|runtime-cache|WCS_DATA_DIR|credential_context|PREFIX|app_data_dir|document_dir|portable.flag")
-            for path in [app, "app/src-tauri/src/preferences.rs", "app/src-tauri/src/profiles.rs",
-                         "app/src-tauri/src/credentials.rs", "app/src-tauri/src/terminal_pool.rs",
-                         "app/src-tauri/src/logs.rs", "app/src-tauri/src/migration.rs"]
+            for path in [app, *([service_root + "/src/services.rs"] if service_root == "app/core" else []), *[service_root + "/src/" + name + ".rs" for name in
+                               ["preferences", "profiles", "credentials", "terminal_pool", "logs", "migration"]]]
         },
         "installation": {"identifier": config["identifier"], "bundle": config["bundle"],
                          "updater": config["plugins"]["updater"]},
-        "tests": [p for p in paths if p.startswith(("app/tests/", "app/src-tauri/tests/"))],
+        "tests": [p for p in paths if p.startswith(("app/tests/", "app/src-tauri/tests/", "app/core/tests/"))],
     }
 
 

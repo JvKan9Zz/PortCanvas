@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 test('runtime progress keeps download, cache and SSH stages distinct and clears on disconnect',async()=>{
   const elements=new Map(),callbacks={};let languageChange,english=false,cancels=0;
-  const translations=JSON.parse(await readFile(new URL('../frontend/en.json',import.meta.url),'utf8'));
+  const translations=JSON.parse(await readFile(new URL('../core/resources/en.json',import.meta.url),'utf8'));
   const source=(await readFile(new URL('../frontend/environment-progress.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/gm,'');
   const get=id=>{if(!elements.has(id))elements.set(id,{hidden:id==='environmentStatus',textContent:'',value:0,classList:{toggle(){}},setAttribute(key,value){this[key]=value;},removeAttribute(key){delete this[key];}});return elements.get(id);};
   vm.runInNewContext(source,{

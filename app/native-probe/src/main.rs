@@ -51,6 +51,34 @@ fn sample(terminal: &mut Terminal) {
     }
 }
 fn main() -> Result<()> {
+    if std::env::args().nth(1).as_deref() == Some("--core-smoke") {
+        let root = PathBuf::from(
+            std::env::var_os("WCS_TEST_ROOT")
+                .ok_or_else(|| anyhow::anyhow!("Isolated WCS_TEST_ROOT required"))?,
+        )
+        .join(format!("native-core-{}", std::process::id()));
+        std::fs::create_dir_all(&root)?;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let services = portcanvas_core::services::Services::new(
+            portcanvas_core::services::Paths {
+                data: root.join("data"),
+                documents: root.join("documents"),
+                local_files: root.clone(),
+                portable: true,
+            },
+            Arc::new(|_, _| {}),
+            Some("native-core-smoke".into()),
+        )?;
+        let result = serde_json::json!({"core":"portcanvas-core","ssh":services.devices.snapshot()["ssh"],
+            "profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":services.preferences.lock().unwrap().info()?["language"]});
+        runtime.block_on(services.shutdown());
+        drop(services);
+        std::fs::remove_dir_all(root)?;
+        println!("{result}");
+        return Ok(());
+    }
     if std::env::args().nth(1).as_deref() == Some("--media-fixture") {
         return media::write_fixture(&PathBuf::from(
             std::env::args_os().nth(2).expect("fixture path"),

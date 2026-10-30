@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-SOURCE = Path(__file__).resolve().parents[1] / 'src-tauri/resources/prepare_environment.py'
+SOURCE = Path(__file__).resolve().parents[1] / 'core/resources/prepare_environment.py'
 spec = importlib.util.spec_from_file_location('portcanvas_environment_test', SOURCE)
 envmod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(envmod)

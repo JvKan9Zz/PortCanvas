@@ -25,6 +25,7 @@ jobs:
       WCS_TEST_ROOT: ${{ github.workspace }}/app/src-tauri/target/ci-tests
       WCS_DATA_DIR: ${{ github.workspace }}/app/src-tauri/target/ci-data
       PYTHONDONTWRITEBYTECODE: '1'
+      CARGO_TARGET_DIR: ${{ github.workspace }}/app/src-tauri/target
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,7 +44,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             app/src-tauri/target
-          key: windows-ci-rust190-${{ hashFiles('app/src-tauri/Cargo.lock') }}
+          key: windows-ci-rust190-${{ hashFiles('app/src-tauri/Cargo.lock', 'app/core/Cargo.lock') }}
       - name: Install locked frontend dependencies
         run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 install'
       - name: Build frontend
@@ -54,7 +55,9 @@ jobs:
         run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 frontend-tests'
       - name: Test desktop helper
         run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 python'
-      - name: Test native core and desktop services
+      - name: Test shared services without Tauri
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 core'
+      - name: Test desktop adapter
         run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 native'
       - name: Test isolated SSH lifecycle regressions
         run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File tools\ci.ps1 ssh'

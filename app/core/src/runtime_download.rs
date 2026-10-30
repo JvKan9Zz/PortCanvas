@@ -60,16 +60,16 @@ pub(crate) async fn cached(
             return Ok(path);
         }
     }
-    #[cfg(not(feature = "desktop"))]
+    #[cfg(not(feature = "downloads"))]
     anyhow::bail!("此构建不包含电脑下载组件，请使用桌面版。");
-    #[cfg(feature = "desktop")]
+    #[cfg(feature = "downloads")]
     {
         let url = format!("https://ports.ubuntu.com/ubuntu-ports/{}", package.filename).parse()?;
-        let client = crate::update_download::client_builder()
+        let client = crate::download::client_builder()
             .connect_timeout(std::time::Duration::from_secs(20))
             .timeout(std::time::Duration::from_secs(300))
             .https_only(true).build()?;
-        let bytes = crate::update_download::fetch(&client, &url, progress).await
+        let bytes = crate::download::fetch(&client, &url, progress).await
             .with_context(|| format!("电脑下载 {} 失败，请检查电脑联网后重试。", package.name))?;
         anyhow::ensure!(package.valid(&bytes), "组件 {} 的大小或 SHA-256 校验失败，请重新下载。", package.name);
         tokio::fs::create_dir_all(directory).await.context("无法创建电脑组件缓存目录。")?;
@@ -113,7 +113,7 @@ mod tests {
         assert!(cached(package,&directory,|n,_,connections|{assert_eq!(n,3);assert_eq!(connections,0);}).await.unwrap().is_file());
         std::fs::remove_dir_all(directory).unwrap();
     }
-    #[cfg(feature="desktop")]
+    #[cfg(feature="downloads")]
     #[tokio::test]
     #[ignore = "Explicit controller integration: requires a captured APT plan and PC Internet"]
     async fn download_controller_plan_on_pc() {
