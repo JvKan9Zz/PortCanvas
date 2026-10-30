@@ -683,5 +683,22 @@
   "确认移除": "Confirm removal",
   "信任并连接": "Trust and connect",
   "请核对目标设备的SSH身份": "Verify the target SSH identity",
-  "设备已断开": "Device disconnected"
+  "设备已断开": "Device disconnected",
+  "全屏": "Full screen",
+  "退出全屏": "Exit full screen",
+  "石墨": "Graphite",
+  "电脑本地日志目录": "Local log directory",
+  "更换目录": "Change directory",
+  "日志日期": "Log date",
+  "日志状态": "Log status",
+  "选择本页": "Select page",
+  "选择一份日志查看详情": "Select a log to view its details",
+  "日志原文": "Log output",
+  "仅显示末尾256KiB，完整文本保存在日志文件中。": "Only the last 256 KiB is shown. The complete text remains in the log file.",
+  "后台程序可能继续运行，其输出请结合会话记录查看。": "Background programs may still be running. Check the session record for their output.",
+  "日志位置已变化，请重新选择。": "The log directory changed. Select the records again.",
+  "工作目录": "Working directory",
+  "目录必须是绝对路径。": "The directory must be an absolute path.",
+  "目录不存在或不是绝对路径。": "The directory does not exist or is not an absolute path.",
+  "全部日志占用": "All log storage"
 }

@@ -1,0 +1,20 @@
+import {Palette} from "std-widgets.slint";
+export global AppColors {in-out property <color> accent:#356ce5;}
+export component ActionButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> primary:false;
+    in property <bool> enabled:true;
+    callback clicked;
+    min-width:64px;min-height:34px;preferred-height:34px;
+    preferred-width:label.preferred-width + 24px;
+    border-radius:4px;border-width:keys.has-focus?2px:1px;
+    border-color:keys.has-focus?Palette.foreground:Palette.border;
+    background:root.primary?(touch.pressed?AppColors.accent.darker(1.2):touch.has-hover?AppColors.accent.darker(1.1):AppColors.accent):Palette.control-background;
+    opacity:root.enabled?1:0.45;
+    accessible-role:button;accessible-label:root.text;accessible-enabled:root.enabled;
+    accessible-action-default=>{if root.enabled{root.clicked();}}
+    forward-focus:keys;
+    label:=Text {x:12px;width:parent.width - 24px;height:parent.height;text:root.text;color:root.primary?#ffffff:Palette.foreground;horizontal-alignment:center;vertical-alignment:center;overflow:elide;}
+    keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
+    touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
+}
