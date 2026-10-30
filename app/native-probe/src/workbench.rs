@@ -2,7 +2,7 @@ use crate::workbench_ui::{DeviceRow, Workbench};
 use anyhow::{Context, Result};
 use portcanvas_core::{
     application::HostConfirmation,
-    preferences::{Appearance, EnvironmentSource, Language},
+    preferences::{Appearance, EnvironmentSource, Language, Theme},
     profiles::{AuthMethod, Profile},
     services::{Paths, Services},
 };
@@ -19,7 +19,7 @@ use tokio::sync::oneshot;
 use zeroize::Zeroizing;
 
 type PendingHost = Arc<Mutex<Option<(u64, oneshot::Sender<bool>)>>>;
-fn text(source: &str, english: bool) -> String {
+pub(super) fn text(source: &str, english: bool) -> String {
     if source.is_empty() {
         return String::new();
     }
@@ -99,6 +99,11 @@ fn profiles(ui: &Workbench, services: &Services) -> Result<()> {
 fn preferences(ui: &Workbench, services: &Services) -> Result<()> {
     let p = services.preferences.lock().unwrap().read()?;
     ui.set_english(p.language == Language::English);
+    ui.set_theme(match p.theme {
+        Theme::Blue => 0,
+        Theme::Green => 1,
+        Theme::Graphite => 2,
+    });
     ui.set_appearance(match p.appearance {
         Appearance::Light => 0,
         Appearance::Dark => 1,
@@ -220,6 +225,12 @@ pub fn run() -> Result<()> {
                     device_state(&ui, &value, &pending);
                 }
             });
+        } else if topic == "logs-state" || topic == "logs-changed" {
+            let _ = weak.upgrade_in_event_loop(move |ui| {
+                if ui.get_page() == 3 && !ui.get_native_hidden() {
+                    ui.invoke_refresh_logs();
+                }
+            });
         } else if topic == "discovery-state" {
             let _ = weak.upgrade_in_event_loop(move |ui| {
                 ui.set_discovering(value["status"] == "searching");
@@ -248,6 +259,13 @@ pub fn run() -> Result<()> {
     let paths = data_paths()?;
     ui.set_data_directory(paths.data.to_string_lossy().as_ref().into());
     let services = Services::new(paths, events, None)?;
+    let jobs = Arc::new(Mutex::new(Vec::new()));
+    let logs = crate::workbench_logs::Controller::install(
+        &ui,
+        services.clone(),
+        runtime.clone(),
+        jobs.clone(),
+    );
     if let Err(e) = profiles(&ui, &services).and_then(|_| preferences(&ui, &services)) {
         ui.set_error(e.to_string().into());
     }
@@ -327,7 +345,6 @@ pub fn run() -> Result<()> {
             }
         }
     });
-    let jobs = Arc::new(Mutex::new(Vec::new()));
     let operation = Arc::new(AtomicU64::new(0));
     ui.on_connect_device({
         let weak = ui.as_weak();
@@ -467,11 +484,14 @@ pub fn run() -> Result<()> {
         let services = services.clone();
         let runtime = runtime.clone();
         let jobs = jobs.clone();
+        let logs = logs.clone();
         move |accepted| {
             if let Some(ui) = weak.upgrade() {
                 let kind = ui.get_dialog_kind();
                 ui.set_dialog_kind(0);
-                if kind == 2 {
+                if kind == 3 {
+                    logs.respond(accepted);
+                } else if kind == 2 {
                     if let Some((_, sender)) = pending.lock().unwrap().take() {
                         let _ = sender.send(accepted);
                     }
@@ -512,6 +532,7 @@ pub fn run() -> Result<()> {
         let weak = ui.as_weak();
         let services = services.clone();
         let pending = pending.clone();
+        let logs = logs.clone();
         move |index| {
             if let Some(ui) = weak.upgrade() {
                 match services
@@ -525,11 +546,88 @@ pub fn run() -> Result<()> {
                     }) {
                     Ok(_) => {
                         ui.set_english(index == 1);
-                        device_state(&ui, &services.devices.snapshot(), &pending)
+                        device_state(&ui, &services.devices.snapshot(), &pending);
+                        logs.render(&ui);
                     }
                     Err(e) => ui.set_error(e.to_string().into()),
                 }
             }
+        }
+    });
+    ui.on_set_theme({
+        let weak = ui.as_weak();
+        let services = services.clone();
+        move |index| {
+            if let Some(ui) = weak.upgrade() {
+                match services
+                    .preferences
+                    .lock()
+                    .unwrap()
+                    .save_theme(match index {
+                        1 => Theme::Green,
+                        2 => Theme::Graphite,
+                        _ => Theme::Blue,
+                    }) {
+                    Ok(_) => ui.set_theme(index),
+                    Err(e) => ui.set_error(e.to_string().into()),
+                }
+            }
+        }
+    });
+    ui.on_fullscreen({
+        let weak = ui.as_weak();
+        move || {
+            if let Some(ui) = weak.upgrade() {
+                if ui.get_dialog_kind() == 0 {
+                    let full = !ui.window().is_fullscreen();
+                    ui.window().set_fullscreen(full);
+                    ui.set_window_is_fullscreen(full);
+                }
+            }
+        }
+    });
+    ui.window().on_winit_window_event({
+        use slint::winit_030::{
+            winit::{
+                event::{ElementState, WindowEvent},
+                keyboard::{Key, NamedKey},
+            },
+            EventResult,
+        };
+        let weak = ui.as_weak();
+        let logs = logs.clone();
+        let occluded = std::cell::Cell::new(false);
+        move |window, event| {
+            if let Some(ui) = weak.upgrade() {
+                if let WindowEvent::KeyboardInput { event, .. } = event {
+                    if event.state == ElementState::Pressed
+                        && !event.repeat
+                        && ui.get_dialog_kind() == 0
+                    {
+                        if matches!(&event.logical_key, Key::Named(NamedKey::F11))
+                            || (matches!(&event.logical_key, Key::Named(NamedKey::Escape))
+                                && window.is_fullscreen())
+                        {
+                            ui.invoke_fullscreen();
+                        }
+                    }
+                }
+                if let WindowEvent::Occluded(hidden) = event {
+                    occluded.set(*hidden);
+                }
+                if matches!(event, WindowEvent::Occluded(_) | WindowEvent::Resized(_)) {
+                    let hidden = occluded.get()
+                        || window
+                            .with_winit_window(|w| w.is_minimized() == Some(true))
+                            .unwrap_or(false);
+                    if hidden != ui.get_native_hidden() {
+                        ui.set_native_hidden(hidden);
+                        logs.visibility(hidden);
+                    }
+                    ui.set_window_is_fullscreen(window.is_fullscreen());
+                }
+            }
+            EventResult::Propagate
         }
     });
     ui.on_set_appearance({
@@ -642,7 +740,7 @@ pub fn run() -> Result<()> {
         std::fs::write(
             path,
             serde_json::to_vec_pretty(
-                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"ssh":services.devices.snapshot()["ssh"]}),
+                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"ssh":services.devices.snapshot()["ssh"]}),
             )?,
         )?;
     }

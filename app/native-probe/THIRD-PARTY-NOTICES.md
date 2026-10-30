@@ -11,3 +11,7 @@ Direct dependencies retain their upstream licenses. Slint uses the retained roya
 | arboard-3.7.0 | MIT OR Apache-2.0 |
 | minisign-verify-0.3.0 | MIT |
 | windows-0.61.3 | MIT OR Apache-2.0 |
+| rfd-0.15.4 | MIT |
+| chrono-0.4.45 | MIT OR Apache-2.0 |
+
+The native workbench uses the shared core's log format and services. Its local test examples also use uuid (Apache-2.0 OR MIT) and the existing russh fixture dependencies. These are development fixtures, not bundled services.
