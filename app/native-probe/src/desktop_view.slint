@@ -37,12 +37,12 @@ export component DesktopView inherits VerticalBox {
     changed fit=>{scroll.viewport-x=0px;scroll.viewport-y=0px;}
     HorizontalBox {padding:0px;spacing:8px;height:36px;vertical-stretch:0;
         connect-button:=ActionButton {text:root.tr(root.connected?"连接桌面":"连接设备",root.english);primary:true;enabled:root.enabled&&!root.active;clicked=>{root.action("start");}}
-        Button {text:root.tr(root.active&&!root.ready?"取消连接":"断开桌面",root.english);enabled:root.enabled&&(root.active||root.wanted);clicked=>{root.action("stop");}}
+        disconnect-button:=Button {text:root.tr(root.active&&!root.ready?"取消连接":"断开桌面",root.english);enabled:root.enabled&&(root.active||root.wanted);clicked=>{root.action("stop");}}
         ComboBox {accessible-label:root.tr("桌面画质",root.english);model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.mode;enabled:root.enabled;selected(_)=>{root.quality(self.current-index);}}
         CheckBox {text:root.tr("仅查看",root.english);checked<=>root.read-only;enabled:root.enabled;}
     }
     HorizontalBox {padding:0px;spacing:8px;height:34px;vertical-stretch:0;
-        fit-button:=ActionButton {text:root.tr("适应窗口",root.english);primary:root.fit;enabled:root.enabled;clicked=>{root.fit=true;}}
+        ActionButton {text:root.tr("适应窗口",root.english);primary:root.fit;enabled:root.enabled;clicked=>{root.fit=true;}}
         ActionButton {text:root.tr("原始尺寸",root.english);primary:!root.fit;enabled:root.enabled;clicked=>{root.fit=false;}}
         Button {text:root.tr("发送剪贴板",root.english);enabled:root.live;clicked=>{root.action("send-clipboard");}}
         Button {text:root.tr("复制远端剪贴板",root.english);enabled:root.enabled&&root.clipboard-available;clicked=>{root.action("copy-clipboard");}}
@@ -68,7 +68,7 @@ export component DesktopView inherits VerticalBox {
                     changed has-focus=>{root.focused(self.has-focus);}
                     edited=>{if self.text!=""{root.text(self.text);self.text="";}}
                     key-pressed(event)=>{
-                        if event.modifiers.control&&event.modifiers.shift&&!event.modifiers.alt&&event.text==Key.F12 {fit-button.focus();return accept;}
+                        if event.modifiers.control&&event.text==Key.Tab {disconnect-button.focus();return accept;}
                         if self.preedit-text!=""{return reject;}
                         if root.key(event.text,event.modifiers.control,event.modifiers.alt,event.modifiers.shift){return accept;}
                         return reject;
