@@ -718,5 +718,7 @@
   "粘贴": "Paste",
   "保存项目": "Save project",
   "自动记录已就绪，日志保存在电脑本地。": "Automatic recording is ready. Logs are stored on this computer.",
-  "连接已结束，日志已封存；中断期间输出未采集。": "Connection ended and logs were finalized. Output during the interruption was not captured."
+  "连接已结束，日志已封存；中断期间输出未采集。": "Connection ended and logs were finalized. Output during the interruption was not captured.",
+  "补全结果较多，请继续输入。": "More matches are available. Keep typing.",
+  "补全结果超过上限。": "Too many completion results."
 }

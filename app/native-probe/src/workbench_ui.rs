@@ -1,6 +1,6 @@
 slint::slint! {
     import {Button,LineEdit,ComboBox,CheckBox,ScrollView,ListView,TextEdit,VerticalBox,HorizontalBox,Palette,AboutSlint} from "std-widgets.slint";
-    import {TerminalView,TerminalCell,TerminalTab} from "terminal_view.slint";
+    import {TerminalView,TerminalCell,TerminalTab,CompletionRow} from "terminal_view.slint";
     import {ActionButton,AppColors} from "action_button.slint";
     export struct LogRow {id:string,command:string,context:string,status:string,removable:bool,checked:bool,selected:bool}
     component LogSelectionBox inherits CheckBox {
@@ -59,11 +59,21 @@ slint::slint! {
         in property <bool> terminal-cursor-visible;
         in-out property <string> terminal-draft;
         in-out property <string> terminal-project;
+        in property <[CompletionRow]> terminal-completions;
+        in property <int> terminal-completion-index;
+        in property <bool> terminal-completion-loading;
+        in property <bool> terminal-completion-truncated;
+        in property <int> terminal-command-caret;
+        in property <int> terminal-command-revision;
+        out property <bool> terminal-completion-active:root.terminal-completion-loading||root.terminal-completions.length>0;
         callback terminal-reload();callback terminal-flush();callback terminal-failure(string,string,string);callback terminal-sent(string,string,string);
         callback terminal-select(string);callback terminal-action(string);callback terminal-copy();callback terminal-paste();
         callback terminal-scroll(int);callback terminal-selection(int,int,int,int);callback terminal-resize(int,int);
         callback terminal-committed(string);callback terminal-key(string,bool,bool,bool)->bool;
-        callback terminal-draft-edited(string);callback terminal-project-edited(string);callback terminal-send-command();
+        callback terminal-draft-edited(string,int);callback terminal-project-edited(string);callback terminal-send-command();
+        callback terminal-editor-key(string,bool,bool,bool,bool)->bool;callback terminal-editor-focused(bool);
+        callback terminal-choose-completion(int);callback terminal-cancel-completion();
+        callback terminal-completion-result(string,string,string,string,string);
         in property <[LogRow]> log-rows;
         in property <[string]> log-projects;
         in property <[string]> log-days;
@@ -94,8 +104,8 @@ slint::slint! {
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
-        changed page=>{if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
-        changed native-hidden=>{if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
+        changed page=>{root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
+        changed native-hidden=>{if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
         Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.dialog-kind==0;triggered=>{root.poll-logs();}}
 
         in-out property <int> environment-source:0;
@@ -285,12 +295,17 @@ slint::slint! {
                 phase:root.terminal-phase;status:root.terminal-status;error:root.terminal-error;log-status:root.terminal-log-status;
                 connected:root.connected;busy:root.terminal-busy;sending:root.terminal-sending;enabled:root.dialog-kind==0;english:root.english;
                 draft<=>root.terminal-draft;project<=>root.terminal-project;
+                completions:root.terminal-completions;completion-index:root.terminal-completion-index;
+                completion-loading:root.terminal-completion-loading;completion-truncated:root.terminal-completion-truncated;
+                command-caret:root.terminal-command-caret;command-revision:root.terminal-command-revision;
                 tr(s,e)=>{return root.tr(s,e);}
                 select-tab(key)=>{root.terminal-select(key);}action(name)=>{root.terminal-action(name);}
                 copy=>{root.terminal-copy();}paste=>{root.terminal-paste();}scroll(n)=>{root.terminal-scroll(n);}
                 select(x,y,x2,y2)=>{root.terminal-selection(x,y,x2,y2);}resize-grid(x,y)=>{root.terminal-resize(x,y);}
                 committed(value)=>{root.terminal-committed(value);}key(value,ctrl,alt,shift)=>{return root.terminal-key(value,ctrl,alt,shift);}
-                draft-edited(value)=>{root.terminal-draft-edited(value);}project-edited(value)=>{root.terminal-project-edited(value);}
+                draft-edited(value,cursor)=>{root.terminal-draft-edited(value,cursor);}project-edited(value)=>{root.terminal-project-edited(value);}
+                editor-key(value,ctrl,shift,alt,expanded)=>{return root.terminal-editor-key(value,ctrl,shift,alt,expanded);}
+                editor-focused(value)=>{root.terminal-editor-focused(value);}choose-completion(index)=>{root.terminal-choose-completion(index);}
                 send-command=>{root.terminal-send-command();}
             }
             if root.page==2:VerticalBox {padding:0px;Text {text:"PortCanvas · v0.6.0 dev";font-size:22px;color:Palette.foreground;}AboutSlint {preferred-height:120px;vertical-stretch:0;}}

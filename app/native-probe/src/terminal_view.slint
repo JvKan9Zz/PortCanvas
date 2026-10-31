@@ -1,7 +1,9 @@
-import {Button,LineEdit,ScrollView,TextEdit,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {Button,LineEdit,ScrollView,ListView,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
 import {ActionButton} from "action_button.slint";
+import {CommandEditor} from "command_editor.slint";
 export struct TerminalCell { column:int,row:int,text:string,ink:color,paper:color,wide:bool,bold:bool,underline:bool }
 export struct TerminalTab {key:string,title:string}
+export struct CompletionRow {label:string}
 export component TerminalView inherits VerticalBox {
     padding:0px;spacing:8px;
     in property <[TerminalTab]> tabs;
@@ -22,11 +24,18 @@ export component TerminalView inherits VerticalBox {
     in-out property <string> draft;
     in-out property <string> project;
     in-out property <bool> expanded:false;
+    in property <[CompletionRow]> completions;
+    in property <int> completion-index;
+    in property <bool> completion-loading;
+    in property <bool> completion-truncated;
+    in property <int> command-caret;
+    in property <int> command-revision;
     pure callback tr(string,bool)->string;
     callback select-tab(string);callback action(string);callback copy();callback paste();
     callback scroll(int);callback select(int,int,int,int);callback resize-grid(int,int);
     callback committed(string);callback key(string,bool,bool,bool)->bool;
-    callback draft-edited(string);callback project-edited(string);callback send-command();
+    callback draft-edited(string,int);callback project-edited(string);callback send-command();
+    callback editor-key(string,bool,bool,bool,bool)->bool;callback editor-focused(bool);callback choose-completion(int);
     property <bool> live:root.connected&&root.phase=="connected"&&!root.busy&&root.enabled;
     HorizontalBox {padding:0px;spacing:8px;height:36px;vertical-stretch:0;
         ScrollView {viewport-height:36px;
@@ -99,10 +108,35 @@ export component TerminalView inherits VerticalBox {
         Button {text:root.tr("保存项目",root.english);enabled:root.connected&&root.enabled&&!root.busy;clicked=>{root.action("project");}}
         Text {text:root.log-status;color:Palette.foreground;overflow:elide;}
     }
+    if root.completion-loading:Text {text:root.tr("正在补全…",root.english);color:Palette.foreground;vertical-stretch:0;}
+    if root.completions.length>0:VerticalBox {padding:0px;spacing:2px;vertical-stretch:0;
+        ListView {height:min(4,root.completions.length)*32px;
+            property <int> selected:root.completion-index;
+            changed selected=>{
+                if self.selected*32px+self.viewport-y<0px{self.viewport-y= -self.selected*32px;}
+                else if self.selected*32px+self.viewport-y>self.height - 32px{self.viewport-y=self.height - (self.selected+1)*32px;}
+            }
+            for item[index] in root.completions:Rectangle {
+                height:32px;background:index==root.completion-index?Palette.accent-background:Palette.background;
+                accessible-role:button;accessible-label:item.label;accessible-action-default=>{root.choose-completion(index);}
+                Text {x:8px;width:parent.width - 16px;text:item.label;color:index==root.completion-index?Palette.accent-foreground:Palette.foreground;vertical-alignment:center;overflow:elide;}
+                TouchArea {clicked=>{root.choose-completion(index);}}
+            }
+        }
+        if root.completion-truncated:Text {text:root.tr("补全结果较多，请继续输入。",root.english);color:Palette.foreground;}
+    }
     HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
-        if !root.expanded:LineEdit {text<=>root.draft;accessible-label:root.tr("命令输入",root.english);enabled:root.live&&!root.sending;edited=>{root.draft-edited(self.text);}accepted=>{root.send-command();}}
-        if root.expanded:TextEdit {text<=>root.draft;accessible-label:root.tr("命令输入",root.english);enabled:root.live&&!root.sending;preferred-height:100px;edited=>{root.draft-edited(self.text);}}
-        Button {text:root.tr(root.expanded?"收起命令输入框":"展开命令输入框",root.english);enabled:root.enabled;clicked=>{root.expanded=!root.expanded;}}
-        ActionButton {text:root.tr("发送",root.english);primary:true;enabled:root.live&&!root.sending;clicked=>{root.send-command();}}
+        command:=CommandEditor {text<=>root.draft;label:root.tr("命令输入",root.english);enabled:root.live&&!root.sending;expanded:root.expanded;
+            caret:root.command-caret;revision:root.command-revision;
+            edited(value,cursor)=>{root.draft-edited(value,cursor);}
+            focused(value)=>{root.editor-focused(value);}
+            key(value,ctrl,shift,alt)=>{return root.editor-key(value,ctrl,shift,alt,root.expanded);}
+        }
+        Rectangle {preferred-width:expand-button.preferred-width;min-width:expand-button.min-width;min-height:36px;horizontal-stretch:0;
+            expand-button:=Button {width:parent.width;height:36px;y:(parent.height - self.height)/2;text:root.tr(root.expanded?"收起命令输入框":"展开命令输入框",root.english);enabled:root.enabled;clicked=>{root.expanded=!root.expanded;}}
+        }
+        Rectangle {width:90px;min-height:36px;horizontal-stretch:0;
+            ActionButton {width:parent.width;height:36px;y:(parent.height - self.height)/2;text:root.tr("发送",root.english);primary:true;enabled:root.live&&!root.sending;clicked=>{root.send-command();}}
+        }
     }
 }

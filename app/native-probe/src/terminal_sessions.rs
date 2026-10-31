@@ -11,6 +11,7 @@ pub struct Pane {
     pub message: String,
     pub terminal: Terminal,
     pub draft: String,
+    pub editor: crate::terminal_editor::Editor,
     pub sending: bool,
     pub project: String,
     pub project_loaded: bool,
@@ -43,6 +44,7 @@ impl Sessions {
             for pane in self.panes.values_mut() {
                 pane.sending = false;
                 pane.stream = 0;
+                pane.editor.cancel();
                 pane.phase = "disconnected".into();
                 pane.message = "设备尚未连接。".into();
             }
@@ -69,6 +71,7 @@ impl Sessions {
                 message: String::new(),
                 terminal: Terminal::new(columns, rows),
                 draft: String::new(),
+                editor: Default::default(),
                 sending: false,
                 project: String::new(),
                 project_loaded: false,
@@ -77,6 +80,7 @@ impl Sessions {
             let id = state["id"].as_u64().unwrap_or(0);
             if id != pane.id {
                 pane.sending = false;
+                pane.editor.cancel();
             }
             if id != pane.stream
                 && matches!(state["phase"].as_str(), Some("connecting" | "connected"))

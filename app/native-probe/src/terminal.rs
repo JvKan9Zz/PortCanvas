@@ -105,6 +105,11 @@ impl Terminal {
             text.replace("\r\n", "\n").replace('\n', "\r").into_bytes()
         }
     }
+    pub fn command(&self, text: &str) -> Vec<u8> {
+        let mut bytes = self.paste(&text.replace("\r\n", "\n").replace('\n', "\r"));
+        bytes.push(13);
+        bytes
+    }
     pub fn arrow(&self, code: char) -> Vec<u8> {
         format!(
             "\x1b{}{code}",
@@ -283,6 +288,7 @@ mod tests {
             "\x1b[200~中[201~\x1b[201~".as_bytes()
         );
         assert_eq!(term.responses(), b"\x1b[1;1R");
+        assert_eq!(term.command("a\nb"), b"\x1b[200~a\rb\x1b[201~\r");
     }
     #[test]
     fn local_clear_removes_history_without_changing_remote_modes() {
