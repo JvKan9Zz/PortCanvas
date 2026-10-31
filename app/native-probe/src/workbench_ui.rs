@@ -64,7 +64,6 @@ slint::slint! {
         in property <string> desktop-status;
         in property <string> desktop-error;
         in-out property <int> desktop-focus-revision;
-        in-out property <int> desktop-toolbar-revision;
         callback desktop-view-changed();callback desktop-quality-changed();callback desktop-action(string);callback desktop-readonly-changed();
         callback desktop-pointer(float,float,float,float,int,bool);callback desktop-motion(float,float,float,float);callback desktop-wheel(float,float,float,float,int,int);
         callback desktop-key(string,bool,bool,bool)->bool;callback desktop-text(string);callback desktop-focused(bool);
@@ -321,7 +320,7 @@ slint::slint! {
                 english:root.english;enabled:root.dialog-kind==0;connected:root.connected;active:root.desktop-active;wanted:root.desktop-wanted;ready:root.desktop-ready;
                 mode:root.desktop-mode;fit<=>root.desktop-fit;read-only<=>root.desktop-readonly;frame:root.desktop-frame;source-width:root.desktop-source-width;source-height:root.desktop-source-height;
                 cursor:root.desktop-cursor;cursor-known:root.desktop-cursor-known;cursor-width:root.desktop-cursor-width;cursor-height:root.desktop-cursor-height;cursor-hot-x:root.desktop-cursor-hot-x;cursor-hot-y:root.desktop-cursor-hot-y;
-                status:root.desktop-status;error:root.desktop-error;clipboard-available:root.desktop-clipboard-available;focus-revision:root.desktop-focus-revision;toolbar-revision:root.desktop-toolbar-revision;
+                status:root.desktop-status;error:root.desktop-error;clipboard-available:root.desktop-clipboard-available;focus-revision:root.desktop-focus-revision;
                 tr(s,e)=>{return root.tr(s,e);}action(name)=>{root.desktop-action(name);}quality(index)=>{root.set-desktop-mode(index);}readonly-changed=>{root.desktop-readonly-changed();}
                 pointer(x,y,w,h,b,d)=>{root.desktop-pointer(x,y,w,h,b,d);}motion(x,y,w,h)=>{root.desktop-motion(x,y,w,h);}wheel(x,y,w,h,b,n)=>{root.desktop-wheel(x,y,w,h,b,n);}
                 key(value,ctrl,alt,shift)=>{return root.desktop-key(value,ctrl,alt,shift);}text(value)=>{root.desktop-text(value);}focused(value)=>{root.desktop-focused(value);}

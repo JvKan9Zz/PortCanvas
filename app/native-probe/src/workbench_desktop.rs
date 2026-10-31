@@ -9,7 +9,7 @@ use slint::{
     winit_030::{
         winit::{
             event::{ElementState, Ime, WindowEvent},
-            keyboard::{Key, ModifiersState, NamedKey, PhysicalKey},
+            keyboard::PhysicalKey,
         },
         WinitWindowAccessor,
     },
@@ -57,8 +57,6 @@ pub struct Controller {
     allowed: Cell<bool>,
     epochs: Cell<u64>,
     sequence: Cell<u64>,
-    raw_focus: Cell<bool>,
-    modifiers: Cell<ModifiersState>,
     physical: RefCell<HashMap<PhysicalKey, u32>>,
     current_key: Cell<Option<PhysicalKey>>,
     key_text: Cell<bool>,
@@ -113,8 +111,6 @@ impl Controller {
             allowed: Cell::new(false),
             epochs: Cell::new(0),
             sequence: Cell::new(0),
-            raw_focus: Cell::new(false),
-            modifiers: Cell::new(ModifiersState::empty()),
             physical: RefCell::new(HashMap::new()),
             current_key: Cell::new(None),
             key_text: Cell::new(false),
@@ -156,7 +152,6 @@ impl Controller {
         ui.on_desktop_focused({
             let c = c.clone();
             move |focused| {
-                c.raw_focus.set(focused);
                 if !focused {
                     c.release();
                 }
@@ -779,9 +774,8 @@ impl Controller {
             ui.set_desktop_error(text(message, ui.get_english()).into());
         }
     }
-    pub fn window_event(&self, ui: &Workbench, event: &WindowEvent) -> bool {
+    pub fn window_event(&self, event: &WindowEvent) {
         match event {
-            WindowEvent::ModifiersChanged(modifiers) => self.modifiers.set(modifiers.state()),
             WindowEvent::Focused(false) | WindowEvent::CursorLeft { .. } => self.release(),
             WindowEvent::Ime(Ime::Preedit(value, _)) => {
                 self.current_key.set(None);
@@ -803,24 +797,11 @@ impl Controller {
                     self.current_key.set(Some(event.physical_key));
                     self.key_text
                         .set(event.text.as_ref().is_some_and(|s| !s.is_empty()));
-                    let modifiers = self.modifiers.get();
-                    if self.raw_focus.get()
-                        && modifiers.control_key()
-                        && !modifiers.alt_key()
-                        && modifiers.shift_key()
-                        && matches!(event.logical_key, Key::Named(NamedKey::F12))
-                    {
-                        self.release();
-                        ui.set_desktop_toolbar_revision(
-                            ui.get_desktop_toolbar_revision().wrapping_add(1),
-                        );
-                        return true;
-                    }
+
                 }
             }
             _ => {}
         }
-        false
     }
     pub fn visibility(&self, hidden: bool) {
         if std::env::var_os("PORTCANVAS_WORKBENCH_REPORT").is_some() {

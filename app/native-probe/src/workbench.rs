@@ -613,7 +613,7 @@ pub fn run() -> Result<()> {
         let occluded = std::cell::Cell::new(false);
         move |window, event| {
             if let Some(ui) = weak.upgrade() {
-                if desktop.window_event(&ui,event) {return EventResult::PreventDefault;}
+                desktop.window_event(event);
                 if let WindowEvent::KeyboardInput { event, .. } = event {
                     if event.state == ElementState::Pressed
                         && !event.repeat

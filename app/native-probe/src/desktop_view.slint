@@ -22,7 +22,6 @@ export component DesktopView inherits VerticalBox {
     in property <string> status;
     in property <string> error;
     in property <int> focus-revision;
-    in property <int> toolbar-revision;
     in-out property <bool> fit:true;
     in-out property <bool> read-only:false;
     property <length> pointer-x;
@@ -35,7 +34,6 @@ export component DesktopView inherits VerticalBox {
     callback text(string);callback focused(bool);
     changed read-only=>{root.readonly-changed();}
     changed focus-revision=>{if root.live{input.focus();}}
-    changed toolbar-revision=>{fit-button.focus();}
     changed fit=>{scroll.viewport-x=0px;scroll.viewport-y=0px;}
     HorizontalBox {padding:0px;spacing:8px;height:36px;vertical-stretch:0;
         connect-button:=ActionButton {text:root.tr(root.connected?"连接桌面":"连接设备",root.english);primary:true;enabled:root.enabled&&!root.active;clicked=>{root.action("start");}}
@@ -70,6 +68,7 @@ export component DesktopView inherits VerticalBox {
                     changed has-focus=>{root.focused(self.has-focus);}
                     edited=>{if self.text!=""{root.text(self.text);self.text="";}}
                     key-pressed(event)=>{
+                        if event.modifiers.control&&event.modifiers.shift&&!event.modifiers.alt&&event.text==Key.F12 {fit-button.focus();return accept;}
                         if self.preedit-text!=""{return reject;}
                         if root.key(event.text,event.modifiers.control,event.modifiers.alt,event.modifiers.shift){return accept;}
                         return reject;
