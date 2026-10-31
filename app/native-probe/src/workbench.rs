@@ -615,7 +615,7 @@ pub fn run() -> Result<()> {
                     {
                         if matches!(&event.logical_key, Key::Named(NamedKey::F11))
                             || (matches!(&event.logical_key, Key::Named(NamedKey::Escape))
-                                && window.is_fullscreen())
+                                && window.is_fullscreen()&&!ui.get_terminal_completion_active())
                         {
                             ui.invoke_fullscreen();
                             return EventResult::PreventDefault;

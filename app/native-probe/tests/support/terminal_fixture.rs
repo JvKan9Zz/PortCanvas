@@ -22,6 +22,7 @@ pub struct Counts {
     pub active: AtomicUsize,
     pub terminal_eof: AtomicUsize,
     pub sessions: Mutex<BTreeMap<String, usize>>,
+    pub completions: Mutex<Vec<serde_json::Value>>,
 }
 struct Handler {
     counts: Arc<Counts>,
@@ -114,6 +115,30 @@ impl server::Handler for Handler {
                     "PORTCANVAS_ENV={}\n",
                     serde_json::json!({"ready":true,"feature":value["feature"]})
                 )
+            } else if kind == "completion" {
+                self.counts.completions.lock().unwrap().push(value.clone());
+                let prefix = value["prefix"].as_str().unwrap_or_default();
+                if prefix == "slow" {
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                }
+                let items = if value["directories"] == true {
+                    serde_json::json!([{"value":"中文 目录/","label":"中文 目录/","kind":"directory"}])
+                } else if prefix == "py" {
+                    serde_json::json!([{"value":"python","label":"python","kind":"command"},{"value":"python3","label":"python3","kind":"command"}])
+                } else if prefix == "中" {
+                    serde_json::json!([{"value":"中文甲.txt","label":"中文甲.txt","kind":"file"},{"value":"中文乙.txt","label":"中文乙.txt","kind":"file"}])
+                } else if prefix == "single" {
+                    serde_json::json!([{"value":"single value's.txt","label":"single value's.txt","kind":"file"}])
+                } else if prefix == "slow" {
+                    serde_json::json!([{"value":"old-result","label":"old-result","kind":"file"}])
+                } else if prefix == "many" {
+                    serde_json::Value::Array((0..64).map(|n|serde_json::json!({"value":format!("many{n:02}"),"label":format!("many{n:02}"),"kind":"file"})).collect())
+                } else {
+                    serde_json::json!([])
+                };
+                serde_json::json!({"items":items,"truncated":prefix=="many","cwd":"/fixture"})
+                    .to_string()
+                    + "\n"
             } else if kind == "logs" {
                 let name = value["session"].as_str().unwrap().to_string();
                 let mut sessions = self.counts.sessions.lock().unwrap();
@@ -280,7 +305,7 @@ impl Fixture {
         })
     }
     pub fn report(&self) -> serde_json::Value {
-        serde_json::json!({"attached":self.counts.attached.load(Ordering::SeqCst),"active":self.counts.active.load(Ordering::SeqCst),"terminalEof":self.counts.terminal_eof.load(Ordering::SeqCst),"closed":self.counts.closed.load(Ordering::SeqCst),"sizes":*self.counts.sizes.lock().unwrap(),
+        serde_json::json!({"attached":self.counts.attached.load(Ordering::SeqCst),"active":self.counts.active.load(Ordering::SeqCst),"terminalEof":self.counts.terminal_eof.load(Ordering::SeqCst),"closed":self.counts.closed.load(Ordering::SeqCst),"sizes":*self.counts.sizes.lock().unwrap(),"completionRequests":self.counts.completions.lock().unwrap().len(),
             "inputBytes":self.counts.input.lock().unwrap().iter().map(|(k,v)|(k.clone(),v.len())).collect::<BTreeMap<_,_>>(),"sessions":*self.counts.sessions.lock().unwrap()})
     }
 }

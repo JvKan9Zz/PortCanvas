@@ -1,13 +1,16 @@
 use crate::{
     workbench::text,
-    workbench_ui::{TerminalCell, TerminalTab, Workbench},
+    workbench_ui::{CompletionRow, TerminalCell, TerminalTab, Workbench},
 };
 use anyhow::Context;
 use portcanvas_core::{services::Services, terminal::TerminalService};
-use portcanvas_native_probe::terminal_sessions::{key_bytes, Sessions};
+use portcanvas_native_probe::{
+    terminal_editor::Reply,
+    terminal_sessions::{key_bytes, Sessions},
+};
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::VecDeque,
     rc::Rc,
     sync::{
@@ -41,6 +44,8 @@ pub struct Controller {
     input_stop: tokio_util::sync::CancellationToken,
     resize_timer: slint::Timer,
     pending: RefCell<Option<(String, String, bool)>>,
+    editor_focused: Cell<bool>,
+    edit_revision: Cell<i32>,
 }
 impl Controller {
     fn job(&self, task: impl std::future::Future<Output = ()> + Send + 'static) {
@@ -107,6 +112,8 @@ impl Controller {
             input_stop,
             resize_timer: slint::Timer::default(),
             pending: RefCell::new(None),
+            editor_focused: Cell::new(false),
+            edit_revision: Cell::new(0),
         });
         ui.on_terminal_reload({
             let c = this.clone();
@@ -136,20 +143,25 @@ impl Controller {
                 if let Some(p) = c.state.borrow_mut().panes.get_mut(key.as_str()) {
                     if p.id.to_string() == id.as_str() {
                         p.sending = false;
+                        p.editor.sent(draft.as_str());
                         if p.draft == draft.as_str() {
                             p.draft.clear();
+                            p.editor.cursor = 0;
                         }
                     }
                 }
                 c.render();
+                c.render_editor(true);
             }
         });
         ui.on_terminal_select({
             let c = this.clone();
             move |key| {
                 if c.state.borrow().panes.contains_key(key.as_str()) {
+                    c.cancel_completion();
                     c.state.borrow_mut().active = key.into();
                     c.render();
+                    c.render_editor(true);
                 }
             }
         });
@@ -181,10 +193,79 @@ impl Controller {
         });
         ui.on_terminal_draft_edited({
             let c = this.clone();
-            move |value| {
+            move |value, cursor| {
                 if let Some(p) = c.state.borrow_mut().current_mut() {
                     p.draft = value.into();
+                    p.editor.changed(&p.draft, cursor.max(0) as usize);
                 }
+                c.render_editor(false);
+            }
+        });
+        ui.on_terminal_editor_focused({
+            let c = this.clone();
+            move |focused| {
+                c.editor_focused.set(focused);
+                if !focused {
+                    c.cancel_completion();
+                }
+            }
+        });
+        ui.on_terminal_cancel_completion({
+            let c = this.clone();
+            move || c.cancel_completion()
+        });
+        ui.on_terminal_choose_completion({
+            let c = this.clone();
+            move |index| c.choose_completion(index.max(0) as usize)
+        });
+        ui.on_terminal_editor_key({
+            let c = this.clone();
+            move |key, ctrl, shift, alt, expanded| {
+                c.editor_key(key.as_str(), ctrl, shift, alt, expanded)
+            }
+        });
+        ui.on_terminal_completion_result({
+            let c = this.clone();
+            move |key, id, serial, result, error| {
+                if c.state.borrow().active != key.as_str() {
+                    return;
+                }
+                let Some(ui) = c.weak.upgrade() else { return };
+                if !c.editor_focused.get() || ui.get_page() != 4 || ui.get_native_hidden() {
+                    c.cancel_completion();
+                    return;
+                }
+                let mut s = c.state.borrow_mut();
+                let Some(p) = s.current_mut() else { return };
+                if p.id.to_string() != id.as_str()
+                    || p.editor
+                        .pending
+                        .as_ref()
+                        .is_none_or(|r| r.serial.to_string() != serial.as_str())
+                {
+                    return;
+                }
+                let reply = if error.is_empty() {
+                    serde_json::from_str::<Reply>(result.as_str()).map_err(|e| e.to_string())
+                } else {
+                    Err(error.to_string())
+                };
+                match reply {
+                    Ok(reply) if reply.items.len() <= 64 => {
+                        let serial = p.editor.pending.as_ref().unwrap().serial;
+                        p.editor.complete(serial, &mut p.draft, reply);
+                    }
+                    Ok(_) => {
+                        p.editor.cancel();
+                        c.error("补全结果超过上限。");
+                    }
+                    Err(error) => {
+                        p.editor.cancel();
+                        c.error(&error);
+                    }
+                }
+                drop(s);
+                c.render_editor(true);
             }
         });
         ui.on_terminal_project_edited({
@@ -203,7 +284,7 @@ impl Controller {
                 }
                 let value = c.state.borrow().current().map(|p| {
                     (
-                        String::from_utf8(p.terminal.paste(&p.draft)).unwrap() + "\r",
+                        String::from_utf8(p.terminal.command(&p.draft)).unwrap(),
                         p.draft.clone(),
                     )
                 });
@@ -367,7 +448,6 @@ impl Controller {
         if let Some(p) = s.current() {
             ui.set_terminal_phase(p.phase.as_str().into());
             ui.set_terminal_status(text(&p.message, ui.get_english()).into());
-            ui.set_terminal_draft(p.draft.as_str().into());
             ui.set_terminal_project(p.project.as_str().into());
             ui.set_terminal_sending(p.sending);
             let logs = self.services.logs.terminal_snapshot(&s.active);
@@ -381,11 +461,170 @@ impl Controller {
         } else {
             ui.set_terminal_phase("disconnected".into());
             ui.set_terminal_status(text("连接设备后可打开终端。", ui.get_english()).into());
-            ui.set_terminal_draft("".into());
             ui.set_terminal_project("".into());
         }
         drop(s);
+        self.render_editor(false);
         self.render_grid();
+    }
+    fn render_editor(&self, apply: bool) {
+        let Some(ui) = self.weak.upgrade() else {
+            return;
+        };
+        let (draft, cursor, pending, items, index, truncated) = {
+            let s = self.state.borrow();
+            if let Some(p) = s.current() {
+                let menu = p.editor.menu.as_ref();
+                (
+                    p.draft.clone(),
+                    p.editor.cursor,
+                    p.editor.pending.is_some(),
+                    menu.map(|m| {
+                        m.items
+                            .iter()
+                            .map(|i| CompletionRow {
+                                label: i.label.as_str().into(),
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default(),
+                    menu.map(|m| m.selected).unwrap_or_default(),
+                    menu.is_some_and(|m| m.truncated),
+                )
+            } else {
+                (String::new(), 0, false, vec![], 0, false)
+            }
+        };
+        ui.set_terminal_draft(draft.into());
+        ui.set_terminal_command_caret(cursor as i32);
+        ui.set_terminal_completions(ModelRc::new(VecModel::from(items)));
+        ui.set_terminal_completion_index(index as i32);
+        ui.set_terminal_completion_loading(pending);
+        ui.set_terminal_completion_truncated(truncated);
+        if apply {
+            let revision = self.edit_revision.get().wrapping_add(1);
+            self.edit_revision.set(revision);
+            ui.set_terminal_command_revision(revision);
+        }
+    }
+    fn cancel_completion(&self) {
+        for p in self.state.borrow_mut().panes.values_mut() {
+            p.editor.cancel();
+        }
+        self.render_editor(false);
+    }
+    fn choose_completion(&self, index: usize) {
+        if let Some(p) = self.state.borrow_mut().current_mut() {
+            p.editor.choose(&mut p.draft, index);
+        }
+        self.render_editor(true);
+    }
+    fn editor_key(&self, key: &str, ctrl: bool, shift: bool, alt: bool, expanded: bool) -> bool {
+        if alt {
+            return false;
+        }
+        let has_menu = self
+            .state
+            .borrow()
+            .current()
+            .is_some_and(|p| p.editor.menu.is_some());
+        if has_menu {
+            if matches!(key, "\u{f700}" | "\u{f701}" | "\t") && !ctrl {
+                if let Some(p) = self.state.borrow_mut().current_mut() {
+                    p.editor
+                        .select(if key == "\u{f700}" || shift { -1 } else { 1 });
+                }
+                self.render_editor(false);
+                return true;
+            }
+            if matches!(key, "\r" | "\n") && !ctrl && !shift {
+                let index = self
+                    .state
+                    .borrow()
+                    .current()
+                    .unwrap()
+                    .editor
+                    .menu
+                    .as_ref()
+                    .unwrap()
+                    .selected;
+                self.choose_completion(index);
+                return true;
+            }
+        }
+        if key == "\u{1b}" {
+            self.cancel_completion();
+            return has_menu;
+        }
+        if key == "\t" && !shift && !ctrl {
+            self.complete_command();
+            return true;
+        }
+        if matches!(key, "\r" | "\n") && (ctrl || (!expanded && !shift)) {
+            self.cancel_completion();
+            if let Some(ui) = self.weak.upgrade() {
+                ui.invoke_terminal_send_command();
+            }
+            return true;
+        }
+        if !expanded && !ctrl && !shift && matches!(key, "\u{f700}" | "\u{f701}") {
+            let mut s = self.state.borrow_mut();
+            let Some(p) = s.current_mut() else {
+                return false;
+            };
+            if p.draft.contains('\n') || p.editor.history.is_empty() {
+                return false;
+            }
+            p.editor.history(&mut p.draft, key == "\u{f700}");
+            drop(s);
+            self.render_editor(true);
+            return true;
+        }
+        false
+    }
+    fn complete_command(&self) {
+        let mut s = self.state.borrow_mut();
+        let (key, device) = (s.active.clone(), s.device.clone());
+        let Some(p) = s.current_mut() else { return };
+        if p.phase != "connected" || p.sending || p.editor.pending.is_some() {
+            return;
+        }
+        let request = p.editor.begin(&p.draft, p.editor.cursor);
+        let id = p.id;
+        drop(s);
+        self.render_editor(false);
+        let service = match self.services.terminal.get(&key, Some(&device)) {
+            Ok(service) => service,
+            Err(e) => {
+                self.cancel_completion();
+                self.error(&e.to_string());
+                return;
+            }
+        };
+        let weak = self.weak.clone();
+        self.job(async move {
+            let result = service
+                .complete(
+                    id,
+                    request.context.prefix,
+                    request.context.commands,
+                    request.context.directories,
+                )
+                .await;
+            let (value, error) = match result {
+                Ok(value) => (value.to_string(), String::new()),
+                Err(error) => (String::new(), error.to_string()),
+            };
+            let _ = weak.upgrade_in_event_loop(move |ui| {
+                ui.invoke_terminal_completion_result(
+                    key.into(),
+                    id.to_string().into(),
+                    request.serial.to_string().into(),
+                    value.into(),
+                    error.into(),
+                )
+            });
+        });
     }
     pub fn render_grid(&self) {
         let Some(ui) = self.weak.upgrade() else {

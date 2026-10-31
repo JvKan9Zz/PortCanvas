@@ -1,0 +1,40 @@
+import {ScrollView,Palette} from "std-widgets.slint";
+export component CommandEditor inherits Rectangle {
+    in-out property <string> text;
+    in property <bool> enabled:true;
+    in property <bool> expanded:false;
+    in property <string> label;
+    in property <int> caret;
+    in property <int> revision;
+    out property <bool> has-focus:input.has-focus;
+    callback edited(string,int);callback focused(bool);callback key(string,bool,bool,bool)->bool;
+    forward-focus:input;
+    horizontal-stretch:1;vertical-stretch:0;
+    background:Palette.background;border-radius:4px;border-width:input.has-focus?2px:1px;
+    border-color:input.has-focus?Palette.accent-background:Palette.border;
+    min-height:34px;preferred-height:root.expanded?100px:min(110px,max(34px,input.preferred-height+12px));
+    // The pinned Slint TextInput exposes UTF-8 byte offsets, matching the Rust word scanner.
+    changed revision=>{input.set-selection-offsets(root.caret,root.caret);}
+    scroll:=ScrollView {
+        x:6px;y:6px;width:parent.width - 12px;height:parent.height - 12px;
+        viewport-width:self.visible-width;viewport-height:max(self.visible-height,input.preferred-height);
+        input:=TextInput {
+            text<=>root.text;enabled:root.enabled;single-line:false;wrap:word-wrap;
+            color:Palette.foreground;selection-background-color:Palette.accent-background;
+            selection-foreground-color:Palette.accent-foreground;page-height:scroll.visible-height;
+            accessible-label:root.label;
+            edited=>{root.edited(self.text,min(self.cursor-position_byte-offset,self.anchor-position-byte-offset));}
+            changed has-focus=>{root.focused(self.has-focus);}
+            cursor-position-changed(pos)=>{
+                root.edited(self.text,min(self.cursor-position_byte-offset,self.anchor-position-byte-offset));
+                if pos.y+scroll.viewport-y<0px {scroll.viewport-y=min(0px,-pos.y);}
+                else if pos.y+scroll.viewport-y>scroll.visible-height - 21px {scroll.viewport-y=min(0px,scroll.visible-height - pos.y - 21px);}
+            }
+            key-pressed(event)=>{
+                if self.preedit-text!=""{return reject;}
+                if root.key(event.text,event.modifiers.control,event.modifiers.shift,event.modifiers.alt){return accept;}
+                return reject;
+            }
+        }
+    }
+}

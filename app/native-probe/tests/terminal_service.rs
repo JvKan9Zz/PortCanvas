@@ -96,6 +96,18 @@ async fn native_vt_over_shared_ssh_preserves_tabs_modes_resize_and_reconnect() -
         a.lock().unwrap().text().contains("中文宽字符")
     })
     .await;
+    let completion = one.complete(id, "py".into(), true, false).await?;
+    assert_eq!(completion["items"][0]["value"], "python");
+    let completion = one.complete(id, "中".into(), false, true).await?;
+    assert_eq!(completion["items"][0]["kind"], "directory");
+    assert!(
+        fixture.counts.input.lock().unwrap().is_empty(),
+        "completion must not write to a PTY"
+    );
+    assert_eq!(
+        fixture.counts.completions.lock().unwrap()[1]["prefix"],
+        "中"
+    );
     one.write(id, "FIRST-中\r".into()).await?;
     two.write(id2, "SECOND-🙂\r".into()).await?;
     until("isolated input echo", || {
@@ -145,7 +157,19 @@ async fn native_vt_over_shared_ssh_preserves_tabs_modes_resize_and_reconnect() -
             .sum::<usize>(),
         before
     );
+    let pending = {
+        let service = one.clone();
+        tokio::spawn(async move { service.complete(id, "slow".into(), false, false).await })
+    };
+    until("delayed completion request", || {
+        fixture.counts.completions.lock().unwrap().len() == 3
+    })
+    .await;
     one.stop();
+    assert!(
+        pending.await?.is_err(),
+        "a completion from an old PTY must be rejected"
+    );
     assert!(one.write(id, "stale".into()).await.is_err());
     assert_eq!(two.snapshot()["phase"], "connected");
     until("stopped PTY EOF", || {
