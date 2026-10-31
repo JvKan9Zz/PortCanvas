@@ -1,0 +1,111 @@
+import {Button,ComboBox,CheckBox,ScrollView,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {ActionButton} from "action_button.slint";
+export component DesktopView inherits VerticalBox {
+    padding:0px;spacing:8px;
+    in property <bool> english;
+    in property <bool> enabled:true;
+    in property <bool> connected;
+    in property <bool> active;
+    in property <bool> wanted;
+    in property <bool> ready;
+    in property <bool> clipboard-available;
+    in property <int> mode;
+    in property <image> frame;
+    in property <int> source-width;
+    in property <int> source-height;
+    in property <image> cursor;
+    in property <bool> cursor-known;
+    in property <int> cursor-width;
+    in property <int> cursor-height;
+    in property <int> cursor-hot-x;
+    in property <int> cursor-hot-y;
+    in property <string> status;
+    in property <string> error;
+    in property <int> focus-revision;
+    in-out property <bool> fit:true;
+    in-out property <bool> read-only:false;
+    property <length> pointer-x;
+    property <length> pointer-y;
+    property <bool> live:root.ready&&!root.read-only&&root.enabled;
+    pure callback tr(string,bool)->string;
+    callback action(string);callback quality(int);callback readonly-changed();
+    callback pointer(float,float,float,float,int,bool);callback motion(float,float,float,float);
+    callback wheel(float,float,float,float,int,int);callback key(string,bool,bool,bool)->bool;
+    callback text(string);callback focused(bool);
+    changed read-only=>{root.readonly-changed();}
+    changed focus-revision=>{if root.live{input.focus();}}
+    changed fit=>{scroll.viewport-x=0px;scroll.viewport-y=0px;}
+    HorizontalBox {padding:0px;spacing:8px;height:36px;vertical-stretch:0;
+        connect-button:=ActionButton {text:root.tr(root.connected?"连接桌面":"连接设备",root.english);primary:true;enabled:root.enabled&&!root.active;clicked=>{root.action("start");}}
+        disconnect-button:=Button {text:root.tr(root.active&&!root.ready?"取消连接":"断开桌面",root.english);enabled:root.enabled&&(root.active||root.wanted);clicked=>{root.action("stop");}}
+        ComboBox {accessible-label:root.tr("桌面画质",root.english);model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.mode;enabled:root.enabled;selected(_)=>{root.quality(self.current-index);}}
+        CheckBox {text:root.tr("仅查看",root.english);checked<=>root.read-only;enabled:root.enabled;}
+    }
+    HorizontalBox {padding:0px;spacing:8px;height:34px;vertical-stretch:0;
+        ActionButton {text:root.tr("适应窗口",root.english);primary:root.fit;enabled:root.enabled;clicked=>{root.fit=true;}}
+        ActionButton {text:root.tr("原始尺寸",root.english);primary:!root.fit;enabled:root.enabled;clicked=>{root.fit=false;}}
+        Button {text:root.tr("发送剪贴板",root.english);enabled:root.live;clicked=>{root.action("send-clipboard");}}
+        Button {text:root.tr("复制远端剪贴板",root.english);enabled:root.enabled&&root.clipboard-available;clicked=>{root.action("copy-clipboard");}}
+    }
+    Rectangle {
+        background:#181c24;border-radius:4px;clip:true;min-height:140px;
+        border-width:input.has-focus?2px:1px;border-color:input.has-focus?#70a5e8:#53657f;
+        scroll:=ScrollView {
+            x:2px;y:2px;width:parent.width - 4px;height:parent.height - 4px;
+            viewport-width:root.fit?self.visible-width:max(self.visible-width,root.source-width*1px);
+            viewport-height:root.fit?self.visible-height:max(self.visible-height,root.source-height*1px);
+            picture:=Rectangle {
+                width:root.fit?min(scroll.visible-width,scroll.visible-height*max(1,root.source-width)/max(1,root.source-height)):root.source-width*1px;
+                height:self.width*max(1,root.source-height)/max(1,root.source-width);
+                x:(scroll.viewport-width - self.width)/2;y:(scroll.viewport-height - self.height)/2;
+                clip:true;
+                Image {source:root.frame;image-fit:contain;width:100%;height:100%;}
+                if input.preedit-text!="":Rectangle {x:input.x;y:input.y;width:input.width;height:input.height;background:#181c24;}
+                input:=TextInput {
+                    x:max(0px,min(root.pointer-x,picture.width - 140px));y:max(0px,min(root.pointer-y,picture.height - 21px));width:140px;height:21px;
+                    color:#ffffff;single-line:true;enabled:root.live;text-cursor-width:self.preedit-text==""?0px:1px;
+                    accessible-label:root.tr("远程桌面输入",root.english);
+                    changed has-focus=>{root.focused(self.has-focus);}
+                    edited=>{if self.text!=""{root.text(self.text);self.text="";}}
+                    key-pressed(event)=>{
+                        if event.modifiers.control&&event.text==Key.Tab {disconnect-button.focus();return accept;}
+                        if self.preedit-text!=""{return reject;}
+                        if root.key(event.text,event.modifiers.control,event.modifiers.alt,event.modifiers.shift){return accept;}
+                        return reject;
+                    }
+                    // Physical releases are paired by winit, even if the logical character changes.
+                    key-released(_)=>{return accept;}
+                }
+                Image {source:root.cursor;visible:root.live&&root.cursor-known&&root.cursor-width>0&&root.cursor-height>0&&touch.has-hover;
+                    x:root.pointer-x - root.cursor-hot-x*picture.width/max(1,root.source-width);
+                    y:root.pointer-y - root.cursor-hot-y*picture.height/max(1,root.source-height);
+                    width:root.cursor-width*picture.width/max(1,root.source-width);height:root.cursor-height*picture.height/max(1,root.source-height);
+                }
+                touch:=TouchArea {
+                    enabled:root.enabled;mouse-cursor:root.live&&root.cursor-known?MouseCursor.none:MouseCursor.default;
+                    moved=>{root.pointer-x=self.mouse-x;root.pointer-y=self.mouse-y;root.motion(self.mouse-x/1px,self.mouse-y/1px,self.width/1px,self.height/1px);}
+                    pointer-event(event)=>{
+                        root.pointer-x=self.mouse-x;root.pointer-y=self.mouse-y;
+                        if event.kind==PointerEventKind.down&&root.live {input.focus();}
+                        if event.kind==PointerEventKind.down||event.kind==PointerEventKind.up {
+                            root.pointer(self.mouse-x/1px,self.mouse-y/1px,self.width/1px,self.height/1px,event.button==PointerEventButton.left?1:event.button==PointerEventButton.middle?2:event.button==PointerEventButton.right?4:0,event.kind==PointerEventKind.down);
+                        }
+                    }
+                    scroll-event(event)=>{
+                        if root.live&&(event.delta-x!=0px||event.delta-y!=0px) {root.wheel(self.mouse-x/1px,self.mouse-y/1px,self.width/1px,self.height/1px,event.delta-y!=0px?(event.delta-y>0px?8:16):(event.delta-x>0px?32:64),min(8,max(1,ceil(max(abs(event.delta-y),abs(event.delta-x))/30px))));return accept;}
+                        return reject;
+                    }
+                }
+            }
+        }
+        if !root.active&&root.source-width==0:ActionButton {
+            x:(parent.width - self.width)/2;y:(parent.height - self.height)/2;width:180px;height:40px;
+            text:root.tr(root.connected?"连接桌面":"连接设备",root.english);primary:true;enabled:root.enabled;clicked=>{root.action("start");}
+        }
+    }
+    HorizontalBox {padding:0px;vertical-stretch:0;
+        Text {text:root.status;color:Palette.foreground;wrap:word-wrap;}
+        Text {text:root.source-width>0?root.source-width+" × "+root.source-height:"";color:Palette.foreground;horizontal-alignment:right;}
+    }
+    if root.error!="":Text {text:root.error;color:#d34b4b;wrap:word-wrap;vertical-stretch:0;}
+}

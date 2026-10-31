@@ -1,3 +1,5 @@
+mod native;
+pub use native::NativeDesktop;
 use crate::{
     session::DeviceManager,
     ssh::{quote, SshConnection},
@@ -42,6 +44,7 @@ pub async fn schedule_reboot(connection:&SshConnection)->Result<()>{
     anyhow::ensure!(status==0&&output.lines().any(|line|line=="PORTCANVAS_REBOOT_SCHEDULED"),"无法提交重启请求，请检查设备账户是否具备免交互重启权限。");
     Ok(())
 }
+#[derive(Clone)]
 struct Running {
     id: u64,
     generation: u64,
@@ -61,6 +64,7 @@ pub struct DesktopService {
     running: Arc<Mutex<Option<Running>>>,
     next: Arc<AtomicU64>,
     devices: DeviceManager,
+    start_gate: Arc<tokio::sync::Mutex<()>>,
 }
 #[derive(Deserialize)]
 struct DesktopInfo {
@@ -72,6 +76,7 @@ impl DesktopService {
             running: Arc::new(Mutex::new(None)),
             next: Arc::new(AtomicU64::new(0)),
             devices,
+            start_gate: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
     pub fn id(&self) -> Option<u64> {
@@ -108,40 +113,13 @@ impl DesktopService {
             }
         }
     }
-    pub async fn start(&self, origin: String,mode:crate::desktop_settings::DesktopMode) -> Result<Value> {
-        let (generation, connection) = self.devices.connection_with_generation()?;
-        self.stop(None).await;
-        if generation != self.devices.generation() || connection.cancel.is_cancelled() {
-            bail!("设备连接已变化，请重新打开桌面。");
-        }
-        let id = self.next.fetch_add(1, Ordering::SeqCst) + 1;
-        let cancel = connection.cancel.child_token();
-        let done = CancellationToken::new();
-        *self.running.lock().unwrap() = Some(Running {
-            id,
-            generation,
-            cancel: cancel.clone(),
-            done: done.clone(),
-        });
-        self.devices.update(
-            generation,
-            json!({"desktop":"connecting","desktopStage":"prepare","message":"正在打开远程桌面…"}),
-        );
-        let operation = async {
-            connection.prepare(crate::remote_env::Feature::Desktop, &cancel).await?;
-            let config = json!({"display":connection.profile.display,"xauthority":connection.profile.xauthority,"tuning":mode.tuning()});
-            let command = python(
-                include_str!("../resources/desktop.py"),
-                json!(["desktop", config.to_string()]),
-            )?;
-            let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
-            let port = listener.local_addr()?.port();
-            let mut process =
-                tokio::time::timeout(Duration::from_secs(5), connection.channel()).await??;
-            if cancel.is_cancelled() {
-                let _ = process.close().await;
-                bail!("桌面连接已取消。");
-            }
+    async fn open_process(&self, connection: &SshConnection, generation: u64, cancel: &CancellationToken, mode: crate::desktop_settings::DesktopMode) -> Result<(crate::ssh::SshChannel, DesktopInfo)> {
+        connection.prepare(crate::remote_env::Feature::Desktop, cancel).await?;
+        let config = json!({"display":connection.profile.display,"xauthority":connection.profile.xauthority,"tuning":mode.tuning()});
+        let command = python(include_str!("../resources/desktop.py"), json!(["desktop", config.to_string()]))?;
+        let mut process = tokio::time::timeout(Duration::from_secs(5), connection.channel()).await??;
+        let result = async {
+            anyhow::ensure!(!cancel.is_cancelled(), "桌面连接已取消。");
             process.exec(true, connection.remote_command(&command)).await?;
             self.devices.update(generation,json!({"desktopStage":"service"}));
             let ready = async {
@@ -187,14 +165,45 @@ impl DesktopService {
                     }
                 )
             };
-            let info = tokio::select! {_=cancel.cancelled()=>Err(anyhow::anyhow!("桌面连接已取消。")),result=tokio::time::timeout(Duration::from_secs(20),ready)=>result.context("桌面启动超时，请确认远端 X11 桌面已登录。").and_then(|result| result)};
-            let info = match info {
-                Ok(info) => info,
-                Err(e) => {
-                    close_process(process).await;
-                    return Err(e);
-                }
-            };
+
+            tokio::select! {_=cancel.cancelled()=>Err(anyhow::anyhow!("桌面连接已取消。")),result=tokio::time::timeout(Duration::from_secs(20),ready)=>result.context("桌面启动超时，请确认远端 X11 桌面已登录。").and_then(|result| result)}
+        }.await;
+        match result {
+            Ok(info) => Ok((process, info)),
+            Err(error) => {close_process(process).await;Err(error)}
+        }
+    }
+    pub fn awaiting_frame(&self, id: u64) {
+        let generation = {let current=self.running.lock().unwrap();current.as_ref().filter(|run|run.id==id&&!run.cancel.is_cancelled()).map(|run|run.generation)};
+        if let Some(generation)=generation {self.devices.update(generation,json!({"desktop":"connecting","desktopStage":"frame","message":"正在接收完整桌面画面…"}));}
+    }
+    pub async fn start(&self, origin: String,mode:crate::desktop_settings::DesktopMode) -> Result<Value> {
+        let (generation, connection) = self.devices.connection_with_generation()?;
+        let _start = self.start_gate.lock().await;
+        if generation != self.devices.generation() || connection.cancel.is_cancelled() {
+            bail!("设备连接已变化，请重新打开桌面。");
+        }
+        self.stop(None).await;
+        if generation != self.devices.generation() || connection.cancel.is_cancelled() {
+            bail!("设备连接已变化，请重新打开桌面。");
+        }
+        let id = self.next.fetch_add(1, Ordering::SeqCst) + 1;
+        let cancel = connection.cancel.child_token();
+        let done = CancellationToken::new();
+        *self.running.lock().unwrap() = Some(Running {
+            id,
+            generation,
+            cancel: cancel.clone(),
+            done: done.clone(),
+        });
+        self.devices.update(
+            generation,
+            json!({"desktop":"connecting","desktopStage":"prepare","message":"正在打开远程桌面…"}),
+        );
+        let operation = async {
+            let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
+            let port = listener.local_addr()?.port();
+            let (mut process, info) = self.open_process(&connection, generation, &cancel, mode).await?;
             let token = uuid::Uuid::new_v4().simple().to_string();
             let expected_path = format!("/{token}");
             let devices = self.devices.clone();
@@ -213,7 +222,7 @@ impl DesktopService {
                 json!({"url":format!("ws://127.0.0.1:{port}/{token}"),"id":id,"generation":generation,"backend":"vnc-x11-over-ssh","tuning":mode.tuning()}),
             )
         };
-        let result = operation.await;
+        let result: Result<Value> = operation.await;
         if let Err(error) = &result {
             let canceled = cancel.is_cancelled();
             cancel.cancel();

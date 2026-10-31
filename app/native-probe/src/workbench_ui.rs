@@ -1,6 +1,7 @@
 slint::slint! {
     import {Button,LineEdit,ComboBox,CheckBox,ScrollView,ListView,TextEdit,VerticalBox,HorizontalBox,Palette,AboutSlint} from "std-widgets.slint";
     import {TerminalView,TerminalCell,TerminalTab,CompletionRow} from "terminal_view.slint";
+    import {DesktopView} from "desktop_view.slint";
     import {ActionButton,AppColors} from "action_button.slint";
     export struct LogRow {id:string,command:string,context:string,status:string,removable:bool,checked:bool,selected:bool}
     component LogSelectionBox inherits CheckBox {
@@ -45,6 +46,30 @@ slint::slint! {
         in-out property <int> theme:0;
         in property <bool> window-is-fullscreen:false;
         in property <bool> native-hidden:false;
+        in property <image> desktop-frame;
+        in property <int> desktop-source-width;
+        in property <int> desktop-source-height;
+        in property <image> desktop-cursor;
+        in property <bool> desktop-cursor-known;
+        in property <int> desktop-cursor-width;
+        in property <int> desktop-cursor-height;
+        in property <int> desktop-cursor-hot-x;
+        in property <int> desktop-cursor-hot-y;
+        in property <bool> desktop-ready:false;
+        in property <bool> desktop-active:false;
+        in property <bool> desktop-wanted:false;
+        in property <bool> desktop-clipboard-available:false;
+        in-out property <bool> desktop-readonly:false;
+        in-out property <bool> desktop-fit:true;
+        in property <string> desktop-status;
+        in property <string> desktop-error;
+        in-out property <int> desktop-focus-revision;
+        callback desktop-view-changed();callback desktop-quality-changed();callback desktop-action(string);callback desktop-readonly-changed();
+        callback desktop-pointer(float,float,float,float,int,bool);callback desktop-motion(float,float,float,float);callback desktop-wheel(float,float,float,float,int,int);
+        callback desktop-key(string,bool,bool,bool)->bool;callback desktop-text(string);callback desktop-focused(bool);
+        callback desktop-notice(string,string,string,string,bool);callback desktop-finished(string,string);callback desktop-drawn(string);callback desktop-environment(string);
+        changed connected=>{root.desktop-view-changed();}
+        changed english=>{root.desktop-view-changed();}
         in property <[TerminalTab]> terminal-tabs;
         in property <[TerminalCell]> terminal-cells;
         in property <string> terminal-active;
@@ -104,12 +129,13 @@ slint::slint! {
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
-        changed page=>{root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
-        changed native-hidden=>{if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
+        changed page=>{root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
+        changed native-hidden=>{root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
         Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.dialog-kind==0;triggered=>{root.poll-logs();}}
 
         in-out property <int> environment-source:0;
         in-out property <int> desktop-mode:0;
+        changed desktop-mode=>{root.desktop-quality-changed();}
         in-out property <string> log-limit:"1024";
         in-out property <int> dialog-kind:0;
         in property <string> dialog-title;
@@ -134,6 +160,7 @@ slint::slint! {
             HorizontalBox {
                 padding:0px;height:38px;vertical-stretch:0;
                 ActionButton {text:root.tr("设备连接与管理",root.english);primary:root.page==0;enabled:root.dialog-kind==0;clicked=>{root.page=0;}}
+                ActionButton {text:root.tr("远程桌面",root.english);primary:root.page==5;enabled:root.dialog-kind==0;clicked=>{root.page=5;}}
                 ActionButton {text:root.tr("终端",root.english);primary:root.page==4;enabled:root.dialog-kind==0;clicked=>{root.page=4;}}
                 ActionButton {text:root.tr("日志",root.english);primary:root.page==3;enabled:root.dialog-kind==0;clicked=>{root.page=3;}}
                 ActionButton {text:root.tr("设置",root.english);primary:root.page==1;enabled:root.dialog-kind==0;clicked=>{root.page=1;}}
@@ -288,6 +315,15 @@ slint::slint! {
                         }
                     }
                 }
+            }
+            if root.page==5:DesktopView {
+                english:root.english;enabled:root.dialog-kind==0;connected:root.connected;active:root.desktop-active;wanted:root.desktop-wanted;ready:root.desktop-ready;
+                mode:root.desktop-mode;fit<=>root.desktop-fit;read-only<=>root.desktop-readonly;frame:root.desktop-frame;source-width:root.desktop-source-width;source-height:root.desktop-source-height;
+                cursor:root.desktop-cursor;cursor-known:root.desktop-cursor-known;cursor-width:root.desktop-cursor-width;cursor-height:root.desktop-cursor-height;cursor-hot-x:root.desktop-cursor-hot-x;cursor-hot-y:root.desktop-cursor-hot-y;
+                status:root.desktop-status;error:root.desktop-error;clipboard-available:root.desktop-clipboard-available;focus-revision:root.desktop-focus-revision;
+                tr(s,e)=>{return root.tr(s,e);}action(name)=>{root.desktop-action(name);}quality(index)=>{root.set-desktop-mode(index);}readonly-changed=>{root.desktop-readonly-changed();}
+                pointer(x,y,w,h,b,d)=>{root.desktop-pointer(x,y,w,h,b,d);}motion(x,y,w,h)=>{root.desktop-motion(x,y,w,h);}wheel(x,y,w,h,b,n)=>{root.desktop-wheel(x,y,w,h,b,n);}
+                key(value,ctrl,alt,shift)=>{return root.desktop-key(value,ctrl,alt,shift);}text(value)=>{root.desktop-text(value);}focused(value)=>{root.desktop-focused(value);}
             }
             if root.page==4:TerminalView {
                 tabs:root.terminal-tabs;active:root.terminal-active;cells:root.terminal-cells;

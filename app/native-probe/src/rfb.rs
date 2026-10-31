@@ -1,6 +1,7 @@
-//! Controlled loopback RFB probe. No device credentials or external listener.
+//! Native RFB decoding; device authentication and stream ownership remain in the shared SSH service.
 use anyhow::{bail, ensure, Result};
 use vnc::{PixelFormat, Rect, VncClient, VncConnector, VncEncoding, VncEvent};
+use std::sync::Arc;
 
 /// Translate Slint's logical key values into X11 keysyms; Unicode uses the RFB Unicode prefix.
 pub fn keysym(key: char) -> u32 {
@@ -17,6 +18,8 @@ pub fn keysym(key: char) -> u32 {
         '\u{14}' => 0xffe5,
         '\u{15}' => 0xffe2,
         '\u{16}' => 0xffe4,
+        '\u{17}' => 0xffeb,
+        '\u{18}' => 0xffec,
         '\u{f700}' => 0xff52,
         '\u{f701}' => 0xff54,
         '\u{f702}' => 0xff51,
@@ -34,11 +37,14 @@ pub fn keysym(key: char) -> u32 {
 
 #[derive(Default, Clone)]
 pub struct Frame {
+    pub view: u64,
     pub width: u16,
     pub height: u16,
-    pub pixels: Vec<u8>,
+    pub pixels: Arc<Vec<u8>>,
     pub clipboard: String,
+    pub cursor: Option<Arc<Cursor>>,
 }
+pub struct Cursor {pub width:u16,pub height:u16,pub hot_x:u16,pub hot_y:u16,pub pixels:Vec<u8>}
 impl Frame {
     fn region(&self, rect: Rect) -> Result<()> {
         ensure!(
@@ -55,12 +61,13 @@ impl Frame {
             data.len() == stride * usize::from(rect.height),
             "RFB pixel length mismatch"
         );
+        let pixels=Arc::make_mut(&mut self.pixels);
         for y in 0..usize::from(rect.height) {
             let target =
                 ((usize::from(rect.y) + y) * usize::from(self.width) + usize::from(rect.x)) * 4;
-            self.pixels[target..target + stride]
+            pixels[target..target + stride]
                 .copy_from_slice(&data[y * stride..(y + 1) * stride]);
-            for pixel in self.pixels[target..target + stride].chunks_exact_mut(4) {
+            for pixel in pixels[target..target + stride].chunks_exact_mut(4) {
                 pixel[3] = 255;
             }
         }
@@ -77,7 +84,7 @@ impl Frame {
                 if (self.width, self.height) != (size.width, size.height) {
                     self.width = size.width;
                     self.height = size.height;
-                    self.pixels = vec![0; length];
+                    self.pixels = Arc::new(vec![0; length]);
                     return Ok(true);
                 }
                 Ok(false)
@@ -129,6 +136,11 @@ impl Frame {
                 self.clipboard = text;
                 Ok(false)
             }
+            VncEvent::SetCursor(rect,pixels)=>{
+                ensure!(pixels.len()==usize::from(rect.width)*usize::from(rect.height)*4,"RFB cursor pixel length mismatch");
+                ensure!(rect.width==0||rect.height==0||(rect.x<rect.width&&rect.y<rect.height),"RFB cursor hotspot unsupported");
+                self.cursor=Some(Arc::new(Cursor{width:rect.width,height:rect.height,hot_x:rect.x,hot_y:rect.y,pixels}));Ok(true)
+            }
             VncEvent::Error(error) => bail!("RFB protocol: {error}"),
             _ => Ok(false),
         }
@@ -139,15 +151,24 @@ impl Frame {
 pub async fn connect(
     stream: impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + Sync + 'static,
 ) -> Result<VncClient> {
-    Ok(VncConnector::new(stream)
-        .set_auth_method(async { Ok(String::new()) })
+    connect_inner(stream,None).await
+}
+pub async fn connect_with_mode(stream:impl tokio::io::AsyncRead+tokio::io::AsyncWrite+Unpin+Send+Sync+'static,mode:portcanvas_core::desktop_settings::DesktopMode)->Result<VncClient>{
+    connect_inner(stream,Some(mode)).await
+}
+async fn connect_inner(stream:impl tokio::io::AsyncRead+tokio::io::AsyncWrite+Unpin+Send+Sync+'static,mode:Option<portcanvas_core::desktop_settings::DesktopMode>)->Result<VncClient>{
+    let native=mode.is_some();
+    let mut connector=VncConnector::new(stream)
+        .set_auth_method(async move {if native{Err(vnc::VncError::General("桌面服务要求额外认证，请检查组件配置。".into()))}else{Ok(String::new())}})
         .set_pixel_format(PixelFormat::rgba())
         .allow_shared(true)
         .add_encoding(VncEncoding::Tight)
         .add_encoding(VncEncoding::Zrle)
         .add_encoding(VncEncoding::CopyRect)
-        .add_encoding(VncEncoding::Raw)
-        .build()?
+        .add_encoding(VncEncoding::Raw);
+    if let Some(mode)=mode {connector=connector.set_quality_levels(mode.tuning()["quality"].as_u64().unwrap() as u8,mode.tuning()["compression"].as_u64().unwrap() as u8).report_frame_boundaries()
+        .add_encoding(VncEncoding::DesktopSizePseudo).add_encoding(VncEncoding::ExtendedDesktopSizePseudo).add_encoding(VncEncoding::CursorPseudo).add_encoding(VncEncoding::LastRectPseudo);}
+    Ok(connector.build()?
         .try_start()
         .await?
         .finish()?)
@@ -168,6 +189,19 @@ mod tests {
         assert_eq!(keysym('\u{11}'), 0xffe3);
         assert_eq!(keysym('中'), 0x01004e2d);
         assert_eq!(keysym('A'), 65);
+    }
+    #[test]
+    fn published_frames_stay_immutable_and_cursor_updates_share_the_pixel_buffer() -> Result<()> {
+        let mut frame=Frame::default();
+        frame.apply(VncEvent::SetResolution((2,1).into()))?;
+        let rect=Rect{x:0,y:0,width:2,height:1};
+        frame.apply(VncEvent::RawImage(rect,vec![10;8]))?;
+        let published=frame.clone();
+        frame.apply(VncEvent::SetCursor(Rect{width:1,height:1,..rect},vec![255;4]))?;
+        assert!(Arc::ptr_eq(&published.pixels,&frame.pixels));
+        frame.apply(VncEvent::RawImage(rect,vec![20;8]))?;
+        assert_eq!(published.pixels[0],10);assert_eq!(frame.pixels[0],20);
+        assert!(!Arc::ptr_eq(&published.pixels,&frame.pixels));Ok(())
     }
 
     async fn handshake(stream: &mut TcpStream) -> Result<Vec<i32>> {

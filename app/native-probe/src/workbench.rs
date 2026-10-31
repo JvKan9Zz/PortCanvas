@@ -224,6 +224,7 @@ pub fn run() -> Result<()> {
                 if number >= latest.load(Ordering::SeqCst) {
                     device_state(&ui, &value, &pending);
                     ui.invoke_terminal_reload();
+                    ui.invoke_desktop_view_changed();
                 }
             });
         } else if topic == "terminal-state" {
@@ -235,6 +236,8 @@ pub fn run() -> Result<()> {
                     ui.invoke_refresh_logs();
                 }
             });
+        } else if topic == "environment-progress" {
+            let _=weak.upgrade_in_event_loop(move|ui|ui.invoke_desktop_environment(value.to_string().into()));
         } else if topic == "discovery-state" {
             let _ = weak.upgrade_in_event_loop(move |ui| {
                 ui.set_discovering(value["status"] == "searching");
@@ -265,6 +268,7 @@ pub fn run() -> Result<()> {
     let services = Services::new(paths, events, None)?;
     let jobs = Arc::new(Mutex::new(Vec::new()));
     let terminal = crate::workbench_terminal::Controller::install(&ui, services.clone(), runtime.clone(), jobs.clone());
+    let desktop = crate::workbench_desktop::Controller::install(&ui, services.clone(), runtime.clone(), jobs.clone())?;
     let logs = crate::workbench_logs::Controller::install(
         &ui,
         services.clone(),
@@ -605,9 +609,11 @@ pub fn run() -> Result<()> {
         };
         let weak = ui.as_weak();
         let logs = logs.clone();
+        let desktop = desktop.clone();
         let occluded = std::cell::Cell::new(false);
         move |window, event| {
             if let Some(ui) = weak.upgrade() {
+                desktop.window_event(event);
                 if let WindowEvent::KeyboardInput { event, .. } = event {
                     if event.state == ElementState::Pressed
                         && !event.repeat
@@ -633,6 +639,7 @@ pub fn run() -> Result<()> {
                     if hidden != ui.get_native_hidden() {
                         ui.set_native_hidden(hidden);
                         logs.visibility(hidden);
+                        desktop.visibility(hidden);
                     }
                     ui.set_window_is_fullscreen(window.is_fullscreen());
                 }
@@ -697,7 +704,10 @@ pub fn run() -> Result<()> {
                 };
                 match services.preferences.lock().unwrap().save_desktop_mode(mode) {
                     Ok(_) => ui.set_desktop_mode(index),
-                    Err(e) => ui.set_error(e.to_string().into()),
+                    Err(e) => {
+                        ui.set_error(e.to_string().into());
+                        if ui.get_page() == 5 { ui.set_desktop_error(text(&e.to_string(),ui.get_english()).into()); }
+                    }
                 }
             }
         }
@@ -742,16 +752,19 @@ pub fn run() -> Result<()> {
     });
     let result = ui.run();
     pending.lock().unwrap().take();
+    let desktop_done=desktop.shutdown();
     terminal.shutdown();
+    if let Some(done)=desktop_done {let _=runtime.block_on(async {tokio::time::timeout(std::time::Duration::from_secs(8),done.cancelled()).await});}
     runtime.block_on(services.shutdown());
     for job in jobs.lock().unwrap().drain(..) {
         runtime.block_on(job)?;
     }
+    desktop.finish_shutdown();
     if let Some(path) = std::env::var_os("PORTCANVAS_WORKBENCH_REPORT") {
         std::fs::write(
             path,
             serde_json::to_vec_pretty(
-                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"ssh":services.devices.snapshot()["ssh"]}),
+                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"desktop":desktop.report(),"ssh":services.devices.snapshot()["ssh"]}),
             )?,
         )?;
     }

@@ -15,3 +15,5 @@ Direct dependencies retain their upstream licenses. Slint uses the retained roya
 | chrono-0.4.45 | MIT OR Apache-2.0 |
 
 The native workbench uses the shared core's log format and services. Its local test examples also use uuid (Apache-2.0 OR MIT) and the existing russh fixture dependencies. These are development fixtures, not bundled services.
+
+The retained [vnc-rs source and patch record](../vendor/vnc-rs/UPSTREAM.md) preserve the upstream [MIT](../vendor/vnc-rs/LICENSE-MIT) and [Apache-2.0](../vendor/vnc-rs/LICENSE-APACHE) licenses. The patch adds optional quality/frame boundaries, Latin-1 clipboard handling and a local input-write barrier.

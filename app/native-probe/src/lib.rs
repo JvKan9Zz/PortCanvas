@@ -1,4 +1,5 @@
 pub mod fixture;
+pub mod desktop_client;
 pub mod log_browser;
 #[cfg(windows)]
 pub mod media;
