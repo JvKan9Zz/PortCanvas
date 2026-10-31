@@ -3,10 +3,10 @@ name: Windows native probe
 on:
   pull_request:
     branches: [main]
-    paths: ['app/native-probe/**', 'app/core/**', '.github/workflows/windows-native-probe.yml']
+    paths: ['app/native-probe/**', 'app/core/**', 'app/vendor/**', '.github/workflows/windows-native-probe.yml']
   push:
     branches: [main]
-    paths: ['app/native-probe/**', 'app/core/**', '.github/workflows/windows-native-probe.yml']
+    paths: ['app/native-probe/**', 'app/core/**', 'app/vendor/**', '.github/workflows/windows-native-probe.yml']
 
 permissions:
   contents: read

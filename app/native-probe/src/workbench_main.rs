@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod workbench;
+mod workbench_desktop;
 mod workbench_logs;
 mod workbench_terminal;
 mod workbench_ui;

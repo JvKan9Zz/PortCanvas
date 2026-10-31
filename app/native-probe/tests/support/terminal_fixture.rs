@@ -12,6 +12,8 @@ use std::{
     time::Duration,
 };
 use tokio::net::TcpListener;
+#[path = "desktop_protocol.rs"]
+pub mod desktop_protocol;
 
 #[derive(Default)]
 pub struct Counts {
@@ -23,18 +25,22 @@ pub struct Counts {
     pub terminal_eof: AtomicUsize,
     pub sessions: Mutex<BTreeMap<String, usize>>,
     pub completions: Mutex<Vec<serde_json::Value>>,
+    pub desktop: Arc<desktop_protocol::Counts>,
 }
 struct Handler {
     counts: Arc<Counts>,
     channels: BTreeMap<ChannelId, Channel<server::Msg>>,
     terminals: BTreeMap<ChannelId, String>,
     controls: BTreeMap<ChannelId, String>,
+    desktop_processes: std::collections::BTreeSet<ChannelId>,
+    behavior: desktop_protocol::Behavior,
 }
 impl Drop for Handler {
     fn drop(&mut self) {
         self.counts
             .active
             .fetch_sub(self.terminals.len(), Ordering::SeqCst);
+        self.counts.desktop.active_processes.fetch_sub(self.desktop_processes.len(), Ordering::SeqCst);
     }
 }
 fn options(command: &str) -> Option<(String, serde_json::Value)> {
@@ -53,6 +59,17 @@ fn options(command: &str) -> Option<(String, serde_json::Value)> {
 }
 impl server::Handler for Handler {
     type Error = russh::Error;
+    async fn channel_open_direct_tcpip(
+        &mut self, channel: Channel<server::Msg>, host: &str, port: u32,
+        _: &str, _: u32, reply: server::ChannelOpenHandle, _: &mut server::Session,
+    ) -> Result<(), Self::Error> {
+        if host != "127.0.0.1" || port != 5901 { return Ok(()); }
+        reply.accept().await;
+        let counts = self.counts.desktop.clone();
+        let behavior = self.behavior;
+        tokio::spawn(async move { let _ = desktop_protocol::serve(channel.into_stream(), &counts, behavior).await; });
+        Ok(())
+    }
     async fn auth_password(
         &mut self,
         _: &str,
@@ -110,6 +127,13 @@ impl server::Handler for Handler {
         let command = String::from_utf8_lossy(command);
         session.channel_success(id)?;
         if let Some((kind, value)) = options(&command) {
+            if kind == "desktop" {
+                self.counts.desktop.configs.lock().unwrap().push(value);
+                self.desktop_processes.insert(id);
+                self.counts.desktop.active_processes.fetch_add(1, Ordering::SeqCst);
+                session.data(id, b"STUDIO_DESKTOP={\"port\":5901}\n".to_vec())?;
+                return Ok(());
+            }
             let reply = if kind == "environment" {
                 format!(
                     "PORTCANVAS_ENV={}\n",
@@ -233,6 +257,10 @@ impl server::Handler for Handler {
         id: ChannelId,
         session: &mut server::Session,
     ) -> Result<(), Self::Error> {
+        if self.desktop_processes.remove(&id) {
+            self.counts.desktop.active_processes.fetch_sub(1, Ordering::SeqCst);
+            self.counts.desktop.process_eof.fetch_add(1, Ordering::SeqCst);
+        }
         if self.terminals.remove(&id).is_some() {
             self.counts.active.fetch_sub(1, Ordering::SeqCst);
             self.counts.terminal_eof.fetch_add(1, Ordering::SeqCst);
@@ -246,6 +274,9 @@ impl server::Handler for Handler {
         _: &mut server::Session,
     ) -> Result<(), Self::Error> {
         self.channels.remove(&id);
+        if self.desktop_processes.remove(&id) {
+            self.counts.desktop.active_processes.fetch_sub(1, Ordering::SeqCst);
+        }
         if self.terminals.remove(&id).is_some() {
             self.counts.active.fetch_sub(1, Ordering::SeqCst);
         }
@@ -262,6 +293,9 @@ pub struct Fixture {
 }
 impl Fixture {
     pub async fn new() -> Result<Self> {
+        Self::with_behavior(desktop_protocol::Behavior::Normal).await
+    }
+    pub async fn with_behavior(behavior: desktop_protocol::Behavior) -> Result<Self> {
         let key =
             russh::keys::PrivateKey::random(&mut rand::rng(), russh::keys::Algorithm::Ed25519)?;
         let fingerprint = key
@@ -286,6 +320,8 @@ impl Fixture {
                     channels: BTreeMap::new(),
                     terminals: BTreeMap::new(),
                     controls: BTreeMap::new(),
+                    desktop_processes: Default::default(),
+                    behavior,
                 };
                 tokio::spawn(async move {
                     if let Ok(session) = server::run_stream(config, socket, handler).await {
@@ -306,7 +342,7 @@ impl Fixture {
     }
     pub fn report(&self) -> serde_json::Value {
         serde_json::json!({"attached":self.counts.attached.load(Ordering::SeqCst),"active":self.counts.active.load(Ordering::SeqCst),"terminalEof":self.counts.terminal_eof.load(Ordering::SeqCst),"closed":self.counts.closed.load(Ordering::SeqCst),"sizes":*self.counts.sizes.lock().unwrap(),"completionRequests":self.counts.completions.lock().unwrap().len(),
-            "inputBytes":self.counts.input.lock().unwrap().iter().map(|(k,v)|(k.clone(),v.len())).collect::<BTreeMap<_,_>>(),"sessions":*self.counts.sessions.lock().unwrap()})
+            "inputBytes":self.counts.input.lock().unwrap().iter().map(|(k,v)|(k.clone(),v.len())).collect::<BTreeMap<_,_>>(),"sessions":*self.counts.sessions.lock().unwrap(),"desktop":self.counts.desktop.report()})
     }
 }
 impl Drop for Fixture {
