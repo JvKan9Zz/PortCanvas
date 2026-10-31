@@ -16,7 +16,7 @@ python tools/native_baseline.py --ref v0.5.95 --output src-tauri/target/native-b
 
 [core](core/README.md) 是新旧入口共用的业务服务库，独立编译/测试不依赖Tauri。src-tauri保留旧界面、平台对话框、窗口及更新安装适配；原生工程可直接使用同一份SSH、终端、文件、日志和数据服务。实机验证按用户要求统一后置到整套流程完成后。
 
-原生工程现有 `PortCanvasNative.exe` 设备/连接、分页日志与基础设置入口，支持日志目录选择、主题色和全屏控制，默认使用独立的 `PortCanvas/NativeDevelopment` 资料目录；`PortCanvasNativeProbe.exe` 继续承担受控链路实验。当前继续推进 M3，终端、桌面、文件、赛台、背景与更新迁移以及完整DPI/辅助功能验收仍待完成，尚不替换正式版。
+原生工程现有 `PortCanvasNative.exe` 设备/连接、分页日志、基础设置和原生终端入口，支持多PTY、中文输入法组合、VT网格、选区复制粘贴、独立命令草稿、日志项目和共享tmux生命周期，默认使用独立的 `PortCanvas/NativeDevelopment` 资料目录；`PortCanvasNativeProbe.exe` 继续承担受控链路实验。当前为开发验证界面，完整链路接通后按v0.5.95的布局与交互重建。M3完整DPI/辅助功能、M4命令补全/历史及桌面、文件、赛台、背景与更新迁移仍待完成，尚不替换正式版或宣称性能达标。
 
 ## 构建
 

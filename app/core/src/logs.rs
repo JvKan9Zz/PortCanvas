@@ -659,7 +659,12 @@ impl LogService {
     }
     pub async fn set_project(&self, project: String) -> Result<Value> {self.set_project_for("main",project).await}
     pub async fn set_project_for(&self, terminal_key:&str, project: String) -> Result<Value> {
-        let key = project_key(&self.devices.connection()?.profile.terminal_name(),terminal_key);
+        self.set_project_for_device(terminal_key,project,None).await
+    }
+    pub async fn set_project_for_device(&self, terminal_key:&str, project: String,expected:Option<&str>) -> Result<Value> {
+        let device=self.devices.connection()?.profile.terminal_name();
+        if let Some(expected)=expected {anyhow::ensure!(device==expected,"设备连接已变化，请重新选择终端。");}
+        let key = project_key(&device,terminal_key);
         let project = project.trim().to_string();
         if project.chars().count() > 100 || project.chars().any(|c| c < ' ') {
             bail!("项目名最多100字，不能包含控制字符。");

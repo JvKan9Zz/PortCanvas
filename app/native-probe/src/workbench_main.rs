@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod workbench;
 mod workbench_logs;
+mod workbench_terminal;
 mod workbench_ui;
 fn main() {
     if let Err(error) = workbench::run() {
