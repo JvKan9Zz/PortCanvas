@@ -5,7 +5,7 @@ use alacritty_terminal::{
     index::{Column, Line, Point, Side},
     selection::{Selection, SelectionType},
     term::{cell::Flags, Config, TermMode},
-    vte::ansi::{Color, NamedColor, Processor},
+    vte::ansi::{ClearMode, Color, Handler, NamedColor, Processor},
     Term,
 };
 use std::sync::{Arc, Mutex};
@@ -71,6 +71,14 @@ impl Terminal {
     }
     pub fn scroll(&mut self, lines: i32) {
         self.term.scroll_display(Scroll::Delta(lines));
+    }
+    pub fn clear(&mut self) {
+        self.term.clear_screen(ClearMode::All);
+        self.term.clear_screen(ClearMode::Saved);
+        self.term.selection = None;
+    }
+    pub fn cursor_visible(&self) -> bool {
+        self.term.mode().contains(TermMode::SHOW_CURSOR)
     }
     pub fn select(&mut self, start: (usize, usize), end: (usize, usize)) {
         let offset = self.term.grid().display_offset() as i32;
@@ -275,5 +283,19 @@ mod tests {
             "\x1b[200~中[201~\x1b[201~".as_bytes()
         );
         assert_eq!(term.responses(), b"\x1b[1;1R");
+    }
+    #[test]
+    fn local_clear_removes_history_without_changing_remote_modes() {
+        let mut term = Terminal::new(30, 4);
+        for _ in 0..20 {
+            term.feed(b"history\r\n");
+        }
+        term.feed(b"\x1b[?2004h\x1b[?25l");
+        term.clear();
+        assert!(term.text().trim().is_empty());
+        assert_eq!(term.term.grid().history_size(), 0);
+        assert!(!term.cursor_visible());
+        assert_eq!(term.paste("x"), b"\x1b[200~x\x1b[201~");
+        assert!(term.responses().is_empty());
     }
 }

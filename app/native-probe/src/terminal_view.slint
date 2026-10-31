@@ -1,0 +1,108 @@
+import {Button,LineEdit,ScrollView,TextEdit,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {ActionButton} from "action_button.slint";
+export struct TerminalCell { column:int,row:int,text:string,ink:color,paper:color,wide:bool,bold:bool,underline:bool }
+export struct TerminalTab {key:string,title:string}
+export component TerminalView inherits VerticalBox {
+    padding:0px;spacing:8px;
+    in property <[TerminalTab]> tabs;
+    in property <string> active;
+    in property <[TerminalCell]> cells;
+    in property <int> cursor-column;
+    in property <int> cursor-row;
+    in property <bool> cursor-visible:true;
+    in property <string> phase;
+    in property <string> status;
+    in property <string> error;
+    in property <string> log-status;
+    in property <bool> connected;
+    in property <bool> busy;
+    in property <bool> sending;
+    in property <bool> enabled:true;
+    in property <bool> english;
+    in-out property <string> draft;
+    in-out property <string> project;
+    in-out property <bool> expanded:false;
+    pure callback tr(string,bool)->string;
+    callback select-tab(string);callback action(string);callback copy();callback paste();
+    callback scroll(int);callback select(int,int,int,int);callback resize-grid(int,int);
+    callback committed(string);callback key(string,bool,bool,bool)->bool;
+    callback draft-edited(string);callback project-edited(string);callback send-command();
+    property <bool> live:root.connected&&root.phase=="connected"&&!root.busy&&root.enabled;
+    HorizontalBox {padding:0px;spacing:8px;height:36px;vertical-stretch:0;
+        ScrollView {viewport-height:36px;
+            HorizontalBox {padding:0px;spacing:6px;height:36px;
+                for tab in root.tabs: ActionButton {text:tab.title;primary:tab.key==root.active;enabled:root.enabled&&!root.busy;clicked=>{root.select-tab(tab.key);}}
+            }
+        }
+        Button {text:root.tr("新建终端",root.english);enabled:root.connected&&!root.busy&&root.enabled;clicked=>{root.action("create");}}
+    }
+    HorizontalBox {padding:0px;spacing:8px;height:34px;vertical-stretch:0;
+        Button {text:root.tr(root.phase=="connecting"?"取消连接":"连接 / 恢复终端",root.english);enabled:root.connected&&!root.busy&&root.enabled&&root.active!=""&&root.phase!="connected";clicked=>{root.resize-grid(grid.columns,grid.rows);root.action(root.phase=="connecting"?"stop":"start");}}
+        Button {text:root.tr("断开终端",root.english);enabled:root.enabled&&root.phase=="connected"&&!root.busy;clicked=>{root.action("stop");}}
+        Button {text:root.tr("重启终端",root.english);enabled:root.connected&&!root.busy&&root.enabled&&root.active!="";clicked=>{root.action("reset");}}
+        Button {text:root.tr("关闭终端",root.english);enabled:root.connected&&!root.busy&&root.enabled&&root.active!="";clicked=>{root.action("remove");}}
+        Button {text:root.tr("清屏",root.english);enabled:root.enabled&&root.active!="";clicked=>{root.action("clear");}}
+        Button {text:root.tr("复制选区",root.english);enabled:root.enabled;clicked=>{root.copy();}}
+        Button {text:root.tr("粘贴",root.english);enabled:root.live;clicked=>{root.paste();}}
+    }
+    grid:=Rectangle {
+        background:#181c24;clip:true;border-radius:4px;min-height:120px;
+        border-width:input.has-focus?2px:1px;border-color:input.has-focus?#70a5e8:#53657f;
+        property <int> columns:max(2,min(1000,floor((self.width - 16px)/9px)));
+        property <int> rows:max(1,min(500,floor((self.height - 16px)/21px)));
+        changed columns=>{root.resize-grid(self.columns,self.rows);}
+        changed rows=>{root.resize-grid(self.columns,self.rows);}
+        for cell in root.cells: Rectangle {
+            x:8px+cell.column*9px;y:8px+cell.row*21px;width:cell.wide?18px:9px;height:21px;background:cell.paper;
+            Text {text:cell.text;color:cell.ink;font-family:"Consolas";font-size:14px;font-weight:cell.bold?700:400;vertical-alignment:center;}
+            if cell.underline:Rectangle {y:19px;height:1px;background:cell.ink;}
+        }
+        Rectangle {visible:root.cursor-visible&&root.live&&root.cursor-row<grid.rows;
+            x:8px+root.cursor-column*9px;y:8px+root.cursor-row*21px;width:9px;height:21px;border-width:1px;border-color:#d8dfeb;
+        }
+        touch:=TouchArea {
+            property <int> start-x;property <int> start-y;
+            pointer-event(event)=>{
+                if event.kind==PointerEventKind.down&&event.button==PointerEventButton.left {
+                    self.start-x=max(0,floor((self.mouse-x - 8px)/9px));self.start-y=max(0,floor((self.mouse-y - 8px)/21px));
+                    input.focus();
+                }
+                if event.kind==PointerEventKind.up&&event.button==PointerEventButton.left {root.select(self.start-x,self.start-y,max(0,floor((self.mouse-x - 8px)/9px)),max(0,floor((self.mouse-y - 8px)/21px)));}
+            }
+            moved=>{if self.pressed {root.select(self.start-x,self.start-y,max(0,floor((self.mouse-x - 8px)/9px)),max(0,floor((self.mouse-y - 8px)/21px)));}}
+            scroll-event(event)=>{root.scroll(event.delta-y>0px?3:-3);return accept;}
+        }
+        // The input follows the VT cursor so system IME candidates/preedit have a real anchor.
+        // Only committed edits are sent; composition updates remain inside this native item.
+        input:=TextInput {
+            x:8px+min(root.cursor-column,grid.columns - 1)*9px;y:8px+min(root.cursor-row,grid.rows - 1)*21px;
+            width:max(9px,grid.width - self.x - 8px);height:21px;
+            color:#d8dfeb;font-family:"Consolas";font-size:14px;single-line:true;
+            accessible-label:root.tr("终端远端输入",root.english);
+            enabled:root.live;
+            edited=>{if self.text!=""{root.committed(self.text);self.text="";}}
+            key-pressed(event)=>{
+                if self.preedit-text!=""{return reject;}
+                if event.modifiers.control&&event.modifiers.shift&&(event.text=="c"||event.text=="C"){root.copy();return accept;}
+                if event.modifiers.control&&(event.text=="v"||event.text=="V"){root.paste();return accept;}
+                if event.text==Key.Tab&&event.modifiers.control {project-input.focus();return accept;}
+                if root.key(event.text,event.modifiers.control,event.modifiers.alt,event.modifiers.shift){return accept;}
+                return reject;
+            }
+        }
+    }
+    Text {text:root.status;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
+    if root.error!="":Text {text:root.error;color:#d34b4b;wrap:word-wrap;vertical-stretch:0;}
+    HorizontalBox {padding:0px;spacing:8px;height:34px;vertical-stretch:0;
+        Text {text:root.tr("日志项目",root.english);color:Palette.foreground;vertical-alignment:center;horizontal-stretch:0;}
+        project-input:=LineEdit {accessible-label:root.tr("日志项目",root.english);text<=>root.project;enabled:root.connected&&root.enabled;edited=>{root.project-edited(self.text);}}
+        Button {text:root.tr("保存项目",root.english);enabled:root.connected&&root.enabled&&!root.busy;clicked=>{root.action("project");}}
+        Text {text:root.log-status;color:Palette.foreground;overflow:elide;}
+    }
+    HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
+        if !root.expanded:LineEdit {text<=>root.draft;accessible-label:root.tr("命令输入",root.english);enabled:root.live&&!root.sending;edited=>{root.draft-edited(self.text);}accepted=>{root.send-command();}}
+        if root.expanded:TextEdit {text<=>root.draft;accessible-label:root.tr("命令输入",root.english);enabled:root.live&&!root.sending;preferred-height:100px;edited=>{root.draft-edited(self.text);}}
+        Button {text:root.tr(root.expanded?"收起命令输入框":"展开命令输入框",root.english);enabled:root.enabled;clicked=>{root.expanded=!root.expanded;}}
+        ActionButton {text:root.tr("发送",root.english);primary:true;enabled:root.live&&!root.sending;clicked=>{root.send-command();}}
+    }
+}

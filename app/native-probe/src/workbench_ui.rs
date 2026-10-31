@@ -1,5 +1,6 @@
 slint::slint! {
     import {Button,LineEdit,ComboBox,CheckBox,ScrollView,ListView,TextEdit,VerticalBox,HorizontalBox,Palette,AboutSlint} from "std-widgets.slint";
+    import {TerminalView,TerminalCell,TerminalTab} from "terminal_view.slint";
     import {ActionButton,AppColors} from "action_button.slint";
     export struct LogRow {id:string,command:string,context:string,status:string,removable:bool,checked:bool,selected:bool}
     component LogSelectionBox inherits CheckBox {
@@ -44,6 +45,25 @@ slint::slint! {
         in-out property <int> theme:0;
         in property <bool> window-is-fullscreen:false;
         in property <bool> native-hidden:false;
+        in property <[TerminalTab]> terminal-tabs;
+        in property <[TerminalCell]> terminal-cells;
+        in property <string> terminal-active;
+        in property <string> terminal-phase;
+        in property <string> terminal-status;
+        in property <string> terminal-error;
+        in property <string> terminal-log-status;
+        in property <bool> terminal-busy:false;
+        in property <bool> terminal-sending:false;
+        in property <int> terminal-cursor-column;
+        in property <int> terminal-cursor-row;
+        in property <bool> terminal-cursor-visible;
+        in-out property <string> terminal-draft;
+        in-out property <string> terminal-project;
+        callback terminal-reload();callback terminal-flush();callback terminal-failure(string,string,string);callback terminal-sent(string,string,string);
+        callback terminal-select(string);callback terminal-action(string);callback terminal-copy();callback terminal-paste();
+        callback terminal-scroll(int);callback terminal-selection(int,int,int,int);callback terminal-resize(int,int);
+        callback terminal-committed(string);callback terminal-key(string,bool,bool,bool)->bool;
+        callback terminal-draft-edited(string);callback terminal-project-edited(string);callback terminal-send-command();
         in property <[LogRow]> log-rows;
         in property <[string]> log-projects;
         in property <[string]> log-days;
@@ -74,8 +94,8 @@ slint::slint! {
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
-        changed page=>{if root.page==3{root.refresh-logs();}}
-        changed native-hidden=>{if !root.native-hidden&&root.page==3{root.refresh-logs();}}
+        changed page=>{if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
+        changed native-hidden=>{if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
         Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.dialog-kind==0;triggered=>{root.poll-logs();}}
 
         in-out property <int> environment-source:0;
@@ -104,6 +124,7 @@ slint::slint! {
             HorizontalBox {
                 padding:0px;height:38px;vertical-stretch:0;
                 ActionButton {text:root.tr("设备连接与管理",root.english);primary:root.page==0;enabled:root.dialog-kind==0;clicked=>{root.page=0;}}
+                ActionButton {text:root.tr("终端",root.english);primary:root.page==4;enabled:root.dialog-kind==0;clicked=>{root.page=4;}}
                 ActionButton {text:root.tr("日志",root.english);primary:root.page==3;enabled:root.dialog-kind==0;clicked=>{root.page=3;}}
                 ActionButton {text:root.tr("设置",root.english);primary:root.page==1;enabled:root.dialog-kind==0;clicked=>{root.page=1;}}
                 ActionButton {text:root.tr("关于",root.english);primary:root.page==2;enabled:root.dialog-kind==0;clicked=>{root.page=2;}}
@@ -258,6 +279,20 @@ slint::slint! {
                     }
                 }
             }
+            if root.page==4:TerminalView {
+                tabs:root.terminal-tabs;active:root.terminal-active;cells:root.terminal-cells;
+                cursor-column:root.terminal-cursor-column;cursor-row:root.terminal-cursor-row;cursor-visible:root.terminal-cursor-visible;
+                phase:root.terminal-phase;status:root.terminal-status;error:root.terminal-error;log-status:root.terminal-log-status;
+                connected:root.connected;busy:root.terminal-busy;sending:root.terminal-sending;enabled:root.dialog-kind==0;english:root.english;
+                draft<=>root.terminal-draft;project<=>root.terminal-project;
+                tr(s,e)=>{return root.tr(s,e);}
+                select-tab(key)=>{root.terminal-select(key);}action(name)=>{root.terminal-action(name);}
+                copy=>{root.terminal-copy();}paste=>{root.terminal-paste();}scroll(n)=>{root.terminal-scroll(n);}
+                select(x,y,x2,y2)=>{root.terminal-selection(x,y,x2,y2);}resize-grid(x,y)=>{root.terminal-resize(x,y);}
+                committed(value)=>{root.terminal-committed(value);}key(value,ctrl,alt,shift)=>{return root.terminal-key(value,ctrl,alt,shift);}
+                draft-edited(value)=>{root.terminal-draft-edited(value);}project-edited(value)=>{root.terminal-project-edited(value);}
+                send-command=>{root.terminal-send-command();}
+            }
             if root.page==2:VerticalBox {padding:0px;Text {text:"PortCanvas · v0.6.0 dev";font-size:22px;color:Palette.foreground;}AboutSlint {preferred-height:120px;vertical-stretch:0;}}
         }}
         Rectangle {
@@ -275,7 +310,7 @@ slint::slint! {
                         Text {text:root.dialog-message;wrap:word-wrap;color:Palette.foreground;}
                         HorizontalBox {padding:0px;
                             ActionButton {text:root.tr("取消",root.english);primary:!root.accept-focused;clicked=>{root.respond(false);}}
-                            ActionButton {text:root.tr(root.dialog-kind==2?"信任并连接":root.dialog-kind==3?"清理所选":"确认移除",root.english);primary:root.accept-focused;clicked=>{root.respond(true);}}
+                            ActionButton {text:root.tr(root.dialog-kind==2?"信任并连接":root.dialog-kind==3?"清理所选":root.dialog-kind==4?"确认重启":root.dialog-kind==5?"确认关闭":"确认移除",root.english);primary:root.accept-focused;clicked=>{root.respond(true);}}
                         }
                     }
                 }

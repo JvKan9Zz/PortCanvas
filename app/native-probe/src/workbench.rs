@@ -223,10 +223,14 @@ pub fn run() -> Result<()> {
             let _ = weak.upgrade_in_event_loop(move |ui| {
                 if number >= latest.load(Ordering::SeqCst) {
                     device_state(&ui, &value, &pending);
+                    ui.invoke_terminal_reload();
                 }
             });
+        } else if topic == "terminal-state" {
+            let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_terminal_reload());
         } else if topic == "logs-state" || topic == "logs-changed" {
             let _ = weak.upgrade_in_event_loop(move |ui| {
+                if ui.get_page() == 4 {ui.invoke_terminal_reload();}
                 if ui.get_page() == 3 && !ui.get_native_hidden() {
                     ui.invoke_refresh_logs();
                 }
@@ -260,6 +264,7 @@ pub fn run() -> Result<()> {
     ui.set_data_directory(paths.data.to_string_lossy().as_ref().into());
     let services = Services::new(paths, events, None)?;
     let jobs = Arc::new(Mutex::new(Vec::new()));
+    let terminal = crate::workbench_terminal::Controller::install(&ui, services.clone(), runtime.clone(), jobs.clone());
     let logs = crate::workbench_logs::Controller::install(
         &ui,
         services.clone(),
@@ -485,11 +490,14 @@ pub fn run() -> Result<()> {
         let runtime = runtime.clone();
         let jobs = jobs.clone();
         let logs = logs.clone();
+        let terminal = terminal.clone();
         move |accepted| {
             if let Some(ui) = weak.upgrade() {
                 let kind = ui.get_dialog_kind();
                 ui.set_dialog_kind(0);
-                if kind == 3 {
+                if kind == 4 || kind == 5 {
+                    terminal.respond(accepted);
+                } else if kind == 3 {
                     logs.respond(accepted);
                 } else if kind == 2 {
                     if let Some((_, sender)) = pending.lock().unwrap().take() {
@@ -548,6 +556,7 @@ pub fn run() -> Result<()> {
                         ui.set_english(index == 1);
                         device_state(&ui, &services.devices.snapshot(), &pending);
                         logs.render(&ui);
+                        ui.invoke_terminal_reload();
                     }
                     Err(e) => ui.set_error(e.to_string().into()),
                 }
@@ -609,6 +618,7 @@ pub fn run() -> Result<()> {
                                 && window.is_fullscreen())
                         {
                             ui.invoke_fullscreen();
+                            return EventResult::PreventDefault;
                         }
                     }
                 }
@@ -732,6 +742,7 @@ pub fn run() -> Result<()> {
     });
     let result = ui.run();
     pending.lock().unwrap().take();
+    terminal.shutdown();
     runtime.block_on(services.shutdown());
     for job in jobs.lock().unwrap().drain(..) {
         runtime.block_on(job)?;
