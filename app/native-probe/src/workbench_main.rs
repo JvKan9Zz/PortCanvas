@@ -2,6 +2,7 @@
 mod workbench;
 mod workbench_desktop;
 mod workbench_logs;
+mod workbench_files;
 mod workbench_terminal;
 mod workbench_ui;
 fn main() {

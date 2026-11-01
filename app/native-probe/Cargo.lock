@@ -4253,6 +4253,7 @@ dependencies = [
  "rand 0.10.3",
  "rfd",
  "russh",
+ "russh-sftp",
  "semver",
  "serde",
  "serde_json",

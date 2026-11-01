@@ -277,6 +277,8 @@ pub struct FileService {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transfer {
+    #[serde(default)]
+    generation: Option<u64>,
     direction: String,
     #[serde(default)]
     names: Vec<String>,
@@ -505,14 +507,19 @@ impl FileService {
         result.map_err(|e: anyhow::Error| anyhow::anyhow!(file_error(&e)))
     }
     pub async fn mkdir(&self, side: Side, parent: String, name: String) -> Result<String> {
+        self.mkdir_for_generation(side,parent,name,None).await
+    }
+    pub async fn mkdir_for_generation(&self, side: Side, parent: String, name: String, expected: Option<u64>) -> Result<String> {
         if self.inner.lock().unwrap().job.is_some() {
             bail!("请等待当前传输结束后再新建文件夹。");
         }
         leaf(&name, side == Side::Local && cfg!(windows))?;
+        anyhow::ensure!(side==Side::Local||expected.is_none_or(|g|g==self.devices.generation()),"设备连接已变化，请刷新。");
         let (access, parent) = if side == Side::Local {
             (Access::Local, self.local_path(&parent)?)
         } else {
-            let (_, s, h, _) = self.sftp().await?;
+            let (g, s, h, connection) = self.sftp().await?;
+            anyhow::ensure!(expected.is_none_or(|old|old==g)&&g==self.devices.generation()&&!connection.cancel.is_cancelled(),"设备连接已变化，请刷新。");
             (Access::Remote(s), Self::remote_path(&parent, &h)?)
         };
         let path = access.join(&parent, &name);
@@ -531,7 +538,8 @@ impl FileService {
             bail!("无效的限速设置。");
         }
         let dropped=dropped_sources(&options)?;
-        let (_, connection) = self.devices.connection_with_generation()?;
+        let (generation, connection) = self.devices.connection_with_generation()?;
+        anyhow::ensure!(options.generation.is_none_or(|g|g==generation),"设备连接已变化，请刷新。");
         let job = Arc::new(Job {
             cancel: connection.cancel.child_token(),
             user: AtomicBool::new(false),
@@ -549,7 +557,7 @@ impl FileService {
         let mut bytes = 0u64;
         let mut completed = 0u64;
         let operation=async{
-            let(_,sftp,home,connection)=self.sftp().await?;check(&job)?;let remote=Self::remote_path(&options.remote_path,&home)?;let local=self.local_path(&options.local_path)?;let upload=options.direction=="upload";
+            let(active,sftp,home,connection)=self.sftp().await?;check(&job)?;anyhow::ensure!(active==generation,"设备连接已变化，请刷新。");let remote=Self::remote_path(&options.remote_path,&home)?;let local=self.local_path(&options.local_path)?;let upload=options.direction=="upload";
             let(source,dest,from,to)=if upload{(Access::Local,Access::Remote(sftp.clone()),local,remote)}else{(Access::Remote(sftp.clone()),Access::Local,remote,local)};
             if (dropped.is_empty()&&source.stat(&from).await?.kind!=Kind::Directory)||dest.stat(&to).await?.kind!=Kind::Directory{bail!("传输两端必须是已存在的文件夹。");}
             let mut stack=Vec::new();let mut selected=HashSet::new();for name in &options.names{leaf(name,upload&&cfg!(windows))?;if selected.insert(name.clone()){stack.push((source.join(&from,name),dest.join(&to,name),name.clone()));}}
