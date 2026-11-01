@@ -269,7 +269,7 @@ pub fn run() -> Result<()> {
     });
     let paths = data_paths()?;
     ui.set_data_directory(paths.data.to_string_lossy().as_ref().into());
-    let services = Services::new(paths, events, None)?;
+    let services = Services::new(paths, events, std::env::var("WCS_TERMINAL_NAMESPACE").ok())?;
     let jobs = Arc::new(Mutex::new(Vec::new()));
     let terminal = crate::workbench_terminal::Controller::install(&ui, services.clone(), runtime.clone(), jobs.clone());
     let desktop = crate::workbench_desktop::Controller::install(&ui, services.clone(), runtime.clone(), jobs.clone())?;
@@ -617,10 +617,12 @@ pub fn run() -> Result<()> {
         let weak = ui.as_weak();
         let logs = logs.clone();
         let desktop = desktop.clone();
+        let files = files.clone();
         let occluded = std::cell::Cell::new(false);
         move |window, event| {
             if let Some(ui) = weak.upgrade() {
                 desktop.window_event(event);
+                files.window_event(window, event);
                 if let WindowEvent::KeyboardInput { event, .. } = event {
                     if event.state == ElementState::Pressed
                         && !event.repeat

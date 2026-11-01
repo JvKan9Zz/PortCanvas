@@ -6,17 +6,30 @@ use portcanvas_core::{
     files::{Confirmation, Side},
     services::Services,
 };
-use portcanvas_native_probe::file_browser::{bytes, Panel};
+use portcanvas_native_probe::file_browser::{bytes, hit_row, Panel};
 use serde_json::{json, Value};
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
     sync::{Arc, Mutex},
+    path::PathBuf,
+    time::{Duration, Instant},
 };
+use slint::winit_030::{winit::event::{ElementState, MouseButton, WindowEvent}, WinitWindowAccessor};
 use tokio::{runtime::Runtime, sync::oneshot, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 type Pending = Arc<Mutex<Option<(u64, oneshot::Sender<bool>)>>>;
+struct Drag {
+    side: usize,
+    start: (f32, f32),
+    path: String,
+    generation: u64,
+    names: Vec<String>,
+    active: bool,
+}
+#[derive(Clone)]
+struct Destination { side: usize, row: Option<usize>, path: String, generation: u64 }
 pub struct Controller {
     ui: slint::Weak<Workbench>,
     services: Arc<Services>,
@@ -30,6 +43,15 @@ pub struct Controller {
     cancel: RefCell<CancellationToken>,
     pending: Pending,
     reads: Cell<u64>,
+    drives: RefCell<Vec<String>>,
+    position: Cell<(f32, f32)>,
+    drag: RefCell<Option<Drag>>,
+    suppress_click: Cell<Instant>,
+    hover_timer: slint::Timer,
+    drop_timer: slint::Timer,
+    dropped: RefCell<Vec<PathBuf>>,
+    destination: RefCell<Option<Destination>>,
+    drops: Cell<u64>,
 }
 fn side(index: usize) -> Side {
     if index == 0 {
@@ -58,7 +80,23 @@ impl Controller {
             cancel: RefCell::new(CancellationToken::new()),
             pending: Arc::new(Mutex::new(None)),
             reads: Cell::new(0),
+            drives: RefCell::new(Vec::new()),
+            position: Cell::new((0.,0.)),
+            drag: RefCell::new(None),
+            suppress_click: Cell::new(Instant::now()),
+            hover_timer: slint::Timer::default(),
+            drop_timer: slint::Timer::default(),
+            dropped: RefCell::new(Vec::new()),
+            destination: RefCell::new(None),
+            drops: Cell::new(0),
         });
+        if let Ok(drives) = portcanvas_core::files::local_drives() {
+            *c.drives.borrow_mut()=drives.as_array().into_iter().flatten().filter_map(|d|d["path"].as_str().map(str::to_owned)).collect();
+            ui.set_file_drives(ModelRc::new(VecModel::from(c.drives.borrow().iter().map(|s|slint::SharedString::from(s.as_str())).collect::<Vec<_>>())));
+        }
+        ui.on_files_drive({let c=c.clone();move|index|{
+            if !c.locked() {let path=c.drives.borrow().get(index as usize).cloned();if let Some(path)=path{c.load(0,path);}}
+        }});
         ui.set_file_local_rows(ModelRc::from(c.models[0].clone()));
         ui.set_file_remote_rows(ModelRc::from(c.models[1].clone()));
         ui.on_files_sync({
@@ -109,7 +147,7 @@ impl Controller {
         ui.on_files_choose({
             let c = c.clone();
             move |index, row, add, range| {
-                if c.locked() {
+                if c.locked() || Instant::now()<c.suppress_click.get() {
                     return;
                 }
                 let index = index as usize;
@@ -136,7 +174,7 @@ impl Controller {
             let c = c.clone();
             move |index, row| {
                 let index = index as usize;
-                if index > 1 || c.locked() {
+                if index > 1 || c.locked() || Instant::now()<c.suppress_click.get() {
                     return;
                 }
                 let path = c.panels.borrow()[index].folder(row.max(0) as usize, index == 1);
@@ -235,8 +273,10 @@ impl Controller {
         jobs.push(self.runtime.spawn(future));
     }
     pub fn sync(self: &Rc<Self>) {
+        if !self.visible() { self.clear_drag(); }
         let generation = self.services.devices.generation();
         if self.generation.replace(generation) != generation {
+            self.clear_drag();
             self.panels.borrow_mut()[1].reset();
             self.respond(false);
             if let Some(ui) = self.ui.upgrade() {
@@ -376,6 +416,12 @@ impl Controller {
         let rate = [0, 1048576, 5242880, 10485760][ui.get_file_rate().clamp(0, 3) as usize];
         let options = json!({"generation":generation,"direction":action,"names":names,"localPath":panels[0].path,"remotePath":panels[1].path,"rateLimit":rate});
         drop(panels);
+        self.start_mutation(index, action, directory, name, options);
+    }
+    fn start_mutation(self: &Rc<Self>, index: usize, action: &str, directory: String, name: String, options: Value) {
+        let Some(ui)=self.ui.upgrade() else{return};
+        let generation=options["generation"].as_u64().unwrap();
+        let deleting=action=="delete";
         self.operation.set(self.operation.get() + 1);
         let epoch = self.operation.get();
         let cancel = CancellationToken::new();
@@ -511,6 +557,7 @@ impl Controller {
                 )
             };
             if index == 0 {
+                ui.set_file_drive_index(self.drives.borrow().iter().position(|d|p.path.to_lowercase().starts_with(&d.to_lowercase())).map(|n|n as i32).unwrap_or(-1));
                 ui.set_file_local_message(message.into());
                 ui.set_file_local_loading(p.loading);
                 ui.set_file_local_loaded(p.loaded);
@@ -564,11 +611,114 @@ impl Controller {
         });
     }
     pub fn shutdown(&self) {
+        self.clear_drag();
         self.cancel.borrow().cancel();
         self.respond(false);
         self.services.files.cancel();
     }
     pub fn report(&self) -> Value {
-        json!({"listRequests":self.reads.get(),"operations":self.operation.get(),"busy":self.services.files.snapshot()["busy"]})
+        json!({"listRequests":self.reads.get(),"operations":self.operation.get(),"drops":self.drops.get(),"busy":self.services.files.snapshot()["busy"]})
+    }
+    fn available(&self) -> bool {
+        self.visible() && !self.locked() && self.services.devices.snapshot()["ssh"]=="connected"
+            && self.panels.borrow().iter().all(|p|p.loaded)
+            && self.panels.borrow()[1].generation==self.services.devices.generation()
+    }
+    fn target(&self, x: f32, y: f32, wanted: usize) -> Option<Destination> {
+        if !self.available() {return None;}
+        let ui=self.ui.upgrade()?;
+        let area=if wanted==0{ui.get_file_local_area()}else{ui.get_file_remote_area()};
+        let panels=self.panels.borrow();let p=&panels[wanted];
+        let row=hit_row(x,y,[area.x,area.y,area.width,area.height,area.offset],p.entries.len())?;
+        let folder=row.and_then(|r|p.folder(r,wanted==1));
+        Some(Destination {side:wanted,row:if folder.is_some(){row}else{None},path:folder.unwrap_or_else(||p.path.clone()),generation:self.services.devices.generation()})
+    }
+    fn highlight(&self, target: Option<&Destination>) {
+        if let Some(ui)=self.ui.upgrade(){
+            ui.set_file_drop_side(target.map(|t|t.side as i32).unwrap_or(-1));
+            ui.set_file_drop_row(target.and_then(|t|t.row).map(|n|n as i32).unwrap_or(-1));
+            ui.set_file_drop_label(target.map(|t|text(if t.side==1{"松开以上传"}else{"松开以下载"},ui.get_english())).unwrap_or_default().into());
+        }
+    }
+    fn clear_drag(&self) {
+        self.drag.borrow_mut().take();self.hover_timer.stop();self.drop_timer.stop();
+        self.dropped.borrow_mut().clear();self.destination.borrow_mut().take();self.highlight(None);
+    }
+    fn system_position(&self) -> Option<(f32,f32)> {
+        let ui=self.ui.upgrade()?;
+        ui.window().with_winit_window(|window|{
+            let mut point=windows::Win32::Foundation::POINT::default();
+            unsafe {windows::Win32::UI::WindowsAndMessaging::GetCursorPos(&mut point).ok()?;}
+            let origin=window.inner_position().ok()?;let scale=window.scale_factor() as f32;
+            Some(((point.x-origin.x) as f32/scale,(point.y-origin.y) as f32/scale))
+        }).flatten()
+    }
+    fn transfer_drop(self: &Rc<Self>, target: Destination, source: Option<Drag>, paths: Vec<PathBuf>) {
+        if !self.available() || target.generation!=self.services.devices.generation(){return;}
+        let panels=self.panels.borrow();
+        let rate=self.ui.upgrade().map(|u|[0,1048576,5242880,10485760][u.get_file_rate().clamp(0,3) as usize]).unwrap_or(0);
+        let options=if let Some(source)=source {
+            if source.side==target.side || source.generation!=target.generation || panels[source.side].path!=source.path{return;}
+            json!({"generation":target.generation,"direction":if source.side==0{"upload"}else{"download"},"names":source.names,
+                "localPath":if source.side==0{source.path.clone()}else{target.path.clone()},"remotePath":if source.side==1{source.path}else{target.path},"rateLimit":rate})
+        }else{
+            if paths.is_empty()||target.side!=1{return;}
+            json!({"generation":target.generation,"direction":"upload","names":[],"localItems":paths,"remotePath":target.path,"rateLimit":rate})
+        };
+        drop(panels);self.drops.set(self.drops.get()+1);
+        let action=options["direction"].as_str().unwrap().to_owned();
+        self.start_mutation(0,&action,String::new(),String::new(),options);
+    }
+    pub fn window_event(self: &Rc<Self>, window: &slint::Window, event: &WindowEvent) {
+        if self.visible()&&matches!(event,WindowEvent::CursorMoved{..}|WindowEvent::MouseInput{..}|WindowEvent::HoveredFile(_)|WindowEvent::DroppedFile(_)|WindowEvent::Resized(_)|WindowEvent::ScaleFactorChanged{..}){if let Some(ui)=self.ui.upgrade(){ui.set_file_geometry_ticket(ui.get_file_geometry_ticket().wrapping_add(1));}}
+        match event {
+            WindowEvent::CursorMoved{position,..}=>{
+                let scale=window.scale_factor();let point=(position.x as f32/scale,position.y as f32/scale);self.position.set(point);
+                let mut drag=self.drag.borrow_mut();
+                if let Some(d)=drag.as_mut(){
+                    if (point.0-d.start.0).hypot(point.1-d.start.1)>=7.{d.active=true;}
+                    if d.active{self.highlight(self.target(point.0,point.1,1-d.side).as_ref());}
+                }
+            }
+            WindowEvent::MouseInput{state,button:MouseButton::Left,..}=>{
+                let (x,y)=self.position.get();
+                if *state==ElementState::Pressed && self.available(){
+                    for index in 0..2 {
+                        let ui=self.ui.upgrade().unwrap();let a=if index==0{ui.get_file_local_area()}else{ui.get_file_remote_area()};
+                        let panels=self.panels.borrow();let p=&panels[index];
+                        if x<a.x+36. || x>=a.x+a.width-16.{continue;}
+                        if let Some(Some(row))=hit_row(x,y,[a.x,a.y,a.width,a.height,a.offset],p.entries.len()){
+                            *self.drag.borrow_mut()=Some(Drag{side:index,start:(x,y),path:p.path.clone(),generation:self.services.devices.generation(),names:p.drag_names(row),active:false});break;
+                        }
+                    }
+                }else if *state==ElementState::Released{
+                    let source=self.drag.borrow_mut().take();
+                    if let Some(d)=source.filter(|d|d.active){
+                        self.suppress_click.set(Instant::now()+Duration::from_millis(250));
+                        let target=self.target(x,y,1-d.side);self.highlight(None);
+                        if let Some(target)=target{self.transfer_drop(target,Some(d),Vec::new());}
+                    }
+                }
+            }
+            WindowEvent::HoveredFile(_)=>{
+                let weak=Rc::downgrade(self);
+                self.hover_timer.start(slint::TimerMode::Repeated,Duration::from_millis(30),move||{
+                    if let Some(c)=weak.upgrade(){let target=c.system_position().and_then(|(x,y)|c.target(x,y,1));c.highlight(target.as_ref());}
+                });
+            }
+            WindowEvent::DroppedFile(path)=>{
+                self.hover_timer.stop();
+                if self.dropped.borrow().is_empty(){*self.destination.borrow_mut()=self.system_position().and_then(|(x,y)|self.target(x,y,1));}
+                self.dropped.borrow_mut().push(path.clone());
+                let weak=Rc::downgrade(self);
+                self.drop_timer.start(slint::TimerMode::SingleShot,Duration::from_millis(40),move||{
+                    if let Some(c)=weak.upgrade(){let paths=c.dropped.take();let target=c.destination.take();c.highlight(None);if let Some(target)=target{c.transfer_drop(target,None,paths);}}
+                });
+            }
+            WindowEvent::HoveredFileCancelled|WindowEvent::Focused(false)=>self.clear_drag(),
+            WindowEvent::CursorLeft{..} if self.dropped.borrow().is_empty()=>self.clear_drag(),
+            WindowEvent::KeyboardInput{event,..} if event.logical_key==slint::winit_030::winit::keyboard::Key::Named(slint::winit_030::winit::keyboard::NamedKey::Escape)=>self.clear_drag(),
+            _=>{}
+        }
     }
 }

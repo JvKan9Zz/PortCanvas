@@ -2,7 +2,7 @@ slint::slint! {
     import {Button,LineEdit,ComboBox,CheckBox,ScrollView,ListView,TextEdit,VerticalBox,HorizontalBox,Palette,AboutSlint} from "std-widgets.slint";
     import {TerminalView,TerminalCell,TerminalTab,CompletionRow} from "terminal_view.slint";
     import {DesktopView} from "desktop_view.slint";
-    import {FilesView,FileRow} from "files_view.slint";
+    import {FilesView,FileRow,FileArea} from "files_view.slint";
     import {ActionButton,AppColors} from "action_button.slint";
     export struct LogRow {id:string,command:string,context:string,status:string,removable:bool,checked:bool,selected:bool}
     component LogSelectionBox inherits CheckBox {
@@ -48,6 +48,10 @@ slint::slint! {
         in property <bool> window-is-fullscreen:false;
         in property <bool> native-hidden:false;
         in property <[FileRow]> file-local-rows;in property <[FileRow]> file-remote-rows;
+        in property <[string]> file-drives;in-out property <int> file-drive-index:-1;callback files-drive(int);
+        in-out property <FileArea> file-local-area;in-out property <FileArea> file-remote-area;
+        in-out property <int> file-geometry-ticket;
+        in property <int> file-drop-side:-1;in property <int> file-drop-row:-1;in property <string> file-drop-label;
         in-out property <string> file-local-path;in-out property <string> file-remote-path;
         in-out property <string> file-local-folder;in-out property <string> file-remote-folder;
         in property <string> file-local-message;in property <string> file-remote-message;
@@ -332,6 +336,8 @@ slint::slint! {
             }
             if root.page==6:FilesView {
                 english:root.english;enabled:root.dialog-kind==0;connected:root.connected;busy:root.file-mutating;
+                geometry-ticket:root.file-geometry-ticket;drives:root.file-drives;drive-index<=>root.file-drive-index;drive(n)=>{root.files-drive(n);}geometry(i,a)=>{if i==0{root.file-local-area=a;}else{root.file-remote-area=a;}}
+                drop-side:root.file-drop-side;drop-row:root.file-drop-row;drop-label:root.file-drop-label;
                 local-rows:root.file-local-rows;remote-rows:root.file-remote-rows;
                 local-path<=>root.file-local-path;remote-path<=>root.file-remote-path;
                 local-folder<=>root.file-local-folder;remote-folder<=>root.file-remote-folder;

@@ -101,6 +101,14 @@ impl Panel {
             BTreeSet::new()
         };
     }
+    pub fn drag_names(&self, index: usize) -> Vec<String> {
+        let Some(entry) = self.entries.get(index) else { return Vec::new() };
+        if self.selected.contains(&entry.name) {
+            self.selected.iter().cloned().collect()
+        } else {
+            vec![entry.name.clone()]
+        }
+    }
     pub fn folder(&self, index: usize, remote: bool) -> Option<String> {
         let e = self.entries.get(index)?;
         if e.kind != "directory" {
@@ -115,6 +123,15 @@ impl Panel {
                 .into_owned()
         })
     }
+}
+/// List viewport in logical window coordinates. Offset is the scroll viewport's y.
+pub fn hit_row(x: f32, y: f32, area: [f32; 5], count: usize) -> Option<Option<usize>> {
+    let [left, top, width, height, offset] = area;
+    if width <= 0. || height <= 0. || x < left || y < top || x >= left + width || y >= top + height {
+        return None;
+    }
+    let row = ((y - top - offset) / 38.).floor();
+    Some((row >= 0. && row < count as f32).then_some(row as usize))
 }
 pub fn bytes(n: u64) -> String {
     if n < 1024 {
@@ -159,6 +176,8 @@ mod tests {
         p.choose(1, true, false);
         assert_eq!(p.selected.len(), 2);
         assert_eq!(p.folder(0, true).unwrap(), "/中文/设置");
+        assert_eq!(p.drag_names(0), vec!["b", "设置"]);
+        assert_eq!(p.drag_names(1), vec!["a"]);
         assert!(p.folder(1, true).is_none());
         let id = p.begin();
         p.receive(id, Err(anyhow::anyhow!("missing")));
@@ -167,5 +186,14 @@ mod tests {
         assert_eq!(p.error, "missing");
         p.all(false);
         assert!(p.selected.is_empty());
+    }
+    #[test]
+    fn drop_hit_testing_respects_logical_viewport_scroll_and_empty_space() {
+        let area = [200., 100., 300., 120., -76.];
+        assert_eq!(hit_row(210., 110., area, 6), Some(Some(2)));
+        assert_eq!(hit_row(210., 215., area, 4), Some(None));
+        assert_eq!(hit_row(210., 220., area, 6), None);
+        assert_eq!(hit_row(199., 110., area, 6), None);
+        assert_eq!(hit_row(500., 110., area, 6), None);
     }
 }

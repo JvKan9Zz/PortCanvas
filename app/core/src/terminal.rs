@@ -297,13 +297,21 @@ impl TerminalService {
             .await?;
         let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
         let mut success = 0;
+        let mut initial_data = false;
         let mut live = false;
         let operation=async{loop{tokio::select!{
             _=cancel.cancelled()=>break,
             _=tokio::time::sleep_until(deadline),if !live=>bail!("终端连接超时。"),
-            request=input.recv()=>{match request{Some(Input::Text(text))=>channel.data(text.as_bytes()).await?,Some(Input::Resize(cols,rows))=>channel.window_change(cols,rows,0,0).await?,None=>break,}},
-            message=channel.wait()=>match message{Some(russh::ChannelMsg::Success)=>{success+=1;if success>=2&&!live{self.connected(id,generation)?;live=true;}},Some(russh::ChannelMsg::Failure)=>bail!("远端拒绝PTY或终端启动请求。"),Some(russh::ChannelMsg::Data{data})|Some(russh::ChannelMsg::ExtendedData{data,..})=>flow.output(id,&data,&sink,&cancel).await?,Some(russh::ChannelMsg::ExitStatus{exit_status})if exit_status!=0=>bail!("终端进程已退出，状态码 {exit_status}。"),None=>break,_=>{}}
-        }}Ok(())}.await;
+            request=input.recv(),if live=>{match request{Some(Input::Text(text))=>channel.data(text.as_bytes()).await?,Some(Input::Resize(cols,rows))=>channel.window_change(cols,rows,0,0).await?,None=>break,}},
+            message=channel.wait()=>match message{
+                Some(russh::ChannelMsg::Success)=>{success+=1;},
+                Some(russh::ChannelMsg::Failure)=>bail!("远端拒绝PTY或终端启动请求。"),
+                Some(russh::ChannelMsg::Data{data})=>{initial_data|=!data.is_empty();flow.output(id,&data,&sink,&cancel).await?;},
+                Some(russh::ChannelMsg::ExtendedData{data,..})=>flow.output(id,&data,&sink,&cancel).await?,
+                Some(russh::ChannelMsg::ExitStatus{exit_status})if exit_status!=0=>bail!("终端进程已退出，状态码 {exit_status}。"),None=>break,_=>{}}
+            }
+            if success>=2&&initial_data&&!live{self.connected(id,generation)?;live=true;}
+        }Ok(())}.await;
         let _ = channel.eof().await;
         let _ = channel.close().await;
         operation
