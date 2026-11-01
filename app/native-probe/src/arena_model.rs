@@ -18,7 +18,7 @@ impl Metrics {
     }
     pub fn failed(&mut self) {
         self.previous = None;
-        if let Some(p) = self.points.back() {
+        if let Some(p) = self.points.back().filter(|p| p.1.is_some() || p.2.is_some()) {
             self.points.push_back((p.0 + 0.001, None, None));
         }
     }
@@ -140,6 +140,8 @@ mod tests {
         m.push(sample(1., 100, 50));
         m.push(sample(3., 200, 75));
         m.failed();
+        for _ in 0..100 { m.failed(); }
+        assert_eq!(m.points.len(), 3, "repeated failures keep one gap marker");
         m.push(sample(5., 300, 100));
         assert_eq!(m.path(true).matches('M').count(), 2);
         m.push(sample(70., 400, 150));
