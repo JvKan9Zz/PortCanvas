@@ -227,8 +227,11 @@ pub fn run() -> Result<()> {
                     ui.invoke_terminal_reload();
                     ui.invoke_desktop_view_changed();
                     ui.invoke_files_sync();
+                    ui.invoke_arena_sync();
                 }
             });
+        } else if topic == "arena-pose" {
+            let _=weak.upgrade_in_event_loop(move|ui|ui.invoke_arena_pose_packet(value.to_string().into()));
         } else if topic == "file-state" {
             if !file_wake.swap(true,Ordering::SeqCst){let pending=file_wake.clone();let _=weak.upgrade_in_event_loop(move|ui|{pending.store(false,Ordering::SeqCst);ui.invoke_files_state_changed();});}
         } else if topic == "terminal-state" {
@@ -241,7 +244,7 @@ pub fn run() -> Result<()> {
                 }
             });
         } else if topic == "environment-progress" {
-            let _=weak.upgrade_in_event_loop(move|ui|ui.invoke_desktop_environment(value.to_string().into()));
+            let _=weak.upgrade_in_event_loop(move|ui|{ui.invoke_desktop_environment(value.to_string().into());ui.invoke_arena_environment(value.to_string().into());});
         } else if topic == "discovery-state" {
             let _ = weak.upgrade_in_event_loop(move |ui| {
                 ui.set_discovering(value["status"] == "searching");
@@ -274,6 +277,7 @@ pub fn run() -> Result<()> {
     let terminal = crate::workbench_terminal::Controller::install(&ui, services.clone(), runtime.clone(), jobs.clone());
     let desktop = crate::workbench_desktop::Controller::install(&ui, services.clone(), runtime.clone(), jobs.clone())?;
     let files=crate::workbench_files::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
+    let arena=crate::workbench_arena::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let logs = crate::workbench_logs::Controller::install(
         &ui,
         services.clone(),
@@ -764,6 +768,7 @@ pub fn run() -> Result<()> {
     let desktop_done=desktop.shutdown();
     terminal.shutdown();
     files.shutdown();
+    arena.shutdown();
     if let Some(done)=desktop_done {let _=runtime.block_on(async {tokio::time::timeout(std::time::Duration::from_secs(8),done.cancelled()).await});}
     runtime.block_on(services.shutdown());
     for job in jobs.lock().unwrap().drain(..) {
@@ -774,7 +779,7 @@ pub fn run() -> Result<()> {
         std::fs::write(
             path,
             serde_json::to_vec_pretty(
-                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"ssh":services.devices.snapshot()["ssh"]}),
+                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"arena":arena.report(),"ssh":services.devices.snapshot()["ssh"]}),
             )?,
         )?;
     }
