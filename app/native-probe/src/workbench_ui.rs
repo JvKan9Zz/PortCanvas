@@ -2,6 +2,7 @@ slint::slint! {
     import {Button,LineEdit,ComboBox,CheckBox,ScrollView,ListView,TextEdit,VerticalBox,HorizontalBox,Palette,AboutSlint} from "std-widgets.slint";
     import {TerminalView,TerminalCell,TerminalTab,CompletionRow} from "terminal_view.slint";
     import {DesktopView} from "desktop_view.slint";
+    import {FilesView,FileRow} from "files_view.slint";
     import {ActionButton,AppColors} from "action_button.slint";
     export struct LogRow {id:string,command:string,context:string,status:string,removable:bool,checked:bool,selected:bool}
     component LogSelectionBox inherits CheckBox {
@@ -46,6 +47,18 @@ slint::slint! {
         in-out property <int> theme:0;
         in property <bool> window-is-fullscreen:false;
         in property <bool> native-hidden:false;
+        in property <[FileRow]> file-local-rows;in property <[FileRow]> file-remote-rows;
+        in-out property <string> file-local-path;in-out property <string> file-remote-path;
+        in-out property <string> file-local-folder;in-out property <string> file-remote-folder;
+        in property <string> file-local-message;in property <string> file-remote-message;
+        in property <bool> file-local-loading;in property <bool> file-remote-loading;
+        in property <bool> file-local-loaded;in property <bool> file-remote-loaded;
+        in property <int> file-local-selected;in property <int> file-remote-selected;
+        in property <bool> file-mutating;in property <string> file-status;in property <string> file-current;in property <string> file-numbers;in property <string> file-error;
+        in property <float> file-progress;in-out property <int> file-rate:0;
+        callback files-sync();callback files-state-changed();callback files-action(int,string);
+        callback files-choose(int,int,bool,bool);callback files-all(int,bool);callback files-open(int,int);
+        callback files-load-result(int,string,string,string);callback files-confirm(string,string,bool,string);callback files-finished(string,string);
         in property <image> desktop-frame;
         in property <int> desktop-source-width;
         in property <int> desktop-source-height;
@@ -69,7 +82,7 @@ slint::slint! {
         callback desktop-key(string,bool,bool,bool)->bool;callback desktop-text(string);callback desktop-focused(bool);
         callback desktop-notice(string,string,string,string,bool);callback desktop-finished(string,string);callback desktop-drawn(string);callback desktop-environment(string);
         changed connected=>{root.desktop-view-changed();}
-        changed english=>{root.desktop-view-changed();}
+        changed english=>{root.files-sync();root.desktop-view-changed();}
         in property <[TerminalTab]> terminal-tabs;
         in property <[TerminalCell]> terminal-cells;
         in property <string> terminal-active;
@@ -129,8 +142,8 @@ slint::slint! {
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
-        changed page=>{root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
-        changed native-hidden=>{root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
+        changed page=>{root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
+        changed native-hidden=>{root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
         Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.dialog-kind==0;triggered=>{root.poll-logs();}}
 
         in-out property <int> environment-source:0;
@@ -161,6 +174,7 @@ slint::slint! {
                 padding:0px;height:38px;vertical-stretch:0;
                 ActionButton {text:root.tr("设备连接与管理",root.english);primary:root.page==0;enabled:root.dialog-kind==0;clicked=>{root.page=0;}}
                 ActionButton {text:root.tr("远程桌面",root.english);primary:root.page==5;enabled:root.dialog-kind==0;clicked=>{root.page=5;}}
+                ActionButton {text:root.tr("文件",root.english);primary:root.page==6;enabled:root.dialog-kind==0;clicked=>{root.page=6;}}
                 ActionButton {text:root.tr("终端",root.english);primary:root.page==4;enabled:root.dialog-kind==0;clicked=>{root.page=4;}}
                 ActionButton {text:root.tr("日志",root.english);primary:root.page==3;enabled:root.dialog-kind==0;clicked=>{root.page=3;}}
                 ActionButton {text:root.tr("设置",root.english);primary:root.page==1;enabled:root.dialog-kind==0;clicked=>{root.page=1;}}
@@ -316,6 +330,18 @@ slint::slint! {
                     }
                 }
             }
+            if root.page==6:FilesView {
+                english:root.english;enabled:root.dialog-kind==0;connected:root.connected;busy:root.file-mutating;
+                local-rows:root.file-local-rows;remote-rows:root.file-remote-rows;
+                local-path<=>root.file-local-path;remote-path<=>root.file-remote-path;
+                local-folder<=>root.file-local-folder;remote-folder<=>root.file-remote-folder;
+                local-message:root.file-local-message;remote-message:root.file-remote-message;
+                local-loading:root.file-local-loading;remote-loading:root.file-remote-loading;
+                local-loaded:root.file-local-loaded;remote-loaded:root.file-remote-loaded;
+                local-selected:root.file-local-selected;remote-selected:root.file-remote-selected;
+                status:root.file-status;current:root.file-current;numbers:root.file-numbers;error:root.file-error;progress:root.file-progress;rate<=>root.file-rate;
+                tr(s,e)=>{return root.tr(s,e);}action(i,a)=>{root.files-action(i,a);}choose(i,n,c,s)=>{root.files-choose(i,n,c,s);}all(i,c)=>{root.files-all(i,c);}open(i,n)=>{root.files-open(i,n);}
+            }
             if root.page==5:DesktopView {
                 english:root.english;enabled:root.dialog-kind==0;connected:root.connected;active:root.desktop-active;wanted:root.desktop-wanted;ready:root.desktop-ready;
                 mode:root.desktop-mode;fit<=>root.desktop-fit;read-only<=>root.desktop-readonly;frame:root.desktop-frame;source-width:root.desktop-source-width;source-height:root.desktop-source-height;
@@ -361,7 +387,7 @@ slint::slint! {
                         Text {text:root.dialog-message;wrap:word-wrap;color:Palette.foreground;}
                         HorizontalBox {padding:0px;
                             ActionButton {text:root.tr("取消",root.english);primary:!root.accept-focused;clicked=>{root.respond(false);}}
-                            ActionButton {text:root.tr(root.dialog-kind==2?"信任并连接":root.dialog-kind==3?"清理所选":root.dialog-kind==4?"确认重启":root.dialog-kind==5?"确认关闭":"确认移除",root.english);primary:root.accept-focused;clicked=>{root.respond(true);}}
+                            ActionButton {text:root.tr(root.dialog-kind==2?"信任并连接":root.dialog-kind==3?"清理所选":root.dialog-kind==4?"确认重启":root.dialog-kind==5?"确认关闭":root.dialog-kind==6?"确认覆盖":root.dialog-kind==7?"确认删除":"确认移除",root.english);primary:root.accept-focused;clicked=>{root.respond(true);}}
                         }
                     }
                 }

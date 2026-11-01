@@ -14,6 +14,8 @@ use std::{
 use tokio::net::TcpListener;
 #[path = "desktop_protocol.rs"]
 pub mod desktop_protocol;
+#[path = "files_protocol.rs"]
+pub mod files_protocol;
 
 #[derive(Default)]
 pub struct Counts {
@@ -26,6 +28,7 @@ pub struct Counts {
     pub sessions: Mutex<BTreeMap<String, usize>>,
     pub completions: Mutex<Vec<serde_json::Value>>,
     pub desktop: Arc<desktop_protocol::Counts>,
+    pub files: Arc<files_protocol::Counts>,
 }
 struct Handler {
     counts: Arc<Counts>,
@@ -34,6 +37,7 @@ struct Handler {
     controls: BTreeMap<ChannelId, String>,
     desktop_processes: std::collections::BTreeSet<ChannelId>,
     behavior: desktop_protocol::Behavior,
+    files_root: Option<std::path::PathBuf>,
 }
 impl Drop for Handler {
     fn drop(&mut self) {
@@ -59,6 +63,10 @@ fn options(command: &str) -> Option<(String, serde_json::Value)> {
 }
 impl server::Handler for Handler {
     type Error = russh::Error;
+    async fn subsystem_request(&mut self,id:ChannelId,name:&str,session:&mut server::Session)->Result<(),Self::Error>{
+        if name=="sftp" {if let Some(root)=self.files_root.clone(){let channel=self.channels.remove(&id).unwrap();session.channel_success(id)?;let peer=files_protocol::Peer::new(root,self.counts.files.clone());tokio::spawn(async move{russh_sftp::server::run(channel.into_stream(),peer).await;});return Ok(());}}
+        session.channel_failure(id)?;Ok(())
+    }
     async fn channel_open_direct_tcpip(
         &mut self, channel: Channel<server::Msg>, host: &str, port: u32,
         _: &str, _: u32, reply: server::ChannelOpenHandle, _: &mut server::Session,
@@ -296,6 +304,11 @@ impl Fixture {
         Self::with_behavior(desktop_protocol::Behavior::Normal).await
     }
     pub async fn with_behavior(behavior: desktop_protocol::Behavior) -> Result<Self> {
+        Self::configured(behavior,None).await
+    }
+    #[allow(dead_code)]
+    pub async fn with_files(root:std::path::PathBuf)->Result<Self>{Self::configured(desktop_protocol::Behavior::Normal,Some(root)).await}
+    async fn configured(behavior:desktop_protocol::Behavior,files_root:Option<std::path::PathBuf>)->Result<Self>{
         let key =
             russh::keys::PrivateKey::random(&mut rand::rng(), russh::keys::Algorithm::Ed25519)?;
         let fingerprint = key
@@ -322,6 +335,7 @@ impl Fixture {
                     controls: BTreeMap::new(),
                     desktop_processes: Default::default(),
                     behavior,
+                    files_root:files_root.clone(),
                 };
                 tokio::spawn(async move {
                     if let Ok(session) = server::run_stream(config, socket, handler).await {
@@ -342,7 +356,7 @@ impl Fixture {
     }
     pub fn report(&self) -> serde_json::Value {
         serde_json::json!({"attached":self.counts.attached.load(Ordering::SeqCst),"active":self.counts.active.load(Ordering::SeqCst),"terminalEof":self.counts.terminal_eof.load(Ordering::SeqCst),"closed":self.counts.closed.load(Ordering::SeqCst),"sizes":*self.counts.sizes.lock().unwrap(),"completionRequests":self.counts.completions.lock().unwrap().len(),
-            "inputBytes":self.counts.input.lock().unwrap().iter().map(|(k,v)|(k.clone(),v.len())).collect::<BTreeMap<_,_>>(),"sessions":*self.counts.sessions.lock().unwrap(),"desktop":self.counts.desktop.report()})
+            "inputBytes":self.counts.input.lock().unwrap().iter().map(|(k,v)|(k.clone(),v.len())).collect::<BTreeMap<_,_>>(),"sessions":*self.counts.sessions.lock().unwrap(),"desktop":self.counts.desktop.report(),"files":self.counts.files.report()})
     }
 }
 impl Drop for Fixture {

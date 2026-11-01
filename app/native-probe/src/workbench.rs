@@ -191,7 +191,7 @@ fn data_paths() -> Result<Paths> {
     Ok(Paths {
         data,
         documents: documents.clone(),
-        local_files: documents,
+        local_files: std::env::var_os("WCS_TEST_ROOT").map(PathBuf::from).filter(|p|p.is_absolute()).map(|p|p.join("local-files")).unwrap_or(documents),
         portable: true,
     })
 }
@@ -214,6 +214,7 @@ pub fn run() -> Result<()> {
     let weak = ui.as_weak();
     let host_pending = pending.clone();
     let latest = generation.clone();
+    let file_wake=Arc::new(std::sync::atomic::AtomicBool::new(false));
     let events: portcanvas_core::session::EventSink = Arc::new(move |topic, value| {
         if topic == "device-state" {
             let number = value["generation"].as_u64().unwrap_or(0);
@@ -225,8 +226,11 @@ pub fn run() -> Result<()> {
                     device_state(&ui, &value, &pending);
                     ui.invoke_terminal_reload();
                     ui.invoke_desktop_view_changed();
+                    ui.invoke_files_sync();
                 }
             });
+        } else if topic == "file-state" {
+            if !file_wake.swap(true,Ordering::SeqCst){let pending=file_wake.clone();let _=weak.upgrade_in_event_loop(move|ui|{pending.store(false,Ordering::SeqCst);ui.invoke_files_state_changed();});}
         } else if topic == "terminal-state" {
             let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_terminal_reload());
         } else if topic == "logs-state" || topic == "logs-changed" {
@@ -269,6 +273,7 @@ pub fn run() -> Result<()> {
     let jobs = Arc::new(Mutex::new(Vec::new()));
     let terminal = crate::workbench_terminal::Controller::install(&ui, services.clone(), runtime.clone(), jobs.clone());
     let desktop = crate::workbench_desktop::Controller::install(&ui, services.clone(), runtime.clone(), jobs.clone())?;
+    let files=crate::workbench_files::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let logs = crate::workbench_logs::Controller::install(
         &ui,
         services.clone(),
@@ -495,11 +500,13 @@ pub fn run() -> Result<()> {
         let jobs = jobs.clone();
         let logs = logs.clone();
         let terminal = terminal.clone();
+        let files=files.clone();
         move |accepted| {
             if let Some(ui) = weak.upgrade() {
                 let kind = ui.get_dialog_kind();
                 ui.set_dialog_kind(0);
-                if kind == 4 || kind == 5 {
+                if kind==6||kind==7{files.respond(accepted);}
+                else if kind == 4 || kind == 5 {
                     terminal.respond(accepted);
                 } else if kind == 3 {
                     logs.respond(accepted);
@@ -754,6 +761,7 @@ pub fn run() -> Result<()> {
     pending.lock().unwrap().take();
     let desktop_done=desktop.shutdown();
     terminal.shutdown();
+    files.shutdown();
     if let Some(done)=desktop_done {let _=runtime.block_on(async {tokio::time::timeout(std::time::Duration::from_secs(8),done.cancelled()).await});}
     runtime.block_on(services.shutdown());
     for job in jobs.lock().unwrap().drain(..) {
@@ -764,7 +772,7 @@ pub fn run() -> Result<()> {
         std::fs::write(
             path,
             serde_json::to_vec_pretty(
-                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"desktop":desktop.report(),"ssh":services.devices.snapshot()["ssh"]}),
+                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"ssh":services.devices.snapshot()["ssh"]}),
             )?,
         )?;
     }

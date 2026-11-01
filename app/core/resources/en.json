@@ -743,5 +743,14 @@
   "RFB握手超时。": "RFB negotiation timed out.",
   "等待完整桌面画面超时。": "Timed out waiting for a complete desktop frame.",
   "正在下载组件": "Downloading components",
-  "正在传输组件": "Transferring components"
+  "正在传输组件": "Transferring components",
+  "本地新文件夹名称": "New local folder name",
+  "远端新文件夹名称": "New remote folder name",
+  "取消操作": "Cancel operation",
+  "清除选择": "Clear selection",
+  "删除所选 {n} 个远端项目及其内容？": "Delete {n} selected remote items and their contents?",
+  "确认删除远端项目": "Delete remote items",
+  "删除远端所选": "Delete selected remote items",
+  "转到": "Go",
+  "操作已取消。": "Operation cancelled."
 }
