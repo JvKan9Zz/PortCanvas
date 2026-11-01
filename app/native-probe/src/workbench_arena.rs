@@ -123,6 +123,7 @@ impl Controller {
                     .flatten()
                     .filter(|v| v["accessible"] != false)
                     .collect::<Vec<_>>();
+                let selected = c.devices.borrow().get(ui.get_arena_camera_index().max(0) as usize).cloned();
                 *c.devices.borrow_mut() = items
                     .iter()
                     .filter_map(|v| v["path"].as_str().map(str::to_owned))
@@ -140,7 +141,8 @@ impl Controller {
                         })
                         .collect::<Vec<slint::SharedString>>(),
                 )));
-                ui.set_arena_camera_index(0);
+                let index = selected.and_then(|path| c.devices.borrow().iter().position(|p| *p == path)).unwrap_or(0);
+                ui.set_arena_camera_index(index as i32);
                 let message = if let Some(e) = v["error"].as_str() {
                     e
                 } else if items.is_empty() && v.as_array().is_some_and(|v| !v.is_empty()) {
