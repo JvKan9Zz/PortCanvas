@@ -1,0 +1,63 @@
+import {Button,ComboBox,ScrollView,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {ActionButton} from "action_button.slint";
+export component ArenaView inherits HorizontalBox {
+    in property <bool> english;in property <bool> enabled;in property <bool> connected;
+    in property <bool> camera-active;in property <bool> camera-loading;in property <image> frame;
+    in property <bool> has-frame;in property <[string]> cameras;
+    in-out property <int> camera-index;in-out property <int> rate:2;
+    in property <string> camera-status;in property <string> metrics-status;in property <string> metrics;
+    in property <string> cpu-path;in property <string> memory-path;
+    in property <bool> live;in property <float> world-x;in property <float> world-y;in property <float> heading;
+    in property <bool> has-heading;in property <string> pose-status;in property <string> coordinates;
+    pure callback tr(string,bool)->string;
+    callback toggle-camera();callback refresh-cameras();
+    padding:0px;spacing:16px;
+    VerticalBox {padding:0px;spacing:8px;horizontal-stretch:3;preferred-width:0px;
+        Text {text:root.tr("赛台",root.english);font-size:20px;font-weight:600;color:Palette.foreground;vertical-stretch:0;}
+        Text {text:root.tr(root.pose-status,root.english);color:Palette.foreground;vertical-stretch:0;}
+        Text {text:root.coordinates;color:Palette.foreground;vertical-stretch:0;accessible-label:root.tr("己方坐标",root.english);}
+        stage:=Rectangle {background:Palette.background;
+            property <length> side:max(0px,min(self.width - 60px,self.height - 64px));
+            floor:=Rectangle {x:(parent.width - self.width)/2 + 12px;y:24px;width:stage.side;height:stage.side;background:#30363a;border-color:#c3423f;border-width:2px;
+                accessible-role:image;accessible-label:root.tr("赛台坐标系，左下角为原点，X向右，Y向上，单位米",root.english);
+                Image {x:parent.width*700/3800;y:parent.height*700/3800;width:parent.width*2400/3800;height:parent.height*2400/3800;source:@image-url("../../ui/arena-platform.png");}
+                Rectangle {x:parent.width*700/3800;y:parent.height*700/3800;width:parent.width*2400/3800;height:parent.height*2400/3800;border-width:1px;border-color:#ecf0f3;background:transparent;}
+                Rectangle {x:0px;y:parent.height*700/3800;width:parent.width*500/3800;height:parent.height*400/3800;background:#f6d627;}
+                Rectangle {x:parent.width*3300/3800;y:parent.height*2700/3800;width:parent.width*500/3800;height:parent.height*400/3800;background:#2458ee;}
+                if root.live:Rectangle {x:parent.width*root.world-x/3.8 - 7px;y:parent.height*(1-root.world-y/3.8)-7px;width:14px;height:14px;border-radius:7px;background:Palette.accent-background;border-width:1px;border-color:white;
+                    if root.has-heading:Path {x:2px;y:2px;width:10px;height:10px;commands:"M1,2 L9,5 L1,8 Z";fill:white;transform-rotation:-root.heading*1deg;transform-origin:{x:self.width/2,y:self.height/2};}
+                }
+            }
+            for value in [1,2,3,3.8]:Text {x:floor.x+floor.width*value/3.8 - 10px;y:floor.y+floor.height+5px;width:30px;text:value;color:Palette.foreground;font-size:12px;}
+            for value in [1,2,3,3.8]:Text {x:floor.x - 28px;y:floor.y+floor.height*(1-value/3.8)-7px;width:25px;text:value;color:Palette.foreground;font-size:12px;}
+            Text {x:floor.x;y:floor.y+floor.height+23px;text:"(0, 0)";color:Palette.foreground;font-size:12px;}
+            Text {x:floor.x+floor.width - 38px;y:floor.y+floor.height+23px;text:"X (m)";color:Palette.foreground;font-size:12px;}
+            Text {x:floor.x;y:3px;text:"Y (m)";color:Palette.foreground;font-size:12px;}
+        }
+    }
+    ScrollView {horizontal-stretch:0;preferred-width:400px;min-width:320px;viewport-width:self.width;
+      VerticalBox {padding:0px;spacing:8px;
+        HorizontalBox {padding:0px;vertical-stretch:0;
+            Text {text:root.tr("摄像头",root.english);font-weight:600;color:Palette.foreground;}
+            ActionButton {text:root.tr(root.camera-active?"关闭摄像头":"开启摄像头",root.english);primary:!root.camera-active;enabled:root.enabled&&(root.camera-active||(root.connected&&!root.camera-loading&&root.cameras.length>0));clicked=>{root.toggle-camera();}}
+        }
+        ComboBox {accessible-label:root.tr("视频设备",root.english);model:root.cameras;current-index<=>root.camera-index;enabled:root.enabled&&root.connected&&!root.camera-active&&!root.camera-loading;}
+        HorizontalBox {padding:0px;height:34px;vertical-stretch:0;
+            ComboBox {accessible-label:root.tr("目标帧率",root.english);model:["8 FPS","15 FPS","20 FPS","30 FPS"];current-index<=>root.rate;enabled:root.enabled&&!root.camera-active;}
+            Button {text:root.tr("刷新",root.english);enabled:root.enabled&&root.connected&&!root.camera-active&&!root.camera-loading;clicked=>{root.refresh-cameras();}}
+        }
+        Rectangle {height:160px;vertical-stretch:0;background:#171c24;
+            if root.has-frame:Image {width:parent.width;height:parent.height;source:root.frame;image-fit:contain;}
+            if !root.has-frame:Text {text:root.tr("摄像头",root.english);color:#b9c4d4;horizontal-alignment:center;vertical-alignment:center;}
+        }
+        Text {text:root.tr(root.camera-status,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
+        HorizontalBox {padding:0px;vertical-stretch:0;Text {text:root.tr("设备性能",root.english);font-weight:600;color:Palette.foreground;}Text {text:root.tr(root.metrics-status,root.english);color:Palette.foreground;horizontal-alignment:right;}}
+        Text {text:root.metrics;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
+        Text {text:root.tr("最近60秒 · CPU",root.english);color:Palette.foreground;vertical-stretch:0;}
+        Rectangle {height:38px;vertical-stretch:0;background:Palette.alternate-background;Path {commands:root.cpu-path;viewbox-width:100;viewbox-height:10;stroke:Palette.accent-background;stroke-width:1px;fill:transparent;}}
+        Text {text:root.tr("最近60秒 · 内存",root.english);color:Palette.foreground;vertical-stretch:0;}
+        Rectangle {height:38px;vertical-stretch:0;background:Palette.alternate-background;Path {commands:root.memory-path;viewbox-width:100;viewbox-height:10;stroke:Palette.foreground;stroke-width:1px;fill:transparent;}}
+        Rectangle {vertical-stretch:1;}
+      }
+    }
+}

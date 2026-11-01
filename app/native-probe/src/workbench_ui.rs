@@ -2,6 +2,7 @@ slint::slint! {
     import {Button,LineEdit,ComboBox,CheckBox,ScrollView,ListView,TextEdit,VerticalBox,HorizontalBox,Palette,AboutSlint} from "std-widgets.slint";
     import {TerminalView,TerminalCell,TerminalTab,CompletionRow} from "terminal_view.slint";
     import {DesktopView} from "desktop_view.slint";
+    import {ArenaView} from "arena_view.slint";
     import {FilesView,FileRow,FileArea} from "files_view.slint";
     import {ActionButton,AppColors} from "action_button.slint";
     export struct LogRow {id:string,command:string,context:string,status:string,removable:bool,checked:bool,selected:bool}
@@ -63,6 +64,15 @@ slint::slint! {
         callback files-sync();callback files-state-changed();callback files-action(int,string);
         callback files-choose(int,int,bool,bool);callback files-all(int,bool);callback files-open(int,int);
         callback files-load-result(int,string,string,string);callback files-confirm(string,string,bool,string);callback files-finished(string,string);
+        in property <[string]> arena-cameras;in-out property <int> arena-camera-index:0;in-out property <int> arena-rate:2;
+        in property <bool> arena-camera-active;in property <bool> arena-camera-loading;in property <bool> arena-has-frame;in property <image> arena-frame;
+        in property <string> arena-camera-status;in property <string> arena-metrics-status;in property <string> arena-metrics;
+        in property <string> arena-cpu-path;in property <string> arena-memory-path;
+        in property <bool> arena-pose-live;in property <float> arena-world-x;in property <float> arena-world-y;in property <float> arena-heading;in property <bool> arena-has-heading;
+        in property <string> arena-pose-status;in property <string> arena-coordinates;
+        callback arena-sync();callback arena-toggle-camera();callback arena-refresh-cameras();callback arena-environment(string);
+        callback arena-metrics-result(string,string);callback arena-cameras-result(string,string,string);callback arena-camera-finished(string,string);
+        callback arena-pose-started(string,string);callback arena-pose-packet(string);
         in property <image> desktop-frame;
         in property <int> desktop-source-width;
         in property <int> desktop-source-height;
@@ -86,7 +96,7 @@ slint::slint! {
         callback desktop-key(string,bool,bool,bool)->bool;callback desktop-text(string);callback desktop-focused(bool);
         callback desktop-notice(string,string,string,string,bool);callback desktop-finished(string,string);callback desktop-drawn(string);callback desktop-environment(string);
         changed connected=>{root.desktop-view-changed();}
-        changed english=>{root.files-sync();root.desktop-view-changed();}
+        changed english=>{root.arena-sync();root.files-sync();root.desktop-view-changed();}
         in property <[TerminalTab]> terminal-tabs;
         in property <[TerminalCell]> terminal-cells;
         in property <string> terminal-active;
@@ -146,8 +156,8 @@ slint::slint! {
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
-        changed page=>{root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
-        changed native-hidden=>{root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
+        changed page=>{root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
+        changed native-hidden=>{root.arena-sync();root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
         Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.dialog-kind==0;triggered=>{root.poll-logs();}}
 
         in-out property <int> environment-source:0;
@@ -179,6 +189,7 @@ slint::slint! {
                 ActionButton {text:root.tr("设备连接与管理",root.english);primary:root.page==0;enabled:root.dialog-kind==0;clicked=>{root.page=0;}}
                 ActionButton {text:root.tr("远程桌面",root.english);primary:root.page==5;enabled:root.dialog-kind==0;clicked=>{root.page=5;}}
                 ActionButton {text:root.tr("文件",root.english);primary:root.page==6;enabled:root.dialog-kind==0;clicked=>{root.page=6;}}
+                ActionButton {text:root.tr("赛台",root.english);primary:root.page==7;enabled:root.dialog-kind==0;clicked=>{root.page=7;}}
                 ActionButton {text:root.tr("终端",root.english);primary:root.page==4;enabled:root.dialog-kind==0;clicked=>{root.page=4;}}
                 ActionButton {text:root.tr("日志",root.english);primary:root.page==3;enabled:root.dialog-kind==0;clicked=>{root.page=3;}}
                 ActionButton {text:root.tr("设置",root.english);primary:root.page==1;enabled:root.dialog-kind==0;clicked=>{root.page=1;}}
@@ -333,6 +344,14 @@ slint::slint! {
                         }
                     }
                 }
+            }
+            if root.page==7:ArenaView {
+                english:root.english;enabled:root.dialog-kind==0;connected:root.connected;
+                cameras:root.arena-cameras;camera-index<=>root.arena-camera-index;rate<=>root.arena-rate;
+                camera-active:root.arena-camera-active;camera-loading:root.arena-camera-loading;frame:root.arena-frame;has-frame:root.arena-has-frame;
+                camera-status:root.arena-camera-status;metrics-status:root.arena-metrics-status;metrics:root.arena-metrics;cpu-path:root.arena-cpu-path;memory-path:root.arena-memory-path;
+                live:root.arena-pose-live;world-x:root.arena-world-x;world-y:root.arena-world-y;heading:root.arena-heading;has-heading:root.arena-has-heading;pose-status:root.arena-pose-status;coordinates:root.arena-coordinates;
+                tr(s,e)=>{return root.tr(s,e);}toggle-camera=>{root.arena-toggle-camera();}refresh-cameras=>{root.arena-refresh-cameras();}
             }
             if root.page==6:FilesView {
                 english:root.english;enabled:root.dialog-kind==0;connected:root.connected;busy:root.file-mutating;

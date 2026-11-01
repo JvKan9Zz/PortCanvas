@@ -1,4 +1,6 @@
 pub mod fixture;
+pub mod arena_model;
+pub mod camera_client;
 pub mod file_browser;
 pub mod desktop_client;
 pub mod log_browser;

@@ -752,5 +752,11 @@
   "确认删除远端项目": "Delete remote items",
   "删除远端所选": "Delete selected remote items",
   "转到": "Go",
-  "操作已取消。": "Operation cancelled."
+  "操作已取消。": "Operation cancelled.",
+  "己方坐标": "Own position",
+  "最近60秒 · CPU": "Last 60 sec · CPU",
+  "最近60秒 · 内存": "Last 60 sec · Memory",
+  "往返时间": "Round trip",
+  "正在下载组件…": "Downloading components…",
+  "正在传输组件…": "Transferring components…"
 }

@@ -16,6 +16,8 @@ use tokio::net::TcpListener;
 pub mod desktop_protocol;
 #[path = "files_protocol.rs"]
 pub mod files_protocol;
+#[path = "arena_protocol.rs"]
+pub mod arena_protocol;
 
 #[derive(Default)]
 pub struct Counts {
@@ -30,6 +32,7 @@ pub struct Counts {
     pub desktop: Arc<desktop_protocol::Counts>,
     pub files: Arc<files_protocol::Counts>,
     pub delay_initial_frame: std::sync::atomic::AtomicBool,
+    pub arena:Arc<arena_protocol::Counts>,
 }
 struct Handler {
     counts: Arc<Counts>,
@@ -39,9 +42,11 @@ struct Handler {
     desktop_processes: std::collections::BTreeSet<ChannelId>,
     behavior: desktop_protocol::Behavior,
     files_root: Option<std::path::PathBuf>,
+    arena_channels:BTreeMap<ChannelId,tokio_util::sync::CancellationToken>,
 }
 impl Drop for Handler {
     fn drop(&mut self) {
+        for cancel in self.arena_channels.values(){cancel.cancel();}
         self.counts
             .active
             .fetch_sub(self.terminals.len(), Ordering::SeqCst);
@@ -136,6 +141,9 @@ impl server::Handler for Handler {
         let command = String::from_utf8_lossy(command);
         session.channel_success(id)?;
         if let Some((kind, value)) = options(&command) {
+            if matches!(kind.as_str(),"camera"|"pose") {
+                if let Some(token)=arena_protocol::start(vec![serde_json::json!(kind),value],id,session,self.counts.arena.clone())?{self.arena_channels.insert(id,token);}return Ok(());
+            }
             if kind == "desktop" {
                 self.counts.desktop.configs.lock().unwrap().push(value);
                 self.desktop_processes.insert(id);
@@ -189,6 +197,8 @@ impl server::Handler for Handler {
             session.data(id, reply.into_bytes())?;
             session.exit_status_request(id, 0)?;
             session.close(id)?;
+        } else if let Some(args)=arena_protocol::arguments(&command) {
+            if let Some(token)=arena_protocol::start(args,id,session,self.counts.arena.clone())?{self.arena_channels.insert(id,token);}
         } else if command.contains("show-option -wqv") {
             session.data(id, b"ready;1-1;0;;;L2ZpeHR1cmU=;;;\n".to_vec())?;
             session.exit_status_request(id, 0)?;
@@ -270,6 +280,7 @@ impl server::Handler for Handler {
         id: ChannelId,
         session: &mut server::Session,
     ) -> Result<(), Self::Error> {
+        if let Some(cancel)=self.arena_channels.remove(&id){cancel.cancel();}
         if self.desktop_processes.remove(&id) {
             self.counts.desktop.active_processes.fetch_sub(1, Ordering::SeqCst);
             self.counts.desktop.process_eof.fetch_add(1, Ordering::SeqCst);
@@ -286,6 +297,7 @@ impl server::Handler for Handler {
         id: ChannelId,
         _: &mut server::Session,
     ) -> Result<(), Self::Error> {
+        if let Some(cancel)=self.arena_channels.remove(&id){cancel.cancel();}
         self.channels.remove(&id);
         if self.desktop_processes.remove(&id) {
             self.counts.desktop.active_processes.fetch_sub(1, Ordering::SeqCst);
@@ -341,6 +353,7 @@ impl Fixture {
                     desktop_processes: Default::default(),
                     behavior,
                     files_root:files_root.clone(),
+                    arena_channels:BTreeMap::new(),
                 };
                 tokio::spawn(async move {
                     if let Ok(session) = server::run_stream(config, socket, handler).await {

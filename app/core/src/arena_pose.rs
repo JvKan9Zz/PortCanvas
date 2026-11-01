@@ -37,9 +37,14 @@ impl PoseService{
         if let Some(old)=old{old.cancel.cancel();let _=tokio::time::timeout(Duration::from_secs(3),old.done.cancelled()).await;}
     }
     pub async fn stop(&self,id:Option<u64>){let _guard=self.gate.lock().await;self.stop_inner(id).await;}
-    pub async fn start(&self)->Result<Value>{
-        let _guard=self.gate.lock().await;self.stop_inner(None).await;
+    pub async fn start(&self)->Result<Value>{self.start_inner(None,CancellationToken::new()).await}
+    pub async fn start_for_generation(&self,generation:u64,request:CancellationToken)->Result<Value>{self.start_inner(Some(generation),request).await}
+    async fn start_inner(&self,expected:Option<u64>,request:CancellationToken)->Result<Value>{
+        let _guard=tokio::select!{biased;_=request.cancelled()=>anyhow::bail!("定位连接已取消。"),g=self.gate.lock()=>g};
+        anyhow::ensure!(!request.is_cancelled()&&expected.is_none_or(|g|g==self.devices.generation()),"设备连接已变化。");
+        self.stop_inner(None).await;
         let(generation,connection)=self.devices.connection_with_generation()?;
+        anyhow::ensure!(!request.is_cancelled()&&expected.is_none_or(|g|g==generation),"设备连接已变化。");
         let path=std::env::var("PORTCANVAS_POSE_PATH").unwrap_or_else(|_|"/dev/shm/portcanvas-pose.json".into());
         anyhow::ensure!(path.starts_with('/')&&path.len()<=1024&&!path.contains('\0'),"定位数据路径无效。");
         let cancel=connection.cancel.child_token();let done=CancellationToken::new();
