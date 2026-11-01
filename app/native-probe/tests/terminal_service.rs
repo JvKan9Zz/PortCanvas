@@ -42,6 +42,7 @@ async fn until(label: &str, mut predicate: impl FnMut() -> bool) {
 #[tokio::test]
 async fn native_vt_over_shared_ssh_preserves_tabs_modes_resize_and_reconnect() -> Result<()> {
     let fixture = support::Fixture::new().await?;
+    fixture.counts.delay_initial_frame.store(true,std::sync::atomic::Ordering::SeqCst);
     let root = PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap())
         .join(format!("terminal-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&root)?;
@@ -89,6 +90,7 @@ async fn native_vt_over_shared_ssh_preserves_tabs_modes_resize_and_reconnect() -
     let a = Arc::new(Mutex::new(Terminal::new(80, 24)));
     let b = Arc::new(Mutex::new(Terminal::new(80, 24)));
     let id = tokio::time::timeout(Duration::from_secs(10), ready(&one, a.clone())).await??;
+    assert!(a.lock().unwrap().text().contains("Native SSH PTY"),"SSH exec success alone cannot declare an attached terminal ready");
     let id2 = ready(&two, b.clone()).await?;
     assert_eq!(services.logs.terminal_snapshot("main")["phase"], "ready");
     assert_eq!(services.logs.terminal_snapshot(&key)["phase"], "ready");

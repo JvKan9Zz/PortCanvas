@@ -29,6 +29,7 @@ pub struct Counts {
     pub completions: Mutex<Vec<serde_json::Value>>,
     pub desktop: Arc<desktop_protocol::Counts>,
     pub files: Arc<files_protocol::Counts>,
+    pub delay_initial_frame: std::sync::atomic::AtomicBool,
 }
 struct Handler {
     counts: Arc<Counts>,
@@ -209,7 +210,11 @@ impl server::Handler for Handler {
                 .unwrap_or_default();
             self.counts.attached.fetch_add(1, Ordering::SeqCst);
             self.counts.active.fetch_add(1, Ordering::SeqCst);
-            session.data(id,format!("\x1b[2J\x1b[HNative SSH PTY / instance {instance}\r\n中文宽字符 e\u{301} 🙂\r\n\x1b[32mANSI green\x1b[0m\r\n").into_bytes())?;
+            let data=format!("\x1b[2J\x1b[HNative SSH PTY / instance {instance}\r\n中文宽字符 e\u{301} 🙂\r\n\x1b[32mANSI green\x1b[0m\r\n").into_bytes();
+            if self.counts.delay_initial_frame.load(Ordering::SeqCst) {
+                let handle=session.handle();
+                tokio::spawn(async move {tokio::time::sleep(Duration::from_millis(300)).await;let _=handle.data(id,data).await;});
+            } else {session.data(id,data)?;}
         } else {
             session.exit_status_request(id, 1)?;
             session.close(id)?;

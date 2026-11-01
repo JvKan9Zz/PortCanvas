@@ -1,6 +1,7 @@
 import {Button,LineEdit,CheckBox,ComboBox,ListView,HorizontalBox,VerticalBox,Palette} from "std-widgets.slint";
 import {ActionButton} from "action_button.slint";
 export struct FileRow {name:string,kind:string,size:string,modified:string,selected:bool,directory:bool}
+export struct FileArea {x:float,y:float,width:float,height:float,offset:float}
 component FileCheck inherits CheckBox {
     in property <bool> selected;checked:root.selected;
     changed selected=>{self.checked=root.selected;}
@@ -10,14 +11,21 @@ export component FilePane inherits VerticalBox {
     in property <bool> english;in property <bool> remote;in property <bool> enabled:true;
     in property <bool> loading;in property <bool> loaded;in property <bool> connected;
     in property <[FileRow]> rows;in property <string> message;
+    in property <[string]> drives;in-out property <int> drive-index:-1;callback drive(int);
+    in property <bool> drop-active;in property <int> drop-row:-1;
+    in property <string> drop-label;
+    callback geometry(FileArea);
+    in property <int> geometry-ticket;
+    changed geometry-ticket=>{root.geometry({x:list.absolute-position.x/1px,y:list.absolute-position.y/1px,width:list.width/1px,height:list.height/1px,offset:list.viewport-y/1px});}
     in-out property <string> path;in-out property <string> folder;
     pure callback tr(string,bool)->string;
     callback action(string);callback choose(int,bool,bool);callback all(bool);callback open(int);
-    padding:0px;spacing:6px;
+    padding:0px;spacing:6px;horizontal-stretch:1;preferred-width:0px;
     HorizontalBox {height:32px;vertical-stretch:0;padding:0px;
-        Text {text:root.tr(root.remote?"远端":"本地",root.english);color:Palette.foreground;font-weight:600;}
+        Text {text:root.tr(root.remote?"远端":"本地",root.english)+(root.drop-active?" · "+root.drop-label:"");color:Palette.foreground;font-weight:600;}
         if root.remote&&!root.connected:Button {text:root.tr("连接设备",root.english);clicked=>{root.action("connect");}}
         if !root.remote:Button {text:root.tr("选择文件夹",root.english);enabled:root.enabled;clicked=>{root.action("choose");}}
+        if !root.remote:ComboBox {accessible-label:root.tr("本地磁盘",root.english);model:root.drives;current-index<=>root.drive-index;enabled:root.enabled;selected(n)=>{root.drive(self.current-index);}}
     }
     HorizontalBox {height:34px;vertical-stretch:0;padding:0px;
         LineEdit {accessible-label:root.tr(root.remote?"远端目录":"本地目录",root.english);text<=>root.path;enabled:root.enabled;accepted=>{root.action("go");}}
@@ -30,11 +38,11 @@ export component FilePane inherits VerticalBox {
         Button {text:root.tr("全选",root.english);enabled:root.enabled&&root.rows.length>0;clicked=>{root.all(true);}}
         Button {text:root.tr("清除选择",root.english);enabled:root.enabled&&root.rows.length>0;clicked=>{root.all(false);}}
     }
-    Rectangle {background:Palette.background;border-width:1px;border-color:Palette.border;
+    Rectangle {background:Palette.background;border-width:root.drop-active?2px:1px;border-color:root.drop-active?Palette.accent-background:Palette.border;
         list:=ListView {x:1px;y:1px;width:parent.width - 2px;height:parent.height - 2px;
             for row[index] in root.rows:item:=Rectangle {
                 height:38px;background:row.selected?Palette.alternate-background:Palette.background;
-                border-width:keys.has-focus?1px:0px;border-color:Palette.foreground;
+                border-width:root.drop-active&&root.drop-row==index?2px:keys.has-focus?1px:0px;border-color:root.drop-active&&root.drop-row==index?Palette.accent-background:Palette.foreground;
                 property <bool> additive;property <bool> range;
                 forward-focus:keys;
                 accessible-role:list-item;accessible-label:row.name;accessible-action-default=>{root.choose(index,false,false);}
@@ -66,6 +74,10 @@ export component FilePane inherits VerticalBox {
 export component FilesView inherits VerticalBox {
     in property <bool> english;in property <bool> enabled;in property <bool> connected;in property <bool> busy;
     in property <[FileRow]> local-rows;in property <[FileRow]> remote-rows;
+    in property <[string]> drives;in-out property <int> drive-index:-1;callback drive(int);
+    callback geometry(int,FileArea);
+    in property <int> geometry-ticket;
+    in property <int> drop-side:-1;in property <int> drop-row:-1;in property <string> drop-label;
     in-out property <string> local-path;in-out property <string> remote-path;
     in-out property <string> local-folder;in-out property <string> remote-folder;
     in property <string> local-message;in property <string> remote-message;
@@ -80,8 +92,10 @@ export component FilesView inherits VerticalBox {
     padding:0px;spacing:8px;
     HorizontalBox {padding:0px;
         FilePane {english:root.english;remote:false;enabled:root.can-browse;connected:root.connected;rows:root.local-rows;path<=>root.local-path;folder<=>root.local-folder;message:root.local-message;loading:root.local-loading;loaded:root.local-loaded;
+            geometry-ticket:root.geometry-ticket;drives:root.drives;drive-index<=>root.drive-index;drive(n)=>{root.drive(n);}geometry(a)=>{root.geometry(0,a);}drop-active:root.drop-side==0;drop-row:root.drop-row;drop-label:root.drop-label;
             tr(s,e)=>{return root.tr(s,e);}action(a)=>{root.action(0,a);}choose(n,c,s)=>{root.choose(0,n,c,s);}all(c)=>{root.all(0,c);}open(n)=>{root.open(0,n);}}
         FilePane {english:root.english;remote:true;enabled:root.can-browse&&root.connected;connected:root.connected;rows:root.remote-rows;path<=>root.remote-path;folder<=>root.remote-folder;message:root.remote-message;loading:root.remote-loading;loaded:root.remote-loaded;
+            geometry-ticket:root.geometry-ticket;geometry(a)=>{root.geometry(1,a);}drop-active:root.drop-side==1;drop-row:root.drop-row;drop-label:root.drop-label;
             tr(s,e)=>{return root.tr(s,e);}action(a)=>{root.action(1,a);}choose(n,c,s)=>{root.choose(1,n,c,s);}all(c)=>{root.all(1,c);}open(n)=>{root.open(1,n);}}
     }
     HorizontalBox {height:36px;vertical-stretch:0;padding:0px;
