@@ -759,5 +759,8 @@
   "最近60秒 · 内存": "Last 60 sec · Memory",
   "往返时间": "Round trip",
   "正在下载组件…": "Downloading components…",
-  "正在传输组件…": "Transferring components…"
+  "正在传输组件…": "Transferring components…",
+  "软件正在退出。": "The application is closing.",
+  "正在提交重启请求…": "Submitting restart request\u2026",
+  "无法打开目录或仓库。": "Could not open the directory or repository."
 }

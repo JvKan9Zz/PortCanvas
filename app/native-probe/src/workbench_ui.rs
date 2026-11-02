@@ -21,6 +21,7 @@ slint::slint! {
         no-frame:root.window-is-fullscreen;
         init=>{Palette.color-scheme=ColorScheme.light;}
         pure callback tr(string,bool)->string;
+        public function focus-main(){main-focus.focus();}
         in-out property <bool> english:false;
         in-out property <int> page:0;
         in property <[DeviceRow]> devices;
@@ -37,6 +38,7 @@ slint::slint! {
         in-out property <bool> advanced:false;
         in-out property <string> display:":0";
         in-out property <string> xauthority;
+        in property <bool> system-busy:false;in property <bool> system-executing:false;in property <string> system-error;callback system-action(string);callback system-confirm(string,string);callback system-finished(string,string);
         in property <bool> busy:false;
         in property <bool> connected:false;
         in property <bool> discovering:false;
@@ -190,7 +192,7 @@ slint::slint! {
             if root.bg-has-frame:Image {source:root.bg-frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.bg-saved-crop-x*root.bg-width);source-clip-y:round(root.bg-saved-crop-y*root.bg-height);source-clip-width:max(1,round(root.bg-saved-crop-width*root.bg-width));source-clip-height:max(1,round(root.bg-saved-crop-height*root.bg-height));}
         }
         Rectangle {background:Palette.background;opacity:root.bg-custom?0.48+0.4*root.bg-material/100:1;}
-        main-focus:=FocusScope { VerticalBox {
+        main-focus:=FocusScope {enabled:!root.system-busy; VerticalBox {
             padding:20px;spacing:16px;
             HorizontalBox {
                 padding:0px;height:40px;vertical-stretch:0;
@@ -210,6 +212,7 @@ slint::slint! {
                 ActionButton {text:root.tr("设置",root.english);primary:root.page==1;enabled:root.dialog-kind==0;clicked=>{root.page=1;}}
                 ActionButton {text:root.tr("关于",root.english);primary:root.page==2;enabled:root.dialog-kind==0;clicked=>{root.page=2;}}
             }
+            if root.system-error!="":Text {text:root.tr(root.system-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             if root.page!=1&&root.bg-error!="":Text {text:root.tr(root.bg-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             if root.page==0: HorizontalBox {
                 padding:0px;spacing:24px;vertical-stretch:1;
@@ -394,7 +397,7 @@ slint::slint! {
                 mode:root.desktop-mode;fit<=>root.desktop-fit;read-only<=>root.desktop-readonly;frame:root.desktop-frame;source-width:root.desktop-source-width;source-height:root.desktop-source-height;
                 cursor:root.desktop-cursor;cursor-known:root.desktop-cursor-known;cursor-width:root.desktop-cursor-width;cursor-height:root.desktop-cursor-height;cursor-hot-x:root.desktop-cursor-hot-x;cursor-hot-y:root.desktop-cursor-hot-y;
                 status:root.desktop-status;error:root.desktop-error;clipboard-available:root.desktop-clipboard-available;focus-revision:root.desktop-focus-revision;
-                tr(s,e)=>{return root.tr(s,e);}action(name)=>{root.desktop-action(name);}quality(index)=>{root.set-desktop-mode(index);}readonly-changed=>{root.desktop-readonly-changed();}
+                tr(s,e)=>{return root.tr(s,e);}action(name)=>{root.desktop-action(name);}quality(index)=>{root.set-desktop-mode(index);}readonly-changed=>{root.desktop-readonly-changed();}reboot=>{root.system-action("reboot");}
                 pointer(x,y,w,h,b,d)=>{root.desktop-pointer(x,y,w,h,b,d);}motion(x,y,w,h)=>{root.desktop-motion(x,y,w,h);}wheel(x,y,w,h,b,n)=>{root.desktop-wheel(x,y,w,h,b,n);}
                 key(value,ctrl,alt,shift)=>{return root.desktop-key(value,ctrl,alt,shift);}text(value)=>{root.desktop-text(value);}focused(value)=>{root.desktop-focused(value);}
             }
@@ -417,7 +420,7 @@ slint::slint! {
                 editor-focused(value)=>{root.terminal-editor-focused(value);}choose-completion(index)=>{root.terminal-choose-completion(index);}
                 send-command=>{root.terminal-send-command();}
             }
-            if root.page==2:VerticalBox {padding:0px;Text {text:"PortCanvas · v0.6.0 dev";font-size:22px;color:Palette.foreground;}AboutSlint {preferred-height:120px;vertical-stretch:0;}}
+            if root.page==2:VerticalBox {padding:0px;Text {text:"PortCanvas · v0.6.0 dev";font-size:22px;color:Palette.foreground;}HorizontalBox {padding:0px;height:36px;vertical-stretch:0;Button {text:root.tr("打开仓库",root.english);clicked=>{root.system-action("repository");}}Button {text:root.tr("打开安装目录",root.english);clicked=>{root.system-action("directory");}}}AboutSlint {preferred-height:120px;vertical-stretch:0;}}
         }}
         Rectangle {
             visible:root.dialog-kind!=0;
@@ -435,10 +438,10 @@ slint::slint! {
                     }
                     panel:=VerticalBox {visible:root.dialog-kind!=8;padding:24px;spacing:18px;
                         Text {text:root.tr(root.dialog-title,root.english);font-size:20px;font-weight:600;color:Palette.foreground;}
-                        Text {text:root.dialog-message;wrap:word-wrap;color:Palette.foreground;}
+                        Text {text:root.system-executing?root.tr("正在提交重启请求…",root.english):root.dialog-message;wrap:word-wrap;color:Palette.foreground;}
                         HorizontalBox {padding:0px;
-                            ActionButton {text:root.tr("取消",root.english);primary:!root.accept-focused;clicked=>{root.respond(false);}}
-                            ActionButton {text:root.tr(root.dialog-kind==2?"信任并连接":root.dialog-kind==3?"清理所选":root.dialog-kind==4?"确认重启":root.dialog-kind==5?"确认关闭":root.dialog-kind==6?"确认覆盖":root.dialog-kind==7?"确认删除":"确认移除",root.english);primary:root.accept-focused;clicked=>{root.respond(true);}}
+                            ActionButton {enabled:!root.system-executing;text:root.tr("取消",root.english);primary:!root.accept-focused;clicked=>{root.respond(false);}}
+                            ActionButton {enabled:!root.system-executing;text:root.tr(root.dialog-kind==2?"信任并连接":root.dialog-kind==3?"清理所选":(root.dialog-kind==4||root.dialog-kind==9)?"确认重启":root.dialog-kind==5?"确认关闭":root.dialog-kind==6?"确认覆盖":root.dialog-kind==7?"确认删除":"确认移除",root.english);primary:root.accept-focused;clicked=>{root.respond(true);}}
                         }
                     }
                 }
