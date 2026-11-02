@@ -1,5 +1,11 @@
 pub mod fixture;
 pub mod arena_model;
+pub mod background_model;
+pub mod background_image;
+#[cfg(windows)]
+pub mod background_playback;
+#[cfg(windows)]
+pub mod media_audio;
 pub mod camera_client;
 pub mod file_browser;
 pub mod desktop_client;

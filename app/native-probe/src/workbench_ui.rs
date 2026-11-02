@@ -2,6 +2,7 @@ slint::slint! {
     import {Button,LineEdit,ComboBox,CheckBox,ScrollView,ListView,TextEdit,VerticalBox,HorizontalBox,Palette,AboutSlint} from "std-widgets.slint";
     import {TerminalView,TerminalCell,TerminalTab,CompletionRow} from "terminal_view.slint";
     import {DesktopView} from "desktop_view.slint";
+    import {BackgroundSettings,BackgroundCropView} from "background_view.slint";
     import {ArenaView} from "arena_view.slint";
     import {FilesView,FileRow,FileArea} from "files_view.slint";
     import {ActionButton,AppColors} from "action_button.slint";
@@ -73,6 +74,16 @@ slint::slint! {
         callback arena-sync();callback arena-toggle-camera();callback arena-refresh-cameras();callback arena-environment(string);
         callback arena-metrics-result(string,string);callback arena-cameras-result(string,string,string);callback arena-camera-finished(string,string);
         callback arena-pose-started(string,string);callback arena-pose-packet(string);
+        in property <image> bg-frame;in property <bool> bg-has-frame;in property <bool> bg-custom;in property <color> bg-color:#eef3fb;
+        in property <int> bg-width;in property <int> bg-height;in property <bool> bg-busy;in property <bool> bg-cancellable;
+        in-out property <string> bg-hex:"#eef3fb";in-out property <float> bg-volume:0;in-out property <float> bg-material:100;
+        in property <string> bg-status;in property <string> bg-error;
+        in property <float> bg-saved-crop-x;in property <float> bg-saved-crop-y;in property <float> bg-saved-crop-width:1;in property <float> bg-saved-crop-height:1;
+        in property <image> bg-preview;in property <int> bg-preview-width:1;in property <int> bg-preview-height:1;
+        in property <float> bg-crop-x;in property <float> bg-crop-y;in property <float> bg-crop-width:1;in property <float> bg-crop-height:1;
+        callback bg-sync();callback bg-action(string);callback bg-controls();callback bg-progress(string,string,string);callback bg-ready(string,string);
+        callback bg-crop-response(bool);callback bg-crop-reset();callback bg-crop-gesture(int,float,float);callback bg-crop-arrow(float,float,bool);
+        changed bg-busy=>{root.bg-sync();}
         in property <image> desktop-frame;
         in property <int> desktop-source-width;
         in property <int> desktop-source-height;
@@ -156,8 +167,8 @@ slint::slint! {
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
-        changed page=>{root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
-        changed native-hidden=>{root.arena-sync();root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
+        changed page=>{root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
+        changed native-hidden=>{root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
         Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.dialog-kind==0;triggered=>{root.poll-logs();}}
 
         in-out property <int> environment-source:0;
@@ -174,7 +185,11 @@ slint::slint! {
         callback choose-key();callback discover();callback cancel-discovery();callback respond(bool);
         callback set-language(int);callback set-appearance(int);callback set-environment(int);callback set-desktop-mode(int);callback save-log-limit(string);
         changed appearance=>{Palette.color-scheme=root.appearance==0?ColorScheme.light:root.appearance==1?ColorScheme.dark:ColorScheme.unknown;}
-        changed dialog-kind=>{if root.dialog-kind!=0 {root.accept-focused=false;modal-focus.focus();}else{main-focus.focus();}}
+        changed dialog-kind=>{root.bg-sync();if root.dialog-kind==8{crop-view.focus-selection();}else if root.dialog-kind!=0 {root.accept-focused=false;modal-focus.focus();}else{main-focus.focus();}}
+        Rectangle {background:root.bg-custom?root.bg-color:Palette.background;
+            if root.bg-has-frame:Image {source:root.bg-frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.bg-saved-crop-x*root.bg-width);source-clip-y:round(root.bg-saved-crop-y*root.bg-height);source-clip-width:max(1,round(root.bg-saved-crop-width*root.bg-width));source-clip-height:max(1,round(root.bg-saved-crop-height*root.bg-height));}
+        }
+        Rectangle {background:Palette.background;opacity:root.bg-custom?0.48+0.4*root.bg-material/100:1;}
         main-focus:=FocusScope { VerticalBox {
             padding:20px;spacing:16px;
             HorizontalBox {
@@ -195,6 +210,7 @@ slint::slint! {
                 ActionButton {text:root.tr("设置",root.english);primary:root.page==1;enabled:root.dialog-kind==0;clicked=>{root.page=1;}}
                 ActionButton {text:root.tr("关于",root.english);primary:root.page==2;enabled:root.dialog-kind==0;clicked=>{root.page=2;}}
             }
+            if root.page!=1&&root.bg-error!="":Text {text:root.tr(root.bg-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             if root.page==0: HorizontalBox {
                 padding:0px;spacing:24px;vertical-stretch:1;
                 VerticalBox {
@@ -284,6 +300,12 @@ slint::slint! {
                     HorizontalBox {padding:0px;Text {text:root.tr("外观",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("浅色",root.english),root.tr("深色",root.english),root.tr("跟随系统",root.english)];current-index:root.appearance;enabled:root.dialog-kind==0;selected(_)=>{root.set-appearance(self.current-index);}}}
                     HorizontalBox {padding:0px;Text {text:root.tr("主题色彩",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("蓝色",root.english),root.tr("绿色",root.english),root.tr("石墨",root.english)];current-index:root.theme;enabled:root.dialog-kind==0;selected(_)=>{root.set-theme(self.current-index);}}}
                     HorizontalBox {padding:0px;Text {text:root.tr("桌面画质",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.desktop-mode;enabled:root.dialog-kind==0;selected(_)=>{root.set-desktop-mode(self.current-index);}}}
+                    BackgroundSettings {english:root.english;enabled:root.dialog-kind==0&&!root.busy;busy:root.bg-busy;cancellable:root.bg-cancellable;
+                        frame:root.bg-frame;has-frame:root.bg-has-frame;color:root.bg-color;source-width:root.bg-width;source-height:root.bg-height;
+                        crop-x:root.bg-saved-crop-x;crop-y:root.bg-saved-crop-y;crop-width:root.bg-saved-crop-width;crop-height:root.bg-saved-crop-height;
+                        hex<=>root.bg-hex;volume<=>root.bg-volume;material<=>root.bg-material;status:root.bg-status;error:root.bg-error;
+                        tr(s,e)=>{return root.tr(s,e);}action(s)=>{root.bg-action(s);}controls=>{root.bg-controls();}
+                    }
                     Text {text:root.tr("存储",root.english);font-size:22px;font-weight:600;color:Palette.foreground;}
                     HorizontalBox {padding:0px;Text {text:root.tr("板端运行环境",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("电脑下载后传输",root.english),root.tr("板端自行下载",root.english)];current-index:root.environment-source;enabled:root.dialog-kind==0;selected(_)=>{root.set-environment(self.current-index);}}}
                     HorizontalBox {padding:0px;Text {text:root.tr("日志上限（MiB）",root.english);color:Palette.foreground;}LineEdit {text<=>root.log-limit;enabled:root.dialog-kind==0;}Button {text:root.tr("保存",root.english);enabled:root.dialog-kind==0;clicked=>{root.save-log-limit(root.log-limit);}}}
@@ -402,12 +424,16 @@ slint::slint! {
             background:#00000070;
             TouchArea {}
             Rectangle {
-                width:min(root.width - 64px,640px);height:panel.preferred-height;
+                width:root.dialog-kind==8?root.width - 64px:min(root.width - 64px,640px);height:root.dialog-kind==8?root.height - 80px:panel.preferred-height;
                 x:(root.width - self.width)/2;y:(root.height - self.height)/2;
                 background:Palette.background;border-radius:10px;border-width:1px;border-color:Palette.border;
                 modal-focus:=FocusScope {
-                    key-pressed(event)=>{if event.text==Key.Escape{root.respond(false);return accept;}if event.text==Key.Tab{root.accept-focused=!root.accept-focused;return accept;}if event.text==Key.Return{root.respond(root.accept-focused);return accept;}return accept;}
-                    panel:=VerticalBox {padding:24px;spacing:18px;
+                    key-pressed(event)=>{if root.dialog-kind==8{if event.text==Key.Escape{root.bg-crop-response(false);return accept;}return reject;}if event.text==Key.Escape{root.respond(false);return accept;}if event.text==Key.Tab{root.accept-focused=!root.accept-focused;return accept;}if event.text==Key.Return{root.respond(root.accept-focused);return accept;}return accept;}
+                    crop-view:=BackgroundCropView {visible:root.dialog-kind==8;english:root.english;busy:root.bg-busy;frame:root.bg-preview;
+                        source-width:root.bg-preview-width;source-height:root.bg-preview-height;crop-x:root.bg-crop-x;crop-y:root.bg-crop-y;crop-width:root.bg-crop-width;crop-height:root.bg-crop-height;error:root.bg-error;
+                        tr(s,e)=>{return root.tr(s,e);}response(v)=>{root.bg-crop-response(v);}reset=>{root.bg-crop-reset();}gesture(k,x,y)=>{root.bg-crop-gesture(k,x,y);}arrow(x,y,r)=>{root.bg-crop-arrow(x,y,r);}
+                    }
+                    panel:=VerticalBox {visible:root.dialog-kind!=8;padding:24px;spacing:18px;
                         Text {text:root.tr(root.dialog-title,root.english);font-size:20px;font-weight:600;color:Palette.foreground;}
                         Text {text:root.dialog-message;wrap:word-wrap;color:Palette.foreground;}
                         HorizontalBox {padding:0px;
