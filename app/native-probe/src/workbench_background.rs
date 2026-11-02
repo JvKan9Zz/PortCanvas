@@ -1,4 +1,4 @@
-use crate::workbench_ui::Workbench;
+use crate::{workbench::text, workbench_ui::Workbench};
 use anyhow::{ensure, Context, Result};
 use portcanvas_core::{
     preferences::{BackgroundCrop as Crop, BackgroundDraft, Preferences},
@@ -347,10 +347,17 @@ impl Controller {
         let path = ui
             .window()
             .with_winit_window(|window| {
-                let dialog = rfd::FileDialog::new().set_parent(window);
+                let dialog = rfd::FileDialog::new().set_parent(window).set_title(text(
+                    if video {
+                        "选择背景视频"
+                    } else {
+                        "选择背景图片"
+                    },
+                    ui.get_english(),
+                ));
                 if video {
                     dialog
-                        .add_filter("MP4 / WebM", &["mp4", "webm"])
+                        .add_filter("MP4 / WebM", &["mp4", "m4v", "webm"])
                         .pick_file()
                 } else {
                     dialog
