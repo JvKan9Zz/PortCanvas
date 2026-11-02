@@ -659,6 +659,7 @@
   "视频无法播放，请选择使用 H.264 编码的 MP4 或 WebM。": "This video cannot be played. Choose an H.264 MP4 or WebM video.",
   "背景图片无法读取，请重新选择。": "The background image could not be read. Choose it again.",
   "媒体无法读取，请选择其他图片或视频。": "This media could not be read. Choose another image or video.",
+  "背景声音不可用，视频将静音继续播放。": "Background audio is unavailable. The video will continue muted.",
   "请选择 MP4 或 WebM 视频。": "Choose an MP4 or WebM video.",
   "请选择 PNG、JPEG 或 WebP 图片。": "Choose a PNG, JPEG or WebP image.",
   "背景音量无效，原设置保留。": "The background volume is invalid. Existing settings were preserved.",

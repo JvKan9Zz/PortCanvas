@@ -6,9 +6,9 @@ use windows::{
     Win32::{Media::MediaFoundation::*, System::Com::*},
 };
 
-struct Environment;
+pub(crate) struct Environment;
 impl Environment {
-    fn new() -> Result<Self> {
+    pub(crate) fn new() -> Result<Self> {
         unsafe {
             CoInitializeEx(None, COINIT_MULTITHREADED).ok()?;
             if let Err(error) = MFStartup(MF_VERSION, MFSTARTUP_FULL) {
@@ -27,7 +27,7 @@ impl Drop for Environment {
         }
     }
 }
-fn wide(path: &Path) -> Vec<u16> {
+pub(crate) fn wide(path: &Path) -> Vec<u16> {
     use std::os::windows::ffi::OsStrExt;
     path.as_os_str().encode_wide().chain(Some(0)).collect()
 }
@@ -35,6 +35,7 @@ pub struct VideoFrame {
     pub width: u32,
     pub height: u32,
     pub timestamp_100ns: i64,
+    pub duration_100ns: Option<i64>,
     pub rgba: Vec<u8>,
 }
 pub struct Reader {
@@ -112,6 +113,20 @@ unsafe fn dimensions(reader: &IMFSourceReader) -> Result<Format> {
     Ok(format)
 }
 impl Reader {
+    pub fn has_audio(&self) -> bool {
+        unsafe {
+            self.reader
+                .GetNativeMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM.0 as u32, 0)
+                .is_ok()
+        }
+    }
+    pub fn rewind(&self) -> Result<()> {
+        unsafe {
+            self.reader
+                .SetCurrentPosition(&windows::core::GUID::zeroed(), &0i64.into())?;
+        }
+        Ok(())
+    }
     pub fn open(path: &Path) -> Result<Self> {
         let environment = Environment::new()?;
         unsafe {
@@ -196,6 +211,7 @@ impl Reader {
                         width: format.width,
                         height: format.height,
                         timestamp_100ns: timestamp,
+                        duration_100ns: sample.GetSampleDuration().ok().filter(|&n| n > 0),
                         rgba,
                     })
                 })();
@@ -208,6 +224,12 @@ impl Reader {
 
 /// Generate non-private moving pixels using the Windows H.264 encoder, not a downloaded fixture.
 pub fn write_fixture(path: &Path) -> Result<()> {
+    write_fixture_inner(path, false)
+}
+pub fn write_av_fixture(path: &Path) -> Result<()> {
+    write_fixture_inner(path, true)
+}
+fn write_fixture_inner(path: &Path, audio: bool) -> Result<()> {
     ensure!(!path.exists(), "Fixture output already exists");
     let _environment = Environment::new()?;
     unsafe {
@@ -230,6 +252,28 @@ pub fn write_fixture(path: &Path) -> Result<()> {
         input.SetUINT64(&MF_MT_FRAME_RATE, (30u64 << 32) | 1)?;
         input.SetUINT64(&MF_MT_PIXEL_ASPECT_RATIO, (1u64 << 32) | 1)?;
         writer.SetInputMediaType(stream, &input, None)?;
+        let audio_stream = if audio {
+            let output = MFCreateMediaType()?;
+            output.SetGUID(&MF_MT_MAJOR_TYPE, &MFMediaType_Audio)?;
+            output.SetGUID(&MF_MT_SUBTYPE, &MFAudioFormat_AAC)?;
+            output.SetUINT32(&MF_MT_AUDIO_NUM_CHANNELS, 2)?;
+            output.SetUINT32(&MF_MT_AUDIO_SAMPLES_PER_SECOND, 48_000)?;
+            output.SetUINT32(&MF_MT_AUDIO_BITS_PER_SAMPLE, 16)?;
+            output.SetUINT32(&MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 16_000)?;
+            let index = writer.AddStream(&output)?;
+            let input = MFCreateMediaType()?;
+            input.SetGUID(&MF_MT_MAJOR_TYPE, &MFMediaType_Audio)?;
+            input.SetGUID(&MF_MT_SUBTYPE, &MFAudioFormat_PCM)?;
+            input.SetUINT32(&MF_MT_AUDIO_NUM_CHANNELS, 2)?;
+            input.SetUINT32(&MF_MT_AUDIO_SAMPLES_PER_SECOND, 48_000)?;
+            input.SetUINT32(&MF_MT_AUDIO_BITS_PER_SAMPLE, 16)?;
+            input.SetUINT32(&MF_MT_AUDIO_BLOCK_ALIGNMENT, 4)?;
+            input.SetUINT32(&MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 192_000)?;
+            writer.SetInputMediaType(index, &input, None)?;
+            Some(index)
+        } else {
+            None
+        };
         writer.BeginWriting()?;
         for frame in 0..60 {
             let buffer = MFCreateMemoryBuffer(320 * 180 * 4)?;
@@ -254,6 +298,28 @@ pub fn write_fixture(path: &Path) -> Result<()> {
             sample.SetSampleTime(i64::from(frame) * 10_000_000 / 30)?;
             sample.SetSampleDuration(10_000_000 / 30)?;
             writer.WriteSample(stream, &sample)?;
+            if let Some(index) = audio_stream {
+                let buffer = MFCreateMemoryBuffer(1600 * 4)?;
+                let mut pointer = std::ptr::null_mut();
+                buffer.Lock(&mut pointer, None, None)?;
+                let bytes = std::slice::from_raw_parts_mut(pointer, 1600 * 4);
+                for (i, pixel) in bytes.chunks_exact_mut(4).enumerate() {
+                    let value =
+                        ((f64::from(frame * 1600 + i as i32) * 440. * std::f64::consts::TAU
+                            / 48_000.)
+                            .sin()
+                            * 512.) as i16;
+                    pixel[..2].copy_from_slice(&value.to_le_bytes());
+                    pixel[2..].copy_from_slice(&value.to_le_bytes());
+                }
+                buffer.Unlock()?;
+                buffer.SetCurrentLength(1600 * 4)?;
+                let sample = MFCreateSample()?;
+                sample.AddBuffer(&buffer)?;
+                sample.SetSampleTime(i64::from(frame) * 10_000_000 / 30)?;
+                sample.SetSampleDuration(10_000_000 / 30)?;
+                writer.WriteSample(index, &sample)?;
+            }
         }
         writer.Finalize()?;
     }
