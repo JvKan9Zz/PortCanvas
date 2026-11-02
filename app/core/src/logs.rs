@@ -17,6 +17,7 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
+pub(crate) const DEFAULT_MAX_BYTES:u64=1024*1024*1024;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct Settings {
@@ -287,7 +288,7 @@ impl LogService {
             Settings {
                 root: default_root,
                 projects: BTreeMap::new(),
-                max_bytes: Some(1024 * 1024 * 1024),
+                max_bytes: Some(DEFAULT_MAX_BYTES),
             }
         };
         let store = Arc::new(Mutex::new(Self::configured_store(&settings)?));

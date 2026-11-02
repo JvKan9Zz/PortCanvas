@@ -55,7 +55,7 @@ fn form(ui: &Workbench) -> Result<Profile> {
         encrypted_secret: None,
     })
 }
-fn fill(ui: &Workbench, profile: Option<&Profile>) {
+pub(super) fn fill(ui: &Workbench, profile: Option<&Profile>) {
     ui.set_password("".into());
     ui.set_error("".into());
     if let Some(p) = profile {
@@ -82,7 +82,7 @@ fn fill(ui: &Workbench, profile: Option<&Profile>) {
         ui.set_xauthority("".into());
     }
 }
-fn profiles(ui: &Workbench, services: &Services) -> Result<()> {
+pub(super) fn profiles(ui: &Workbench, services: &Services) -> Result<()> {
     let data = services.profiles.lock().unwrap().read()?;
     ui.set_devices(ModelRc::new(VecModel::from(
         data.devices
@@ -271,6 +271,7 @@ pub fn run() -> Result<()> {
         }
     });
     let paths = data_paths()?;
+    let legacy_logs = paths.documents.join("Wheel Combat Studio/Logs");
     ui.set_data_directory(paths.data.to_string_lossy().as_ref().into());
     let services = Services::new(paths, events, std::env::var("WCS_TERMINAL_NAMESPACE").ok())?;
     let jobs = Arc::new(Mutex::new(Vec::new()));
@@ -286,6 +287,7 @@ pub fn run() -> Result<()> {
         runtime.clone(),
         jobs.clone(),
     );
+    let migration = crate::workbench_migration::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone(),logs.clone(),legacy_logs);
     if let Err(e) = profiles(&ui, &services).and_then(|_| preferences(&ui, &services)) {
         ui.set_error(e.to_string().into());
     }
@@ -509,9 +511,11 @@ pub fn run() -> Result<()> {
         let files=files.clone();
         let background=background.clone();
         let system=system.clone();
+        let migration=migration.clone();
         move |accepted| {
             if let Some(ui) = weak.upgrade() {
                 let kind = ui.get_dialog_kind();
+                if kind==10||kind==11{migration.respond(accepted);return;}
                 if kind==8{background.respond(accepted);return;}
                 if kind==9{system.respond(accepted);return;}
                 ui.set_dialog_kind(0);
@@ -608,7 +612,7 @@ pub fn run() -> Result<()> {
         let weak = ui.as_weak();
         move || {
             if let Some(ui) = weak.upgrade() {
-                if ui.get_dialog_kind() == 0 {
+                if ui.get_dialog_kind() == 0 && !ui.get_migration_busy() {
                     let full = !ui.window().is_fullscreen();
                     ui.window().set_fullscreen(full);
                     ui.set_window_is_fullscreen(full);
@@ -770,6 +774,8 @@ pub fn run() -> Result<()> {
         }
     });
     let result = ui.run();
+    services.quitting.store(true,Ordering::SeqCst);
+    migration.shutdown();
     pending.lock().unwrap().take();
     let desktop_done=desktop.shutdown();
     terminal.shutdown();
@@ -787,7 +793,7 @@ pub fn run() -> Result<()> {
         std::fs::write(
             path,
             serde_json::to_vec_pretty(
-                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"arena":arena.report(),"background":background.report(),"system":system.report(),"ssh":services.devices.snapshot()["ssh"]}),
+                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"arena":arena.report(),"background":background.report(),"system":system.report(),"migration":migration.report(),"ssh":services.devices.snapshot()["ssh"]}),
             )?,
         )?;
     }

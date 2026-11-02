@@ -761,9 +761,18 @@
   "正在下载组件…": "Downloading components…",
   "正在传输组件…": "Transferring components…",
   "软件正在退出。": "The application is closing.",
-  "正在提交重启请求…": "Submitting restart request\u2026",
+  "正在提交重启请求…": "Submitting restart request…",
   "无法打开目录或仓库。": "Could not open the directory or repository.",
   "配置读取失败，原文件保留。": "Configuration could not be read. The original file was kept.",
   "配置对象标识不完整或重复，原文件保留。": "Configuration identities are missing or duplicated. The original file was kept.",
-  "设备资料包含缺失、重复或无效ID，原文件保留。": "Device records contain missing, duplicate or invalid IDs. The original file was kept."
+  "设备资料包含缺失、重复或无效ID，原文件保留。": "Device records contain missing, duplicate or invalid IDs. The original file was kept.",
+  "确认导入": "Confirm import",
+  "确认恢复": "Confirm restore",
+  "正在迁移资料…": "Migrating data…",
+  "已恢复导入前资料，日志文件保留。\n当前资料备份：{path}": "Restored the pre-import data; log files are preserved.\nCurrent data backup: {path}",
+  "配置包含明文凭据字段，未进行导入；原件保留。": "The configuration contains plaintext credential fields. Import was refused; original files are preserved.",
+  "配置扩展字段冲突，未覆盖现有资料。": "Configuration extension fields conflict. Existing data was preserved.",
+  "迁移目标与当前资料目录不一致。": "The migration target does not match the current data directory.",
+  "当前资料在恢复前发生变化，未进行覆盖。": "The current data changed before restoration. No data was overwritten.",
+  "{error}；日志运行态恢复失败：{runtime}": "{error}; failed to restore the log runtime: {runtime}"
 }

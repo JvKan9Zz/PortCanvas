@@ -5,6 +5,7 @@ mod workbench_system;
 mod workbench_arena;
 mod workbench_desktop;
 mod workbench_logs;
+mod workbench_migration;
 mod workbench_files;
 mod workbench_terminal;
 mod workbench_ui;
