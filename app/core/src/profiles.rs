@@ -9,6 +9,10 @@ use std::{
 fn new_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
+fn valid_id(id: &str) -> bool {
+    !id.is_empty() && id.len() <= 80
+        && id.bytes().all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
+}
 fn display() -> String {
     ":0".into()
 }
@@ -83,13 +87,7 @@ impl Profile {
         {
             bail!("桌面授权文件须为 Linux 绝对路径。");
         }
-        if self.id.is_empty()
-            || self.id.len() > 80
-            || !self
-                .id
-                .bytes()
-                .all(|c| c.is_ascii_alphanumeric() || b"_-".contains(&c))
-        {
+        if !valid_id(&self.id) {
             self.id = new_id();
         }
         Ok(self)
@@ -146,6 +144,11 @@ impl ProfileData {
         if self.schema_version != 1 {
             bail!("设备资料版本不受支持，原文件保留。");
         }
+        let mut ids = std::collections::BTreeSet::new();
+        anyhow::ensure!(
+            self.devices.iter().all(|p| valid_id(&p.id) && ids.insert(&p.id)),
+            "设备资料包含缺失、重复或无效ID，原文件保留。"
+        );
         self.devices = self
             .devices
             .into_iter()
@@ -194,12 +197,20 @@ impl ProfileStore {
         if !path.exists() {
             return Ok(ProfileData::default());
         }
-        serde_json::from_slice::<ProfileData>(&fs::read(path)?)
-            .context("设备资料读取失败，原文件保留。")?
-            .validate()
+        let raw: serde_json::Value = serde_json::from_slice(&fs::read(path)?)
+            .context("设备资料读取失败，原文件保留。")?;
+        if let Some(devices) = raw.get("devices").and_then(serde_json::Value::as_array) {
+            anyhow::ensure!(
+                devices.iter().all(|p| p.get("id").and_then(serde_json::Value::as_str).is_some_and(valid_id)),
+                "设备资料包含缺失、重复或无效ID，原文件保留。"
+            );
+        }
+        serde_json::from_value::<ProfileData>(raw)
+            .context("设备资料读取失败，原文件保留。")?.validate()
     }
     pub fn write(&self, data: &ProfileData) -> Result<()> {
-        atomic_json(&self.directory.join("devices.json"), data)
+        let _ = self.read()?;
+        crate::config_json::write(&self.directory.join("devices.json"), data)
     }
     pub fn save(&self, profile: Profile, secret: &str) -> Result<Profile> {
         let mut profile = profile.validate()?;
