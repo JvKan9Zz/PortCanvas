@@ -189,6 +189,7 @@ impl Controller {
     fn visible(ui: &Workbench) -> bool {
         ui.get_page() == 3 && !ui.get_native_hidden()
     }
+    pub fn sync_settings(&self){if let Some(ui)=self.ui.upgrade(){self.state.lock().unwrap().sync_root(self.services.logs.settings().root);self.render(&ui);}}
     pub fn refresh(&self) {
         let Some(ui) = self.ui.upgrade() else { return };
         self.state

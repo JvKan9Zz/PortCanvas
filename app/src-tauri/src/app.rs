@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 use std::{
     path::PathBuf,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::Ordering,
         Arc,
     },
 };
@@ -73,37 +73,8 @@ fn optional_text(args: &[Value], index: usize) -> Result<String> {
 fn terminal_key(args:&[Value],index:usize)->Result<String>{
     let value=optional_text(args,index)?;let key=if value.is_empty(){"main".into()}else{value};crate::terminal_pool::validate_key(&key)?;Ok(key)
 }
-struct MigrationGuard<'a>(&'a AtomicBool);
-impl Drop for MigrationGuard<'_> {
-    fn drop(&mut self) {
-        self.0.store(false, Ordering::SeqCst);
-    }
-}
-fn migration_guard(state: &AppState) -> Result<MigrationGuard<'_>> {
-    if state
-        .migrating
-        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .is_err()
-    {
-        bail!("资料迁移正在进行，请稍后重试。");
-    }
-    Ok(MigrationGuard(&state.migrating))
-}
-fn migration_idle(state: &AppState) -> Result<()> {
-    if state.quitting.load(Ordering::SeqCst)
-        || matches!(
-            state.devices.snapshot()["ssh"].as_str(),
-            Some("connected" | "connecting")
-        )
-        || state.files.snapshot()["busy"] == true
-    {
-        bail!("请先断开设备并等待任务结束，再迁移资料。");
-    }
-    state.logs.can_change_root()
-}
 async fn import_profiles(window: tauri::WebviewWindow, state: &AppState) -> Result<Value> {
-    let _guard = migration_guard(state)?;
-    migration_idle(state)?;
+    let guard = crate::migration::MigrationSession::begin(state.services.clone())?;
     let picker = window.clone();
     let source = tokio::task::spawn_blocking(move || {
         rfd::FileDialog::new()
@@ -131,20 +102,11 @@ async fn import_profiles(window: tauri::WebviewWindow, state: &AppState) -> Resu
     if !confirm(window, "导入旧版资料".into(), message).await? {
         return Ok(json!({"canceled":true}));
     }
-    migration_idle(state)?;
-    let settings = plan.settings.clone();
-    let profiles = state.profiles.clone();
-    let result = tokio::task::spawn_blocking(move || {
-        let _lock = profiles.lock().unwrap();
-        plan.apply()
-    })
-    .await??;
-    state.logs.replace_settings(settings, false).await?;
-    Ok(result)
+    guard.apply(plan).await
 }
+
 async fn rollback_profiles(window: tauri::WebviewWindow, state: &AppState) -> Result<Value> {
-    let _guard = migration_guard(state)?;
-    migration_idle(state)?;
+    let guard = crate::migration::MigrationSession::begin(state.services.clone())?;
     let target = state.profiles.lock().unwrap().directory.clone();
     let initial = target.join("migration-backups");
     let picker = window.clone();
@@ -171,27 +133,9 @@ async fn rollback_profiles(window: tauri::WebviewWindow, state: &AppState) -> Re
     {
         return Ok(json!({"canceled":true}));
     }
-    migration_idle(state)?;
-    let current = target.clone();
-    let profiles = state.profiles.clone();
-    let result = tokio::task::spawn_blocking(move || {
-        let _lock = profiles.lock().unwrap();
-        crate::migration::rollback(current, backup)
-    })
-    .await??;
-    let file = target.join("log-settings.json");
-    let settings = if file.exists() {
-        serde_json::from_slice::<LogSettings>(&std::fs::read(file)?)?.validate()?
-    } else {
-        LogSettings {
-            root: state.default_log_root.clone(),
-            projects: Default::default(),
-            max_bytes: None,
-        }
-    };
-    state.logs.replace_settings(settings, false).await?;
-    Ok(result)
+    guard.restore(backup).await
 }
+
 fn local_text(window:&tauri::WebviewWindow,text:&str)->String {
     crate::i18n::text(text,window.state::<AppState>().preferences.lock().unwrap().language())
 }

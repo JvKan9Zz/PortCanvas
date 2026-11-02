@@ -164,24 +164,28 @@ slint::slint! {
         in property <string> log-metadata;
         in property <string> log-warning;
         in property <string> log-output;
-        property <bool> can-browse:!root.logs-loading&&!root.logs-mutating&&root.dialog-kind==0;
+        property <bool> can-browse:!root.logs-loading&&!root.logs-mutating&&root.can-interact;
         callback refresh-logs();callback poll-logs();callback filter-logs(int,int,int);callback log-page(bool);
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
         changed page=>{root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
         changed native-hidden=>{root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
-        Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.dialog-kind==0;triggered=>{root.poll-logs();}}
+        Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.can-interact;triggered=>{root.poll-logs();}}
 
         in-out property <int> environment-source:0;
         in-out property <int> desktop-mode:0;
         changed desktop-mode=>{root.desktop-quality-changed();}
         in-out property <string> log-limit:"1024";
         in-out property <int> dialog-kind:0;
+        property <bool> can-interact:root.dialog-kind==0&&!root.system-busy&&!root.migration-busy;
+        in property <bool> migration-busy:false;in property <bool> migration-executing:false;
+        in property <string> migration-status;in property <string> migration-error;
+        callback migration-action(bool);callback migration-confirm(string,string,string,bool);callback migration-finished(string,string,string);
         in property <string> dialog-title;
         in property <string> dialog-message;
         property <bool> accept-focused:false;
-        property <bool> can-edit:!root.busy && !root.connected && !root.logs-mutating && root.dialog-kind==0;
+        property <bool> can-edit:!root.busy && !root.connected && !root.logs-mutating && root.can-interact;
         callback select-device(string);callback select-found(string);callback new-device();
         callback save-device();callback connect-device();callback disconnect-device();callback remove-device();
         callback choose-key();callback discover();callback cancel-discovery();callback respond(bool);
@@ -192,28 +196,30 @@ slint::slint! {
             if root.bg-has-frame:Image {source:root.bg-frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.bg-saved-crop-x*root.bg-width);source-clip-y:round(root.bg-saved-crop-y*root.bg-height);source-clip-width:max(1,round(root.bg-saved-crop-width*root.bg-width));source-clip-height:max(1,round(root.bg-saved-crop-height*root.bg-height));}
         }
         Rectangle {background:Palette.background;opacity:root.bg-custom?0.48+0.4*root.bg-material/100:1;}
-        main-focus:=FocusScope {enabled:!root.system-busy; VerticalBox {
+        main-focus:=FocusScope {enabled:!root.system-busy&&!root.migration-busy; VerticalBox {
             padding:20px;spacing:16px;
             HorizontalBox {
                 padding:0px;height:40px;vertical-stretch:0;
                 Text {text:"PortCanvas";color:Palette.foreground;font-size:25px;font-weight:650;}
-                Button {text:root.tr(root.window-is-fullscreen?"退出全屏":"全屏",root.english);horizontal-stretch:0;preferred-width:110px;enabled:root.dialog-kind==0;clicked=>{root.fullscreen();}}
+                Button {text:root.tr(root.window-is-fullscreen?"退出全屏":"全屏",root.english);horizontal-stretch:0;preferred-width:110px;enabled:root.can-interact;clicked=>{root.fullscreen();}}
                 Text {text:root.tr(root.connection-status,root.english);color:Palette.foreground;horizontal-alignment:right;vertical-alignment:center;}
-                Button {text:root.tr(root.busy?"取消连接":"断开连接",root.english);visible:root.busy||root.connected;enabled:root.dialog-kind==0;clicked=>{root.disconnect-device();}}
+                Button {text:root.tr(root.busy?"取消连接":"断开连接",root.english);visible:root.busy||root.connected;enabled:root.can-interact;clicked=>{root.disconnect-device();}}
             }
             HorizontalBox {
                 padding:0px;height:38px;vertical-stretch:0;
-                ActionButton {text:root.tr("设备连接与管理",root.english);primary:root.page==0;enabled:root.dialog-kind==0;clicked=>{root.page=0;}}
-                ActionButton {text:root.tr("远程桌面",root.english);primary:root.page==5;enabled:root.dialog-kind==0;clicked=>{root.page=5;}}
-                ActionButton {text:root.tr("文件",root.english);primary:root.page==6;enabled:root.dialog-kind==0;clicked=>{root.page=6;}}
-                ActionButton {text:root.tr("赛台",root.english);primary:root.page==7;enabled:root.dialog-kind==0;clicked=>{root.page=7;}}
-                ActionButton {text:root.tr("终端",root.english);primary:root.page==4;enabled:root.dialog-kind==0;clicked=>{root.page=4;}}
-                ActionButton {text:root.tr("日志",root.english);primary:root.page==3;enabled:root.dialog-kind==0;clicked=>{root.page=3;}}
-                ActionButton {text:root.tr("设置",root.english);primary:root.page==1;enabled:root.dialog-kind==0;clicked=>{root.page=1;}}
-                ActionButton {text:root.tr("关于",root.english);primary:root.page==2;enabled:root.dialog-kind==0;clicked=>{root.page=2;}}
+                ActionButton {text:root.tr("设备连接与管理",root.english);primary:root.page==0;enabled:root.can-interact;clicked=>{root.page=0;}}
+                ActionButton {text:root.tr("远程桌面",root.english);primary:root.page==5;enabled:root.can-interact;clicked=>{root.page=5;}}
+                ActionButton {text:root.tr("文件",root.english);primary:root.page==6;enabled:root.can-interact;clicked=>{root.page=6;}}
+                ActionButton {text:root.tr("赛台",root.english);primary:root.page==7;enabled:root.can-interact;clicked=>{root.page=7;}}
+                ActionButton {text:root.tr("终端",root.english);primary:root.page==4;enabled:root.can-interact;clicked=>{root.page=4;}}
+                ActionButton {text:root.tr("日志",root.english);primary:root.page==3;enabled:root.can-interact;clicked=>{root.page=3;}}
+                ActionButton {text:root.tr("设置",root.english);primary:root.page==1;enabled:root.can-interact;clicked=>{root.page=1;}}
+                ActionButton {text:root.tr("关于",root.english);primary:root.page==2;enabled:root.can-interact;clicked=>{root.page=2;}}
             }
             if root.system-error!="":Text {text:root.tr(root.system-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             if root.page!=1&&root.bg-error!="":Text {text:root.tr(root.bg-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
+            if root.migration-status!="":Text {text:root.tr(root.migration-status,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
+            if root.migration-error!="":Text {text:root.tr(root.migration-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             if root.page==0: HorizontalBox {
                 padding:0px;spacing:24px;vertical-stretch:1;
                 VerticalBox {
@@ -231,7 +237,7 @@ slint::slint! {
                     }
                     HorizontalBox {padding:0px;height:34px;vertical-stretch:0;
                         Text {text:root.tr("局域网设备",root.english);color:Palette.foreground;vertical-alignment:center;}
-                        Button {text:root.tr(root.discovering?"停止搜索":"搜索",root.english);enabled:!root.busy&&root.dialog-kind==0;clicked=>{if root.discovering{root.cancel-discovery();}else{root.discover();}}}
+                        Button {text:root.tr(root.discovering?"停止搜索":"搜索",root.english);enabled:!root.busy&&root.can-interact;clicked=>{if root.discovering{root.cancel-discovery();}else{root.discover();}}}
                     }
                     Text {text:root.discovery-progress;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
                     found-scroll:=ScrollView {
@@ -244,6 +250,10 @@ slint::slint! {
                 form-scroll:=ScrollView {
                     viewport-height:form.preferred-height;
                     form:=VerticalBox {padding:0px;spacing:12px;
+                        HorizontalBox {padding:0px;height:36px;vertical-stretch:0;
+                            Button {text:root.tr("导入旧版资料",root.english);enabled:root.can-edit;clicked=>{root.migration-action(false);}}
+                            Button {text:root.tr("恢复导入前资料",root.english);enabled:root.can-edit;clicked=>{root.migration-action(true);}}
+                        }
                         Text {text:root.device-name==""?root.tr("添加一台设备",root.english):root.device-name;color:Palette.foreground;font-size:22px;font-weight:600;}
                         Text {text:root.tr("设备名称",root.english);color:Palette.foreground;}
                         LineEdit {text<=>root.device-name;enabled:root.can-edit;}
@@ -299,23 +309,23 @@ slint::slint! {
                 viewport-height:settings.preferred-height;
                 settings:=VerticalBox {padding:0px;spacing:16px;
                     Text {text:root.tr("通用",root.english);font-size:22px;font-weight:600;color:Palette.foreground;}
-                    HorizontalBox {padding:0px;Text {text:root.tr("语言",root.english);color:Palette.foreground;}ComboBox {model:["简体中文","English"];current-index:root.english?1:0;enabled:root.dialog-kind==0;selected(_)=>{root.set-language(self.current-index);}}}
-                    HorizontalBox {padding:0px;Text {text:root.tr("外观",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("浅色",root.english),root.tr("深色",root.english),root.tr("跟随系统",root.english)];current-index:root.appearance;enabled:root.dialog-kind==0;selected(_)=>{root.set-appearance(self.current-index);}}}
-                    HorizontalBox {padding:0px;Text {text:root.tr("主题色彩",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("蓝色",root.english),root.tr("绿色",root.english),root.tr("石墨",root.english)];current-index:root.theme;enabled:root.dialog-kind==0;selected(_)=>{root.set-theme(self.current-index);}}}
-                    HorizontalBox {padding:0px;Text {text:root.tr("桌面画质",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.desktop-mode;enabled:root.dialog-kind==0;selected(_)=>{root.set-desktop-mode(self.current-index);}}}
-                    BackgroundSettings {english:root.english;enabled:root.dialog-kind==0&&!root.busy;busy:root.bg-busy;cancellable:root.bg-cancellable;
+                    HorizontalBox {padding:0px;Text {text:root.tr("语言",root.english);color:Palette.foreground;}ComboBox {model:["简体中文","English"];current-index:root.english?1:0;enabled:root.can-interact;selected(_)=>{root.set-language(self.current-index);}}}
+                    HorizontalBox {padding:0px;Text {text:root.tr("外观",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("浅色",root.english),root.tr("深色",root.english),root.tr("跟随系统",root.english)];current-index:root.appearance;enabled:root.can-interact;selected(_)=>{root.set-appearance(self.current-index);}}}
+                    HorizontalBox {padding:0px;Text {text:root.tr("主题色彩",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("蓝色",root.english),root.tr("绿色",root.english),root.tr("石墨",root.english)];current-index:root.theme;enabled:root.can-interact;selected(_)=>{root.set-theme(self.current-index);}}}
+                    HorizontalBox {padding:0px;Text {text:root.tr("桌面画质",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.desktop-mode;enabled:root.can-interact;selected(_)=>{root.set-desktop-mode(self.current-index);}}}
+                    BackgroundSettings {english:root.english;enabled:root.can-interact&&!root.busy;busy:root.bg-busy;cancellable:root.bg-cancellable;
                         frame:root.bg-frame;has-frame:root.bg-has-frame;color:root.bg-color;source-width:root.bg-width;source-height:root.bg-height;
                         crop-x:root.bg-saved-crop-x;crop-y:root.bg-saved-crop-y;crop-width:root.bg-saved-crop-width;crop-height:root.bg-saved-crop-height;
                         hex<=>root.bg-hex;volume<=>root.bg-volume;material<=>root.bg-material;status:root.bg-status;error:root.bg-error;
                         tr(s,e)=>{return root.tr(s,e);}action(s)=>{root.bg-action(s);}controls=>{root.bg-controls();}
                     }
                     Text {text:root.tr("存储",root.english);font-size:22px;font-weight:600;color:Palette.foreground;}
-                    HorizontalBox {padding:0px;Text {text:root.tr("板端运行环境",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("电脑下载后传输",root.english),root.tr("板端自行下载",root.english)];current-index:root.environment-source;enabled:root.dialog-kind==0;selected(_)=>{root.set-environment(self.current-index);}}}
-                    HorizontalBox {padding:0px;Text {text:root.tr("日志上限（MiB）",root.english);color:Palette.foreground;}LineEdit {text<=>root.log-limit;enabled:root.dialog-kind==0;}Button {text:root.tr("保存",root.english);enabled:root.dialog-kind==0;clicked=>{root.save-log-limit(root.log-limit);}}}
+                    HorizontalBox {padding:0px;Text {text:root.tr("板端运行环境",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("电脑下载后传输",root.english),root.tr("板端自行下载",root.english)];current-index:root.environment-source;enabled:root.can-interact;selected(_)=>{root.set-environment(self.current-index);}}}
+                    HorizontalBox {padding:0px;Text {text:root.tr("日志上限（MiB）",root.english);color:Palette.foreground;}LineEdit {text<=>root.log-limit;enabled:root.can-interact;}Button {text:root.tr("保存",root.english);enabled:root.can-interact;clicked=>{root.save-log-limit(root.log-limit);}}}
                     HorizontalBox {padding:0px;
                         Text {text:root.tr("电脑本地日志目录",root.english);color:Palette.foreground;}
-                        Button {text:root.tr("更换目录",root.english);enabled:!root.logs-mutating&&root.dialog-kind==0;clicked=>{root.choose-log-directory();}}
-                        Button {text:root.tr("打开目录",root.english);enabled:!root.logs-mutating&&root.dialog-kind==0;clicked=>{root.open-log-directory(false);}}
+                        Button {text:root.tr("更换目录",root.english);enabled:!root.logs-mutating&&root.can-interact;clicked=>{root.choose-log-directory();}}
+                        Button {text:root.tr("打开目录",root.english);enabled:!root.logs-mutating&&root.can-interact;clicked=>{root.open-log-directory(false);}}
                     }
                     Text {text:root.log-directory;color:Palette.foreground;wrap:word-wrap;}
                     Text {text:root.tr("资料位置",root.english);color:Palette.foreground;}
@@ -345,7 +355,7 @@ slint::slint! {
                             for record in root.log-rows:HorizontalBox {padding:4px;spacing:6px;height:96px;
                                 LogSelectionBox {accessible-label:root.tr("选择日志 "+record.command,root.english);selected:record.checked;enabled:root.can-browse&&record.removable;toggled=>{root.toggle-log(record.id,self.checked);}}
                                 VerticalBox {padding:0px;spacing:3px;
-                                    ActionButton {text:record.command;primary:record.selected;enabled:!root.logs-mutating&&root.dialog-kind==0;clicked=>{root.select-log(record.id);}}
+                                    ActionButton {text:record.command;primary:record.selected;enabled:!root.logs-mutating&&root.can-interact;clicked=>{root.select-log(record.id);}}
                                     Text {text:record.context;color:Palette.foreground;overflow:elide;}
                                     Text {text:record.status;color:Palette.foreground;overflow:elide;}
                                 }
@@ -364,14 +374,14 @@ slint::slint! {
                             Text {text:root.log-metadata;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
                             if root.log-warning!="":Text {text:root.log-warning;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
                             if root.log-reading&&root.log-output=="":Text {text:root.tr("正在读取…",root.english);color:Palette.foreground;vertical-stretch:0;}
-                            TextEdit {accessible-label:root.tr("日志原文",root.english);text:root.log-output;read-only:true;wrap:no-wrap;font-family:"Consolas";enabled:root.dialog-kind==0;}
-                            Button {text:root.tr("打开日志目录",root.english);enabled:root.log-command!=""&&root.dialog-kind==0;clicked=>{root.open-log-directory(true);}}
+                            TextEdit {accessible-label:root.tr("日志原文",root.english);text:root.log-output;read-only:true;wrap:no-wrap;font-family:"Consolas";enabled:root.can-interact;}
+                            Button {text:root.tr("打开日志目录",root.english);enabled:root.log-command!=""&&root.can-interact;clicked=>{root.open-log-directory(true);}}
                         }
                     }
                 }
             }
             if root.page==7:ArenaView {
-                english:root.english;enabled:root.dialog-kind==0;connected:root.connected;
+                english:root.english;enabled:root.can-interact;connected:root.connected;
                 cameras:root.arena-cameras;camera-index<=>root.arena-camera-index;rate<=>root.arena-rate;
                 camera-active:root.arena-camera-active;camera-loading:root.arena-camera-loading;frame:root.arena-frame;has-frame:root.arena-has-frame;
                 camera-status:root.arena-camera-status;metrics-status:root.arena-metrics-status;metrics:root.arena-metrics;cpu-path:root.arena-cpu-path;memory-path:root.arena-memory-path;
@@ -379,7 +389,7 @@ slint::slint! {
                 tr(s,e)=>{return root.tr(s,e);}toggle-camera=>{root.arena-toggle-camera();}refresh-cameras=>{root.arena-refresh-cameras();}
             }
             if root.page==6:FilesView {
-                english:root.english;enabled:root.dialog-kind==0;connected:root.connected;busy:root.file-mutating;
+                english:root.english;enabled:root.can-interact;connected:root.connected;busy:root.file-mutating;
                 geometry-ticket:root.file-geometry-ticket;drives:root.file-drives;drive-index<=>root.file-drive-index;drive(n)=>{root.files-drive(n);}geometry(i,a)=>{if i==0{root.file-local-area=a;}else{root.file-remote-area=a;}}
                 drop-side:root.file-drop-side;drop-row:root.file-drop-row;drop-label:root.file-drop-label;
                 local-rows:root.file-local-rows;remote-rows:root.file-remote-rows;
@@ -393,7 +403,7 @@ slint::slint! {
                 tr(s,e)=>{return root.tr(s,e);}action(i,a)=>{root.files-action(i,a);}choose(i,n,c,s)=>{root.files-choose(i,n,c,s);}all(i,c)=>{root.files-all(i,c);}open(i,n)=>{root.files-open(i,n);}
             }
             if root.page==5:DesktopView {
-                english:root.english;enabled:root.dialog-kind==0;connected:root.connected;active:root.desktop-active;wanted:root.desktop-wanted;ready:root.desktop-ready;
+                english:root.english;enabled:root.can-interact;connected:root.connected;active:root.desktop-active;wanted:root.desktop-wanted;ready:root.desktop-ready;
                 mode:root.desktop-mode;fit<=>root.desktop-fit;read-only<=>root.desktop-readonly;frame:root.desktop-frame;source-width:root.desktop-source-width;source-height:root.desktop-source-height;
                 cursor:root.desktop-cursor;cursor-known:root.desktop-cursor-known;cursor-width:root.desktop-cursor-width;cursor-height:root.desktop-cursor-height;cursor-hot-x:root.desktop-cursor-hot-x;cursor-hot-y:root.desktop-cursor-hot-y;
                 status:root.desktop-status;error:root.desktop-error;clipboard-available:root.desktop-clipboard-available;focus-revision:root.desktop-focus-revision;
@@ -405,7 +415,7 @@ slint::slint! {
                 tabs:root.terminal-tabs;active:root.terminal-active;cells:root.terminal-cells;
                 cursor-column:root.terminal-cursor-column;cursor-row:root.terminal-cursor-row;cursor-visible:root.terminal-cursor-visible;
                 phase:root.terminal-phase;status:root.terminal-status;error:root.terminal-error;log-status:root.terminal-log-status;
-                connected:root.connected;busy:root.terminal-busy;sending:root.terminal-sending;enabled:root.dialog-kind==0;english:root.english;
+                connected:root.connected;busy:root.terminal-busy;sending:root.terminal-sending;enabled:root.can-interact;english:root.english;
                 draft<=>root.terminal-draft;project<=>root.terminal-project;
                 completions:root.terminal-completions;completion-index:root.terminal-completion-index;
                 completion-loading:root.terminal-completion-loading;completion-truncated:root.terminal-completion-truncated;
@@ -438,10 +448,10 @@ slint::slint! {
                     }
                     panel:=VerticalBox {visible:root.dialog-kind!=8;padding:24px;spacing:18px;
                         Text {text:root.tr(root.dialog-title,root.english);font-size:20px;font-weight:600;color:Palette.foreground;}
-                        Text {text:root.system-executing?root.tr("正在提交重启请求…",root.english):root.dialog-message;wrap:word-wrap;color:Palette.foreground;}
+                        Text {text:root.migration-executing?root.tr("正在迁移资料…",root.english):root.system-executing?root.tr("正在提交重启请求…",root.english):root.dialog-message;wrap:word-wrap;color:Palette.foreground;}
                         HorizontalBox {padding:0px;
-                            ActionButton {enabled:!root.system-executing;text:root.tr("取消",root.english);primary:!root.accept-focused;clicked=>{root.respond(false);}}
-                            ActionButton {enabled:!root.system-executing;text:root.tr(root.dialog-kind==2?"信任并连接":root.dialog-kind==3?"清理所选":(root.dialog-kind==4||root.dialog-kind==9)?"确认重启":root.dialog-kind==5?"确认关闭":root.dialog-kind==6?"确认覆盖":root.dialog-kind==7?"确认删除":"确认移除",root.english);primary:root.accept-focused;clicked=>{root.respond(true);}}
+                            ActionButton {enabled:!root.system-executing&&!root.migration-executing;text:root.tr("取消",root.english);primary:!root.accept-focused;clicked=>{root.respond(false);}}
+                            ActionButton {enabled:!root.system-executing&&!root.migration-executing;text:root.tr(root.dialog-kind==2?"信任并连接":root.dialog-kind==3?"清理所选":(root.dialog-kind==4||root.dialog-kind==9)?"确认重启":root.dialog-kind==5?"确认关闭":root.dialog-kind==6?"确认覆盖":root.dialog-kind==7?"确认删除":root.dialog-kind==10?"确认导入":root.dialog-kind==11?"确认恢复":"确认移除",root.english);primary:root.accept-focused;clicked=>{root.respond(true);}}
                         }
                     }
                 }
