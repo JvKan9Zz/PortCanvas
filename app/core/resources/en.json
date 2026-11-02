@@ -762,5 +762,8 @@
   "正在传输组件…": "Transferring components…",
   "软件正在退出。": "The application is closing.",
   "正在提交重启请求…": "Submitting restart request\u2026",
-  "无法打开目录或仓库。": "Could not open the directory or repository."
+  "无法打开目录或仓库。": "Could not open the directory or repository.",
+  "配置读取失败，原文件保留。": "Configuration could not be read. The original file was kept.",
+  "配置对象标识不完整或重复，原文件保留。": "Configuration identities are missing or duplicated. The original file was kept.",
+  "设备资料包含缺失、重复或无效ID，原文件保留。": "Device records contain missing, duplicate or invalid IDs. The original file was kept."
 }

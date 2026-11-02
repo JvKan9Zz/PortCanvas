@@ -21,5 +21,6 @@ pub mod logs;
 pub mod migration;
 pub mod services;
 mod device_actions;
+mod config_json;
 pub mod application;
 #[cfg(feature="downloads")]pub mod download;

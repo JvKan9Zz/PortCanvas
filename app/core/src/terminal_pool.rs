@@ -1,4 +1,5 @@
-use crate::{logs::LogService, profiles::atomic_json, session::DeviceManager, terminal::TerminalService};
+use crate::{logs::LogService, session::DeviceManager, terminal::TerminalService};
+#[cfg(test)]use crate::profiles::atomic_json;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -16,6 +17,7 @@ pub fn validate_key(key:&str)->Result<()> {
     if key!="main" && !(key.len()==36 && uuid::Uuid::parse_str(key).is_ok()) {bail!("终端标识无效。");} Ok(())
 }
 impl Catalog {
+    fn save(&self,file:&PathBuf)->Result<()>{crate::config_json::write(file,self)}
     fn read(file:&PathBuf)->Result<Self> {
         if !file.exists(){return Ok(Self::default());}
         anyhow::ensure!(fs::metadata(file)?.len()<=1024*1024,"终端列表超过1MiB，原文件保留。");
@@ -76,7 +78,7 @@ impl TerminalPool {
     }
     pub fn create(&self,expected:Option<&str>)->Result<Value>{
         let device=self.device(expected)?;
-        let tab={let _gate=self.catalog_gate.lock().unwrap();let mut catalog=Catalog::read(&self.file)?;let tab=catalog.add(&device)?;atomic_json(&self.file,&catalog)?;tab};
+        let tab={let _gate=self.catalog_gate.lock().unwrap();let mut catalog=Catalog::read(&self.file)?;let tab=catalog.add(&device)?;catalog.save(&self.file)?;tab};
         Ok(json!({"key":tab.key,"catalog":self.list()?}))
     }
     pub fn stop_all(&self){
@@ -93,7 +95,7 @@ impl TerminalPool {
         let device=self.device(expected)?;let service=self.get(key,Some(&device))?;
         service.reset(true).await?;
         {let _gate=self.catalog_gate.lock().unwrap();let mut catalog=Catalog::read(&self.file)?;
-        let mut tabs=catalog.tabs(&device);tabs.retain(|tab|tab.key!=key);catalog.devices.insert(device.clone(),tabs);atomic_json(&self.file,&catalog)?;}
+        let mut tabs=catalog.tabs(&device);tabs.retain(|tab|tab.key!=key);catalog.devices.insert(device.clone(),tabs);catalog.save(&self.file)?;}
         self.entries.lock().unwrap().remove(&format!("{device}:{key}"));self.logs.forget_terminal(key);self.list()
     }
 }
@@ -109,6 +111,14 @@ mod tests {
         atomic_json(&file,&catalog).unwrap();let restored=Catalog::read(&file).unwrap();assert_eq!(restored.tabs(device)[1].key,a.key);
         assert_eq!(restored.tabs("wcs-1111111111111111").len(),1);assert!(validate_key("main;kill-server").is_err());
         catalog.devices.get_mut(device).unwrap().push(a);atomic_json(&file,&catalog).unwrap();assert!(Catalog::read(&file).is_err());
+    }
+    #[test]
+    fn unknown_catalog_fields_stay_with_their_tabs_and_closed_tabs_do_not_return(){
+        let root=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(uuid::Uuid::new_v4().to_string());fs::create_dir_all(&root).unwrap();let file=root.join("terminals.json");let device="wcs-1234567890abcdef";let key=uuid::Uuid::new_v4().to_string();
+        atomic_json(&file,&json!({"futureCatalog":{"value":true},"devices":{device:[{"key":"main","number":1,"futureTab":"A"},{"key":key,"number":2,"futureTab":"B"}]}})).unwrap();
+        let mut catalog=Catalog::read(&file).unwrap();catalog.devices.get_mut(device).unwrap().reverse();catalog.add(device).unwrap();catalog.save(&file).unwrap();let raw:Value=serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();assert_eq!(raw["devices"][device][0]["futureTab"],"B");assert_eq!(raw["devices"][device][1]["futureTab"],"A");assert_eq!(raw["futureCatalog"]["value"],true);
+        catalog.devices.get_mut(device).unwrap().retain(|tab|tab.key=="main");catalog.save(&file).unwrap();let raw:Value=serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();assert_eq!(raw["devices"][device].as_array().unwrap().len(),1);assert_eq!(raw["devices"][device][0]["futureTab"],"A");
+        catalog.devices.insert(device.into(),vec![]);catalog.save(&file).unwrap();assert!(Catalog::read(&file).unwrap().tabs(device).is_empty());fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn an_explicitly_empty_catalog_stays_closed_until_user_creates(){

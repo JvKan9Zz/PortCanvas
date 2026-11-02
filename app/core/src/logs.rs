@@ -631,8 +631,10 @@ impl LogService {
                 uuid::Uuid::new_v4()
             ));
             fs::copy(&inner.file, backup)?;
+            atomic_json(&inner.file, settings)?;
+        } else {
+            crate::config_json::write(&inner.file, settings)?;
         }
-        atomic_json(&inner.file, settings)?;
         inner.invalid = false;
         Ok(())
     }

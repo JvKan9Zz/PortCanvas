@@ -1,4 +1,4 @@
-use crate::profiles::atomic_json;
+use crate::config_json::write as write_preferences;
 use anyhow::{Context,Result};
 use serde::{Deserialize,Serialize};
 use serde_json::{json,Value};
@@ -54,7 +54,7 @@ impl BackgroundDraft{
         anyhow::ensure!(crop.valid(),"请选择有效的裁剪范围。");let mut p=store.read()?;let old_image=p.background_image.take();let old_video=p.background_video.take();
         let name=format!("{}.{}",self.id,self.path.extension().unwrap().to_string_lossy());let target=store.backgrounds()?.join(&name);std::fs::rename(&self.path,&target)?;
         if self.video{p.background_video=Some(name);}else{p.background_image=Some(name);}p.background_crop=Some(crop);
-        if let Err(error)=atomic_json(&store.file,&p){std::fs::rename(&target,&self.path).context("设置保存失败，背景草稿恢复失败。")?;return Err(error);}
+        if let Err(error)=write_preferences(&store.file,&p){std::fs::rename(&target,&self.path).context("设置保存失败，背景草稿恢复失败。")?;return Err(error);}
         store.discard_image(old_image);store.discard_image(old_video);store.info()
     }
 }
@@ -104,21 +104,21 @@ impl PreferenceStore {
     }
     pub fn language(&self)->Language {self.read().map(|p|p.language).unwrap_or_default()}
     pub fn info(&self)->Result<Value>{let p=self.read()?;Ok(json!({"language":p.language,"theme":p.theme,"appearance":p.appearance,"backgroundColor":p.background_color,"backgroundImage":p.background_image,"backgroundCrop":p.background_crop,"backgroundVideo":p.background_video,"backgroundVolume":p.background_volume,"glassOpacity":p.glass_opacity,"desktopMode":p.desktop_mode,"environmentSource":p.environment_source,"version":env!("CARGO_PKG_VERSION"),"repository":REPOSITORY,"updatesSupported":cfg!(windows)}))}
-    pub fn save_language(&self,language:Language)->Result<Value>{let mut p=self.read()?;p.language=language;atomic_json(&self.file,&p)?;self.info()}
-    pub fn save_theme(&self,theme:Theme)->Result<Value>{let mut p=self.read()?;p.theme=theme;atomic_json(&self.file,&p)?;self.info()}
-    pub fn save_desktop_mode(&self,mode:crate::desktop_settings::DesktopMode)->Result<Value>{let mut p=self.read()?;p.desktop_mode=mode;atomic_json(&self.file,&p)?;self.info()}
-    pub fn save_environment_source(&self,source:EnvironmentSource)->Result<Value>{let mut p=self.read()?;p.environment_source=source;atomic_json(&self.file,&p)?;self.info()}
-    pub fn save_glass_opacity(&self,value:u8)->Result<Value>{anyhow::ensure!(value<=100,"非透明度必须在 0–100 之间。");let mut p=self.read()?;p.glass_opacity=value;atomic_json(&self.file,&p)?;self.info()}
-    pub fn save_appearance(&self,appearance:Appearance)->Result<Value>{let mut p=self.read()?;p.appearance=appearance;atomic_json(&self.file,&p)?;self.info()}
-    pub fn save_background_volume(&self,value:u8)->Result<Value>{anyhow::ensure!(value<=100,"背景音量须为 0–100。");let mut p=self.read()?;p.background_volume=value;atomic_json(&self.file,&p)?;self.info()}
+    pub fn save_language(&self,language:Language)->Result<Value>{let mut p=self.read()?;p.language=language;write_preferences(&self.file,&p)?;self.info()}
+    pub fn save_theme(&self,theme:Theme)->Result<Value>{let mut p=self.read()?;p.theme=theme;write_preferences(&self.file,&p)?;self.info()}
+    pub fn save_desktop_mode(&self,mode:crate::desktop_settings::DesktopMode)->Result<Value>{let mut p=self.read()?;p.desktop_mode=mode;write_preferences(&self.file,&p)?;self.info()}
+    pub fn save_environment_source(&self,source:EnvironmentSource)->Result<Value>{let mut p=self.read()?;p.environment_source=source;write_preferences(&self.file,&p)?;self.info()}
+    pub fn save_glass_opacity(&self,value:u8)->Result<Value>{anyhow::ensure!(value<=100,"非透明度必须在 0–100 之间。");let mut p=self.read()?;p.glass_opacity=value;write_preferences(&self.file,&p)?;self.info()}
+    pub fn save_appearance(&self,appearance:Appearance)->Result<Value>{let mut p=self.read()?;p.appearance=appearance;write_preferences(&self.file,&p)?;self.info()}
+    pub fn save_background_volume(&self,value:u8)->Result<Value>{anyhow::ensure!(value<=100,"背景音量须为 0–100。");let mut p=self.read()?;p.background_volume=value;write_preferences(&self.file,&p)?;self.info()}
     pub fn backgrounds(&self)->Result<PathBuf>{Ok(self.file.parent().context("设置目录无效。")?.join("backgrounds"))}
     pub fn cleanup_drafts(&self)->Result<()>{let directory=self.backgrounds()?;if directory.is_dir(){for entry in std::fs::read_dir(directory)?{let entry=entry?;let name=entry.file_name();let name=name.to_string_lossy();if name.strip_prefix("draft-").is_some_and(|name|valid_media_name(name,false)||valid_media_name(name,true)){std::fs::remove_file(entry.path())?;}}}Ok(())}
     fn discard_image(&self,name:Option<String>){if let Some(name)=name{if let Ok(directory)=self.backgrounds(){let _=std::fs::remove_file(directory.join(name));}}}
     pub fn save_background_color(&self,color:Option<String>)->Result<Value>{
         anyhow::ensure!(color.as_deref().is_none_or(valid_color),"请选择有效的背景颜色。");
-        let mut p=self.read()?;let old=p.background_image.take();let video=p.background_video.take();p.background_color=color;p.background_crop=None;atomic_json(&self.file,&p)?;self.discard_image(old);self.discard_image(video);self.info()
+        let mut p=self.read()?;let old=p.background_image.take();let video=p.background_video.take();p.background_color=color;p.background_crop=None;write_preferences(&self.file,&p)?;self.discard_image(old);self.discard_image(video);self.info()
     }
-    pub fn remove_background_image(&self)->Result<Value>{let mut p=self.read()?;let old=p.background_image.take();let video=p.background_video.take();p.background_crop=None;atomic_json(&self.file,&p)?;self.discard_image(old);self.discard_image(video);self.info()}
+    pub fn remove_background_image(&self)->Result<Value>{let mut p=self.read()?;let old=p.background_image.take();let video=p.background_video.take();p.background_crop=None;write_preferences(&self.file,&p)?;self.discard_image(old);self.discard_image(video);self.info()}
     pub fn background_path(&self)->Result<Option<PathBuf>>{let p=self.read()?;p.background_image.or(p.background_video).map(|name|Ok(self.backgrounds()?.join(name))).transpose()}
 
 }
