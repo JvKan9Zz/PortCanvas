@@ -328,23 +328,7 @@ pub async fn confirm(window: tauri::WebviewWindow, title: String, message: Strin
     .context("确认窗口未正常结束。")
 }
 async fn reboot_device(window:tauri::WebviewWindow,state:&AppState)->Result<Value>{
-    anyhow::ensure!(!state.rebooting.swap(true,Ordering::SeqCst),"重启请求正在处理中。");
-    let operation=async{
-        anyhow::ensure!(!state.migrating.load(Ordering::SeqCst)&&state.files.snapshot()["busy"]!=true,"请先完成或取消文件操作后再重启设备。");
-        let(generation,connection)=state.devices.connection_with_generation()?;
-        let target=format!("{}\n{}@{}",connection.profile.name,connection.profile.username,connection.profile.address());
-        if !confirm(window,"重启远端设备".into(),format!("即将重启：\n{target}\n远端正在运行的程序将结束，所有连接会断开，是否继续？")).await?{return Ok(json!({"canceled":true}));}
-        anyhow::ensure!(generation==state.devices.generation()&&!connection.cancel.is_cancelled(),"设备连接已变化，请重新确认重启目标。");
-        anyhow::ensure!(state.files.snapshot()["busy"]!=true,"请先完成或取消文件操作后再重启设备。");
-        state.devices.update(generation,json!({"rebooting":true}));
-        tokio::join!(state.desktop.stop(None),state.arena.stop(None),state.pose.stop(None));
-        crate::desktop::schedule_reboot(&connection).await?;
-        state.devices.disconnect().await;
-        Ok(json!({"requested":true}))
-    }.await;
-    state.rebooting.store(false,Ordering::SeqCst);
-    state.devices.update(state.devices.generation(),json!({"rebooting":false}));
-    operation
+    state.services.reboot(move|target|confirm(window,"重启远端设备".into(),format!("即将重启：\n{target}\n远端正在运行的程序将结束，所有连接会断开，是否继续？"))).await
 }
 
 #[tauri::command]

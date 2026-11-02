@@ -21,6 +21,8 @@ pub mod arena_protocol;
 
 #[derive(Default)]
 pub struct Counts {
+    pub reboots:AtomicUsize,
+    pub reboot_status:AtomicUsize,
     pub input: Mutex<BTreeMap<String, Vec<u8>>>,
     pub sizes: Mutex<Vec<(u32, u32)>>,
     pub closed: AtomicUsize,
@@ -140,7 +142,11 @@ impl server::Handler for Handler {
     ) -> Result<(), Self::Error> {
         let command = String::from_utf8_lossy(command);
         session.channel_success(id)?;
-        if let Some((kind, value)) = options(&command) {
+        if command.contains("PORTCANVAS_REBOOT_SCHEDULED") {
+            self.counts.reboots.fetch_add(1,Ordering::SeqCst);
+            let status=self.counts.reboot_status.load(Ordering::SeqCst)as u32;
+            session.data(id,if status==0{b"PORTCANVAS_REBOOT_SCHEDULED\n".to_vec()}else{b"synthetic permission failure\n".to_vec()})?;session.exit_status_request(id,status)?;session.close(id)?;
+        }else if let Some((kind, value)) = options(&command) {
             if matches!(kind.as_str(),"camera"|"pose") {
                 if let Some(token)=arena_protocol::start(vec![serde_json::json!(kind),value],id,session,self.counts.arena.clone())?{self.arena_channels.insert(id,token);}return Ok(());
             }

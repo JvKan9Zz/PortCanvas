@@ -28,7 +28,7 @@ export component DesktopView inherits VerticalBox {
     property <length> pointer-y;
     property <bool> live:root.ready&&!root.read-only&&root.enabled;
     pure callback tr(string,bool)->string;
-    callback action(string);callback quality(int);callback readonly-changed();
+    callback action(string);callback quality(int);callback readonly-changed();callback reboot();
     callback pointer(float,float,float,float,int,bool);callback motion(float,float,float,float);
     callback wheel(float,float,float,float,int,int);callback key(string,bool,bool,bool)->bool;
     callback text(string);callback focused(bool);
@@ -40,6 +40,7 @@ export component DesktopView inherits VerticalBox {
         disconnect-button:=Button {text:root.tr(root.active&&!root.ready?"取消连接":"断开桌面",root.english);enabled:root.enabled&&(root.active||root.wanted);clicked=>{root.action("stop");}}
         ComboBox {accessible-label:root.tr("桌面画质",root.english);model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.mode;enabled:root.enabled;selected(_)=>{root.quality(self.current-index);}}
         CheckBox {text:root.tr("仅查看",root.english);checked<=>root.read-only;enabled:root.enabled;}
+        Button {text:root.tr("重启设备",root.english);enabled:root.enabled&&root.connected;clicked=>{root.reboot();}}
     }
     HorizontalBox {padding:0px;spacing:8px;height:34px;vertical-stretch:0;
         ActionButton {text:root.tr("适应窗口",root.english);primary:root.fit;enabled:root.enabled;clicked=>{root.fit=true;}}
