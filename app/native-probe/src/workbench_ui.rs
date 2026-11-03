@@ -2,6 +2,7 @@ slint::slint! {
     import {Button,LineEdit,ComboBox,CheckBox,ScrollView,ListView,TextEdit,VerticalBox,HorizontalBox,Palette,AboutSlint} from "std-widgets.slint";
     import {TerminalView,TerminalCell,TerminalTab,CompletionRow} from "terminal_view.slint";
     import {DesktopView} from "desktop_view.slint";
+    import {GlassSettings} from "glass_view.slint";
     import {BackgroundSettings,BackgroundCropView} from "background_view.slint";
     import {ArenaView} from "arena_view.slint";
     import {FilesView,FileRow,FileArea} from "files_view.slint";
@@ -79,6 +80,7 @@ slint::slint! {
         in property <image> bg-frame;in property <bool> bg-has-frame;in property <bool> bg-custom;in property <color> bg-color:#eef3fb;
         in property <int> bg-width;in property <int> bg-height;in property <bool> bg-busy;in property <bool> bg-cancellable;
         in-out property <string> bg-hex:"#eef3fb";in-out property <float> bg-volume:0;in-out property <float> bg-material:100;
+        in-out property <int> glass-quality:2;in property <bool> glass-loaded:false;in property <string> glass-error;callback glass-controls(bool);
         in property <string> bg-status;in property <string> bg-error;
         in property <float> bg-saved-crop-x;in property <float> bg-saved-crop-y;in property <float> bg-saved-crop-width:1;in property <float> bg-saved-crop-height:1;
         in property <image> bg-preview;in property <int> bg-preview-width:1;in property <int> bg-preview-height:1;
@@ -313,10 +315,11 @@ slint::slint! {
                     HorizontalBox {padding:0px;Text {text:root.tr("外观",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("浅色",root.english),root.tr("深色",root.english),root.tr("跟随系统",root.english)];current-index:root.appearance;enabled:root.can-interact;selected(_)=>{root.set-appearance(self.current-index);}}}
                     HorizontalBox {padding:0px;Text {text:root.tr("主题色彩",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("蓝色",root.english),root.tr("绿色",root.english),root.tr("石墨",root.english)];current-index:root.theme;enabled:root.can-interact;selected(_)=>{root.set-theme(self.current-index);}}}
                     HorizontalBox {padding:0px;Text {text:root.tr("桌面画质",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.desktop-mode;enabled:root.can-interact;selected(_)=>{root.set-desktop-mode(self.current-index);}}}
+                    GlassSettings {english:root.english;enabled:root.glass-loaded&&root.can-interact&&!root.bg-busy;quality<=>root.glass-quality;material<=>root.bg-material;error:root.glass-error;tr(s,e)=>{return root.tr(s,e);}update(finished)=>{root.glass-controls(finished);}}
                     BackgroundSettings {english:root.english;enabled:root.can-interact&&!root.busy;busy:root.bg-busy;cancellable:root.bg-cancellable;
                         frame:root.bg-frame;has-frame:root.bg-has-frame;color:root.bg-color;source-width:root.bg-width;source-height:root.bg-height;
                         crop-x:root.bg-saved-crop-x;crop-y:root.bg-saved-crop-y;crop-width:root.bg-saved-crop-width;crop-height:root.bg-saved-crop-height;
-                        hex<=>root.bg-hex;volume<=>root.bg-volume;material<=>root.bg-material;status:root.bg-status;error:root.bg-error;
+                        hex<=>root.bg-hex;volume<=>root.bg-volume;status:root.bg-status;error:root.bg-error;
                         tr(s,e)=>{return root.tr(s,e);}action(s)=>{root.bg-action(s);}controls=>{root.bg-controls();}
                     }
                     Text {text:root.tr("存储",root.english);font-size:22px;font-weight:600;color:Palette.foreground;}

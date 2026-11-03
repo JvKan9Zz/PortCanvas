@@ -2,6 +2,7 @@
 mod workbench;
 mod workbench_background;
 mod workbench_system;
+mod workbench_glass;
 mod workbench_arena;
 mod workbench_desktop;
 mod workbench_logs;

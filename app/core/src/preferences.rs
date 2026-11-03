@@ -30,11 +30,16 @@ pub struct Preferences {
     pub background_volume:u8,
     #[serde(default="default_glass_opacity",rename="glassOpacity")]
     pub glass_opacity:u8,
+    #[serde(default,rename="glassQuality")]
+    pub glass_quality:GlassQuality,
 }
 fn default_glass_opacity()->u8{100}
 impl Default for Preferences{
-    fn default()->Self{Self{language:Language::default(),theme:Theme::default(),desktop_mode:Default::default(),environment_source:EnvironmentSource::default(),appearance:Appearance::default(),background_color:None,background_image:None,background_crop:None,background_video:None,background_volume:0,glass_opacity:100}}
+    fn default()->Self{Self{language:Language::default(),theme:Theme::default(),desktop_mode:Default::default(),environment_source:EnvironmentSource::default(),appearance:Appearance::default(),background_color:None,background_image:None,background_crop:None,background_video:None,background_volume:0,glass_opacity:100,glass_quality:GlassQuality::default()}}
 }
+#[derive(Clone,Copy,Default,Debug,Deserialize,Serialize,PartialEq,Eq)]
+#[serde(rename_all="lowercase")]
+pub enum GlassQuality {Performance,Balanced,#[default] Full}
 #[derive(Clone,Copy,Debug,Deserialize,Serialize,PartialEq)]
 pub struct BackgroundCrop{pub x:f64,pub y:f64,pub width:f64,pub height:f64}
 impl BackgroundCrop{
@@ -103,12 +108,13 @@ impl PreferenceStore {
         anyhow::ensure!(p.background_crop.is_none_or(|crop|crop.valid()),"背景裁剪范围无效，原设置保留。");Ok(p)
     }
     pub fn language(&self)->Language {self.read().map(|p|p.language).unwrap_or_default()}
-    pub fn info(&self)->Result<Value>{let p=self.read()?;Ok(json!({"language":p.language,"theme":p.theme,"appearance":p.appearance,"backgroundColor":p.background_color,"backgroundImage":p.background_image,"backgroundCrop":p.background_crop,"backgroundVideo":p.background_video,"backgroundVolume":p.background_volume,"glassOpacity":p.glass_opacity,"desktopMode":p.desktop_mode,"environmentSource":p.environment_source,"version":env!("CARGO_PKG_VERSION"),"repository":REPOSITORY,"updatesSupported":cfg!(windows)}))}
+    pub fn info(&self)->Result<Value>{let p=self.read()?;Ok(json!({"language":p.language,"theme":p.theme,"appearance":p.appearance,"backgroundColor":p.background_color,"backgroundImage":p.background_image,"backgroundCrop":p.background_crop,"backgroundVideo":p.background_video,"backgroundVolume":p.background_volume,"glassOpacity":p.glass_opacity,"glassQuality":p.glass_quality,"desktopMode":p.desktop_mode,"environmentSource":p.environment_source,"version":env!("CARGO_PKG_VERSION"),"repository":REPOSITORY,"updatesSupported":cfg!(windows)}))}
     pub fn save_language(&self,language:Language)->Result<Value>{let mut p=self.read()?;p.language=language;write_preferences(&self.file,&p)?;self.info()}
     pub fn save_theme(&self,theme:Theme)->Result<Value>{let mut p=self.read()?;p.theme=theme;write_preferences(&self.file,&p)?;self.info()}
     pub fn save_desktop_mode(&self,mode:crate::desktop_settings::DesktopMode)->Result<Value>{let mut p=self.read()?;p.desktop_mode=mode;write_preferences(&self.file,&p)?;self.info()}
     pub fn save_environment_source(&self,source:EnvironmentSource)->Result<Value>{let mut p=self.read()?;p.environment_source=source;write_preferences(&self.file,&p)?;self.info()}
     pub fn save_glass_opacity(&self,value:u8)->Result<Value>{anyhow::ensure!(value<=100,"非透明度必须在 0–100 之间。");let mut p=self.read()?;p.glass_opacity=value;write_preferences(&self.file,&p)?;self.info()}
+    pub fn save_glass(&self,quality:GlassQuality,opacity:u8)->Result<Value>{anyhow::ensure!(opacity<=100,"非透明度必须在 0–100 之间。");let mut p=self.read()?;p.glass_quality=quality;p.glass_opacity=opacity;write_preferences(&self.file,&p)?;self.info()}
     pub fn save_appearance(&self,appearance:Appearance)->Result<Value>{let mut p=self.read()?;p.appearance=appearance;write_preferences(&self.file,&p)?;self.info()}
     pub fn save_background_volume(&self,value:u8)->Result<Value>{anyhow::ensure!(value<=100,"背景音量须为 0–100。");let mut p=self.read()?;p.background_volume=value;write_preferences(&self.file,&p)?;self.info()}
     pub fn backgrounds(&self)->Result<PathBuf>{Ok(self.file.parent().context("设置目录无效。")?.join("backgrounds"))}

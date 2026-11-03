@@ -460,7 +460,7 @@ impl Controller {
             );
             ui.set_bg_custom(saved_color.is_some() || ready.asset.is_some());
             ui.set_bg_volume(p.background_volume as f32);
-            ui.set_bg_material(p.glass_opacity as f32);
+
             let media = ready.asset.map(|a| canvas(a, ready.path.unwrap()));
             let video = media.as_ref().is_some_and(|a| a.video);
             let crop = if video { p.background_crop } else { None }.unwrap_or(Crop {
@@ -581,16 +581,14 @@ impl Controller {
     fn persist(&self) {
         let Some(ui) = self.ui.upgrade() else { return };
         let volume = ui.get_bg_volume().round().clamp(0., 100.) as u8;
-        let material = ui.get_bg_material().round().clamp(0., 100.) as u8;
+
         let result = (|| {
             let store = self.services.preferences.lock().unwrap();
             let p = store.read()?;
             if p.background_volume != volume {
                 store.save_background_volume(volume)?;
             }
-            if p.glass_opacity != material {
-                store.save_glass_opacity(material)?;
-            }
+
             Ok::<_, anyhow::Error>(())
         })();
         if let Err(e) = result {
