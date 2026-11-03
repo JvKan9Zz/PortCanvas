@@ -1,6 +1,6 @@
 import {Button,ComboBox,ScrollView,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
 import {ActionButton} from "action_button.slint";
-export component ArenaView inherits HorizontalBox {
+export component ArenaView inherits GridLayout {
     in property <bool> english;in property <bool> enabled;in property <bool> connected;
     in property <bool> camera-active;in property <bool> camera-loading;in property <image> frame;
     in property <bool> has-frame;in property <[string]> cameras;
@@ -12,8 +12,7 @@ export component ArenaView inherits HorizontalBox {
     pure callback tr(string,bool)->string;
     callback toggle-camera();callback refresh-cameras();
     padding:0px;spacing:16px;
-    VerticalBox {padding:0px;spacing:8px;horizontal-stretch:3;preferred-width:0px;
-        Text {text:root.tr("赛台",root.english);font-size:20px;font-weight:600;color:Palette.foreground;vertical-stretch:0;}
+    VerticalBox {col:0;row:0;padding:0px;spacing:8px;horizontal-stretch:3;vertical-stretch:3;preferred-width:0px;min-height:220px;
         Text {text:root.tr(root.pose-status,root.english);color:Palette.foreground;vertical-stretch:0;}
         Text {text:root.coordinates;color:Palette.foreground;vertical-stretch:0;accessible-label:root.tr("己方坐标",root.english);}
         stage:=Rectangle {background:Palette.background;
@@ -35,7 +34,7 @@ export component ArenaView inherits HorizontalBox {
             Text {x:floor.x;y:3px;text:"Y (m)";color:Palette.foreground;font-size:12px;}
         }
     }
-    ScrollView {horizontal-stretch:0;preferred-width:400px;min-width:320px;viewport-width:self.width;
+    ScrollView {col:root.width<760px?0:1;row:root.width<760px?1:0;horizontal-stretch:root.width<760px?1:0;vertical-stretch:2;preferred-width:root.width<760px?0px:360px;min-width:min(280px,root.width);min-height:160px;viewport-width:self.width;
       VerticalBox {padding:0px;spacing:8px;
         HorizontalBox {padding:0px;vertical-stretch:0;
             Text {text:root.tr("摄像头",root.english);font-weight:600;color:Palette.foreground;}

@@ -784,5 +784,14 @@
   "玻璃不透明度": "Glass opacity",
   "玻璃不透明度：0% 更通透，100% 更厚实": "Glass opacity: 0% clearer, 100% more opaque",
   "当前为基础材质预览，高级效果尚未启用。": "Basic material preview. Advanced effects are not enabled yet.",
-  "玻璃设置保存失败，已恢复上次值。": "Glass settings could not be saved. Previous values were restored."
+  "玻璃设置保存失败，已恢复上次值。": "Glass settings could not be saved. Previous values were restored.",
+  "本地": "Local",
+  "远端": "Remote",
+  "上级": "Parent",
+  "主目录": "Home",
+  "选择文件夹": "Choose folder",
+  "全选": "Select all",
+  "本地目录": "Local folder",
+  "远端目录": "Remote folder",
+  "目录或文件不存在，请刷新后重试。": "The folder or file does not exist. Refresh and try again."
 }

@@ -238,7 +238,7 @@ pub fn run() -> Result<()> {
             let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_terminal_reload());
         } else if topic == "logs-state" || topic == "logs-changed" {
             let _ = weak.upgrade_in_event_loop(move |ui| {
-                if ui.get_page() == 4 {ui.invoke_terminal_reload();}
+                if ui.get_terminal_visible() {ui.invoke_terminal_reload();}
                 if ui.get_page() == 3 && !ui.get_native_hidden() {
                     ui.invoke_refresh_logs();
                 }
@@ -280,7 +280,8 @@ pub fn run() -> Result<()> {
     let files=crate::workbench_files::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let system=crate::workbench_system::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let glass=crate::workbench_glass::Controller::install(&ui,services.clone());
-    let background=crate::workbench_background::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
+    let material=crate::workbench_material::Controller::install(&ui,desktop.draw_signal())?;
+    let background=crate::workbench_background::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone(),material.clone());
     let arena=crate::workbench_arena::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let logs = crate::workbench_logs::Controller::install(
         &ui,
@@ -633,6 +634,7 @@ pub fn run() -> Result<()> {
         let logs = logs.clone();
         let desktop = desktop.clone();
         let files = files.clone();
+        let material = material.clone();
         let occluded = std::cell::Cell::new(false);
         move |window, event| {
             if let Some(ui) = weak.upgrade() {
@@ -664,6 +666,7 @@ pub fn run() -> Result<()> {
                         ui.set_native_hidden(hidden);
                         logs.visibility(hidden);
                         desktop.visibility(hidden);
+                        material.visibility(hidden);
                     }
                     ui.set_window_is_fullscreen(window.is_fullscreen());
                 }
@@ -795,7 +798,7 @@ pub fn run() -> Result<()> {
         std::fs::write(
             path,
             serde_json::to_vec_pretty(
-                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"arena":arena.report(),"background":background.report(),"glass":glass.report(),"system":system.report(),"migration":migration.report(),"ssh":services.devices.snapshot()["ssh"]}),
+                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"arena":arena.report(),"background":background.report(),"glass":glass.report(),"material":material.report(),"terminalVisible":ui.get_terminal_visible(),"system":system.report(),"migration":migration.report(),"ssh":services.devices.snapshot()["ssh"]}),
             )?,
         )?;
     }

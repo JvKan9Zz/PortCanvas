@@ -231,7 +231,7 @@ impl Controller {
                     return;
                 }
                 let Some(ui) = c.weak.upgrade() else { return };
-                if !c.editor_focused.get() || ui.get_page() != 4 || ui.get_native_hidden() {
+                if !c.editor_focused.get() || !ui.get_terminal_visible() || ui.get_native_hidden() {
                     c.cancel_completion();
                     return;
                 }
@@ -357,7 +357,7 @@ impl Controller {
             move |columns, rows| {
                 if c.weak
                     .upgrade()
-                    .is_none_or(|ui| ui.get_page() != 4 || ui.get_native_hidden())
+                    .is_none_or(|ui| !ui.get_terminal_visible() || ui.get_native_hidden())
                 {
                     return;
                 }
@@ -630,7 +630,7 @@ impl Controller {
         let Some(ui) = self.weak.upgrade() else {
             return;
         };
-        if ui.get_page() != 4 || ui.get_native_hidden() {
+        if !ui.get_terminal_visible() || ui.get_native_hidden() {
             return;
         }
         let s = self.state.borrow();

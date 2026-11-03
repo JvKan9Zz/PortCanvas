@@ -79,6 +79,7 @@ fn image(width: u32, height: u32, pixels: &[u8]) -> slint::Image {
     )
 }
 impl Controller {
+    pub fn draw_signal(&self) -> Arc<AtomicU64> { self.pending_draw.clone() }
     pub fn install(
         ui: &Workbench,
         services: Arc<Services>,
@@ -86,20 +87,6 @@ impl Controller {
         jobs: Arc<Mutex<Vec<JoinHandle<()>>>>,
     ) -> Result<Rc<Self>> {
         let pending_draw = Arc::new(AtomicU64::new(0));
-        let pending = pending_draw.clone();
-        let weak = ui.as_weak();
-        ui.window()
-            .set_rendering_notifier(move |state, _| {
-                if matches!(state, slint::RenderingState::AfterRendering) {
-                    let ticket = pending.swap(0, Ordering::SeqCst);
-                    if ticket != 0 {
-                        let _ = weak.upgrade_in_event_loop(move |ui| {
-                            ui.invoke_desktop_drawn(ticket.to_string().into())
-                        });
-                    }
-                }
-            })
-            .map_err(|error| anyhow::anyhow!("原生桌面绘制通知不可用：{error:?}"))?;
         let c = Rc::new(Self {
             weak: ui.as_weak(),
             services,

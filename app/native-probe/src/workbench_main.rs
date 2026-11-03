@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod workbench;
+mod workbench_material;
+mod material_gpu;
 mod workbench_background;
 mod workbench_system;
 mod workbench_glass;

@@ -1,4 +1,5 @@
 pub mod fixture;
+pub mod glass_model;
 pub mod arena_model;
 pub mod background_model;
 pub mod background_image;

@@ -7,6 +7,8 @@ slint::slint! {
     import {ArenaView} from "arena_view.slint";
     import {FilesView,FileRow,FileArea} from "files_view.slint";
     import {ActionButton,AppColors} from "action_button.slint";
+    import {MaterialPanel,NavButton} from "workbench_chrome.slint";
+    export struct MaterialRect {x:float,y:float,width:float,height:float}
     export struct LogRow {id:string,command:string,context:string,status:string,removable:bool,checked:bool,selected:bool}
     component LogSelectionBox inherits CheckBox {
         in property <bool> selected:false;
@@ -22,6 +24,8 @@ slint::slint! {
         no-frame:root.window-is-fullscreen;
         init=>{Palette.color-scheme=ColorScheme.light;}
         pure callback tr(string,bool)->string;
+        // Native children may evaluate before Rust installs the translation handler.
+        tr(source,english)=>{return source;}
         public function focus-main(){main-focus.focus();}
         in-out property <bool> english:false;
         in-out property <int> page:0;
@@ -77,6 +81,17 @@ slint::slint! {
         callback arena-sync();callback arena-toggle-camera();callback arena-refresh-cameras();callback arena-environment(string);
         callback arena-metrics-result(string,string);callback arena-cameras-result(string,string,string);callback arena-camera-finished(string,string);
         callback arena-pose-started(string,string);callback arena-pose-packet(string);
+        in-out property <bool> terminal-open:false;
+        out property <bool> terminal-visible:root.page!=0&&root.terminal-open;
+        changed terminal-visible=>{root.terminal-cancel-completion();if root.terminal-visible{root.terminal-reload();}else{main-focus.focus();}}
+        in property <bool> material-active:false;
+        in property <image> material-nav;in property <image> material-header;in property <image> material-terminal;
+        out property <color> material-tint:Palette.background;
+        out property <MaterialRect> material-nav-rect:{x:16,y:16,width:88,height:(root.height - 32px)/1px};
+        out property <MaterialRect> material-header-rect:{x:116,y:16,width:(root.width - 132px)/1px,height:64};
+        out property <MaterialRect> material-terminal-rect:{x:terminal-panel.x/1px,y:96,width:terminal-panel.width/1px,height:(root.height - 112px)/1px};
+        property <bool> compact-content:root.terminal-visible&&root.width<1360px;
+        property <length> drawer-width:min(540px,max(420px,(root.width - 144px)*0.46));
         in property <image> bg-frame;in property <bool> bg-has-frame;in property <bool> bg-custom;in property <color> bg-color:#eef3fb;
         in property <int> bg-width;in property <int> bg-height;in property <bool> bg-busy;in property <bool> bg-cancellable;
         in-out property <string> bg-hex:"#eef3fb";in-out property <float> bg-volume:0;in-out property <float> bg-material:100;
@@ -171,8 +186,8 @@ slint::slint! {
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
-        changed page=>{root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==4{root.terminal-reload();}}
-        changed native-hidden=>{root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.page==4{root.terminal-reload();}}
+        changed page=>{root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.terminal-visible{root.terminal-reload();}}
+        changed native-hidden=>{root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.terminal-visible{root.terminal-reload();}}
         Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.can-interact;triggered=>{root.poll-logs();}}
 
         in-out property <int> environment-source:0;
@@ -197,27 +212,38 @@ slint::slint! {
         Rectangle {background:root.bg-custom?root.bg-color:Palette.background;
             if root.bg-has-frame:Image {source:root.bg-frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.bg-saved-crop-x*root.bg-width);source-clip-y:round(root.bg-saved-crop-y*root.bg-height);source-clip-width:max(1,round(root.bg-saved-crop-width*root.bg-width));source-clip-height:max(1,round(root.bg-saved-crop-height*root.bg-height));}
         }
-        Rectangle {background:Palette.background;opacity:root.bg-custom?0.48+0.4*root.bg-material/100:1;}
-        main-focus:=FocusScope {enabled:!root.system-busy&&!root.migration-busy; VerticalBox {
-            padding:20px;spacing:16px;
-            HorizontalBox {
-                padding:0px;height:40px;vertical-stretch:0;
-                Text {text:"PortCanvas";color:Palette.foreground;font-size:25px;font-weight:650;}
-                Button {text:root.tr(root.window-is-fullscreen?"退出全屏":"全屏",root.english);horizontal-stretch:0;preferred-width:110px;enabled:root.can-interact;clicked=>{root.fullscreen();}}
-                Text {text:root.tr(root.connection-status,root.english);color:Palette.foreground;horizontal-alignment:right;vertical-alignment:center;}
-                Button {text:root.tr(root.busy?"取消连接":"断开连接",root.english);visible:root.busy||root.connected;enabled:root.can-interact;clicked=>{root.disconnect-device();}}
+        // THESIS: A clear work area between the familiar left rail and optional shared terminal.
+        // OWN-WORLD: User-pinned Liquid Glass; bounded background-only GPU surfaces and native controls.
+        // STORY: Select a workspace, work in place, open the same terminal without leaving that page.
+        // FIRST VIEWPORT: 88px left rail, 64px header, clear body; terminal 420-540px at the right.
+        // FORM: Code-led extension of the approved PortCanvas desktop structure; no new identity choice.
+        // FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+        main-focus:=FocusScope {enabled:!root.system-busy&&!root.migration-busy;
+            MaterialPanel {x:16px;y:16px;width:88px;height:parent.height - 32px;material:root.material-nav;active:root.material-active;strength:root.bg-material;
+                VerticalBox {padding:8px;spacing:6px;
+                    Image {source:@image-url("../../ui/portcanvas.png");image-fit:contain;preferred-height:40px;vertical-stretch:0;}
+                    NavButton {text:root.english?"Devices":"设备";icon:@image-url("icons/devices.svg");selected:root.page==0;enabled:root.can-interact;clicked=>{root.page=0;}}
+                    NavButton {text:root.english?"Desktop":"桌面";icon:@image-url("icons/desktop.svg");selected:root.page==5;enabled:root.can-interact;clicked=>{root.page=5;}}
+                    NavButton {text:root.english?"Files":"文件";icon:@image-url("icons/files.svg");selected:root.page==6;enabled:root.can-interact;clicked=>{root.page=6;}}
+                    NavButton {text:root.english?"Logs":"日志";icon:@image-url("icons/logs.svg");selected:root.page==3;enabled:root.can-interact;clicked=>{root.page=3;}}
+                    NavButton {text:root.english?"Arena":"赛台";icon:@image-url("icons/arena.svg");selected:root.page==7;enabled:root.can-interact;clicked=>{root.page=7;}}
+                    Rectangle {vertical-stretch:1;background:transparent;}
+                    NavButton {text:root.english?"Settings":"设置";icon:@image-url("icons/settings.svg");selected:root.page==1;enabled:root.can-interact;clicked=>{root.page=1;}}
+                    NavButton {text:root.english?"About":"关于";icon:@image-url("icons/about.svg");selected:root.page==2;enabled:root.can-interact;clicked=>{root.page=2;}}
+                }
             }
-            HorizontalBox {
-                padding:0px;height:38px;vertical-stretch:0;
-                ActionButton {text:root.tr("设备连接与管理",root.english);primary:root.page==0;enabled:root.can-interact;clicked=>{root.page=0;}}
-                ActionButton {text:root.tr("远程桌面",root.english);primary:root.page==5;enabled:root.can-interact;clicked=>{root.page=5;}}
-                ActionButton {text:root.tr("文件",root.english);primary:root.page==6;enabled:root.can-interact;clicked=>{root.page=6;}}
-                ActionButton {text:root.tr("赛台",root.english);primary:root.page==7;enabled:root.can-interact;clicked=>{root.page=7;}}
-                ActionButton {text:root.tr("终端",root.english);primary:root.page==4;enabled:root.can-interact;clicked=>{root.page=4;}}
-                ActionButton {text:root.tr("日志",root.english);primary:root.page==3;enabled:root.can-interact;clicked=>{root.page=3;}}
-                ActionButton {text:root.tr("设置",root.english);primary:root.page==1;enabled:root.can-interact;clicked=>{root.page=1;}}
-                ActionButton {text:root.tr("关于",root.english);primary:root.page==2;enabled:root.can-interact;clicked=>{root.page=2;}}
+            MaterialPanel {x:116px;y:16px;width:parent.width - 132px;height:64px;material:root.material-header;active:root.material-active;strength:root.bg-material;
+                HorizontalBox {padding-left:20px;padding-right:16px;spacing:12px;
+                    Text {text:root.tr(root.page==0?"设备连接与管理":root.page==5?"远程桌面":root.page==6?"文件":root.page==3?"日志":root.page==7?"赛台":root.page==1?"设置":"关于",root.english);font-size:22px;font-weight:600;color:Palette.foreground;vertical-alignment:center;}
+                    Text {text:root.tr(root.connection-status,root.english);color:Palette.foreground;horizontal-alignment:right;vertical-alignment:center;overflow:elide;}
+                    ActionButton {text:root.tr(root.window-is-fullscreen?"退出全屏":"全屏",root.english);width:112px;horizontal-stretch:0;enabled:root.can-interact;clicked=>{root.fullscreen();}}
+                    if root.page!=0:ActionButton {text:root.english?"Terminal":"终端";primary:root.terminal-open;width:96px;horizontal-stretch:0;enabled:root.can-interact;accessible-checkable:true;accessible-checked:root.terminal-open;clicked=>{root.terminal-open=!root.terminal-open;}}
+                    if root.busy||root.connected:ActionButton {text:root.tr(root.busy?"取消连接":"断开连接",root.english);width:128px;horizontal-stretch:0;enabled:root.can-interact;clicked=>{root.disconnect-device();}}
+                }
             }
+            Rectangle {x:116px;y:96px;width:parent.width - 132px - (root.terminal-visible?root.drawer-width + 12px:0px);height:parent.height - 112px;
+                background:Palette.background;border-radius:20px;clip:true;
+                VerticalBox {padding:16px;spacing:12px;
             if root.system-error!="":Text {text:root.tr(root.system-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             if root.page!=1&&root.bg-error!="":Text {text:root.tr(root.bg-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             if root.migration-status!="":Text {text:root.tr(root.migration-status,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
@@ -308,15 +334,15 @@ slint::slint! {
                 }
             }
             if root.page==1:ScrollView {
-                viewport-height:settings.preferred-height;
-                settings:=VerticalBox {padding:0px;spacing:16px;
+                viewport-width:self.visible-width;viewport-height:settings.preferred-height;
+                settings:=VerticalBox {min-width:0px;padding:0px;spacing:16px;
                     Text {text:root.tr("通用",root.english);font-size:22px;font-weight:600;color:Palette.foreground;}
                     HorizontalBox {padding:0px;Text {text:root.tr("语言",root.english);color:Palette.foreground;}ComboBox {model:["简体中文","English"];current-index:root.english?1:0;enabled:root.can-interact;selected(_)=>{root.set-language(self.current-index);}}}
                     HorizontalBox {padding:0px;Text {text:root.tr("外观",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("浅色",root.english),root.tr("深色",root.english),root.tr("跟随系统",root.english)];current-index:root.appearance;enabled:root.can-interact;selected(_)=>{root.set-appearance(self.current-index);}}}
                     HorizontalBox {padding:0px;Text {text:root.tr("主题色彩",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("蓝色",root.english),root.tr("绿色",root.english),root.tr("石墨",root.english)];current-index:root.theme;enabled:root.can-interact;selected(_)=>{root.set-theme(self.current-index);}}}
                     HorizontalBox {padding:0px;Text {text:root.tr("桌面画质",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.desktop-mode;enabled:root.can-interact;selected(_)=>{root.set-desktop-mode(self.current-index);}}}
                     GlassSettings {english:root.english;enabled:root.glass-loaded&&root.can-interact&&!root.bg-busy;quality<=>root.glass-quality;material<=>root.bg-material;error:root.glass-error;tr(s,e)=>{return root.tr(s,e);}update(finished)=>{root.glass-controls(finished);}}
-                    BackgroundSettings {english:root.english;enabled:root.can-interact&&!root.busy;busy:root.bg-busy;cancellable:root.bg-cancellable;
+                    BackgroundSettings {compact:root.terminal-visible;english:root.english;enabled:root.can-interact&&!root.busy;busy:root.bg-busy;cancellable:root.bg-cancellable;
                         frame:root.bg-frame;has-frame:root.bg-has-frame;color:root.bg-color;source-width:root.bg-width;source-height:root.bg-height;
                         crop-x:root.bg-saved-crop-x;crop-y:root.bg-saved-crop-y;crop-width:root.bg-saved-crop-width;crop-height:root.bg-saved-crop-height;
                         hex<=>root.bg-hex;volume<=>root.bg-volume;status:root.bg-status;error:root.bg-error;
@@ -325,8 +351,8 @@ slint::slint! {
                     Text {text:root.tr("存储",root.english);font-size:22px;font-weight:600;color:Palette.foreground;}
                     HorizontalBox {padding:0px;Text {text:root.tr("板端运行环境",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("电脑下载后传输",root.english),root.tr("板端自行下载",root.english)];current-index:root.environment-source;enabled:root.can-interact;selected(_)=>{root.set-environment(self.current-index);}}}
                     HorizontalBox {padding:0px;Text {text:root.tr("日志上限（MiB）",root.english);color:Palette.foreground;}LineEdit {text<=>root.log-limit;enabled:root.can-interact;}Button {text:root.tr("保存",root.english);enabled:root.can-interact;clicked=>{root.save-log-limit(root.log-limit);}}}
+                    Text {text:root.tr("电脑本地日志目录",root.english);color:Palette.foreground;}
                     HorizontalBox {padding:0px;
-                        Text {text:root.tr("电脑本地日志目录",root.english);color:Palette.foreground;}
                         Button {text:root.tr("更换目录",root.english);enabled:!root.logs-mutating&&root.can-interact;clicked=>{root.choose-log-directory();}}
                         Button {text:root.tr("打开目录",root.english);enabled:!root.logs-mutating&&root.can-interact;clicked=>{root.open-log-directory(false);}}
                     }
@@ -338,17 +364,17 @@ slint::slint! {
             }
             if root.page==3:VerticalBox {
                 padding:0px;spacing:10px;
-                HorizontalBox {padding:0px;spacing:8px;height:36px;vertical-stretch:0;
-                    ComboBox {accessible-label:root.tr("日志项目",root.english);model:root.log-projects;current-index<=>root.log-project-index;enabled:root.can-browse;selected(_)=>{root.filter-logs(self.current-index,root.log-day-index,root.log-status-index);}}
-                    ComboBox {accessible-label:root.tr("日志日期",root.english);model:root.log-days;current-index<=>root.log-day-index;enabled:root.can-browse;selected(_)=>{root.filter-logs(root.log-project-index,self.current-index,root.log-status-index);}}
-                    ComboBox {accessible-label:root.tr("日志状态",root.english);model:[root.tr("全部状态",root.english),root.tr("记录中",root.english),root.tr("命令成功",root.english),root.tr("命令失败",root.english),root.tr("记录中断",root.english),root.tr("写入失败",root.english)];current-index<=>root.log-status-index;enabled:root.can-browse;selected(_)=>{root.filter-logs(root.log-project-index,root.log-day-index,self.current-index);}}
-                    Button {text:root.tr(root.logs-loading?"正在读取…":"刷新",root.english);enabled:root.can-browse;clicked=>{root.refresh-logs();}}
+                GridLayout {padding:0px;spacing:8px;vertical-stretch:0;
+                    ComboBox {col:0;row:0;accessible-label:root.tr("日志项目",root.english);model:root.log-projects;current-index<=>root.log-project-index;enabled:root.can-browse;selected(_)=>{root.filter-logs(self.current-index,root.log-day-index,root.log-status-index);}}
+                    ComboBox {col:1;row:0;accessible-label:root.tr("日志日期",root.english);model:root.log-days;current-index<=>root.log-day-index;enabled:root.can-browse;selected(_)=>{root.filter-logs(root.log-project-index,self.current-index,root.log-status-index);}}
+                    ComboBox {col:root.compact-content?0:2;row:root.compact-content?1:0;accessible-label:root.tr("日志状态",root.english);model:[root.tr("全部状态",root.english),root.tr("记录中",root.english),root.tr("命令成功",root.english),root.tr("命令失败",root.english),root.tr("记录中断",root.english),root.tr("写入失败",root.english)];current-index<=>root.log-status-index;enabled:root.can-browse;selected(_)=>{root.filter-logs(root.log-project-index,root.log-day-index,self.current-index);}}
+                    Button {col:root.compact-content?1:3;row:root.compact-content?1:0;text:root.tr(root.logs-loading?"正在读取…":"刷新",root.english);enabled:root.can-browse;clicked=>{root.refresh-logs();}}
                 }
                 if root.logs-notice!="":Text {text:root.logs-notice;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
                 if root.logs-message!="":Text {text:root.logs-message;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
                 if root.logs-error!="":Text {text:root.tr(root.logs-error,root.english);color:#d34b4b;wrap:word-wrap;vertical-stretch:0;}
-                HorizontalBox {padding:0px;spacing:20px;
-                    VerticalBox {padding:0px;spacing:8px;width:44%;
+                GridLayout {padding:0px;spacing:12px;
+                    VerticalBox {col:0;row:0;padding:0px;spacing:8px;horizontal-stretch:1;vertical-stretch:1;min-height:180px;
                         HorizontalBox {padding:0px;height:34px;vertical-stretch:0;
                             CheckBox {text:root.tr("选择本页",root.english);checked<=>root.logs-all-checked;enabled:root.can-browse&&root.logs-selectable;toggled=>{root.select-all-logs(self.checked);}}
                             Button {text:root.tr("清理所选",root.english)+" ("+root.logs-checked+")";enabled:root.can-browse&&!root.busy&&root.logs-checked>0;clicked=>{root.remove-logs();}}
@@ -370,7 +396,7 @@ slint::slint! {
                         }
                         Text {text:root.logs-summary;color:Palette.foreground;vertical-stretch:0;}
                     }
-                    VerticalBox {padding:0px;spacing:8px;
+                    VerticalBox {col:root.compact-content?0:1;row:root.compact-content?1:0;padding:0px;spacing:8px;horizontal-stretch:1;vertical-stretch:1;min-height:120px;
                         if !root.log-selected:Text {text:root.tr("选择一份日志查看详情",root.english);color:Palette.foreground;vertical-stretch:0;}
                         if root.log-selected:VerticalBox {padding:0px;spacing:8px;
                             Text {text:root.log-command;color:Palette.foreground;font-weight:600;wrap:word-wrap;vertical-stretch:0;}
@@ -391,7 +417,7 @@ slint::slint! {
                 live:root.arena-pose-live;world-x:root.arena-world-x;world-y:root.arena-world-y;heading:root.arena-heading;has-heading:root.arena-has-heading;pose-status:root.arena-pose-status;coordinates:root.arena-coordinates;
                 tr(s,e)=>{return root.tr(s,e);}toggle-camera=>{root.arena-toggle-camera();}refresh-cameras=>{root.arena-refresh-cameras();}
             }
-            if root.page==6:FilesView {
+            if root.page==6:FilesView {compact:root.compact-content;
                 english:root.english;enabled:root.can-interact;connected:root.connected;busy:root.file-mutating;
                 geometry-ticket:root.file-geometry-ticket;drives:root.file-drives;drive-index<=>root.file-drive-index;drive(n)=>{root.files-drive(n);}geometry(i,a)=>{if i==0{root.file-local-area=a;}else{root.file-remote-area=a;}}
                 drop-side:root.file-drop-side;drop-row:root.file-drop-row;drop-label:root.file-drop-label;
@@ -414,7 +440,16 @@ slint::slint! {
                 pointer(x,y,w,h,b,d)=>{root.desktop-pointer(x,y,w,h,b,d);}motion(x,y,w,h)=>{root.desktop-motion(x,y,w,h);}wheel(x,y,w,h,b,n)=>{root.desktop-wheel(x,y,w,h,b,n);}
                 key(value,ctrl,alt,shift)=>{return root.desktop-key(value,ctrl,alt,shift);}text(value)=>{root.desktop-text(value);}focused(value)=>{root.desktop-focused(value);}
             }
-            if root.page==4:TerminalView {
+            if root.page==2:VerticalBox {padding:0px;Text {text:"PortCanvas · v0.6.0 dev";font-size:22px;color:Palette.foreground;}HorizontalBox {padding:0px;height:36px;vertical-stretch:0;Button {text:root.tr("打开仓库",root.english);clicked=>{root.system-action("repository");}}Button {text:root.tr("打开安装目录",root.english);clicked=>{root.system-action("directory");}}}AboutSlint {preferred-height:120px;vertical-stretch:0;}}
+                }
+            }
+            terminal-panel:=MaterialPanel {visible:root.terminal-visible;x:parent.width - root.drawer-width - 16px;y:96px;width:root.drawer-width;height:parent.height - 112px;material:root.material-terminal;active:root.material-active;strength:root.bg-material;
+                VerticalBox {padding:12px;spacing:8px;
+                    HorizontalBox {padding:0px;vertical-stretch:0;
+                        Text {text:root.english?"Terminal":"终端";font-size:18px;font-weight:600;color:Palette.foreground;vertical-alignment:center;}
+                        ActionButton {text:root.english?"Hide":"收起";width:80px;horizontal-stretch:0;clicked=>{root.terminal-open=false;}}
+                    }
+                    TerminalView {
                 tabs:root.terminal-tabs;active:root.terminal-active;cells:root.terminal-cells;
                 cursor-column:root.terminal-cursor-column;cursor-row:root.terminal-cursor-row;cursor-visible:root.terminal-cursor-visible;
                 phase:root.terminal-phase;status:root.terminal-status;error:root.terminal-error;log-status:root.terminal-log-status;
@@ -433,8 +468,9 @@ slint::slint! {
                 editor-focused(value)=>{root.terminal-editor-focused(value);}choose-completion(index)=>{root.terminal-choose-completion(index);}
                 send-command=>{root.terminal-send-command();}
             }
-            if root.page==2:VerticalBox {padding:0px;Text {text:"PortCanvas · v0.6.0 dev";font-size:22px;color:Palette.foreground;}HorizontalBox {padding:0px;height:36px;vertical-stretch:0;Button {text:root.tr("打开仓库",root.english);clicked=>{root.system-action("repository");}}Button {text:root.tr("打开安装目录",root.english);clicked=>{root.system-action("directory");}}}AboutSlint {preferred-height:120px;vertical-stretch:0;}}
-        }}
+                }
+            }
+        }
         Rectangle {
             visible:root.dialog-kind!=0;
             background:#00000070;
