@@ -20,6 +20,11 @@ name = "PortCanvasNativeProbe"
 path = "src/main.rs"
 required-features = ["gui"]
 
+[[example]]
+name = "glass_poc"
+path = "examples/glass_poc/main.rs"
+required-features = ["gui"]
+
 [dependencies]
 portcanvas-core = { path = "../core", features = ["downloads"] }
 alacritty_terminal = "=0.26.0"
@@ -43,6 +48,7 @@ arboard = { version = "3.6", optional = true, default-features = false }
 windows = { version = "0.61", features = ["Win32_Media_MediaFoundation", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_UI_Shell", "Win32_UI_Shell_PropertiesSystem", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
+glow = "=0.16.0"
 russh-sftp = "=3.0.1"
 flate2 = "1"
 russh = { version = "=0.64.1", default-features = false, features = ["ring", "rsa"] }
