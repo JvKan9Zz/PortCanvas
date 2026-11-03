@@ -774,5 +774,15 @@
   "配置扩展字段冲突，未覆盖现有资料。": "Configuration extension fields conflict. Existing data was preserved.",
   "迁移目标与当前资料目录不一致。": "The migration target does not match the current data directory.",
   "当前资料在恢复前发生变化，未进行覆盖。": "The current data changed before restoration. No data was overwritten.",
-  "{error}；日志运行态恢复失败：{runtime}": "{error}; failed to restore the log runtime: {runtime}"
+  "{error}；日志运行态恢复失败：{runtime}": "{error}; failed to restore the log runtime: {runtime}",
+  "玻璃效果": "Glass effects",
+  "效果质量": "Quality",
+  "玻璃效果质量": "Glass effect quality",
+  "轻量": "Performance",
+  "均衡": "Balanced",
+  "完整": "Full",
+  "玻璃不透明度": "Glass opacity",
+  "玻璃不透明度：0% 更通透，100% 更厚实": "Glass opacity: 0% clearer, 100% more opaque",
+  "当前为基础材质预览，高级效果尚未启用。": "Basic material preview. Advanced effects are not enabled yet.",
+  "玻璃设置保存失败，已恢复上次值。": "Glass settings could not be saved. Previous values were restored."
 }

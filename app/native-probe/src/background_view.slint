@@ -4,7 +4,7 @@ export component BackgroundSettings inherits VerticalBox {
     in property <image> frame;in property <bool> has-frame;in property <color> color;
     in property <int> source-width;in property <int> source-height;
     in property <float> crop-x;in property <float> crop-y;in property <float> crop-width:1;in property <float> crop-height:1;
-    in-out property <string> hex;in-out property <float> volume;in-out property <float> material;
+    in-out property <string> hex;in-out property <float> volume;
     in property <string> status;in property <string> error;
     pure callback tr(string,bool)->string;callback action(string);callback controls();
     padding:0px;spacing:8px;
@@ -30,9 +30,7 @@ export component BackgroundSettings inherits VerticalBox {
         Text {text:root.tr("视频音量",root.english);color:Palette.foreground;}
         Slider {accessible-label:root.tr("视频音量",root.english);value<=>root.volume;minimum:0;maximum:100;enabled:root.enabled&&!root.busy;changed(_)=>{root.controls();}}
         Text {text:round(root.volume)+"%";color:Palette.foreground;min-width:45px;horizontal-stretch:0;}
-        Text {text:root.tr("非透明度",root.english);color:Palette.foreground;}
-        Slider {accessible-label:root.tr("非透明度百分比",root.english);value<=>root.material;minimum:0;maximum:100;enabled:root.enabled&&!root.busy;changed(_)=>{root.controls();}}
-        Text {text:round(root.material)+"%";color:Palette.foreground;min-width:45px;horizontal-stretch:0;}
+
     }
     if root.status!="":Text {text:root.status;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
     if root.error!="":Text {text:root.tr(root.error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}

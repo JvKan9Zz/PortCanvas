@@ -11,6 +11,11 @@ switch($Check){
         New-Item -ItemType Directory -Force -Path $env:WCS_TEST_ROOT|Out-Null
     }
     test {& cargo.exe +1.90.0 test --locked;exit $LASTEXITCODE}
-    build {& cargo.exe +1.90.0 build --locked --features gui;exit $LASTEXITCODE}
+    build {
+        & cargo.exe +1.90.0 build --locked --features gui
+        if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+        & cargo.exe +1.90.0 build --locked --features gui --example glass_poc
+        exit $LASTEXITCODE
+    }
     smoke {& ./target/debug/PortCanvasNativeProbe.exe --core-smoke;exit $LASTEXITCODE}
 }

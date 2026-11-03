@@ -279,6 +279,7 @@ pub fn run() -> Result<()> {
     let desktop = crate::workbench_desktop::Controller::install(&ui, services.clone(), runtime.clone(), jobs.clone())?;
     let files=crate::workbench_files::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let system=crate::workbench_system::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
+    let glass=crate::workbench_glass::Controller::install(&ui,services.clone());
     let background=crate::workbench_background::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let arena=crate::workbench_arena::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let logs = crate::workbench_logs::Controller::install(
@@ -782,6 +783,7 @@ pub fn run() -> Result<()> {
     files.shutdown();
     arena.shutdown();
     system.shutdown();
+    glass.shutdown();
     background.shutdown();
     if let Some(done)=desktop_done {let _=runtime.block_on(async {tokio::time::timeout(std::time::Duration::from_secs(8),done.cancelled()).await});}
     runtime.block_on(services.shutdown());
@@ -793,7 +795,7 @@ pub fn run() -> Result<()> {
         std::fs::write(
             path,
             serde_json::to_vec_pretty(
-                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"arena":arena.report(),"background":background.report(),"system":system.report(),"migration":migration.report(),"ssh":services.devices.snapshot()["ssh"]}),
+                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"arena":arena.report(),"background":background.report(),"glass":glass.report(),"system":system.report(),"migration":migration.report(),"ssh":services.devices.snapshot()["ssh"]}),
             )?,
         )?;
     }
