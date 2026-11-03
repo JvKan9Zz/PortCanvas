@@ -1,5 +1,6 @@
 import {Button,LineEdit,Slider,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
 export component BackgroundSettings inherits VerticalBox {
+    in property <bool> compact:false;
     in property <bool> english;in property <bool> enabled;in property <bool> busy;in property <bool> cancellable;
     in property <image> frame;in property <bool> has-frame;in property <color> color;
     in property <int> source-width;in property <int> source-height;
@@ -9,11 +10,11 @@ export component BackgroundSettings inherits VerticalBox {
     pure callback tr(string,bool)->string;callback action(string);callback controls();
     padding:0px;spacing:8px;
     Text {text:root.tr("背景",root.english);font-size:22px;font-weight:600;color:Palette.foreground;}
-    HorizontalBox {padding:0px;height:92px;vertical-stretch:0;
-        Rectangle {width:180px;background:root.color;horizontal-stretch:0;clip:true;
+    GridLayout {padding:0px;spacing:8px;vertical-stretch:0;
+        Rectangle {row:0;col:0;preferred-width:180px;min-width:0px;height:92px;background:root.color;horizontal-stretch:0;clip:true;
             if root.has-frame:Image {source:root.frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.crop-x*root.source-width);source-clip-y:round(root.crop-y*root.source-height);source-clip-width:max(1,round(root.crop-width*root.source-width));source-clip-height:max(1,round(root.crop-height*root.source-height));}
         }
-        VerticalBox {padding:0px;
+        VerticalBox {row:root.compact?1:0;col:root.compact?0:1;padding:0px;
             HorizontalBox {padding:0px;
                 Button {text:root.tr("选择图片",root.english);enabled:root.enabled&&!root.busy;clicked=>{root.action("image");}}
                 Button {text:root.tr("选择视频",root.english);enabled:root.enabled&&!root.busy;clicked=>{root.action("video");}}

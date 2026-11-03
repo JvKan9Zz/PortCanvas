@@ -46,10 +46,14 @@ export component TerminalView inherits VerticalBox {
         Button {text:root.tr("新建终端",root.english);enabled:root.connected&&!root.busy&&root.enabled;clicked=>{root.action("create");}}
     }
     HorizontalBox {padding:0px;spacing:8px;height:34px;vertical-stretch:0;
-        Button {text:root.tr(root.phase=="connecting"?"取消连接":"连接 / 恢复终端",root.english);enabled:root.connected&&!root.busy&&root.enabled&&root.active!=""&&root.phase!="connected";clicked=>{root.resize-grid(grid.columns,grid.rows);root.action(root.phase=="connecting"?"stop":"start");}}
-        Button {text:root.tr("断开终端",root.english);enabled:root.enabled&&root.phase=="connected"&&!root.busy;clicked=>{root.action("stop");}}
+        if root.phase!="connected":Button {text:root.tr(root.phase=="connecting"?"取消连接":"连接 / 恢复终端",root.english);enabled:root.connected&&!root.busy&&root.enabled&&root.active!=""&&root.phase!="connected";clicked=>{root.resize-grid(grid.columns,grid.rows);root.action(root.phase=="connecting"?"stop":"start");}}
+        if root.phase=="connected":Button {text:root.tr("断开终端",root.english);enabled:root.enabled&&root.phase=="connected"&&!root.busy;clicked=>{root.action("stop");}}
+    }
+    HorizontalBox {padding:0px;spacing:8px;height:34px;vertical-stretch:0;
         Button {text:root.tr("重启终端",root.english);enabled:root.connected&&!root.busy&&root.enabled&&root.active!="";clicked=>{root.action("reset");}}
         Button {text:root.tr("关闭终端",root.english);enabled:root.connected&&!root.busy&&root.enabled&&root.active!="";clicked=>{root.action("remove");}}
+    }
+    HorizontalBox {padding:0px;spacing:8px;height:34px;vertical-stretch:0;
         Button {text:root.tr("清屏",root.english);enabled:root.enabled&&root.active!="";clicked=>{root.action("clear");}}
         Button {text:root.tr("复制选区",root.english);enabled:root.enabled;clicked=>{root.copy();}}
         Button {text:root.tr("粘贴",root.english);enabled:root.live;clicked=>{root.paste();}}
@@ -106,8 +110,9 @@ export component TerminalView inherits VerticalBox {
         Text {text:root.tr("日志项目",root.english);color:Palette.foreground;vertical-alignment:center;horizontal-stretch:0;}
         project-input:=LineEdit {accessible-label:root.tr("日志项目",root.english);text<=>root.project;enabled:root.connected&&root.enabled;edited=>{root.project-edited(self.text);}}
         Button {text:root.tr("保存项目",root.english);enabled:root.connected&&root.enabled&&!root.busy;clicked=>{root.action("project");}}
-        Text {text:root.log-status;color:Palette.foreground;overflow:elide;}
+
     }
+    if root.log-status!="":Text {text:root.log-status;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
     if root.completion-loading:Text {text:root.tr("正在补全…",root.english);color:Palette.foreground;vertical-stretch:0;}
     if root.completions.length>0:VerticalBox {padding:0px;spacing:2px;vertical-stretch:0;
         ListView {height:min(4,root.completions.length)*32px;
@@ -125,18 +130,21 @@ export component TerminalView inherits VerticalBox {
         }
         if root.completion-truncated:Text {text:root.tr("补全结果较多，请继续输入。",root.english);color:Palette.foreground;}
     }
-    HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
+    VerticalBox {padding:0px;spacing:8px;vertical-stretch:0;
         command:=CommandEditor {text<=>root.draft;label:root.tr("命令输入",root.english);enabled:root.live&&!root.sending;expanded:root.expanded;
             caret:root.command-caret;revision:root.command-revision;
             edited(value,cursor)=>{root.draft-edited(value,cursor);}
             focused(value)=>{root.editor-focused(value);}
             key(value,ctrl,shift,alt)=>{return root.editor-key(value,ctrl,shift,alt,root.expanded);}
         }
+        HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
+        Rectangle {horizontal-stretch:1;}
         Rectangle {preferred-width:expand-button.preferred-width;min-width:expand-button.min-width;min-height:36px;horizontal-stretch:0;
             expand-button:=Button {width:parent.width;height:36px;y:(parent.height - self.height)/2;text:root.tr(root.expanded?"收起命令输入框":"展开命令输入框",root.english);enabled:root.enabled;clicked=>{root.expanded=!root.expanded;}}
         }
         Rectangle {width:90px;min-height:36px;horizontal-stretch:0;
             ActionButton {width:parent.width;height:36px;y:(parent.height - self.height)/2;text:root.tr("发送",root.english);primary:true;enabled:root.live&&!root.sending;clicked=>{root.send-command();}}
+        }
         }
     }
 }

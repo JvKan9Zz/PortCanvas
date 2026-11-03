@@ -35,6 +35,7 @@ struct Ready {
 }
 struct Canvas {
     image: slint::Image,
+    pixels: SharedPixelBuffer<Rgba8Pixel>,
     player: Option<Playback>,
     sequence: u64,
     width: u32,
@@ -57,6 +58,7 @@ pub struct Controller {
     ticket: Arc<AtomicU64>,
     cancel: RefCell<CancellationToken>,
     pending: Pending,
+    material: Rc<crate::workbench_material::Controller>,
     saved: RefCell<Option<Canvas>>,
     draft: RefCell<Option<Draft>>,
     drag: Cell<Option<(f64, f64, Crop, Option<usize>)>>,
@@ -68,10 +70,8 @@ pub struct Controller {
     visibility: RefCell<Vec<serde_json::Value>>,
     last_playback: RefCell<serde_json::Value>,
 }
-fn picture(p: Picture) -> slint::Image {
-    slint::Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-        &p.rgba, p.width, p.height,
-    ))
+fn picture(p: &Picture) -> SharedPixelBuffer<Rgba8Pixel> {
+    SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&p.rgba, p.width, p.height)
 }
 fn color(value: &str) -> Option<slint::Color> {
     let rgb = u32::from_str_radix(value.strip_prefix('#')?, 16).ok()?;
@@ -112,8 +112,10 @@ fn canvas(asset: Asset, path: PathBuf) -> Canvas {
     match asset {
         Asset::Still(p) => {
             let (width, height) = (p.width, p.height);
+            let pixels = picture(&p);
             Canvas {
-                image: picture(p),
+                image: slint::Image::from_rgba8(pixels.clone()),
+                pixels,
                 player: None,
                 sequence: 0,
                 width,
@@ -124,11 +126,11 @@ fn canvas(asset: Asset, path: PathBuf) -> Canvas {
         }
         Asset::Video(player) => {
             let (sequence, f) = player.read(|s| (s.sequence, s.frame.clone().unwrap()));
-            let image = slint::Image::from_rgba8(
-                SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&f.rgba, f.width, f.height),
-            );
+            let pixels = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&f.rgba, f.width, f.height);
+            let image = slint::Image::from_rgba8(pixels.clone());
             Canvas {
                 image,
+                pixels,
                 sequence,
                 player: Some(player),
                 width: f.width,
@@ -145,6 +147,7 @@ impl Controller {
         services: Arc<Services>,
         runtime: Arc<Runtime>,
         jobs: Arc<Mutex<Vec<JoinHandle<()>>>>,
+        material: Rc<crate::workbench_material::Controller>,
     ) -> Rc<Self> {
         let c = Rc::new(Self {
             ui: ui.as_weak(),
@@ -154,6 +157,7 @@ impl Controller {
             ticket: Arc::new(AtomicU64::new(0)),
             cancel: RefCell::new(CancellationToken::new()),
             pending: Arc::new(Mutex::new(None)),
+            material,
             saved: RefCell::new(None),
             draft: RefCell::new(None),
             drag: Cell::new(None),
@@ -474,12 +478,12 @@ impl Controller {
             ui.set_bg_saved_crop_width(crop.width as f32);
             ui.set_bg_saved_crop_height(crop.height as f32);
             if let Some(a) = &media {
-                ui.set_bg_frame(a.image.clone());
+                self.material.publish(a.pixels.clone());
                 ui.set_bg_width(a.width as i32);
                 ui.set_bg_height(a.height as i32);
                 self.uploads.set(self.uploads.get() + 1);
             } else {
-                ui.set_bg_frame(Default::default());
+                self.material.clear();
             }
             ui.set_bg_has_frame(media.is_some());
             *self.saved.borrow_mut() = media;
@@ -689,17 +693,14 @@ impl Controller {
                             c.sequence = sequence;
                             c.width = f.width;
                             c.height = f.height;
-                            c.image = slint::Image::from_rgba8(
-                                SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-                                    &f.rgba, f.width, f.height,
-                                ),
-                            );
+                            c.pixels = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&f.rgba, f.width, f.height);
+                            c.image = slint::Image::from_rgba8(c.pixels.clone());
                             if preview {
                                 ui.set_bg_preview(c.image.clone());
                                 ui.set_bg_preview_width(f.width as i32);
                                 ui.set_bg_preview_height(f.height as i32);
                             } else {
-                                ui.set_bg_frame(c.image.clone());
+                                self.material.publish(c.pixels.clone());
                                 ui.set_bg_width(f.width as i32);
                                 ui.set_bg_height(f.height as i32);
                             }

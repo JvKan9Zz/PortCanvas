@@ -13,8 +13,8 @@ export component GlassSettings inherits VerticalBox {
     pure callback tr(string,bool)->string;callback update(bool);
     padding:0px;spacing:8px;
     Text {text:root.tr("玻璃效果",root.english);font-size:18px;font-weight:600;color:Palette.foreground;vertical-stretch:0;}
+    Text {text:root.tr("效果质量",root.english);color:Palette.foreground;vertical-stretch:0;}
     HorizontalBox {padding:0px;vertical-stretch:0;
-        Text {text:root.tr("效果质量",root.english);color:Palette.foreground;horizontal-stretch:0;}
         ActionButton {text:root.tr("轻量",root.english);primary:root.quality==0;enabled:root.enabled;accessible-checkable:true;accessible-checked:root.quality==0;clicked=>{root.quality=0;root.update(true);}}
         ActionButton {text:root.tr("均衡",root.english);primary:root.quality==1;enabled:root.enabled;accessible-checkable:true;accessible-checked:root.quality==1;clicked=>{root.quality=1;root.update(true);}}
         ActionButton {text:root.tr("完整",root.english);primary:root.quality==2;enabled:root.enabled;accessible-checkable:true;accessible-checked:root.quality==2;clicked=>{root.quality=2;root.update(true);}}
@@ -24,6 +24,6 @@ export component GlassSettings inherits VerticalBox {
         Slider {value<=>root.material;minimum:0;maximum:100;step:1;enabled:root.enabled;accessible-label:root.tr("玻璃不透明度：0% 更通透，100% 更厚实",root.english);changed(_)=>{root.update(false);}released(_)=>{root.update(true);}}
         Text {text:round(root.material)+"%";min-width:45px;horizontal-stretch:0;color:Palette.foreground;}
     }
-    Text {text:root.tr("当前为基础材质预览，高级效果尚未启用。",root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
+
     if root.error!="":Text {text:root.tr(root.error,root.english);color:Palette.foreground;font-weight:600;wrap:word-wrap;vertical-stretch:0;}
 }

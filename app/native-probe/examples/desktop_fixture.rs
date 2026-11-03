@@ -11,7 +11,10 @@ async fn main() -> Result<()> {
     let data = root.join("desktop-gui");
     anyhow::ensure!(!data.exists(), "fresh fixture directory required");
     std::fs::create_dir_all(&data)?;
-    let mut fixture = support::Fixture::new().await?;
+    let remote = root.join("remote-files");
+    std::fs::create_dir_all(&remote)?;
+    std::fs::write(remote.join("synthetic-g3.txt"), b"owned protocol fixture\n")?;
+    let mut fixture = support::Fixture::with_files(remote).await?;
     fixture.profile.name = "本机桌面验证".into();
     ProfileStore {
         directory: data.clone(),

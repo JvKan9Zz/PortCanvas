@@ -8,6 +8,7 @@ component FileCheck inherits CheckBox {
     callback choose();toggled=>{root.choose();}
 }
 export component FilePane inherits VerticalBox {
+    min-width:0px;
     in property <bool> english;in property <bool> remote;in property <bool> enabled:true;
     in property <bool> loading;in property <bool> loaded;in property <bool> connected;
     in property <[FileRow]> rows;in property <string> message;
@@ -25,7 +26,9 @@ export component FilePane inherits VerticalBox {
         Text {text:root.tr(root.remote?"远端":"本地",root.english)+(root.drop-active?" · "+root.drop-label:"");color:Palette.foreground;font-weight:600;}
         if root.remote&&!root.connected:Button {text:root.tr("连接设备",root.english);clicked=>{root.action("connect");}}
         if !root.remote:Button {text:root.tr("选择文件夹",root.english);enabled:root.enabled;clicked=>{root.action("choose");}}
-        if !root.remote:ComboBox {accessible-label:root.tr("本地磁盘",root.english);model:root.drives;current-index<=>root.drive-index;enabled:root.enabled;selected(n)=>{root.drive(self.current-index);}}
+    }
+    if !root.remote:HorizontalBox {height:32px;vertical-stretch:0;padding:0px;
+        ComboBox {accessible-label:root.tr("本地磁盘",root.english);model:root.drives;current-index<=>root.drive-index;enabled:root.enabled;selected(n)=>{root.drive(self.current-index);}}
     }
     HorizontalBox {height:34px;vertical-stretch:0;padding:0px;
         LineEdit {accessible-label:root.tr(root.remote?"远端目录":"本地目录",root.english);text<=>root.path;enabled:root.enabled;accepted=>{root.action("go");}}
@@ -35,6 +38,8 @@ export component FilePane inherits VerticalBox {
         Button {text:root.tr("上级",root.english);enabled:root.enabled&&root.loaded;clicked=>{root.action("up");}}
         Button {text:root.tr("主目录",root.english);enabled:root.enabled;clicked=>{root.action("home");}}
         Button {text:root.tr("刷新",root.english);enabled:root.enabled;clicked=>{root.action("refresh");}}
+    }
+    HorizontalBox {height:34px;vertical-stretch:0;padding:0px;
         Button {text:root.tr("全选",root.english);enabled:root.enabled&&root.rows.length>0;clicked=>{root.all(true);}}
         Button {text:root.tr("清除选择",root.english);enabled:root.enabled&&root.rows.length>0;clicked=>{root.all(false);}}
     }
@@ -55,7 +60,7 @@ export component FilePane inherits VerticalBox {
                     FileCheck {selected:row.selected;accessible-label:root.tr("选择 "+row.name,root.english);enabled:root.enabled;min-width:28px;horizontal-stretch:0;choose=>{root.choose(index,true,false);}}
                     Text {text:row.name;color:Palette.foreground;overflow:elide;}
                     Text {text:row.directory?root.tr("文件夹",root.english):row.kind==root.tr("链接",root.english)?row.kind:row.size;color:Palette.foreground;min-width:65px;preferred-width:75px;horizontal-stretch:0;overflow:elide;horizontal-alignment:right;}
-                    Text {text:row.modified;color:Palette.foreground;preferred-width:92px;horizontal-stretch:0;overflow:elide;}
+                    if root.width>=360px:Text {text:row.modified;color:Palette.foreground;preferred-width:92px;horizontal-stretch:0;overflow:elide;}
                 }
                 TouchArea {x:36px;width:parent.width - 36px;enabled:root.enabled;
                     pointer-event(event)=>{if event.kind==PointerEventKind.down{item.additive=event.modifiers.control;item.range=event.modifiers.shift;}}
@@ -72,6 +77,11 @@ export component FilePane inherits VerticalBox {
     }
 }
 export component FilesView inherits VerticalBox {
+    in property <bool> compact:false;
+    property <int> pane-side:0;
+    function invalidate-hidden() {if root.compact {root.geometry(root.pane-side==0?1:0,{x:0,y:0,width:0,height:0,offset:0});}}
+    changed compact=>{root.invalidate-hidden();}
+    changed pane-side=>{root.invalidate-hidden();}
     in property <bool> english;in property <bool> enabled;in property <bool> connected;in property <bool> busy;
     in property <[FileRow]> local-rows;in property <[FileRow]> remote-rows;
     in property <[string]> drives;in-out property <int> drive-index:-1;callback drive(int);
@@ -88,20 +98,27 @@ export component FilesView inherits VerticalBox {
     in property <float> progress;in-out property <int> rate;
     pure callback tr(string,bool)->string;
     callback action(int,string);callback choose(int,int,bool,bool);callback all(int,bool);callback open(int,int);
+    changed geometry-ticket=>{root.invalidate-hidden();}
     property <bool> can-browse:root.enabled&&!root.busy&&!root.local-loading&&!root.remote-loading;
-    padding:0px;spacing:8px;
+    min-width:0px;padding:0px;spacing:8px;
+    if root.compact:HorizontalBox {padding:0px;vertical-stretch:0;
+        ActionButton {text:root.tr("本地",root.english);primary:root.pane-side==0;accessible-checkable:true;accessible-checked:root.pane-side==0;clicked=>{root.pane-side=0;}}
+        ActionButton {text:root.tr("远端",root.english);primary:root.pane-side==1;accessible-checkable:true;accessible-checked:root.pane-side==1;clicked=>{root.pane-side=1;}}
+    }
     HorizontalBox {padding:0px;
-        FilePane {english:root.english;remote:false;enabled:root.can-browse;connected:root.connected;rows:root.local-rows;path<=>root.local-path;folder<=>root.local-folder;message:root.local-message;loading:root.local-loading;loaded:root.local-loaded;
+        if !root.compact||root.pane-side==0:FilePane {english:root.english;remote:false;enabled:root.can-browse;connected:root.connected;rows:root.local-rows;path<=>root.local-path;folder<=>root.local-folder;message:root.local-message;loading:root.local-loading;loaded:root.local-loaded;
             geometry-ticket:root.geometry-ticket;drives:root.drives;drive-index<=>root.drive-index;drive(n)=>{root.drive(n);}geometry(a)=>{root.geometry(0,a);}drop-active:root.drop-side==0;drop-row:root.drop-row;drop-label:root.drop-label;
             tr(s,e)=>{return root.tr(s,e);}action(a)=>{root.action(0,a);}choose(n,c,s)=>{root.choose(0,n,c,s);}all(c)=>{root.all(0,c);}open(n)=>{root.open(0,n);}}
-        FilePane {english:root.english;remote:true;enabled:root.can-browse&&root.connected;connected:root.connected;rows:root.remote-rows;path<=>root.remote-path;folder<=>root.remote-folder;message:root.remote-message;loading:root.remote-loading;loaded:root.remote-loaded;
+        if !root.compact||root.pane-side==1:FilePane {english:root.english;remote:true;enabled:root.can-browse&&root.connected;connected:root.connected;rows:root.remote-rows;path<=>root.remote-path;folder<=>root.remote-folder;message:root.remote-message;loading:root.remote-loading;loaded:root.remote-loaded;
             geometry-ticket:root.geometry-ticket;geometry(a)=>{root.geometry(1,a);}drop-active:root.drop-side==1;drop-row:root.drop-row;drop-label:root.drop-label;
             tr(s,e)=>{return root.tr(s,e);}action(a)=>{root.action(1,a);}choose(n,c,s)=>{root.choose(1,n,c,s);}all(c)=>{root.all(1,c);}open(n)=>{root.open(1,n);}}
     }
     HorizontalBox {height:36px;vertical-stretch:0;padding:0px;
-        ActionButton {text:root.tr("上传",root.english);primary:true;enabled:root.can-browse&&root.connected&&root.remote-loaded&&root.local-selected>0;clicked=>{root.action(0,"upload");}}
-        ActionButton {text:root.tr("下载",root.english);primary:true;enabled:root.can-browse&&root.connected&&root.local-loaded&&root.remote-selected>0;clicked=>{root.action(1,"download");}}
-        Button {text:root.tr("删除远端所选",root.english);enabled:root.can-browse&&root.connected&&root.remote-selected>0;clicked=>{root.action(1,"delete");}}
+        if !root.compact||root.pane-side==0:ActionButton {text:root.tr("上传",root.english);primary:true;enabled:root.can-browse&&root.connected&&root.remote-loaded&&root.local-selected>0;clicked=>{root.action(0,"upload");}}
+        if !root.compact||root.pane-side==1:ActionButton {text:root.tr("下载",root.english);primary:true;enabled:root.can-browse&&root.connected&&root.local-loaded&&root.remote-selected>0;clicked=>{root.action(1,"download");}}
+        if !root.compact||root.pane-side==1:Button {text:root.tr("删除远端所选",root.english);enabled:root.can-browse&&root.connected&&root.remote-selected>0;clicked=>{root.action(1,"delete");}}
+    }
+    HorizontalBox {height:36px;vertical-stretch:0;padding:0px;
         ComboBox {accessible-label:root.tr("传输限速",root.english);model:[root.tr("不限速",root.english),"1 MiB/s","5 MiB/s","10 MiB/s"];current-index<=>root.rate;enabled:root.enabled&&!root.busy;}
         Button {text:root.tr("取消操作",root.english);enabled:root.enabled&&root.busy;clicked=>{root.action(0,"cancel");}}
     }
