@@ -613,9 +613,11 @@ pub fn run() -> Result<()> {
     });
     ui.on_fullscreen({
         let weak = ui.as_weak();
+        let desktop = desktop.clone();
         move || {
             if let Some(ui) = weak.upgrade() {
                 if ui.get_dialog_kind() == 0 && !ui.get_migration_busy() {
+                    if ui.get_desktop_expanded() { desktop.expand(false); return; }
                     let full = !ui.window().is_fullscreen();
                     ui.window().set_fullscreen(full);
                     ui.set_window_is_fullscreen(full);
@@ -637,26 +639,34 @@ pub fn run() -> Result<()> {
         let files = files.clone();
         let material = material.clone();
         let occluded = std::cell::Cell::new(false);
+        let local_keys = std::cell::RefCell::new(std::collections::HashSet::new());
         move |window, event| {
             if let Some(ui) = weak.upgrade() {
                 if let WindowEvent::Focused(focused)=event{ui.set_native_focused(*focused);}
                 if matches!(event,WindowEvent::Focused(true)|WindowEvent::ThemeChanged(_)){ui.invoke_material_refresh();}
-                desktop.window_event(event);
-                files.window_event(window, event);
+                if matches!(event, WindowEvent::Focused(false)) { local_keys.borrow_mut().clear(); }
                 if let WindowEvent::KeyboardInput { event, .. } = event {
+                    if local_keys.borrow().contains(&event.physical_key) {
+                        if event.state==ElementState::Released { local_keys.borrow_mut().remove(&event.physical_key); }
+                        return EventResult::PreventDefault;
+                    }
                     if event.state == ElementState::Pressed
                         && !event.repeat
                         && ui.get_dialog_kind() == 0
                     {
                         if matches!(&event.logical_key, Key::Named(NamedKey::F11))
                             || (matches!(&event.logical_key, Key::Named(NamedKey::Escape))
-                                && window.is_fullscreen()&&!ui.get_terminal_completion_active())
+                                && (ui.get_desktop_expanded()||window.is_fullscreen())&&!ui.get_terminal_completion_active()&&!ui.get_desktop_tools_open())
                         {
+                            local_keys.borrow_mut().insert(event.physical_key);
                             ui.invoke_fullscreen();
                             return EventResult::PreventDefault;
                         }
                     }
                 }
+                desktop.window_event(event);
+                files.window_event(window, event);
+                if let WindowEvent::Resized(size) = event { desktop.record_layout("resize",size.width,size.height); }
                 if let WindowEvent::Occluded(hidden) = event {
                     occluded.set(*hidden);
                 }

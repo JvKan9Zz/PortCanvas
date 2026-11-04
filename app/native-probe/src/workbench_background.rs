@@ -66,7 +66,7 @@ pub struct Controller {
     save_timer: slint::Timer,
     uploads: Cell<u64>,
     save_error: RefCell<String>,
-    hidden: Cell<Option<bool>>,
+    hidden: Cell<Option<(bool, bool)>>,
     visibility: RefCell<Vec<serde_json::Value>>,
     last_playback: RefCell<serde_json::Value>,
 }
@@ -604,10 +604,10 @@ impl Controller {
     pub fn sync(self: &Rc<Self>) {
         let Some(ui) = self.ui.upgrade() else { return };
         let hidden = ui.get_native_hidden();
-        if self.hidden.replace(Some(hidden)) != Some(hidden)
+        if self.hidden.replace(Some((hidden,ui.get_desktop_expanded()))) != Some((hidden,ui.get_desktop_expanded()))
             && std::env::var_os("PORTCANVAS_WORKBENCH_REPORT").is_some()
         {
-            self.visibility.borrow_mut().push(serde_json::json!({"hidden":hidden,"textureUploads":self.uploads.get(),"playback":snapshot(self.saved.borrow().as_ref())}));
+            self.visibility.borrow_mut().push(serde_json::json!({"hidden":hidden,"desktopExpanded":ui.get_desktop_expanded(),"textureUploads":self.uploads.get(),"playback":snapshot(self.saved.borrow().as_ref())}));
         }
         if ui.get_bg_cancellable() && (ui.get_page() != 1 || hidden) {
             self.cancel_stage();
