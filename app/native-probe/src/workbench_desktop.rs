@@ -72,6 +72,8 @@ pub struct Controller {
     draws: Cell<u64>,
     starts: Cell<u64>,
     visibility: RefCell<Vec<serde_json::Value>>,
+    fullscreen: Cell<Option<(bool, bool)>>,
+    fullscreen_events: RefCell<Vec<serde_json::Value>>,
 }
 fn image(width: u32, height: u32, pixels: &[u8]) -> slint::Image {
     slint::Image::from_rgba8(
@@ -113,6 +115,12 @@ impl Controller {
             draws: Cell::new(0),
             starts: Cell::new(0),
             visibility: RefCell::new(Vec::new()),
+            fullscreen: Cell::new(None),
+            fullscreen_events: RefCell::new(Vec::new()),
+        });
+        ui.on_desktop_fullscreen_change({
+            let c = c.clone();
+            move |full| c.fullscreen(full)
         });
         ui.on_desktop_view_changed({
             let c = c.clone();
@@ -386,6 +394,7 @@ impl Controller {
                 self.wanted.set(false);
                 self.failed.set(true);
                 cancel.cancel();
+                self.fullscreen(false);
                 self.clear_surface();
                 self.error("桌面输入队列繁忙，连接已断开以释放按键。");
             }
@@ -417,6 +426,7 @@ impl Controller {
         }
     }
     fn cancel_active(&self) {
+        self.fullscreen(false);
         self.release();
         if let Some(run) = self.running.borrow_mut().as_mut() {
             run.cancel.cancel();
@@ -572,7 +582,7 @@ impl Controller {
             self.draw_ticket.set(ticket);
             self.pending_draw.store(ticket, Ordering::SeqCst);
             if let Some(ui) = self.weak.upgrade() {
-                ui.window().with_winit_window(|w| w.request_redraw());
+                ui.window().request_redraw();
             }
         }
     }
@@ -674,6 +684,7 @@ impl Controller {
         if !owned {
             return;
         }
+        self.fullscreen(false);
         self.timer.stop();
         self.clear_surface();
         if !error.is_empty() {
@@ -790,6 +801,52 @@ impl Controller {
             _ => {}
         }
     }
+    pub fn fullscreen(&self, enter: bool) {
+        let Some(ui) = self.weak.upgrade() else { return };
+        if enter {
+            if self.fullscreen.get().is_some() || !self.drawable() || ui.get_dialog_kind()!=0
+                || ui.get_system_busy() || ui.get_migration_busy() { return; }
+            self.release();
+            self.fullscreen.set(Some((ui.window().is_fullscreen(), ui.get_desktop_fit())));
+            ui.set_desktop_fit(true);
+            ui.set_desktop_fullscreen(true);
+            ui.window().set_fullscreen(true);
+            ui.set_window_is_fullscreen(true);
+        } else {
+            let Some((window_full, fit)) = self.fullscreen.take() else { return };
+            self.release();
+            ui.set_desktop_fullscreen(false);
+            ui.set_desktop_fit(fit);
+            ui.window().set_fullscreen(window_full);
+            ui.set_window_is_fullscreen(window_full);
+        }
+        ui.set_desktop_focus_revision(ui.get_desktop_focus_revision()+1);
+        if enter && ui.get_desktop_readonly() { ui.invoke_desktop_leave_input(); }
+        // Apply focus after the native fullscreen/style transition has settled.
+        if enter {
+            let weak=self.weak.clone();
+            slint::Timer::single_shot(Duration::ZERO,move || {
+                if let Some(ui)=weak.upgrade() {
+                    if ui.get_desktop_fullscreen() {
+                        if ui.get_desktop_readonly() { ui.invoke_desktop_leave_input(); }
+                        else { ui.set_desktop_focus_revision(ui.get_desktop_focus_revision()+1); }
+                    }
+                }
+            });
+        }
+        let size=ui.window().size();
+        self.record_layout(if enter {"enter"} else {"exit"}, size.width, size.height);
+    }
+    pub fn record_layout(&self, reason: &str, width: u32, height: u32) {
+        if std::env::var_os("PORTCANVAS_WORKBENCH_REPORT").is_none() { return; }
+        if let Some(ui) = self.weak.upgrade() {
+            self.fullscreen_events.borrow_mut().push(serde_json::json!({
+                "desktopFullscreen":ui.get_desktop_fullscreen(),"windowFullscreen":ui.window().is_fullscreen(),
+                "reason":reason,"width":width,"height":height,"scale":ui.window().scale_factor(),
+                "fit":ui.get_desktop_fit(),"terminalOpen":ui.get_terminal_open(),"terminalVisible":ui.get_terminal_visible(),
+                "starts":self.starts.get()}));
+        }
+    }
     pub fn visibility(&self, hidden: bool) {
         if std::env::var_os("PORTCANVAS_WORKBENCH_REPORT").is_some() {
             self.visibility.borrow_mut().push(serde_json::json!({"hidden":hidden,"uploads":self.uploads.get(),"starts":self.starts.get(),"at":chrono::Utc::now().to_rfc3339()}));
@@ -811,6 +868,6 @@ impl Controller {
         }
     }
     pub fn report(&self) -> serde_json::Value {
-        serde_json::json!({"wanted":self.wanted.get(),"active":self.running.borrow().is_some(),"starts":self.starts.get(),"uploads":self.uploads.get(),"firstDraws":self.draws.get(),"visibility":*self.visibility.borrow()})
+        serde_json::json!({"wanted":self.wanted.get(),"active":self.running.borrow().is_some(),"starts":self.starts.get(),"uploads":self.uploads.get(),"firstDraws":self.draws.get(),"visibility":*self.visibility.borrow(),"fullscreenEvents":*self.fullscreen_events.borrow()})
     }
 }

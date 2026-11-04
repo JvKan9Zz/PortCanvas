@@ -817,5 +817,8 @@
   "SSH 端口应为 1–65535。": "The SSH port must be between 1 and 65535.",
   "请输入有效的 Linux 用户名。": "Enter a valid Linux username.",
   "桌面显示编号格式应为 :0 或 :1。": "Use a desktop display number such as :0 or :1.",
-  "桌面授权文件须为 Linux 绝对路径。": "The desktop authorization file must use an absolute Linux path."
+  "桌面授权文件须为 Linux 绝对路径。": "The desktop authorization file must use an absolute Linux path.",
+  "桌面全屏": "Desktop full screen",
+  "退出桌面全屏": "Exit desktop full screen",
+  "远程桌面已连接": "Remote desktop connected"
 }

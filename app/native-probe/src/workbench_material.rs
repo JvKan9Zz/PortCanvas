@@ -134,6 +134,7 @@ impl Controller {
             let c = c.clone();
             move || {
                 c.reset_monitor();
+                if let Some(ui)=c.ui.upgrade() { c.visibility(ui.get_native_hidden()); }
             }
         });
         ui.on_material_response({
@@ -226,6 +227,7 @@ impl Controller {
     fn can_monitor(&self, ui: &Workbench) -> bool {
         !self.prompted.get()
             && !ui.get_native_hidden()
+            && !ui.get_desktop_fullscreen()
             && ui.get_native_focused()
             && ui.get_dialog_kind() == 0
             && !ui.get_system_busy()
@@ -341,7 +343,10 @@ impl Controller {
     }
     fn draw(&self, api: &slint::GraphicsAPI) {
         let Some(ui) = self.ui.upgrade() else { return };
-        if ui.get_native_hidden() {
+        if ui.get_native_hidden() { return; }
+        if ui.get_desktop_fullscreen() {
+            ui.set_material_active(false);
+            self.key.borrow_mut().take();
             return;
         }
         let pixels = self.pixels.borrow();
@@ -483,7 +488,7 @@ impl Controller {
             self.reset_monitor();
         }
         if std::env::var_os("PORTCANVAS_WORKBENCH_REPORT").is_some() {
-            self.visibility.borrow_mut().push(serde_json::json!({"hidden":hidden,"sourceUploads":self.uploads.get(),"materialPasses":self.passes.get(),"heartbeatTicks":self.ticks.get()}));
+            self.visibility.borrow_mut().push(serde_json::json!({"hidden":hidden,"desktopFullscreen":self.ui.upgrade().is_some_and(|ui|ui.get_desktop_fullscreen()),"sourceUploads":self.uploads.get(),"materialPasses":self.passes.get(),"heartbeatTicks":self.ticks.get()}));
         }
     }
     pub fn shutdown(&self) {
