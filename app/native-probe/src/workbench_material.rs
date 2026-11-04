@@ -86,6 +86,9 @@ pub struct Controller {
     ticks: Cell<u64>,
     unsubscribe_errors: RefCell<Vec<String>>,
     transitions: RefCell<Vec<serde_json::Value>>,
+    record_geometry: bool,
+    last_geometry: Cell<Option<(bool,[f32;4])>>,
+    geometry: RefCell<Vec<serde_json::Value>>,
 }
 impl Controller {
     pub fn install(ui: &Workbench, pending_draw: Arc<AtomicU64>) -> anyhow::Result<Rc<Self>> {
@@ -125,6 +128,9 @@ impl Controller {
             ticks: Cell::new(0),
             unsubscribe_errors: Default::default(),
             transitions: Default::default(),
+            record_geometry: std::env::var_os("PORTCANVAS_WORKBENCH_REPORT").is_some(),
+            last_geometry: Cell::new(None),
+            geometry: RefCell::new(Vec::new()),
         });
         ui.on_material_refresh({
             let c = c.clone();
@@ -227,7 +233,7 @@ impl Controller {
     fn can_monitor(&self, ui: &Workbench) -> bool {
         !self.prompted.get()
             && !ui.get_native_hidden()
-            && !ui.get_desktop_fullscreen()
+            && !ui.get_desktop_expanded()
             && ui.get_native_focused()
             && ui.get_dialog_kind() == 0
             && !ui.get_system_busy()
@@ -343,12 +349,14 @@ impl Controller {
     }
     fn draw(&self, api: &slint::GraphicsAPI) {
         let Some(ui) = self.ui.upgrade() else { return };
-        if ui.get_native_hidden() { return; }
-        if ui.get_desktop_fullscreen() {
-            ui.set_material_active(false);
-            self.key.borrow_mut().take();
-            return;
+        if self.record_geometry {
+            let r=ui.get_desktop_work_rect();
+            let state=(ui.get_desktop_expanded(),[r.x,r.y,r.width,r.height]);
+            if self.last_geometry.replace(Some(state))!=Some(state) && self.geometry.borrow().len()<512 {
+                self.geometry.borrow_mut().push(serde_json::json!({"ms":self.epoch.elapsed().as_millis(),"expanded":state.0,"rect":state.1}));
+            }
         }
+        if ui.get_native_hidden() { return; }
         let pixels = self.pixels.borrow();
         let Some(pixels) = pixels.as_ref() else {
             self.release();
@@ -374,11 +382,11 @@ impl Controller {
             width: r.width,
             height: r.height,
         };
-        let mut rects = vec![
-            rect(ui.get_material_nav_rect()),
-            rect(ui.get_material_header_rect()),
-        ];
-        if ui.get_terminal_visible() {
+        let expanded=ui.get_desktop_expanded();
+        let mut rects=if expanded {vec![rect(ui.get_material_header_rect())]} else {
+            vec![rect(ui.get_material_nav_rect()),rect(ui.get_material_header_rect())]
+        };
+        if !expanded && ui.get_terminal_visible() {
             rects.push(rect(ui.get_material_terminal_rect()));
         }
         if rects.iter().any(|r| r.width <= 0. || r.height <= 0.) {
@@ -451,9 +459,9 @@ impl Controller {
                 let binding = (source, surfaces.iter().map(|s| s.size).collect::<Vec<_>>());
                 if self.bindings.borrow().as_ref() != Some(&binding) {
                     ui.set_bg_frame(background);
-                    ui.set_material_nav(images[0].clone());
-                    ui.set_material_header(images[1].clone());
-                    ui.set_material_terminal(images.get(2).cloned().unwrap_or_default());
+                    ui.set_material_nav(if expanded {Default::default()} else {images[0].clone()});
+                    ui.set_material_header(images[if expanded {0} else {1}].clone());
+                    ui.set_material_terminal(if expanded {Default::default()} else {images.get(2).cloned().unwrap_or_default()});
                     *self.bindings.borrow_mut() = Some(binding);
                 }
                 ui.set_material_active(true);
@@ -481,14 +489,14 @@ impl Controller {
             "qualityPasses":self.quality_passes.each_ref().map(Cell::get),"visibility":*self.visibility.borrow(),
             "released":self.released.get(),"driver":*self.driver.borrow(),"error":*self.error.borrow(),
             "policy":self.policy.get(),"os":self.os_report,"subscriptionsReleased":self.os.borrow().is_none()&&self.unsubscribe_errors.borrow().is_empty(),"unsubscribeErrors":*self.unsubscribe_errors.borrow(),
-            "synthetic":self.synthetic.get(),"heartbeatTicks":self.ticks.get(),"prompted":self.prompted.get(),"transitions":*self.transitions.borrow()})
+            "synthetic":self.synthetic.get(),"heartbeatTicks":self.ticks.get(),"prompted":self.prompted.get(),"transitions":*self.transitions.borrow(),"geometry":*self.geometry.borrow()})
     }
     pub fn visibility(&self, hidden: bool) {
         if hidden {
             self.reset_monitor();
         }
         if std::env::var_os("PORTCANVAS_WORKBENCH_REPORT").is_some() {
-            self.visibility.borrow_mut().push(serde_json::json!({"hidden":hidden,"desktopFullscreen":self.ui.upgrade().is_some_and(|ui|ui.get_desktop_fullscreen()),"sourceUploads":self.uploads.get(),"materialPasses":self.passes.get(),"heartbeatTicks":self.ticks.get()}));
+            self.visibility.borrow_mut().push(serde_json::json!({"hidden":hidden,"desktopExpanded":self.ui.upgrade().is_some_and(|ui|ui.get_desktop_expanded()),"sourceUploads":self.uploads.get(),"materialPasses":self.passes.get(),"heartbeatTicks":self.ticks.get()}));
         }
     }
     pub fn shutdown(&self) {

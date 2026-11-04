@@ -18,11 +18,10 @@ slint::slint! {
     export struct DeviceRow {id:string,name:string,address:string}
     export component Workbench inherits Window {
         title:"PortCanvas · Demo V0.6.0 (dev)";
-        preferred-width:1200px;preferred-height:820px;min-width:root.desktop-fullscreen?0px:1000px;min-height:root.desktop-fullscreen?0px:700px;
+        preferred-width:1200px;preferred-height:820px;min-width:1000px;min-height:700px;
         default-font-family:"Microsoft YaHei UI";default-font-size:14px;
         background:Palette.background;
         no-frame:root.window-is-fullscreen;
-        always-on-top:root.desktop-fullscreen&&root.native-focused;
         init=>{Palette.color-scheme=ColorScheme.light;}
         pure callback tr(string,bool)->string;
         // Native children may evaluate before Rust installs the translation handler.
@@ -88,8 +87,8 @@ slint::slint! {
         callback arena-metrics-result(string,string);callback arena-cameras-result(string,string,string);callback arena-camera-finished(string,string);
         callback arena-pose-started(string,string);callback arena-pose-packet(string);
         in-out property <bool> terminal-open:false;
-        out property <bool> terminal-visible:root.page!=0&&root.terminal-open&&!root.desktop-fullscreen;
-        changed terminal-visible=>{root.terminal-cancel-completion();if root.terminal-visible{root.terminal-reload();}else{main-focus.focus();}}
+        out property <bool> terminal-visible:root.page!=0&&root.terminal-open&&!root.desktop-expanded;
+        changed terminal-visible=>{root.terminal-cancel-completion();if root.terminal-visible{root.terminal-reload();}else if !root.desktop-expanded{main-focus.focus();}}
         in property <bool> material-active:false;
         in property <bool> material-solid:false;
         in property <int> material-suggestion-target:1;
@@ -99,7 +98,8 @@ slint::slint! {
         in property <image> material-nav;in property <image> material-header;in property <image> material-terminal;
         out property <color> material-tint:Palette.background;
         out property <MaterialRect> material-nav-rect:{x:16,y:16,width:88,height:(root.height - 32px)/1px};
-        out property <MaterialRect> material-header-rect:{x:116,y:16,width:(root.width - 132px)/1px,height:64};
+        out property <MaterialRect> material-header-rect:root.desktop-expanded?{x:(work-area.x+work-layout.padding-left)/1px,y:(work-area.y+work-layout.padding-top)/1px,width:(work-area.width - work-layout.padding-left - work-layout.padding-right)/1px,height:52}:{x:116,y:16,width:(root.width - 132px)/1px,height:64};
+        out property <MaterialRect> desktop-work-rect:{x:work-area.x/1px,y:work-area.y/1px,width:work-area.width/1px,height:work-area.height/1px};
         out property <MaterialRect> material-terminal-rect:{x:terminal-panel.x/1px,y:96,width:terminal-panel.width/1px,height:(root.height - 112px)/1px};
         property <bool> compact-content:root.terminal-visible&&root.width<1360px;
         property <length> drawer-width:min(540px,max(420px,(root.width - 144px)*0.46));
@@ -124,10 +124,10 @@ slint::slint! {
         in property <int> desktop-cursor-hot-x;
         in property <int> desktop-cursor-hot-y;
         in property <bool> desktop-ready:false;
-        in property <bool> desktop-fullscreen:false;
-        callback desktop-fullscreen-change(bool);callback desktop-leave-input();
-        desktop-leave-input=>{desktop-exit.focus();}
-        changed desktop-fullscreen=>{root.bg-sync();root.material-controls();}
+        in property <bool> desktop-expanded:false;
+        callback desktop-expand(bool);
+        in-out property <bool> desktop-tools-open:false;
+        changed desktop-expanded=>{root.bg-sync();root.material-controls();}
         in property <bool> desktop-active:false;
         in property <bool> desktop-wanted:false;
         in property <bool> desktop-clipboard-available:false;
@@ -201,7 +201,7 @@ slint::slint! {
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
-        changed page=>{if root.page!=5{root.desktop-fullscreen-change(false);}root.material-refresh();root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.terminal-visible{root.terminal-reload();}}
+        changed page=>{if root.page!=5{root.desktop-expand(false);}root.material-refresh();root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.terminal-visible{root.terminal-reload();}}
         changed native-hidden=>{root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.terminal-visible{root.terminal-reload();}}
         Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.can-interact;triggered=>{root.poll-logs();}}
 
@@ -224,10 +224,10 @@ slint::slint! {
         callback set-language(int);callback set-appearance(int);callback set-environment(int);callback set-desktop-mode(int);callback save-log-limit(string);
         changed appearance=>{Palette.color-scheme=root.appearance==0?ColorScheme.light:root.appearance==1?ColorScheme.dark:ColorScheme.unknown;}
         changed dialog-kind=>{root.bg-sync();if root.dialog-kind==8{crop-view.focus-selection();}else if root.dialog-kind!=0 {root.accept-focused=false;modal-focus.focus();}else{main-focus.focus();}}
-        Rectangle {visible:!root.desktop-fullscreen;background:root.bg-custom?root.bg-color:Palette.background;
+        Rectangle {background:root.bg-custom?root.bg-color:Palette.background;
             if root.bg-has-frame:Image {source:root.bg-frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.bg-saved-crop-x*root.bg-width);source-clip-y:round(root.bg-saved-crop-y*root.bg-height);source-clip-width:max(1,round(root.bg-saved-crop-width*root.bg-width));source-clip-height:max(1,round(root.bg-saved-crop-height*root.bg-height));}
         }
-        if root.material-solid&&!root.desktop-fullscreen:Rectangle {background:Palette.background;}
+        if root.material-solid:Rectangle {background:Palette.background;}
         // THESIS: A clear work area between the familiar left rail and optional shared terminal.
         // OWN-WORLD: User-pinned Liquid Glass; bounded background-only GPU surfaces and native controls.
         // STORY: Select a workspace, work in place, open the same terminal without leaving that page.
@@ -235,7 +235,7 @@ slint::slint! {
         // FORM: Code-led extension of the approved PortCanvas desktop structure; no new identity choice.
         // FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
         main-focus:=FocusScope {enabled:!root.system-busy&&!root.migration-busy;
-            MaterialPanel {visible:!root.desktop-fullscreen;x:16px;y:16px;width:88px;height:parent.height - 32px;material:root.material-nav;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
+            MaterialPanel {visible:!root.desktop-expanded;x:16px;y:16px;width:88px;height:parent.height - 32px;material:root.material-nav;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
                 VerticalBox {padding:8px;spacing:6px;
                     Image {source:@image-url("../../ui/portcanvas.png");image-fit:contain;preferred-height:40px;vertical-stretch:0;}
                     NavButton {text:root.english?"Devices":"设备";icon:@image-url("icons/devices.svg");selected:root.page==0;enabled:root.can-interact;clicked=>{root.page=0;}}
@@ -248,22 +248,28 @@ slint::slint! {
                     NavButton {text:root.english?"About":"关于";icon:@image-url("icons/about.svg");selected:root.page==2;enabled:root.can-interact;clicked=>{root.page=2;}}
                 }
             }
-            MaterialPanel {visible:!root.desktop-fullscreen;x:116px;y:16px;width:parent.width - 132px;height:64px;material:root.material-header;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
+            MaterialPanel {visible:!root.desktop-expanded;x:116px;y:16px;width:parent.width - 132px;height:64px;material:root.material-header;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
                 HorizontalBox {padding-left:20px;padding-right:16px;spacing:12px;
                     Text {text:root.tr(root.page==0?"设备连接与管理":root.page==5?"远程桌面":root.page==6?"文件":root.page==3?"日志":root.page==7?"赛台":root.page==1?"设置":"关于",root.english);font-size:22px;font-weight:600;color:Palette.foreground;vertical-alignment:center;}
                     Text {text:root.tr(root.connection-status,root.english);color:Palette.foreground;horizontal-alignment:right;vertical-alignment:center;overflow:elide;}
-                    ActionButton {text:root.tr(root.window-is-fullscreen?"退出全屏":"全屏",root.english);width:112px;horizontal-stretch:0;enabled:root.can-interact;clicked=>{root.fullscreen();}}
+                    ActionButton {text:root.tr(root.window-is-fullscreen?"退出软件全屏":"软件全屏",root.english);width:144px;horizontal-stretch:0;enabled:root.can-interact;clicked=>{root.fullscreen();}}
                     if root.page!=0:ActionButton {text:root.english?"Terminal":"终端";primary:root.terminal-open;width:96px;horizontal-stretch:0;enabled:root.can-interact;accessible-checkable:true;accessible-checked:root.terminal-open;clicked=>{root.terminal-open=!root.terminal-open;}}
                     if root.busy||root.connected:ActionButton {text:root.tr(root.busy?"取消连接":"断开连接",root.english);width:128px;horizontal-stretch:0;enabled:root.can-interact;clicked=>{root.disconnect-device();}}
                 }
             }
-            Rectangle {x:root.desktop-fullscreen?0px:116px;y:root.desktop-fullscreen?0px:96px;width:root.desktop-fullscreen?parent.width:parent.width - 132px - (root.terminal-visible?root.drawer-width + 12px:0px);height:root.desktop-fullscreen?parent.height:parent.height - 112px;
-                background:Palette.background;border-radius:root.desktop-fullscreen?0px:20px;clip:true;
-                VerticalBox {padding:root.desktop-fullscreen?0px:16px;spacing:root.desktop-fullscreen?0px:12px;
-            if !root.desktop-fullscreen&&root.system-error!="":Text {text:root.tr(root.system-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
-            if !root.desktop-fullscreen&&root.page!=1&&root.bg-error!="":Text {text:root.tr(root.bg-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
-            if !root.desktop-fullscreen&&root.migration-status!="":Text {text:root.tr(root.migration-status,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
-            if !root.desktop-fullscreen&&root.migration-error!="":Text {text:root.tr(root.migration-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
+            work-area:=Rectangle {x:116px;y:96px;width:parent.width - 132px - (root.page!=0&&root.terminal-open?root.drawer-width + 12px:0px);height:parent.height - 112px;
+                background:root.desktop-expanded?transparent:Palette.background;border-radius:20px;clip:true;
+                states [expanded when root.desktop-expanded:{
+                    x:12px;y:12px;width:parent.width - 24px;height:parent.height - 24px;border-radius:14px;
+                    work-layout.padding-left:0px;work-layout.padding-right:0px;work-layout.padding-top:0px;work-layout.padding-bottom:0px;
+                    in {animate x,y,width,height,border-radius {duration:root.material-solid?0ms:240ms;easing:ease-out;}animate work-layout.padding-left,work-layout.padding-right,work-layout.padding-top,work-layout.padding-bottom {duration:root.material-solid?0ms:240ms;easing:ease-out;}}
+                    out {animate x,y,width,height,border-radius {duration:root.material-solid?0ms:240ms;easing:ease-out;}animate work-layout.padding-left,work-layout.padding-right,work-layout.padding-top,work-layout.padding-bottom {duration:root.material-solid?0ms:240ms;easing:ease-out;}}
+                }]
+                work-layout:=VerticalBox {padding-left:16px;padding-right:16px;padding-top:16px;padding-bottom:16px;spacing:12px;
+            if !root.desktop-expanded&&root.system-error!="":Text {text:root.tr(root.system-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
+            if !root.desktop-expanded&&root.page!=1&&root.bg-error!="":Text {text:root.tr(root.bg-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
+            if !root.desktop-expanded&&root.migration-status!="":Text {text:root.tr(root.migration-status,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
+            if !root.desktop-expanded&&root.migration-error!="":Text {text:root.tr(root.migration-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             // DEVICE PATH: flat selectable list, scrollable credentials, always-reachable actions.
             // Preserve the existing profile, trust, cancellation and migration callbacks.
             if root.page==0: HorizontalBox {
@@ -453,7 +459,8 @@ slint::slint! {
                 tr(s,e)=>{return root.tr(s,e);}action(i,a)=>{root.files-action(i,a);}choose(i,n,c,s)=>{root.files-choose(i,n,c,s);}all(i,c)=>{root.files-all(i,c);}open(i,n)=>{root.files-open(i,n);}
             }
             if root.page==5:DesktopView {
-                fullscreen:root.desktop-fullscreen;toggle-fullscreen=>{root.desktop-fullscreen-change(!root.desktop-fullscreen);}leave-input=>{root.desktop-leave-input();}
+                expanded:root.desktop-expanded;toggle-expanded=>{root.desktop-expand(!root.desktop-expanded);}tools-open-changed(open)=>{root.desktop-tools-open=open;}
+                toolbar-material:root.material-header;material-active:root.material-active;material-solid:root.material-solid;material-strength:root.bg-material;
                 english:root.english;enabled:root.can-interact;connected:root.connected;active:root.desktop-active;wanted:root.desktop-wanted;ready:root.desktop-ready;
                 mode:root.desktop-mode;fit<=>root.desktop-fit;read-only<=>root.desktop-readonly;frame:root.desktop-frame;source-width:root.desktop-source-width;source-height:root.desktop-source-height;
                 cursor:root.desktop-cursor;cursor-known:root.desktop-cursor-known;cursor-width:root.desktop-cursor-width;cursor-height:root.desktop-cursor-height;cursor-hot-x:root.desktop-cursor-hot-x;cursor-hot-y:root.desktop-cursor-hot-y;
@@ -492,10 +499,6 @@ slint::slint! {
             }
                 }
             }
-        }
-        // FULLSCREEN: one existing RFB view fills the screen; local exit stays above it.
-        desktop-exit:=ActionButton {visible:root.desktop-fullscreen;x:12px;y:12px;width:root.english?220px:160px;height:36px;
-            text:root.tr("退出桌面全屏",root.english);enabled:root.can-interact;clicked=>{root.desktop-fullscreen-change(false);}
         }
         Rectangle {
             visible:root.dialog-kind!=0;

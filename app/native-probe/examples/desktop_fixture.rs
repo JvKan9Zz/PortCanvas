@@ -26,7 +26,9 @@ async fn main() -> Result<()> {
             &serde_json::json!({"data":data,"port":fixture.profile.port,"fingerprint":fixture.fingerprint}),
         )?,
     )?;
-    let end = tokio::time::Instant::now() + Duration::from_secs(1800);
+    let seconds=std::env::var("PORTCANVAS_FIXTURE_SECONDS").ok().map(|v|v.parse::<u64>()).transpose()?.unwrap_or(1800);
+    anyhow::ensure!((1..=7200).contains(&seconds),"fixture duration must be 1..=7200 seconds");
+    let end = tokio::time::Instant::now() + Duration::from_secs(seconds);
     while tokio::time::Instant::now() < end && !root.join("desktop-stop").exists() {
         std::fs::write(
             root.join("desktop-counts.json"),

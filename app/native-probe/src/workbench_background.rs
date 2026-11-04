@@ -604,10 +604,10 @@ impl Controller {
     pub fn sync(self: &Rc<Self>) {
         let Some(ui) = self.ui.upgrade() else { return };
         let hidden = ui.get_native_hidden();
-        if self.hidden.replace(Some((hidden,ui.get_desktop_fullscreen()))) != Some((hidden,ui.get_desktop_fullscreen()))
+        if self.hidden.replace(Some((hidden,ui.get_desktop_expanded()))) != Some((hidden,ui.get_desktop_expanded()))
             && std::env::var_os("PORTCANVAS_WORKBENCH_REPORT").is_some()
         {
-            self.visibility.borrow_mut().push(serde_json::json!({"hidden":hidden,"desktopFullscreen":ui.get_desktop_fullscreen(),"textureUploads":self.uploads.get(),"playback":snapshot(self.saved.borrow().as_ref())}));
+            self.visibility.borrow_mut().push(serde_json::json!({"hidden":hidden,"desktopExpanded":ui.get_desktop_expanded(),"textureUploads":self.uploads.get(),"playback":snapshot(self.saved.borrow().as_ref())}));
         }
         if ui.get_bg_cancellable() && (ui.get_page() != 1 || hidden) {
             self.cancel_stage();
@@ -615,7 +615,7 @@ impl Controller {
         }
         let preview = self.draft.borrow().is_some();
         if let Some(p) = self.saved.borrow().as_ref().and_then(|c| c.player.as_ref()) {
-            p.paused(hidden || preview || ui.get_bg_busy() || ((ui.get_material_solid() || ui.get_desktop_fullscreen()) && ui.get_bg_volume().round() == 0.));
+            p.paused(hidden || preview || ui.get_bg_busy() || (ui.get_material_solid() && ui.get_bg_volume().round() == 0.));
         }
         if let Some(p) = self
             .draft
@@ -635,7 +635,7 @@ impl Controller {
                 .borrow()
                 .as_ref()
                 .is_some_and(|d| d.canvas.player.is_some());
-        if !hidden && videos && (!(ui.get_material_solid() || ui.get_desktop_fullscreen()) || preview) {
+        if !hidden && videos && (!ui.get_material_solid() || preview) {
             if !self.timer.running() {
                 let weak = Rc::downgrade(self);
                 self.timer.start(
@@ -655,7 +655,7 @@ impl Controller {
     fn draw(&self) {
         let Some(ui) = self.ui.upgrade() else { return };
         for preview in [false, true] {
-            if !preview && (ui.get_material_solid() || ui.get_desktop_fullscreen()) { continue; }
+            if !preview && ui.get_material_solid() { continue; }
             let mut saved = self.saved.borrow_mut();
             let mut draft = self.draft.borrow_mut();
             let c = if preview {

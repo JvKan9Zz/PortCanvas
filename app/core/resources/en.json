@@ -95,7 +95,7 @@
   "适配": "Fit",
   "原始像素尺寸": "Original size",
   "切换只读模式": "Toggle view-only mode",
-  "只读": "View only",
+  "只读": "Read only",
   "向远端发送 Ctrl+Alt+Del": "Send Ctrl+Alt+Del to the device",
   "切换全屏": "Toggle fullscreen",
   "远程桌面未连接": "Desktop disconnected",
@@ -818,7 +818,10 @@
   "请输入有效的 Linux 用户名。": "Enter a valid Linux username.",
   "桌面显示编号格式应为 :0 或 :1。": "Use a desktop display number such as :0 or :1.",
   "桌面授权文件须为 Linux 绝对路径。": "The desktop authorization file must use an absolute Linux path.",
-  "桌面全屏": "Desktop full screen",
-  "退出桌面全屏": "Exit desktop full screen",
-  "远程桌面已连接": "Remote desktop connected"
+  "远程桌面已连接": "Remote desktop connected",
+  "桌面操作": "Desktop actions",
+  "展开远程桌面": "Expand remote desktop",
+  "收起远程桌面": "Restore workspace",
+  "软件全屏": "App full screen",
+  "退出软件全屏": "Exit app full screen"
 }

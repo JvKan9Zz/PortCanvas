@@ -72,8 +72,8 @@ pub struct Controller {
     draws: Cell<u64>,
     starts: Cell<u64>,
     visibility: RefCell<Vec<serde_json::Value>>,
-    fullscreen: Cell<Option<(bool, bool)>>,
-    fullscreen_events: RefCell<Vec<serde_json::Value>>,
+    expanded_fit: Cell<Option<bool>>,
+    expansion_events: RefCell<Vec<serde_json::Value>>,
 }
 fn image(width: u32, height: u32, pixels: &[u8]) -> slint::Image {
     slint::Image::from_rgba8(
@@ -115,12 +115,12 @@ impl Controller {
             draws: Cell::new(0),
             starts: Cell::new(0),
             visibility: RefCell::new(Vec::new()),
-            fullscreen: Cell::new(None),
-            fullscreen_events: RefCell::new(Vec::new()),
+            expanded_fit: Cell::new(None),
+            expansion_events: RefCell::new(Vec::new()),
         });
-        ui.on_desktop_fullscreen_change({
+        ui.on_desktop_expand({
             let c = c.clone();
-            move |full| c.fullscreen(full)
+            move |full| c.expand(full)
         });
         ui.on_desktop_view_changed({
             let c = c.clone();
@@ -131,7 +131,7 @@ impl Controller {
             move || {
                 if c.wanted.get() {
                     c.failed.set(false);
-                    c.cancel_active();
+                    c.cancel_stream();
                 }
                 c.sync();
             }
@@ -394,7 +394,7 @@ impl Controller {
                 self.wanted.set(false);
                 self.failed.set(true);
                 cancel.cancel();
-                self.fullscreen(false);
+                self.expand(false);
                 self.clear_surface();
                 self.error("桌面输入队列繁忙，连接已断开以释放按键。");
             }
@@ -426,7 +426,10 @@ impl Controller {
         }
     }
     fn cancel_active(&self) {
-        self.fullscreen(false);
+        self.expand(false);
+        self.cancel_stream();
+    }
+    fn cancel_stream(&self) {
         self.release();
         if let Some(run) = self.running.borrow_mut().as_mut() {
             run.cancel.cancel();
@@ -684,7 +687,9 @@ impl Controller {
         if !owned {
             return;
         }
-        self.fullscreen(false);
+        if !error.is_empty() || !self.wanted.get() || !self.allowed_now() || self.failed.get() {
+            self.expand(false);
+        }
         self.timer.stop();
         self.clear_surface();
         if !error.is_empty() {
@@ -758,6 +763,7 @@ impl Controller {
                 "service" => "正在启动远端桌面服务…",
                 "tunnel" => "正在进行RFB握手…",
                 "frame" => "正在接收完整桌面画面…",
+                _ if self.wanted.get() => "正在接收完整桌面画面…",
                 _ => "正在断开桌面…",
             }
         } else if ui.get_desktop_ready() {
@@ -801,47 +807,30 @@ impl Controller {
             _ => {}
         }
     }
-    pub fn fullscreen(&self, enter: bool) {
-        let Some(ui) = self.weak.upgrade() else { return };
+    pub fn expand(&self, enter: bool) {
+        let Some(ui)=self.weak.upgrade() else {return};
         if enter {
-            if self.fullscreen.get().is_some() || !self.drawable() || ui.get_dialog_kind()!=0
-                || ui.get_system_busy() || ui.get_migration_busy() { return; }
+            if self.expanded_fit.get().is_some() || !self.drawable() || ui.get_dialog_kind()!=0
+                || ui.get_system_busy() || ui.get_migration_busy() {return;}
             self.release();
-            self.fullscreen.set(Some((ui.window().is_fullscreen(), ui.get_desktop_fit())));
+            self.expanded_fit.set(Some(ui.get_desktop_fit()));
             ui.set_desktop_fit(true);
-            ui.set_desktop_fullscreen(true);
-            ui.window().set_fullscreen(true);
-            ui.set_window_is_fullscreen(true);
+            ui.set_desktop_expanded(true);
         } else {
-            let Some((window_full, fit)) = self.fullscreen.take() else { return };
+            let Some(fit)=self.expanded_fit.take() else {return};
             self.release();
-            ui.set_desktop_fullscreen(false);
+            ui.set_desktop_expanded(false);
             ui.set_desktop_fit(fit);
-            ui.window().set_fullscreen(window_full);
-            ui.set_window_is_fullscreen(window_full);
         }
-        ui.set_desktop_focus_revision(ui.get_desktop_focus_revision()+1);
-        if enter && ui.get_desktop_readonly() { ui.invoke_desktop_leave_input(); }
-        // Apply focus after the native fullscreen/style transition has settled.
-        if enter {
-            let weak=self.weak.clone();
-            slint::Timer::single_shot(Duration::ZERO,move || {
-                if let Some(ui)=weak.upgrade() {
-                    if ui.get_desktop_fullscreen() {
-                        if ui.get_desktop_readonly() { ui.invoke_desktop_leave_input(); }
-                        else { ui.set_desktop_focus_revision(ui.get_desktop_focus_revision()+1); }
-                    }
-                }
-            });
-        }
+        ui.set_desktop_focus_revision(ui.get_desktop_focus_revision().wrapping_add(1));
         let size=ui.window().size();
-        self.record_layout(if enter {"enter"} else {"exit"}, size.width, size.height);
+        self.record_layout(if enter {"enter"} else {"exit"},size.width,size.height);
     }
     pub fn record_layout(&self, reason: &str, width: u32, height: u32) {
         if std::env::var_os("PORTCANVAS_WORKBENCH_REPORT").is_none() { return; }
         if let Some(ui) = self.weak.upgrade() {
-            self.fullscreen_events.borrow_mut().push(serde_json::json!({
-                "desktopFullscreen":ui.get_desktop_fullscreen(),"windowFullscreen":ui.window().is_fullscreen(),
+            self.expansion_events.borrow_mut().push(serde_json::json!({
+                "desktopExpanded":ui.get_desktop_expanded(),"windowFullscreen":ui.window().is_fullscreen(),
                 "reason":reason,"width":width,"height":height,"scale":ui.window().scale_factor(),
                 "fit":ui.get_desktop_fit(),"terminalOpen":ui.get_terminal_open(),"terminalVisible":ui.get_terminal_visible(),
                 "starts":self.starts.get()}));
@@ -868,6 +857,6 @@ impl Controller {
         }
     }
     pub fn report(&self) -> serde_json::Value {
-        serde_json::json!({"wanted":self.wanted.get(),"active":self.running.borrow().is_some(),"starts":self.starts.get(),"uploads":self.uploads.get(),"firstDraws":self.draws.get(),"visibility":*self.visibility.borrow(),"fullscreenEvents":*self.fullscreen_events.borrow()})
+        serde_json::json!({"wanted":self.wanted.get(),"active":self.running.borrow().is_some(),"starts":self.starts.get(),"uploads":self.uploads.get(),"firstDraws":self.draws.get(),"visibility":*self.visibility.borrow(),"expansionEvents":*self.expansion_events.borrow()})
     }
 }

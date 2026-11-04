@@ -617,7 +617,7 @@ pub fn run() -> Result<()> {
         move || {
             if let Some(ui) = weak.upgrade() {
                 if ui.get_dialog_kind() == 0 && !ui.get_migration_busy() {
-                    if ui.get_desktop_fullscreen() { desktop.fullscreen(false); return; }
+                    if ui.get_desktop_expanded() { desktop.expand(false); return; }
                     let full = !ui.window().is_fullscreen();
                     ui.window().set_fullscreen(full);
                     ui.set_window_is_fullscreen(full);
@@ -656,7 +656,7 @@ pub fn run() -> Result<()> {
                     {
                         if matches!(&event.logical_key, Key::Named(NamedKey::F11))
                             || (matches!(&event.logical_key, Key::Named(NamedKey::Escape))
-                                && window.is_fullscreen()&&!ui.get_terminal_completion_active())
+                                && (ui.get_desktop_expanded()||window.is_fullscreen())&&!ui.get_terminal_completion_active()&&!ui.get_desktop_tools_open())
                         {
                             local_keys.borrow_mut().insert(event.physical_key);
                             ui.invoke_fullscreen();
