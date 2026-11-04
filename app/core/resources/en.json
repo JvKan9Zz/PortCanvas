@@ -793,5 +793,17 @@
   "全选": "Select all",
   "本地目录": "Local folder",
   "远端目录": "Remote folder",
-  "目录或文件不存在，请刷新后重试。": "The folder or file does not exist. Refresh and try again."
+  "目录或文件不存在，请刷新后重试。": "The folder or file does not exist. Refresh and try again.",
+  "Windows 高对比度已开启，当前显示不透明基础材质。": "Windows high contrast is on. Using an opaque basic material.",
+  "Windows 透明效果已关闭，当前显示不透明基础材质。": "Windows transparency is off. Using an opaque basic material.",
+  "Windows 动画效果已关闭，当前显示不透明基础材质。": "Windows animations are off. Using an opaque basic material.",
+  "系统效果状态不可用，当前显示不透明基础材质。": "System effect settings are unavailable. Using an opaque basic material.",
+  "节能或低电量状态：当前使用轻量材质。": "Energy saver or low battery: using Performance material.",
+  "GPU 玻璃不可用，当前显示基础材质。": "GPU glass is unavailable. Using basic material.",
+  "降低玻璃效果？": "Reduce glass effects?",
+  "界面持续响应较慢，是否将玻璃效果切换到均衡？": "The interface has been slow to respond. Switch glass effects to Balanced?",
+  "界面持续响应较慢，是否将玻璃效果切换到轻量？": "The interface has been slow to respond. Switch glass effects to Performance?",
+  "保持当前": "Keep current",
+  "切换到均衡": "Switch to Balanced",
+  "切换到轻量": "Switch to Performance"
 }

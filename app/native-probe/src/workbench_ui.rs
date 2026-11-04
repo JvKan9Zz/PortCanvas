@@ -56,6 +56,8 @@ slint::slint! {
         in-out property <int> theme:0;
         in property <bool> window-is-fullscreen:false;
         in property <bool> native-hidden:false;
+        in property <bool> native-focused:true;
+        changed native-focused=>{root.material-controls();}
         in property <[FileRow]> file-local-rows;in property <[FileRow]> file-remote-rows;
         in property <[string]> file-drives;in-out property <int> file-drive-index:-1;callback files-drive(int);
         in-out property <FileArea> file-local-area;in-out property <FileArea> file-remote-area;
@@ -85,6 +87,11 @@ slint::slint! {
         out property <bool> terminal-visible:root.page!=0&&root.terminal-open;
         changed terminal-visible=>{root.terminal-cancel-completion();if root.terminal-visible{root.terminal-reload();}else{main-focus.focus();}}
         in property <bool> material-active:false;
+        in property <bool> material-solid:false;
+        in property <int> material-suggestion-target:1;
+        in property <string> material-status;
+        callback material-refresh();callback material-controls();callback material-response(bool);
+        changed material-solid=>{root.bg-sync();}
         in property <image> material-nav;in property <image> material-header;in property <image> material-terminal;
         out property <color> material-tint:Palette.background;
         out property <MaterialRect> material-nav-rect:{x:16,y:16,width:88,height:(root.height - 32px)/1px};
@@ -95,7 +102,7 @@ slint::slint! {
         in property <image> bg-frame;in property <bool> bg-has-frame;in property <bool> bg-custom;in property <color> bg-color:#eef3fb;
         in property <int> bg-width;in property <int> bg-height;in property <bool> bg-busy;in property <bool> bg-cancellable;
         in-out property <string> bg-hex:"#eef3fb";in-out property <float> bg-volume:0;in-out property <float> bg-material:100;
-        in-out property <int> glass-quality:2;in property <bool> glass-loaded:false;in property <string> glass-error;callback glass-controls(bool);
+        in-out property <int> glass-quality:2;changed glass-quality=>{root.material-controls();}in property <bool> glass-loaded:false;in property <string> glass-error;callback glass-controls(bool);
         in property <string> bg-status;in property <string> bg-error;
         in property <float> bg-saved-crop-x;in property <float> bg-saved-crop-y;in property <float> bg-saved-crop-width:1;in property <float> bg-saved-crop-height:1;
         in property <image> bg-preview;in property <int> bg-preview-width:1;in property <int> bg-preview-height:1;
@@ -186,7 +193,7 @@ slint::slint! {
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
-        changed page=>{root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.terminal-visible{root.terminal-reload();}}
+        changed page=>{root.material-refresh();root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.terminal-visible{root.terminal-reload();}}
         changed native-hidden=>{root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.terminal-visible{root.terminal-reload();}}
         Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.can-interact;triggered=>{root.poll-logs();}}
 
@@ -212,6 +219,7 @@ slint::slint! {
         Rectangle {background:root.bg-custom?root.bg-color:Palette.background;
             if root.bg-has-frame:Image {source:root.bg-frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.bg-saved-crop-x*root.bg-width);source-clip-y:round(root.bg-saved-crop-y*root.bg-height);source-clip-width:max(1,round(root.bg-saved-crop-width*root.bg-width));source-clip-height:max(1,round(root.bg-saved-crop-height*root.bg-height));}
         }
+        if root.material-solid:Rectangle {background:Palette.background;}
         // THESIS: A clear work area between the familiar left rail and optional shared terminal.
         // OWN-WORLD: User-pinned Liquid Glass; bounded background-only GPU surfaces and native controls.
         // STORY: Select a workspace, work in place, open the same terminal without leaving that page.
@@ -219,7 +227,7 @@ slint::slint! {
         // FORM: Code-led extension of the approved PortCanvas desktop structure; no new identity choice.
         // FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
         main-focus:=FocusScope {enabled:!root.system-busy&&!root.migration-busy;
-            MaterialPanel {x:16px;y:16px;width:88px;height:parent.height - 32px;material:root.material-nav;active:root.material-active;strength:root.bg-material;
+            MaterialPanel {x:16px;y:16px;width:88px;height:parent.height - 32px;material:root.material-nav;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
                 VerticalBox {padding:8px;spacing:6px;
                     Image {source:@image-url("../../ui/portcanvas.png");image-fit:contain;preferred-height:40px;vertical-stretch:0;}
                     NavButton {text:root.english?"Devices":"设备";icon:@image-url("icons/devices.svg");selected:root.page==0;enabled:root.can-interact;clicked=>{root.page=0;}}
@@ -232,7 +240,7 @@ slint::slint! {
                     NavButton {text:root.english?"About":"关于";icon:@image-url("icons/about.svg");selected:root.page==2;enabled:root.can-interact;clicked=>{root.page=2;}}
                 }
             }
-            MaterialPanel {x:116px;y:16px;width:parent.width - 132px;height:64px;material:root.material-header;active:root.material-active;strength:root.bg-material;
+            MaterialPanel {x:116px;y:16px;width:parent.width - 132px;height:64px;material:root.material-header;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
                 HorizontalBox {padding-left:20px;padding-right:16px;spacing:12px;
                     Text {text:root.tr(root.page==0?"设备连接与管理":root.page==5?"远程桌面":root.page==6?"文件":root.page==3?"日志":root.page==7?"赛台":root.page==1?"设置":"关于",root.english);font-size:22px;font-weight:600;color:Palette.foreground;vertical-alignment:center;}
                     Text {text:root.tr(root.connection-status,root.english);color:Palette.foreground;horizontal-alignment:right;vertical-alignment:center;overflow:elide;}
@@ -341,7 +349,7 @@ slint::slint! {
                     HorizontalBox {padding:0px;Text {text:root.tr("外观",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("浅色",root.english),root.tr("深色",root.english),root.tr("跟随系统",root.english)];current-index:root.appearance;enabled:root.can-interact;selected(_)=>{root.set-appearance(self.current-index);}}}
                     HorizontalBox {padding:0px;Text {text:root.tr("主题色彩",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("蓝色",root.english),root.tr("绿色",root.english),root.tr("石墨",root.english)];current-index:root.theme;enabled:root.can-interact;selected(_)=>{root.set-theme(self.current-index);}}}
                     HorizontalBox {padding:0px;Text {text:root.tr("桌面画质",root.english);color:Palette.foreground;}ComboBox {model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.desktop-mode;enabled:root.can-interact;selected(_)=>{root.set-desktop-mode(self.current-index);}}}
-                    GlassSettings {english:root.english;enabled:root.glass-loaded&&root.can-interact&&!root.bg-busy;quality<=>root.glass-quality;material<=>root.bg-material;error:root.glass-error;tr(s,e)=>{return root.tr(s,e);}update(finished)=>{root.glass-controls(finished);}}
+                    GlassSettings {english:root.english;enabled:root.glass-loaded&&root.can-interact&&!root.bg-busy;quality<=>root.glass-quality;material<=>root.bg-material;error:root.glass-error;notice:root.material-status;tr(s,e)=>{return root.tr(s,e);}update(finished)=>{root.glass-controls(finished);}}
                     BackgroundSettings {compact:root.terminal-visible;english:root.english;enabled:root.can-interact&&!root.busy;busy:root.bg-busy;cancellable:root.bg-cancellable;
                         frame:root.bg-frame;has-frame:root.bg-has-frame;color:root.bg-color;source-width:root.bg-width;source-height:root.bg-height;
                         crop-x:root.bg-saved-crop-x;crop-y:root.bg-saved-crop-y;crop-width:root.bg-saved-crop-width;crop-height:root.bg-saved-crop-height;
@@ -443,7 +451,7 @@ slint::slint! {
             if root.page==2:VerticalBox {padding:0px;Text {text:"PortCanvas · v0.6.0 dev";font-size:22px;color:Palette.foreground;}HorizontalBox {padding:0px;height:36px;vertical-stretch:0;Button {text:root.tr("打开仓库",root.english);clicked=>{root.system-action("repository");}}Button {text:root.tr("打开安装目录",root.english);clicked=>{root.system-action("directory");}}}AboutSlint {preferred-height:120px;vertical-stretch:0;}}
                 }
             }
-            terminal-panel:=MaterialPanel {visible:root.terminal-visible;x:parent.width - root.drawer-width - 16px;y:96px;width:root.drawer-width;height:parent.height - 112px;material:root.material-terminal;active:root.material-active;strength:root.bg-material;
+            terminal-panel:=MaterialPanel {visible:root.terminal-visible;x:parent.width - root.drawer-width - 16px;y:96px;width:root.drawer-width;height:parent.height - 112px;material:root.material-terminal;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
                 VerticalBox {padding:12px;spacing:8px;
                     HorizontalBox {padding:0px;vertical-stretch:0;
                         Text {text:root.english?"Terminal":"终端";font-size:18px;font-weight:600;color:Palette.foreground;vertical-alignment:center;}
@@ -489,8 +497,8 @@ slint::slint! {
                         Text {text:root.tr(root.dialog-title,root.english);font-size:20px;font-weight:600;color:Palette.foreground;}
                         Text {text:root.migration-executing?root.tr("正在迁移资料…",root.english):root.system-executing?root.tr("正在提交重启请求…",root.english):root.dialog-message;wrap:word-wrap;color:Palette.foreground;}
                         HorizontalBox {padding:0px;
-                            ActionButton {enabled:!root.system-executing&&!root.migration-executing;text:root.tr("取消",root.english);primary:!root.accept-focused;clicked=>{root.respond(false);}}
-                            ActionButton {enabled:!root.system-executing&&!root.migration-executing;text:root.tr(root.dialog-kind==2?"信任并连接":root.dialog-kind==3?"清理所选":(root.dialog-kind==4||root.dialog-kind==9)?"确认重启":root.dialog-kind==5?"确认关闭":root.dialog-kind==6?"确认覆盖":root.dialog-kind==7?"确认删除":root.dialog-kind==10?"确认导入":root.dialog-kind==11?"确认恢复":"确认移除",root.english);primary:root.accept-focused;clicked=>{root.respond(true);}}
+                            ActionButton {enabled:!root.system-executing&&!root.migration-executing;text:root.tr(root.dialog-kind==12?"保持当前":"取消",root.english);primary:!root.accept-focused;clicked=>{root.respond(false);}}
+                            ActionButton {enabled:!root.system-executing&&!root.migration-executing;text:root.tr(root.dialog-kind==12?(root.material-suggestion-target==1?"切换到均衡":"切换到轻量"):root.dialog-kind==2?"信任并连接":root.dialog-kind==3?"清理所选":(root.dialog-kind==4||root.dialog-kind==9)?"确认重启":root.dialog-kind==5?"确认关闭":root.dialog-kind==6?"确认覆盖":root.dialog-kind==7?"确认删除":root.dialog-kind==10?"确认导入":root.dialog-kind==11?"确认恢复":"确认移除",root.english);primary:root.accept-focused;clicked=>{root.respond(true);}}
                         }
                     }
                 }
