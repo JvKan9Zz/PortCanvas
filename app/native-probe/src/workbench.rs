@@ -517,6 +517,7 @@ pub fn run() -> Result<()> {
         move |accepted| {
             if let Some(ui) = weak.upgrade() {
                 let kind = ui.get_dialog_kind();
+                if kind==12{ui.invoke_material_response(accepted);return;}
                 if kind==10||kind==11{migration.respond(accepted);return;}
                 if kind==8{background.respond(accepted);return;}
                 if kind==9{system.respond(accepted);return;}
@@ -638,6 +639,8 @@ pub fn run() -> Result<()> {
         let occluded = std::cell::Cell::new(false);
         move |window, event| {
             if let Some(ui) = weak.upgrade() {
+                if let WindowEvent::Focused(focused)=event{ui.set_native_focused(*focused);}
+                if matches!(event,WindowEvent::Focused(true)|WindowEvent::ThemeChanged(_)){ui.invoke_material_refresh();}
                 desktop.window_event(event);
                 files.window_event(window, event);
                 if let WindowEvent::KeyboardInput { event, .. } = event {
@@ -788,6 +791,7 @@ pub fn run() -> Result<()> {
     system.shutdown();
     glass.shutdown();
     background.shutdown();
+    material.shutdown();
     if let Some(done)=desktop_done {let _=runtime.block_on(async {tokio::time::timeout(std::time::Duration::from_secs(8),done.cancelled()).await});}
     runtime.block_on(services.shutdown());
     for job in jobs.lock().unwrap().drain(..) {

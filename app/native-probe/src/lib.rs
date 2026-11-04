@@ -1,5 +1,8 @@
 pub mod fixture;
 pub mod glass_model;
+pub mod effects_policy;
+#[cfg(windows)]
+pub mod windows_effects;
 pub mod arena_model;
 pub mod background_model;
 pub mod background_image;

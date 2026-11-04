@@ -4,8 +4,9 @@ export component MaterialPanel inherits Rectangle {
     in property <image> material;
     in property <bool> active;
     in property <float> strength:100;
+    in property <bool> solid:false;
     border-radius:20px;clip:true;
-    background:Palette.background.with-alpha(0.76+0.18*root.strength/100);
+    background:root.solid?Palette.background:Palette.background.with-alpha(0.76+0.18*root.strength/100);
     border-width:1px;border-color:Palette.border;
     if root.active:Image {width:parent.width;height:parent.height;source:root.material;image-fit:fill;}
     @children

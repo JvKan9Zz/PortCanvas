@@ -2,14 +2,14 @@ import {Slider,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
 import {ActionButton} from "action_button.slint";
 // THESIS: Extend the existing native settings page with independent quality and opacity controls.
 // OWN-WORLD: PortCanvas Operate surface, existing light/dark palette and native form controls.
-// STORY: Choose a level, adjust opacity, retain both on restart; failed saves restore confirmed values.
+// STORY: Keep preferred quality/opacity, show temporary system limits; suggestions require explicit choice.
 // FIRST VIEWPORT: One compact group above Background; labeled quality row and numeric opacity slider.
-// FORM: User-pinned local extension, code-led; G1 shows an honest basic preview before G2 materials.
+// FORM: User-pinned local extension, code-led; reuse the native settings and existing confirmation surface.
 // FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
 export component GlassSettings inherits VerticalBox {
     in property <bool> english;in property <bool> enabled;
     in-out property <int> quality:2;in-out property <float> material:100;
-    in property <string> error;
+    in property <string> error;in property <string> notice;
     pure callback tr(string,bool)->string;callback update(bool);
     padding:0px;spacing:8px;
     Text {text:root.tr("玻璃效果",root.english);font-size:18px;font-weight:600;color:Palette.foreground;vertical-stretch:0;}
@@ -25,5 +25,6 @@ export component GlassSettings inherits VerticalBox {
         Text {text:round(root.material)+"%";min-width:45px;horizontal-stretch:0;color:Palette.foreground;}
     }
 
+    if root.notice!="":Text {text:root.tr(root.notice,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
     if root.error!="":Text {text:root.tr(root.error,root.english);color:Palette.foreground;font-weight:600;wrap:word-wrap;vertical-stretch:0;}
 }

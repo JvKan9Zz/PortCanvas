@@ -192,6 +192,7 @@ impl Controller {
                         p.volume(ui.get_bg_volume().round().clamp(0., 100.) as u8);
                     }
                 }
+                c.sync();
                 let weak = Rc::downgrade(&c);
                 c.save_timer.start(
                     slint::TimerMode::SingleShot,
@@ -614,7 +615,7 @@ impl Controller {
         }
         let preview = self.draft.borrow().is_some();
         if let Some(p) = self.saved.borrow().as_ref().and_then(|c| c.player.as_ref()) {
-            p.paused(hidden || preview || ui.get_bg_busy());
+            p.paused(hidden || preview || ui.get_bg_busy() || (ui.get_material_solid() && ui.get_bg_volume().round() == 0.));
         }
         if let Some(p) = self
             .draft
@@ -634,7 +635,7 @@ impl Controller {
                 .borrow()
                 .as_ref()
                 .is_some_and(|d| d.canvas.player.is_some());
-        if !hidden && videos {
+        if !hidden && videos && (!ui.get_material_solid() || preview) {
             if !self.timer.running() {
                 let weak = Rc::downgrade(self);
                 self.timer.start(
@@ -654,6 +655,7 @@ impl Controller {
     fn draw(&self) {
         let Some(ui) = self.ui.upgrade() else { return };
         for preview in [false, true] {
+            if !preview && ui.get_material_solid() { continue; }
             let mut saved = self.saved.borrow_mut();
             let mut draft = self.draft.borrow_mut();
             let c = if preview {
