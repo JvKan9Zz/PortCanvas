@@ -33,3 +33,26 @@ export component NavButton inherits Rectangle {
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
     touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
 }
+export component DeviceListItem inherits Rectangle {
+    in property <string> name;
+    in property <string> address;
+    in property <bool> selected;
+    in property <bool> enabled:true;
+    callback clicked();
+    preferred-height:68px;min-height:68px;vertical-stretch:0;
+    border-radius:10px;
+    background:root.selected?AppColors.accent.with-alpha(0.12):touch.has-hover?Palette.control-background:transparent;
+    border-width:keys.has-focus?2px:1px;
+    border-color:keys.has-focus?Palette.foreground:root.selected?AppColors.accent:transparent;
+    opacity:root.enabled?1:0.45;
+    accessible-role:button;accessible-label:root.name+" "+root.address;accessible-enabled:root.enabled;
+    accessible-checkable:true;accessible-checked:root.selected;
+    accessible-action-default=>{if root.enabled{root.clicked();}}
+    forward-focus:keys;
+    VerticalBox {padding:12px;spacing:4px;alignment:center;
+        Text {text:root.name;color:Palette.foreground;font-weight:600;overflow:elide;vertical-stretch:0;}
+        Text {text:root.address;color:Palette.foreground;overflow:elide;font-size:12px;vertical-stretch:0;}
+    }
+    keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
+    touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
+}

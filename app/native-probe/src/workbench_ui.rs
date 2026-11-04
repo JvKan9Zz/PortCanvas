@@ -7,7 +7,7 @@ slint::slint! {
     import {ArenaView} from "arena_view.slint";
     import {FilesView,FileRow,FileArea} from "files_view.slint";
     import {ActionButton,AppColors} from "action_button.slint";
-    import {MaterialPanel,NavButton} from "workbench_chrome.slint";
+    import {MaterialPanel,NavButton,DeviceListItem} from "workbench_chrome.slint";
     export struct MaterialRect {x:float,y:float,width:float,height:float}
     export struct LogRow {id:string,command:string,context:string,status:string,removable:bool,checked:bool,selected:bool}
     component LogSelectionBox inherits CheckBox {
@@ -41,6 +41,9 @@ slint::slint! {
         in-out property <string> password;
         in-out property <bool> remember:false;
         in-out property <bool> advanced:false;
+        property <bool> discovered-tab:false;
+        property <bool> connection-details-open:false;
+        changed busy=>{if root.busy{root.connection-details-open=true;}}
         in-out property <string> display:":0";
         in-out property <string> xauthority;
         in property <bool> system-busy:false;in property <bool> system-executing:false;in property <string> system-error;callback system-action(string);callback system-confirm(string,string);callback system-finished(string,string);
@@ -256,88 +259,93 @@ slint::slint! {
             if root.page!=1&&root.bg-error!="":Text {text:root.tr(root.bg-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             if root.migration-status!="":Text {text:root.tr(root.migration-status,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
             if root.migration-error!="":Text {text:root.tr(root.migration-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
+            // DEVICE PATH: flat selectable list, scrollable credentials, always-reachable actions.
+            // Preserve the existing profile, trust, cancellation and migration callbacks.
             if root.page==0: HorizontalBox {
                 padding:0px;spacing:24px;vertical-stretch:1;
-                VerticalBox {
-                    padding:0px;spacing:10px;width:270px;horizontal-stretch:0;
-                    HorizontalBox {padding:0px;height:34px;vertical-stretch:0;
-                        Text {text:root.tr("已保存的设备",root.english);color:Palette.foreground;vertical-alignment:center;}
-                        Button {text:root.tr("添加设备",root.english);enabled:root.can-edit;clicked=>{root.new-device();}}
+                VerticalBox {padding:0px;spacing:12px;width:248px;horizontal-stretch:0;
+                    ActionButton {text:root.tr("添加设备",root.english);vertical-stretch:0;enabled:root.can-edit;clicked=>{root.new-device();}}
+                    HorizontalBox {padding:0px;spacing:6px;vertical-stretch:0;
+                        ActionButton {text:root.tr("已保存",root.english);primary:!root.discovered-tab;enabled:root.can-interact;accessible-checkable:true;accessible-checked:!root.discovered-tab;clicked=>{root.discovered-tab=false;}}
+                        ActionButton {text:root.tr("局域网",root.english);primary:root.discovered-tab;enabled:root.can-interact;accessible-checkable:true;accessible-checked:root.discovered-tab;clicked=>{root.discovered-tab=true;}}
                     }
-                    saved-scroll:=ScrollView {
-                        viewport-height:saved-list.preferred-height;
-                        saved-list:=VerticalBox {padding:0px;spacing:6px;
-                            for device in root.devices: ActionButton {text:device.name+"\n"+device.address;primary:root.selected-id==device.id;enabled:root.can-edit;preferred-height:58px;vertical-stretch:0;clicked=>{root.select-device(device.id);}}
+                    if !root.discovered-tab:ScrollView {
+                        viewport-width:self.visible-width;viewport-height:saved-list.preferred-height;
+                        saved-list:=VerticalBox {min-width:0px;padding:0px;spacing:6px;
+                            for device in root.devices:DeviceListItem {name:device.name;address:device.address;selected:root.selected-id==device.id;enabled:root.can-edit;clicked=>{root.select-device(device.id);}}
                             if root.devices.length==0:Text {text:root.tr("暂无设备",root.english);color:Palette.foreground;horizontal-alignment:center;}
                         }
                     }
-                    HorizontalBox {padding:0px;height:34px;vertical-stretch:0;
-                        Text {text:root.tr("局域网设备",root.english);color:Palette.foreground;vertical-alignment:center;}
-                        Button {text:root.tr(root.discovering?"停止搜索":"搜索",root.english);enabled:!root.busy&&root.can-interact;clicked=>{if root.discovering{root.cancel-discovery();}else{root.discover();}}}
-                    }
-                    Text {text:root.discovery-progress;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
-                    found-scroll:=ScrollView {
-                        viewport-height:found-list.preferred-height;
-                        found-list:=VerticalBox {padding:0px;spacing:6px;
-                            for device in root.found:Button {text:device.address;enabled:root.can-edit;preferred-height:40px;vertical-stretch:0;clicked=>{root.select-found(device.id);}}
+                    if root.discovered-tab:VerticalBox {padding:0px;spacing:10px;
+                        ActionButton {text:root.tr(root.discovering?"停止搜索":"搜索设备",root.english);vertical-stretch:0;enabled:!root.busy&&root.can-interact;clicked=>{if root.discovering{root.cancel-discovery();}else{root.discover();}}}
+                        if root.discovery-progress!="":Text {text:root.discovery-progress;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
+                        found-scroll:=ScrollView {
+                            viewport-width:self.visible-width;viewport-height:found-list.preferred-height;
+                            found-list:=VerticalBox {min-width:0px;padding:0px;spacing:6px;
+                                for device in root.found:DeviceListItem {name:device.address;address:"SSH";selected:root.host==device.id;enabled:root.can-edit;clicked=>{root.select-found(device.id);}}
+                            }
                         }
                     }
+                    Rectangle {height:1px;vertical-stretch:0;background:Palette.border;}
+                    ActionButton {text:root.tr("导入旧版资料",root.english);vertical-stretch:0;enabled:root.can-edit;clicked=>{root.migration-action(false);}}
+                    ActionButton {text:root.tr("恢复导入前资料",root.english);vertical-stretch:0;enabled:root.can-edit;clicked=>{root.migration-action(true);}}
                 }
-                form-scroll:=ScrollView {
-                    viewport-height:form.preferred-height;
-                    form:=VerticalBox {padding:0px;spacing:12px;
-                        HorizontalBox {padding:0px;height:36px;vertical-stretch:0;
-                            Button {text:root.tr("导入旧版资料",root.english);enabled:root.can-edit;clicked=>{root.migration-action(false);}}
-                            Button {text:root.tr("恢复导入前资料",root.english);enabled:root.can-edit;clicked=>{root.migration-action(true);}}
-                        }
-                        Text {text:root.device-name==""?root.tr("添加一台设备",root.english):root.device-name;color:Palette.foreground;font-size:22px;font-weight:600;}
-                        Text {text:root.tr("设备名称",root.english);color:Palette.foreground;}
-                        LineEdit {text<=>root.device-name;enabled:root.can-edit;}
-                        HorizontalBox {padding:0px;spacing:16px;
-                            VerticalBox {padding:0px;spacing:8px;horizontal-stretch:3;
-                                Text {text:root.tr("设备地址",root.english);color:Palette.foreground;}
-                                LineEdit {text<=>root.host;enabled:root.can-edit;}
+                Rectangle {width:1px;horizontal-stretch:0;background:Palette.border;}
+                VerticalBox {padding:0px;spacing:14px;
+                    Text {text:root.tr(root.selected-id==""?"添加一台设备":"连接配置",root.english);color:Palette.foreground;font-size:22px;font-weight:600;vertical-stretch:0;}
+                    form-scroll:=ScrollView {
+                        viewport-width:self.visible-width;viewport-height:form.preferred-height;
+                        form:=VerticalBox {min-width:0px;padding:0px;spacing:12px;
+                            Text {text:root.tr("设备名称",root.english);color:Palette.foreground;}
+                            LineEdit {text<=>root.device-name;accessible-label:root.tr("设备名称",root.english);enabled:root.can-edit;}
+                            HorizontalBox {padding:0px;spacing:16px;
+                                VerticalBox {padding:0px;spacing:8px;horizontal-stretch:3;
+                                    Text {text:root.tr("设备地址",root.english);color:Palette.foreground;}
+                                    LineEdit {text<=>root.host;accessible-label:root.tr("设备地址",root.english);enabled:root.can-edit;}
+                                }
+                                VerticalBox {padding:0px;spacing:8px;horizontal-stretch:1;
+                                    Text {text:root.tr("SSH 端口",root.english);color:Palette.foreground;}
+                                    LineEdit {text<=>root.port;accessible-label:root.tr("SSH 端口",root.english);enabled:root.can-edit;}
+                                }
                             }
-                            VerticalBox {padding:0px;spacing:8px;horizontal-stretch:1;
-                                Text {text:root.tr("SSH 端口",root.english);color:Palette.foreground;}
-                                LineEdit {text<=>root.port;enabled:root.can-edit;}
+                            Text {text:root.tr("用户名",root.english);color:Palette.foreground;}
+                            LineEdit {text<=>root.username;accessible-label:root.tr("用户名",root.english);enabled:root.can-edit;}
+                            Text {text:root.tr("认证方式",root.english);color:Palette.foreground;}
+                            HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
+                                ActionButton {text:root.tr("密码",root.english);primary:root.auth==0;enabled:root.can-edit;accessible-checkable:true;accessible-checked:root.auth==0;clicked=>{root.auth=0;}}
+                                ActionButton {text:root.tr("私钥",root.english);primary:root.auth==1;enabled:root.can-edit;accessible-checkable:true;accessible-checked:root.auth==1;clicked=>{root.auth=1;}}
                             }
-                        }
-                        HorizontalBox {padding:0px;spacing:16px;
-                            VerticalBox {padding:0px;spacing:8px;
-                                Text {text:root.tr("用户名",root.english);color:Palette.foreground;}
-                                LineEdit {text<=>root.username;enabled:root.can-edit;}
+                            if root.auth==1:VerticalBox {padding:0px;spacing:8px;
+                                Text {text:root.tr("私钥文件",root.english);color:Palette.foreground;}
+                                HorizontalBox {padding:0px;spacing:8px;
+                                    LineEdit {text<=>root.key-path;accessible-label:root.tr("私钥文件",root.english);enabled:root.can-edit;}
+                                    ActionButton {text:root.tr("选择私钥",root.english);enabled:root.can-edit;clicked=>{root.choose-key();}}
+                                }
                             }
-                            VerticalBox {padding:0px;spacing:8px;
-                                Text {text:root.tr("认证方式",root.english);color:Palette.foreground;}
-                                ComboBox {model:[root.tr("密码",root.english),root.tr("私钥",root.english)];current-index<=>root.auth;enabled:root.can-edit;}
-                            }
-                        }
-                        if root.auth==1:HorizontalBox {padding:0px;spacing:8px;
-                            LineEdit {text<=>root.key-path;placeholder-text:root.tr("私钥文件",root.english);enabled:root.can-edit;}
-                            Button {text:root.tr("选择私钥",root.english);enabled:root.can-edit;clicked=>{root.choose-key();}}
-                        }
-                        Text {text:root.tr(root.auth==0?"密码":"密钥口令",root.english);color:Palette.foreground;}
-                        LineEdit {text<=>root.password;input-type:InputType.password;enabled:root.can-edit;placeholder-text:root.tr("已保存凭据时可留空",root.english);}
-                        CheckBox {text:root.tr("记住凭据",root.english);checked<=>root.remember;enabled:root.can-edit;}
-                        Button {text:root.tr("桌面连接设置",root.english);enabled:root.can-edit;clicked=>{root.advanced=!root.advanced;}}
-                        if root.advanced:HorizontalBox {padding:0px;spacing:16px;
-                            VerticalBox {padding:0px;spacing:8px;
+                            Text {text:root.tr(root.auth==0?"密码":"密钥口令",root.english);color:Palette.foreground;}
+                            LineEdit {text<=>root.password;input-type:InputType.password;accessible-label:root.tr(root.auth==0?"密码":"密钥口令",root.english);enabled:root.can-edit;placeholder-text:root.tr("已保存凭据时可留空",root.english);}
+                            CheckBox {text:root.tr("记住凭据",root.english);checked<=>root.remember;enabled:root.can-edit;}
+                            ActionButton {text:root.tr("桌面连接设置",root.english);enabled:root.can-edit;accessible-checkable:true;accessible-checked:root.advanced;clicked=>{root.advanced=!root.advanced;}}
+                            if root.advanced:VerticalBox {padding:0px;spacing:8px;
                                 Text {text:root.tr("显示编号",root.english);color:Palette.foreground;}
-                                LineEdit {text<=>root.display;enabled:root.can-edit;}
-                            }
-                            VerticalBox {padding:0px;spacing:8px;
+                                LineEdit {text<=>root.display;accessible-label:root.tr("显示编号",root.english);enabled:root.can-edit;}
                                 Text {text:root.tr("桌面授权文件",root.english);color:Palette.foreground;}
-                                LineEdit {text<=>root.xauthority;enabled:root.can-edit;}
+                                LineEdit {text<=>root.xauthority;accessible-label:root.tr("桌面授权文件",root.english);enabled:root.can-edit;}
                             }
                         }
-                        HorizontalBox {padding:0px;spacing:8px;
-                            ActionButton {text:root.tr("连接设备",root.english);primary:true;enabled:root.can-edit;clicked=>{root.connect-device();}}
-                            Button {text:root.tr("保存配置",root.english);enabled:root.can-edit;clicked=>{root.save-device();}}
-                            Button {text:root.tr("移除设备配置",root.english);enabled:root.can-edit&&root.selected-id!="";clicked=>{root.remove-device();}}
+                    }
+                    if root.error!="":Text {text:root.tr(root.error,root.english);color:Palette.foreground;font-weight:600;wrap:word-wrap;vertical-stretch:0;}
+                    if root.connection-detail!="":VerticalBox {padding:0px;spacing:8px;vertical-stretch:0;
+                        ActionButton {text:root.tr(root.connection-details-open?"收起连接详情":"连接详情",root.english);enabled:root.can-interact;accessible-checkable:true;accessible-checked:root.connection-details-open;clicked=>{root.connection-details-open=!root.connection-details-open;}}
+                        if root.connection-details-open:ScrollView {height:min(100px,connection-text.preferred-height+8px);viewport-width:self.visible-width;viewport-height:connection-text.preferred-height;
+                            connection-text:=Text {width:parent.width;text:root.connection-detail;color:Palette.foreground;wrap:word-wrap;}
                         }
-                        Text {text:root.tr(root.error,root.english);color:#d34b4b;wrap:word-wrap;}
-                        Text {text:root.connection-detail;color:Palette.foreground;wrap:word-wrap;}
+                    }
+                    Rectangle {height:1px;vertical-stretch:0;background:Palette.border;}
+                    HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
+                        ActionButton {text:root.tr(root.busy?"取消连接":root.connected?"断开连接":"连接设备",root.english);primary:true;enabled:(root.can-edit||root.busy||root.connected)&&root.can-interact;clicked=>{if root.busy||root.connected{root.disconnect-device();}else{root.connect-device();}}}
+                        ActionButton {text:root.tr("保存配置",root.english);enabled:root.can-edit;clicked=>{root.save-device();}}
+                        ActionButton {text:root.tr("移除配置",root.english);enabled:root.can-edit&&root.selected-id!="";clicked=>{root.remove-device();}}
                     }
                 }
             }
