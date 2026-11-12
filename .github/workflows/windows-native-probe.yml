@@ -18,7 +18,7 @@ concurrency:
 jobs:
   checks:
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 50
     defaults:
       run:
         shell: cmd
@@ -41,3 +41,10 @@ jobs:
         run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File ci.ps1 build'
       - name: Run native shared-service smoke test without opening a window
         run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File ci.ps1 smoke'
+      - name: Build standalone preview with the static Windows runtime
+        shell: bash
+        env:
+          RUSTUP_TOOLCHAIN: '1.90.0'
+        run: bash ../tools/build-native.sh
+      - name: Check standalone preview imports
+        run: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File ci.ps1 imports'

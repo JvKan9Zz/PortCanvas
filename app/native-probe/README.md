@@ -133,7 +133,9 @@ Settings additionally caches one blurred image of this application's last render
 
 ## Independent preview packaging and updates
 
-Build the GUI in release mode, then run `python tools/native_installer.py --binary <release-exe> --output <setup-exe>` from `app`. The per-user installer uses the separate PortCanvas Beta directory, shortcuts and registry identity. Locked replacement or uninstall stops before removing the existing installation; uninstall retains application data and unrelated files.
+From Git Bash with the MSVC tools available, run `bash tools/build-native.sh` in `app`. It applies the static CRT consistently to the application and Windows target libraries; host build scripts remain separate. The executable is `native-probe/target/x86_64-pc-windows-msvc/release/PortCanvasNative.exe`, or the corresponding directory beneath an explicit `CARGO_TARGET_DIR`. This avoids requiring a separate Visual C++ runtime installation. CI also builds this release target and checks its PE imports.
+
+Then run `python tools/native_installer.py --binary <release-exe> --output <setup-exe>` from `app`. The per-user installer uses the separate PortCanvas Beta directory, shortcuts and registry identity. Locked replacement or uninstall stops before removing the existing installation; uninstall retains application data and unrelated files.
 
 Beta updates read only prereleases and their `beta.json` attachment. Downloads require HTTPS and a version-bound Minisign signature before installation, support cancellation, and retain the existing installation directory. `native_sign.py` signs with the existing protected updater key; it embeds the signature in `beta.json` and does not generate a new key. Beta packages do not belong in the stable `latest.json` channel. Signing, uploading and installing are explicit release actions, separate from the build.
 
