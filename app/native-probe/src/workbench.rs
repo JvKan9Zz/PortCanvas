@@ -32,6 +32,15 @@ pub(super) fn text(source: &str, english: bool) -> String {
         },
     )
 }
+// The quick sheet edits a temporary form; cancel restores exact raw text,
+// including an invalid port or an unsent password, without serializing it.
+struct DeviceDraft {
+    strings:[slint::SharedString;10],password:Zeroizing<String>,auth:i32,remember:bool,advanced:bool,stage:i32,details:bool,
+}
+impl DeviceDraft {
+    fn capture(ui:&Workbench)->Self{Self{strings:[ui.get_selected_id(),ui.get_device_name(),ui.get_host(),ui.get_port(),ui.get_username(),ui.get_key_path(),ui.get_display(),ui.get_xauthority(),ui.get_error(),ui.get_connection_detail()],password:Zeroizing::new(ui.get_password().to_string()),auth:ui.get_auth(),remember:ui.get_remember(),advanced:ui.get_advanced(),stage:ui.get_connection_stage(),details:ui.get_connection_details_open()}}
+    fn restore(self,ui:&Workbench){let [id,name,host,port,user,key,display,authority,error,detail]=self.strings;ui.set_selected_id(id);ui.set_device_name(name);ui.set_host(host);ui.set_port(port);ui.set_username(user);ui.set_key_path(key);ui.set_display(display);ui.set_xauthority(authority);ui.set_password(self.password.as_str().into());ui.set_auth(self.auth);ui.set_remember(self.remember);ui.set_advanced(self.advanced);ui.set_error(error);ui.set_connection_detail(detail);ui.set_connection_stage(self.stage);ui.set_connection_details_open(self.details);}
+}
 fn form(ui: &Workbench) -> Result<Profile> {
     Ok(Profile {
         id: ui.get_selected_id().into(),
@@ -56,6 +65,7 @@ fn form(ui: &Workbench) -> Result<Profile> {
     })
 }
 pub(super) fn fill(ui: &Workbench, profile: Option<&Profile>) {
+    ui.set_connection_details_open(false);ui.set_connection_stage(-1);
     ui.set_password("".into());
     ui.set_error("".into());
     if let Some(p) = profile {
@@ -90,13 +100,13 @@ pub(super) fn profiles(ui: &Workbench, services: &Services) -> Result<()> {
             .map(|p| DeviceRow {
                 id: p.id.as_str().into(),
                 name: p.name.as_str().into(),
-                address: format!("{} · {}", p.address(), p.username).into(),
+                address: format!("{}@{}", p.username, p.address()).into(),
             })
             .collect::<Vec<_>>(),
     )));
     Ok(())
 }
-fn preferences(ui: &Workbench, services: &Services) -> Result<()> {
+pub(super) fn preferences(ui: &Workbench, services: &Services) -> Result<()> {
     let p = services.preferences.lock().unwrap().read()?;
     ui.set_english(p.language == Language::English);
     ui.set_theme(match p.theme {
@@ -130,6 +140,7 @@ fn device_state(ui: &Workbench, value: &serde_json::Value, pending: &PendingHost
     let state = value["ssh"].as_str().unwrap_or("disconnected");
     ui.set_busy(state == "connecting");
     ui.set_connected(state == "connected");
+    if state=="error"&&ui.get_quick_candidate(){ui.set_quick_open(true);}
     ui.set_connection_status(
         match state {
             "connected" => "已连接",
@@ -140,6 +151,7 @@ fn device_state(ui: &Workbench, value: &serde_json::Value, pending: &PendingHost
         .into(),
     );
     let stage = value["connectionStage"].as_str().unwrap_or("");
+    ui.set_connection_stage(match stage {"prepare"=>0,"resolve"=>1,"tcp"=>2,"handshake"=>3,"identity"=>4,"secure"=>5,"authenticate"=>6,"ready"=>7,_=>-1});
     let label = match stage {
         "prepare" => "准备认证资料",
         "resolve" => "解析设备地址",
@@ -183,7 +195,7 @@ fn data_paths() -> Result<Paths> {
     let data = if let Some(data) = std::env::var_os("WCS_DATA_DIR") {
         PathBuf::from(data)
     } else {
-        known_folder(&FOLDERID_LocalAppData)?.join("PortCanvas/NativeDevelopment")
+        known_folder(&FOLDERID_LocalAppData)?.join("PortCanvas/Beta")
     };
     anyhow::ensure!(data.is_absolute(), "应用数据目录须为绝对路径");
     std::fs::create_dir_all(&data)?;
@@ -207,7 +219,13 @@ pub fn run() -> Result<()> {
             .build()?,
     );
     let ui = Workbench::new()?;
+    ui.set_app_version(env!("CARGO_PKG_VERSION").into());
     ui.on_tr(|source, english| text(&source, english).into());
+    ui.global::<crate::workbench_ui::ActivityPattern>().on_choose(||std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d|((d.subsec_nanos()/100)%4) as i32).unwrap_or(0));
+    let toast_timer=std::rc::Rc::new(slint::Timer::default());
+    ui.on_notify({let weak=ui.as_weak();let timer=toast_timer.clone();move|message|{
+        if let Some(ui)=weak.upgrade(){ui.set_toast_message(text(&message,ui.get_english()).into());ui.set_toast_open(true);let weak=ui.as_weak();timer.start(slint::TimerMode::SingleShot,std::time::Duration::from_secs(3),move||{if let Some(ui)=weak.upgrade(){ui.set_toast_open(false);}});}
+    }});
     let pending: PendingHost = Arc::new(Mutex::new(None));
     let request_id = Arc::new(AtomicU64::new(1));
     let generation = Arc::new(AtomicU64::new(0));
@@ -271,6 +289,7 @@ pub fn run() -> Result<()> {
         }
     });
     let paths = data_paths()?;
+    let _instance=portcanvas_native_probe::instance::acquire(&paths.data)?;
     let legacy_logs = paths.documents.join("Wheel Combat Studio/Logs");
     ui.set_data_directory(paths.data.to_string_lossy().as_ref().into());
     let services = Services::new(paths, events, std::env::var("WCS_TERMINAL_NAMESPACE").ok())?;
@@ -279,6 +298,8 @@ pub fn run() -> Result<()> {
     let desktop = crate::workbench_desktop::Controller::install(&ui, services.clone(), runtime.clone(), jobs.clone())?;
     let files=crate::workbench_files::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let system=crate::workbench_system::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
+    let updater=crate::workbench_update::Controller::install(&ui,runtime.clone(),jobs.clone())?;
+    if !cfg!(debug_assertions){ui.invoke_update_action("check".into());}
     let glass=crate::workbench_glass::Controller::install(&ui,services.clone());
     let material=crate::workbench_material::Controller::install(&ui,desktop.draw_signal())?;
     let background=crate::workbench_background::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone(),material.clone());
@@ -289,7 +310,7 @@ pub fn run() -> Result<()> {
         runtime.clone(),
         jobs.clone(),
     );
-    let migration = crate::workbench_migration::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone(),logs.clone(),legacy_logs);
+    let migration = crate::workbench_migration::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone(),logs.clone(),legacy_logs,glass.clone(),background.clone());
     if let Err(e) = profiles(&ui, &services).and_then(|_| preferences(&ui, &services)) {
         ui.set_error(e.to_string().into());
     }
@@ -314,29 +335,29 @@ pub fn run() -> Result<()> {
             }
         }
     });
+    let quick_previous=std::rc::Rc::new(std::cell::RefCell::new(None::<DeviceDraft>));
     ui.on_select_found({
-        let weak = ui.as_weak();
-        let services = services.clone();
-        move |host| {
-            if let Some(ui) = weak.upgrade() {
-                match services.profiles.lock().unwrap().read() {
-                    Ok(data) => {
-                        if let Some(p) = data
-                            .devices
-                            .iter()
-                            .find(|p| p.host == host.as_str() && p.port == 22)
-                        {
-                            fill(&ui, Some(p));
-                        } else {
-                            fill(&ui, None);
-                            ui.set_host(host);
-                        }
-                    }
-                    Err(e) => ui.set_error(e.to_string().into()),
+        let weak=ui.as_weak();let services=services.clone();let previous=quick_previous.clone();
+        move|host|{if let Some(ui)=weak.upgrade(){
+            if ui.get_busy()||ui.get_connected()||ui.get_quick_open(){return;}
+            let data_result={services.profiles.lock().unwrap().read()};
+            match data_result{
+                Ok(data)=>{*previous.borrow_mut()=Some(DeviceDraft::capture(&ui));let saved=data.devices.iter().find(|p|p.host==host.as_str()&&p.port==22);let direct=saved.is_some_and(|p|p.encrypted_secret.is_some()||p.auth_method==AuthMethod::Key);fill(&ui,saved);if saved.is_none(){ui.set_host(host);}ui.set_quick_candidate(true);
+                    if direct{ui.invoke_connect_device();if !ui.get_busy()&&!ui.get_error().is_empty(){ui.set_quick_open(true);}}else{ui.set_quick_open(true);}
                 }
+                Err(e)=>ui.set_error(e.to_string().into()),
             }
-        }
+        }}
     });
+    ui.on_quick_submit({let weak=ui.as_weak();move||{if let Some(ui)=weak.upgrade(){
+        if ui.get_busy()||ui.get_dialog_kind()!=0{return;}
+        if let Err(error)=form(&ui).and_then(|p|p.validate()){ui.set_error(error.to_string().into());return;}
+        let secret=ui.get_password();ui.invoke_connect_device();if ui.get_quick_open(){ui.set_password(secret);}
+    }}});
+    ui.on_quick_cancel({let weak=ui.as_weak();let previous=quick_previous.clone();move||{if let Some(ui)=weak.upgrade(){
+        if ui.get_busy(){ui.invoke_disconnect_device();}ui.set_quick_candidate(false);ui.set_quick_open(false);if let Some(draft)=previous.borrow_mut().take(){draft.restore(&ui);}
+    }}});
+    ui.on_quick_finished({let weak=ui.as_weak();let previous=quick_previous.clone();move||{if let Some(ui)=weak.upgrade(){ui.set_quick_candidate(false);ui.set_quick_open(false);ui.set_password("".into());previous.borrow_mut().take();}}});
     ui.on_choose_key({
         let weak = ui.as_weak();
         move || {
@@ -362,6 +383,7 @@ pub fn run() -> Result<()> {
                 match form(&ui).and_then(|p| services.save_profile(p, &secret)) {
                     Ok(saved) => {
                         fill(&ui, Some(&saved));
+                        ui.invoke_notify("设备配置已保存".into());
                         let _ = profiles(&ui, &services);
                     }
                     Err(e) => ui.set_error(e.to_string().into()),
@@ -514,9 +536,12 @@ pub fn run() -> Result<()> {
         let background=background.clone();
         let system=system.clone();
         let migration=migration.clone();
+        let updater=updater.clone();
         move |accepted| {
             if let Some(ui) = weak.upgrade() {
                 let kind = ui.get_dialog_kind();
+                if kind==15{files.respond_folder(accepted);return;}
+                if kind==13{updater.respond(accepted);return;}
                 if kind==12{ui.invoke_material_response(accepted);return;}
                 if kind==10||kind==11{migration.respond(accepted);return;}
                 if kind==8{background.respond(accepted);return;}
@@ -571,6 +596,7 @@ pub fn run() -> Result<()> {
         let logs = logs.clone();
         move |index| {
             if let Some(ui) = weak.upgrade() {
+                ui.set_settings_error("".into());
                 match services
                     .preferences
                     .lock()
@@ -586,7 +612,7 @@ pub fn run() -> Result<()> {
                         logs.render(&ui);
                         ui.invoke_terminal_reload();
                     }
-                    Err(e) => ui.set_error(e.to_string().into()),
+                    Err(e) => ui.set_settings_error(e.to_string().into()),
                 }
             }
         }
@@ -596,6 +622,7 @@ pub fn run() -> Result<()> {
         let services = services.clone();
         move |index| {
             if let Some(ui) = weak.upgrade() {
+                ui.set_settings_error("".into());
                 match services
                     .preferences
                     .lock()
@@ -606,7 +633,7 @@ pub fn run() -> Result<()> {
                         _ => Theme::Blue,
                     }) {
                     Ok(_) => ui.set_theme(index),
-                    Err(e) => ui.set_error(e.to_string().into()),
+                    Err(e) => ui.set_settings_error(e.to_string().into()),
                 }
             }
         }
@@ -653,6 +680,8 @@ pub fn run() -> Result<()> {
                     if event.state == ElementState::Pressed
                         && !event.repeat
                         && ui.get_dialog_kind() == 0
+                        && !ui.get_settings_open()
+                        && !ui.get_quick_open()
                     {
                         if matches!(&event.logical_key, Key::Named(NamedKey::F11))
                             || (matches!(&event.logical_key, Key::Named(NamedKey::Escape))
@@ -692,6 +721,7 @@ pub fn run() -> Result<()> {
         let services = services.clone();
         move |index| {
             if let Some(ui) = weak.upgrade() {
+                ui.set_settings_error("".into());
                 match services
                     .preferences
                     .lock()
@@ -702,7 +732,7 @@ pub fn run() -> Result<()> {
                         _ => Appearance::Light,
                     }) {
                     Ok(_) => ui.set_appearance(index),
-                    Err(e) => ui.set_error(e.to_string().into()),
+                    Err(e) => ui.set_settings_error(e.to_string().into()),
                 }
             }
         }
@@ -712,6 +742,7 @@ pub fn run() -> Result<()> {
         let services = services.clone();
         move |index| {
             if let Some(ui) = weak.upgrade() {
+                ui.set_settings_error("".into());
                 let source = if index == 1 {
                     EnvironmentSource::Board
                 } else {
@@ -727,7 +758,7 @@ pub fn run() -> Result<()> {
                         services.devices.set_environment_source(source);
                         ui.set_environment_source(index)
                     }
-                    Err(e) => ui.set_error(e.to_string().into()),
+                    Err(e) => ui.set_settings_error(e.to_string().into()),
                 }
             }
         }
@@ -737,6 +768,7 @@ pub fn run() -> Result<()> {
         let services = services.clone();
         move |index| {
             if let Some(ui) = weak.upgrade() {
+                ui.set_settings_error("".into());
                 let mode = match index {
                     1 => portcanvas_core::desktop_settings::DesktopMode::Clear,
                     2 => portcanvas_core::desktop_settings::DesktopMode::Economy,
@@ -745,7 +777,7 @@ pub fn run() -> Result<()> {
                 match services.preferences.lock().unwrap().save_desktop_mode(mode) {
                     Ok(_) => ui.set_desktop_mode(index),
                     Err(e) => {
-                        ui.set_error(e.to_string().into());
+                        ui.set_settings_error(e.to_string().into());
                         if ui.get_page() == 5 { ui.set_desktop_error(text(&e.to_string(),ui.get_english()).into()); }
                     }
                 }
@@ -774,7 +806,7 @@ pub fn run() -> Result<()> {
             match value {
                 Err(e) => {
                     let _ =
-                        weak.upgrade_in_event_loop(move |ui| ui.set_error(e.to_string().into()));
+                        weak.upgrade_in_event_loop(move |ui| ui.set_settings_error(e.to_string().into()));
                 }
                 Ok(bytes) => {
                     let service = services.clone();
@@ -782,14 +814,17 @@ pub fn run() -> Result<()> {
                     jobs.lock().unwrap().push(runtime.spawn(async move {
                         let result = service.logs.set_max_bytes(bytes).await;
                         let _ = weak.upgrade_in_event_loop(move |ui| match result {
-                            Ok(_) => ui.set_error("".into()),
-                            Err(e) => ui.set_error(e.to_string().into()),
+                            Ok(_) => {ui.set_settings_error("".into());ui.invoke_notify("日志上限已保存".into());}
+                            Err(e) => ui.set_settings_error(e.to_string().into()),
                         });
                     }));
                 }
             }
         }
     });
+    if ui.get_selected_id().is_empty() {
+        if let Ok(data)=services.profiles.lock().unwrap().read(){if let Some(first)=data.devices.first(){fill(&ui,Some(first));}}
+    }
     let result = ui.run();
     services.quitting.store(true,Ordering::SeqCst);
     migration.shutdown();
@@ -799,6 +834,7 @@ pub fn run() -> Result<()> {
     files.shutdown();
     arena.shutdown();
     system.shutdown();
+    updater.shutdown();
     glass.shutdown();
     background.shutdown();
     material.shutdown();

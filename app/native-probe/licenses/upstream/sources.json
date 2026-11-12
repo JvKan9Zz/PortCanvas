@@ -1,0 +1,160 @@
+[
+  {
+    "name": "LICENSE-APACHE",
+    "url": "https://raw.githubusercontent.com/AccessKit/accesskit/09e2a3798c052e12b2ecccfa5b9d27608399e4bb/LICENSE-APACHE",
+    "type": "file",
+    "repo": "AccessKit/accesskit",
+    "revision": "09e2a3798c052e12b2ecccfa5b9d27608399e4bb",
+    "path": "AccessKit_accesskit/09e2a3798c052e12b2ecccfa5b9d27608399e4bb/LICENSE-APACHE"
+  },
+  {
+    "name": "LICENSE-MIT",
+    "url": "https://raw.githubusercontent.com/AccessKit/accesskit/09e2a3798c052e12b2ecccfa5b9d27608399e4bb/LICENSE-MIT",
+    "type": "file",
+    "repo": "AccessKit/accesskit",
+    "revision": "09e2a3798c052e12b2ecccfa5b9d27608399e4bb",
+    "path": "AccessKit_accesskit/09e2a3798c052e12b2ecccfa5b9d27608399e4bb/LICENSE-MIT"
+  },
+  {
+    "name": "LICENSE.chromium",
+    "url": "https://raw.githubusercontent.com/AccessKit/accesskit/09e2a3798c052e12b2ecccfa5b9d27608399e4bb/LICENSE.chromium",
+    "type": "file",
+    "repo": "AccessKit/accesskit",
+    "revision": "09e2a3798c052e12b2ecccfa5b9d27608399e4bb",
+    "path": "AccessKit_accesskit/09e2a3798c052e12b2ecccfa5b9d27608399e4bb/LICENSE.chromium"
+  },
+  {
+    "name": "LICENSE",
+    "url": "https://raw.githubusercontent.com/DoumanAsh/clipboard-win/ed27008ae5d1f10cfbb266de039f0fb35fd05a56/LICENSE",
+    "type": "file",
+    "repo": "DoumanAsh/clipboard-win",
+    "revision": "ed27008ae5d1f10cfbb266de039f0fb35fd05a56",
+    "path": "DoumanAsh_clipboard-win/ed27008ae5d1f10cfbb266de039f0fb35fd05a56/LICENSE"
+  },
+  {
+    "name": "LICENSE-APACHE",
+    "url": "https://raw.githubusercontent.com/Kobzol/rust-delegate/b129d4cbf4cc499eff7743365dcb0fe5d8d2e820/LICENSE-APACHE",
+    "type": "file",
+    "repo": "kobzol/rust-delegate",
+    "revision": "b129d4cbf4cc499eff7743365dcb0fe5d8d2e820",
+    "path": "kobzol_rust-delegate/b129d4cbf4cc499eff7743365dcb0fe5d8d2e820/LICENSE-APACHE"
+  },
+  {
+    "name": "LICENSE-MIT",
+    "url": "https://raw.githubusercontent.com/Kobzol/rust-delegate/b129d4cbf4cc499eff7743365dcb0fe5d8d2e820/LICENSE-MIT",
+    "type": "file",
+    "repo": "kobzol/rust-delegate",
+    "revision": "b129d4cbf4cc499eff7743365dcb0fe5d8d2e820",
+    "path": "kobzol_rust-delegate/b129d4cbf4cc499eff7743365dcb0fe5d8d2e820/LICENSE-MIT"
+  },
+  {
+    "name": "LICENSE-APACHE",
+    "url": "https://raw.githubusercontent.com/nical/lyon/db98d26a1a90076a7a894262dcb51117eef643c8/LICENSE-APACHE",
+    "type": "file",
+    "repo": "nical/lyon",
+    "revision": "db98d26a1a90076a7a894262dcb51117eef643c8",
+    "path": "nical_lyon/db98d26a1a90076a7a894262dcb51117eef643c8/LICENSE-APACHE"
+  },
+  {
+    "name": "LICENSE-MIT",
+    "url": "https://raw.githubusercontent.com/nical/lyon/db98d26a1a90076a7a894262dcb51117eef643c8/LICENSE-MIT",
+    "type": "file",
+    "repo": "nical/lyon",
+    "revision": "db98d26a1a90076a7a894262dcb51117eef643c8",
+    "path": "nical_lyon/db98d26a1a90076a7a894262dcb51117eef643c8/LICENSE-MIT"
+  },
+  {
+    "name": "LICENSE-APACHE",
+    "url": "https://raw.githubusercontent.com/nical/lyon/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-APACHE",
+    "type": "file",
+    "repo": "nical/lyon",
+    "revision": "56219c95c658d4f39de7b190d98e57d5773ba241",
+    "path": "nical_lyon/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-APACHE"
+  },
+  {
+    "name": "LICENSE-MIT",
+    "url": "https://raw.githubusercontent.com/nical/lyon/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-MIT",
+    "type": "file",
+    "repo": "nical/lyon",
+    "revision": "56219c95c658d4f39de7b190d98e57d5773ba241",
+    "path": "nical_lyon/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-MIT"
+  },
+  {
+    "name": "LICENSE",
+    "url": "https://raw.githubusercontent.com/rust-windowing/gl-rs/ea503e8d5fb6d73c6030e6191ce738cd3bf3433e/LICENSE",
+    "type": "file",
+    "repo": "rust-windowing/gl-rs",
+    "revision": "ea503e8d5fb6d73c6030e6191ce738cd3bf3433e",
+    "path": "rust-windowing_gl-rs/ea503e8d5fb6d73c6030e6191ce738cd3bf3433e/LICENSE"
+  },
+  {
+    "name": "LICENSE",
+    "url": "https://raw.githubusercontent.com/rust-windowing/gl-rs/f150967b1c44ae888e6676f93f639ebc82771bdc/LICENSE",
+    "type": "file",
+    "repo": "rust-windowing/gl-rs",
+    "revision": "f150967b1c44ae888e6676f93f639ebc82771bdc",
+    "path": "rust-windowing_gl-rs/f150967b1c44ae888e6676f93f639ebc82771bdc/LICENSE"
+  },
+  {
+    "name": "LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/Eugeny/russh/c0fe3b1d32c8f6b6f4218dd4761cf03b55a4dced/LICENSE.txt",
+    "type": "file",
+    "repo": "Eugeny/russh",
+    "revision": "c0fe3b1d32c8f6b6f4218dd4761cf03b55a4dced",
+    "path": "Eugeny_russh/c0fe3b1d32c8f6b6f4218dd4761cf03b55a4dced/LICENSE.txt"
+  },
+  {
+    "name": "LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/Eugeny/russh/e5d80a07dc554480b6ea3b2e14adfc190407b627/LICENSE.txt",
+    "type": "file",
+    "repo": "Eugeny/russh",
+    "revision": "e5d80a07dc554480b6ea3b2e14adfc190407b627",
+    "path": "Eugeny_russh/e5d80a07dc554480b6ea3b2e14adfc190407b627/LICENSE.txt"
+  },
+  {
+    "name": "LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/Eugeny/russh/907c732562c5732aad6c140dba958eafddc41ba0/LICENSE.txt",
+    "type": "file",
+    "repo": "Eugeny/russh",
+    "revision": "907c732562c5732aad6c140dba958eafddc41ba0",
+    "path": "Eugeny_russh/907c732562c5732aad6c140dba958eafddc41ba0/LICENSE.txt"
+  },
+  {
+    "name": "LICENSE-2.0.txt",
+    "url": "https://raw.githubusercontent.com/Eugeny/russh/3d09c20c52a542ffa327723d3a44cb1edd9b0ca4/LICENSE-2.0.txt",
+    "type": "file",
+    "repo": "Eugeny/russh",
+    "revision": "3d09c20c52a542ffa327723d3a44cb1edd9b0ca4",
+    "path": "Eugeny_russh/3d09c20c52a542ffa327723d3a44cb1edd9b0ca4/LICENSE-2.0.txt"
+  },
+  {
+    "name": "Apache-2.0.txt",
+    "url": "https://raw.githubusercontent.com/slint-ui/slint/7df9b3cbb70b46233bf4d49966d65f94f09fa6bd/LICENSES/Apache-2.0.txt",
+    "type": "file",
+    "repo": "slint-ui/slint",
+    "revision": "7df9b3cbb70b46233bf4d49966d65f94f09fa6bd",
+    "path": "slint-ui_slint/7df9b3cbb70b46233bf4d49966d65f94f09fa6bd/Apache-2.0.txt"
+  },
+  {
+    "name": "MIT.txt",
+    "url": "https://raw.githubusercontent.com/slint-ui/slint/7df9b3cbb70b46233bf4d49966d65f94f09fa6bd/LICENSES/MIT.txt",
+    "type": "file",
+    "repo": "slint-ui/slint",
+    "revision": "7df9b3cbb70b46233bf4d49966d65f94f09fa6bd",
+    "path": "slint-ui_slint/7df9b3cbb70b46233bf4d49966d65f94f09fa6bd/MIT.txt"
+  },
+  {
+    "repo": "rust-lang/rust",
+    "revision": "58cf8f9c35b355199727627d07ae34a4e2846d67",
+    "name": "LICENSE-MIT",
+    "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/LICENSE-MIT",
+    "path": "rust-lang_rust/58cf8f9c35b355199727627d07ae34a4e2846d67/LICENSE-MIT"
+  },
+  {
+    "repo": "rust-lang/rust",
+    "revision": "58cf8f9c35b355199727627d07ae34a4e2846d67",
+    "name": "LICENSE-APACHE",
+    "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/LICENSE-APACHE",
+    "path": "rust-lang_rust/58cf8f9c35b355199727627d07ae34a4e2846d67/LICENSE-APACHE"
+  }
+]

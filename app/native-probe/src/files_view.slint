@@ -1,5 +1,9 @@
-import {Button,LineEdit,CheckBox,ComboBox,ListView,HorizontalBox,VerticalBox,Palette} from "std-widgets.slint";
-import {ActionButton} from "action_button.slint";
+import {CheckBox} from "check_box.slint";
+import {DesktopTool} from "desktop_tool.slint";
+import {FormInput as LineEdit} from "form_input.slint";
+import {SelectBox as ComboBox} from "select_box.slint";
+import {ListView,HorizontalBox,VerticalBox,Palette} from "std-widgets.slint";
+import {ActionButton,ActionButton as Button,AppColors,ActivityIndicator} from "action_button.slint";
 export struct FileRow {name:string,kind:string,size:string,modified:string,selected:bool,directory:bool}
 export struct FileArea {x:float,y:float,width:float,height:float,offset:float}
 component FileCheck inherits CheckBox {
@@ -7,11 +11,12 @@ component FileCheck inherits CheckBox {
     changed selected=>{self.checked=root.selected;}
     callback choose();toggled=>{root.choose();}
 }
-export component FilePane inherits VerticalBox {
+export component FilePane inherits Rectangle {
     min-width:0px;
+    in property <bool> compact:false;
     in property <bool> english;in property <bool> remote;in property <bool> enabled:true;
     in property <bool> loading;in property <bool> loaded;in property <bool> connected;
-    in property <[FileRow]> rows;in property <string> message;
+    in property <[FileRow]> rows;in property <string> message;in property <int> selected-count;
     in property <[string]> drives;in-out property <int> drive-index:-1;callback drive(int);
     in property <bool> drop-active;in property <int> drop-row:-1;
     in property <string> drop-label;
@@ -21,33 +26,43 @@ export component FilePane inherits VerticalBox {
     in-out property <string> path;in-out property <string> folder;
     pure callback tr(string,bool)->string;
     callback action(string);callback choose(int,bool,bool);callback all(bool);callback open(int);
-    padding:0px;spacing:6px;horizontal-stretch:1;preferred-width:0px;
-    HorizontalBox {height:32px;vertical-stretch:0;padding:0px;
-        Text {text:root.tr(root.remote?"远端":"本地",root.english)+(root.drop-active?" · "+root.drop-label:"");color:Palette.foreground;font-weight:600;}
+    border-radius:16px;border-width:1px;border-color:AppColors.edge;background:AppColors.card;clip:true;
+    horizontal-stretch:1;preferred-width:0px;
+    VerticalBox {padding:0px;spacing:6px;
+    HorizontalBox {height:48px;vertical-stretch:0;padding:12px;spacing:8px;
+        Image {width:17px;height:17px;horizontal-stretch:0;source:root.remote?@image-url("icons/files.svg"):@image-url("icons/desktop.svg");colorize:AppColors.accent;}
+        ActivityIndicator {active:root.loading;}
+        Text {text:root.tr(root.remote?"远端设备":"本地电脑",root.english);color:AppColors.ink;font-weight:600;vertical-alignment:center;}
+        Rectangle {horizontal-stretch:1;background:transparent;}
         if root.remote&&!root.connected:Button {text:root.tr("连接设备",root.english);clicked=>{root.action("connect");}}
-        if !root.remote:Button {text:root.tr("选择文件夹",root.english);enabled:root.enabled;clicked=>{root.action("choose");}}
+        if root.remote&&root.connected:Button {text:root.tr("删除",root.english);icon:@image-url("icons/trash.svg");has-icon:true;danger:true;enabled:root.enabled&&root.selected-count>0;clicked=>{root.action("delete");}}
+        if !root.remote:Button {text:root.tr("选择目录",root.english);enabled:root.enabled;clicked=>{root.action("choose");}}
     }
-    if !root.remote:HorizontalBox {height:32px;vertical-stretch:0;padding:0px;
-        ComboBox {accessible-label:root.tr("本地磁盘",root.english);model:root.drives;current-index<=>root.drive-index;enabled:root.enabled;selected(n)=>{root.drive(self.current-index);}}
+    Rectangle {height:1px;vertical-stretch:0;background:AppColors.edge;}
+    HorizontalBox {height:32px;vertical-stretch:0;padding-left:12px;padding-right:12px;spacing:4px;
+        DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("上级",root.english);icon:@image-url("icons/up.svg");enabled:root.enabled&&root.loaded;clicked=>{root.action("up");}}
+        DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("主目录",root.english);icon:@image-url("icons/home.svg");enabled:root.enabled;clicked=>{root.action("home");}}
+        DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("刷新",root.english);icon:@image-url("icons/restart.svg");enabled:root.enabled;clicked=>{root.action("refresh");}}
+        Rectangle {horizontal-stretch:1;background:transparent;}
+        DesktopTool {height:30px;label:root.tr("新建文件夹",root.english);text:root.tr("新建文件夹",root.english);icon:@image-url("icons/plus.svg");enabled:root.enabled&&root.loaded;clicked=>{root.action("new-folder");}}
     }
-    HorizontalBox {height:34px;vertical-stretch:0;padding:0px;
-        LineEdit {accessible-label:root.tr(root.remote?"远端目录":"本地目录",root.english);text<=>root.path;enabled:root.enabled;accepted=>{root.action("go");}}
-        Button {text:root.tr("转到",root.english);enabled:root.enabled;clicked=>{root.action("go");}}
+    HorizontalBox {height:42px;vertical-stretch:0;padding-left:12px;padding-right:12px;spacing:4px;
+        if !root.remote:ComboBox {width:76px;horizontal-stretch:0;accessible-label:root.tr("本地磁盘",root.english);model:root.drives;current-index<=>root.drive-index;enabled:root.enabled;selected(index)=>{root.drive(index);}}
+        LineEdit {label:root.tr(root.remote?"远端目录":"本地目录",root.english);text<=>root.path;enabled:root.enabled;accepted=>{root.action("go");}}
+        DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("转到",root.english);icon:@image-url("icons/go.svg");enabled:root.enabled;clicked=>{root.action("go");}}
     }
-    HorizontalBox {height:34px;vertical-stretch:0;padding:0px;
-        Button {text:root.tr("上级",root.english);enabled:root.enabled&&root.loaded;clicked=>{root.action("up");}}
-        Button {text:root.tr("主目录",root.english);enabled:root.enabled;clicked=>{root.action("home");}}
-        Button {text:root.tr("刷新",root.english);enabled:root.enabled;clicked=>{root.action("refresh");}}
+    HorizontalBox {height:32px;vertical-stretch:0;padding-left:12px;padding-right:12px;spacing:6px;
+        CheckBox {accessible-label:root.tr("全选",root.english);checked:root.rows.length>0&&root.selected-count==root.rows.length;indeterminate:root.selected-count>0&&root.selected-count<root.rows.length;enabled:root.enabled&&root.rows.length>0;toggled=>{root.all(self.checked);}width:28px;horizontal-stretch:0;}
+        Rectangle {width:16px;horizontal-stretch:0;background:transparent;}
+        Text {text:root.tr("名称",root.english);color:AppColors.ink;vertical-alignment:center;min-width:0px;preferred-width:0px;horizontal-stretch:1;}
+        Text {text:root.tr("大小",root.english);color:AppColors.ink;vertical-alignment:center;width:75px;horizontal-stretch:0;horizontal-alignment:right;}
+        if !root.compact:Text {text:root.tr("修改时间",root.english);color:AppColors.ink;vertical-alignment:center;width:92px;horizontal-stretch:0;horizontal-alignment:right;}
     }
-    HorizontalBox {height:34px;vertical-stretch:0;padding:0px;
-        Button {text:root.tr("全选",root.english);enabled:root.enabled&&root.rows.length>0;clicked=>{root.all(true);}}
-        Button {text:root.tr("清除选择",root.english);enabled:root.enabled&&root.rows.length>0;clicked=>{root.all(false);}}
-    }
-    Rectangle {background:Palette.background;border-width:root.drop-active?2px:1px;border-color:root.drop-active?Palette.accent-background:Palette.border;
+    Rectangle {background:transparent;border-width:root.drop-active?2px:0px;border-color:AppColors.accent;
         list:=ListView {x:1px;y:1px;width:parent.width - 2px;height:parent.height - 2px;
             for row[index] in root.rows:item:=Rectangle {
-                height:38px;background:row.selected?Palette.alternate-background:Palette.background;
-                border-width:root.drop-active&&root.drop-row==index?2px:keys.has-focus?1px:0px;border-color:root.drop-active&&root.drop-row==index?Palette.accent-background:Palette.foreground;
+                height:40px;background:row.selected?AppColors.soft:row-touch.has-hover?AppColors.field:transparent;
+                border-width:root.drop-active&&root.drop-row==index?2px:keys.has-focus?1px:0px;border-color:root.drop-active&&root.drop-row==index?AppColors.accent:AppColors.accent;
                 property <bool> additive;property <bool> range;
                 forward-focus:keys;
                 accessible-role:list-item;accessible-label:row.name;accessible-action-default=>{root.choose(index,false,false);}
@@ -56,13 +71,15 @@ export component FilePane inherits VerticalBox {
                     if event.text==" "{root.choose(index,event.modifiers.control,event.modifiers.shift);return accept;}
                     return reject;
                 }}
-                HorizontalBox {padding:2px;spacing:6px;
-                    FileCheck {selected:row.selected;accessible-label:root.tr("选择 "+row.name,root.english);enabled:root.enabled;min-width:28px;horizontal-stretch:0;choose=>{root.choose(index,true,false);}}
-                    Text {text:row.name;color:Palette.foreground;overflow:elide;}
-                    Text {text:row.directory?root.tr("文件夹",root.english):row.kind==root.tr("链接",root.english)?row.kind:row.size;color:Palette.foreground;min-width:65px;preferred-width:75px;horizontal-stretch:0;overflow:elide;horizontal-alignment:right;}
-                    if root.width>=360px:Text {text:row.modified;color:Palette.foreground;preferred-width:92px;horizontal-stretch:0;overflow:elide;}
+                HorizontalBox {padding-left:12px;padding-right:12px;padding-top:2px;padding-bottom:2px;spacing:6px;
+                    FileCheck {selected:row.selected;accessible-label:root.tr("选择 "+row.name,root.english);enabled:root.enabled;width:28px;horizontal-stretch:0;choose=>{root.choose(index,true,false);}}
+                    Image {width:16px;height:16px;horizontal-stretch:0;source:row.directory?@image-url("icons/files.svg"):row.kind==root.tr("链接",root.english)?@image-url("icons/connect.svg"):@image-url("icons/file.svg");colorize:AppColors.accent;}
+                    Text {text:row.name;color:AppColors.ink;overflow:elide;min-width:0px;preferred-width:0px;horizontal-stretch:1;}
+                    Text {text:row.directory?root.tr("文件夹",root.english):row.kind==root.tr("链接",root.english)?row.kind:row.size;color:AppColors.muted;width:75px;horizontal-stretch:0;overflow:elide;horizontal-alignment:right;}
+                    if !root.compact:Text {text:row.modified;color:AppColors.muted;width:92px;horizontal-stretch:0;overflow:elide;horizontal-alignment:right;}
                 }
-                TouchArea {x:36px;width:parent.width - 36px;enabled:root.enabled;
+                Rectangle {y:parent.height - 1px;width:parent.width;height:1px;background:AppColors.edge;}
+                row-touch:=TouchArea {x:42px;width:parent.width - 36px;enabled:root.enabled;
                     pointer-event(event)=>{if event.kind==PointerEventKind.down{item.additive=event.modifiers.control;item.range=event.modifiers.shift;}}
                     clicked=>{keys.focus();root.choose(index,item.additive,item.range);}
                     double-clicked=>{root.open(index);}
@@ -70,10 +87,7 @@ export component FilePane inherits VerticalBox {
             }
         }
     }
-    Text {text:root.message;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
-    HorizontalBox {height:34px;vertical-stretch:0;padding:0px;
-        LineEdit {accessible-label:root.tr(root.remote?"远端新文件夹名称":"本地新文件夹名称",root.english);text<=>root.folder;enabled:root.enabled&&root.loaded;accepted=>{root.action("mkdir");}}
-        Button {text:root.tr("新建文件夹",root.english);enabled:root.enabled&&root.loaded&&root.folder!="";clicked=>{root.action("mkdir");}}
+    Text {text:root.message;color:AppColors.muted;font-size:11px;wrap:word-wrap;vertical-stretch:0;min-height:28px;vertical-alignment:center;}
     }
 }
 export component FilesView inherits VerticalBox {
@@ -101,30 +115,29 @@ export component FilesView inherits VerticalBox {
     changed geometry-ticket=>{root.invalidate-hidden();}
     property <bool> can-browse:root.enabled&&!root.busy&&!root.local-loading&&!root.remote-loading;
     min-width:0px;padding:0px;spacing:8px;
-    if root.compact:HorizontalBox {padding:0px;vertical-stretch:0;
-        ActionButton {text:root.tr("本地",root.english);primary:root.pane-side==0;accessible-checkable:true;accessible-checked:root.pane-side==0;clicked=>{root.pane-side=0;}}
-        ActionButton {text:root.tr("远端",root.english);primary:root.pane-side==1;accessible-checkable:true;accessible-checked:root.pane-side==1;clicked=>{root.pane-side=1;}}
+    HorizontalBox {height:36px;vertical-stretch:0;padding:0px;spacing:8px;
+        ActionButton {text:root.tr(root.compact?"上传":"上传至远端设备",root.english);icon:@image-url("icons/upload.svg");has-icon:true;primary:true;enabled:root.can-browse&&root.connected&&root.remote-loaded&&root.local-selected>0;clicked=>{root.action(0,"upload");}}
+        ActionButton {text:root.tr(root.compact?"下载":"下载至电脑",root.english);icon:@image-url("icons/download.svg");has-icon:true;enabled:root.can-browse&&root.connected&&root.local-loaded&&root.remote-selected>0;clicked=>{root.action(1,"download");}}
+        Rectangle {background:transparent;horizontal-stretch:1;}
+        Text {text:root.tr("传输限速",root.english);font-size:11px;color:AppColors.muted;vertical-alignment:center;horizontal-stretch:0;}
+        ComboBox {width:100px;horizontal-stretch:0;accessible-label:root.tr("传输限速",root.english);model:[root.tr("不限速",root.english),"1 MiB/s","5 MiB/s","10 MiB/s"];current-index<=>root.rate;enabled:root.enabled&&!root.busy;}
+        if root.busy:Button {text:root.tr("取消操作",root.english);enabled:root.enabled;busy:root.busy;clicked=>{root.action(0,"cancel");}}
     }
-    HorizontalBox {padding:0px;
-        if !root.compact||root.pane-side==0:FilePane {english:root.english;remote:false;enabled:root.can-browse;connected:root.connected;rows:root.local-rows;path<=>root.local-path;folder<=>root.local-folder;message:root.local-message;loading:root.local-loading;loaded:root.local-loaded;
+    if root.compact:HorizontalBox {padding:0px;vertical-stretch:0;
+        ActionButton {text:root.tr("本地",root.english);selected:root.pane-side==0;accessible-checkable:true;accessible-checked:root.pane-side==0;clicked=>{root.pane-side=0;}}
+        ActionButton {text:root.tr("远端",root.english);selected:root.pane-side==1;accessible-checkable:true;accessible-checked:root.pane-side==1;clicked=>{root.pane-side=1;}}
+    }
+    HorizontalBox {padding:0px;spacing:14px;
+        if !root.compact||root.pane-side==0:FilePane {compact:root.compact;english:root.english;remote:false;enabled:root.can-browse;connected:root.connected;rows:root.local-rows;selected-count:root.local-selected;path<=>root.local-path;folder<=>root.local-folder;message:root.local-message;loading:root.local-loading;loaded:root.local-loaded;
             geometry-ticket:root.geometry-ticket;drives:root.drives;drive-index<=>root.drive-index;drive(n)=>{root.drive(n);}geometry(a)=>{root.geometry(0,a);}drop-active:root.drop-side==0;drop-row:root.drop-row;drop-label:root.drop-label;
             tr(s,e)=>{return root.tr(s,e);}action(a)=>{root.action(0,a);}choose(n,c,s)=>{root.choose(0,n,c,s);}all(c)=>{root.all(0,c);}open(n)=>{root.open(0,n);}}
-        if !root.compact||root.pane-side==1:FilePane {english:root.english;remote:true;enabled:root.can-browse&&root.connected;connected:root.connected;rows:root.remote-rows;path<=>root.remote-path;folder<=>root.remote-folder;message:root.remote-message;loading:root.remote-loading;loaded:root.remote-loaded;
+        if !root.compact||root.pane-side==1:FilePane {compact:root.compact;english:root.english;remote:true;enabled:root.can-browse&&root.connected;connected:root.connected;rows:root.remote-rows;selected-count:root.remote-selected;path<=>root.remote-path;folder<=>root.remote-folder;message:root.remote-message;loading:root.remote-loading;loaded:root.remote-loaded;
             geometry-ticket:root.geometry-ticket;geometry(a)=>{root.geometry(1,a);}drop-active:root.drop-side==1;drop-row:root.drop-row;drop-label:root.drop-label;
             tr(s,e)=>{return root.tr(s,e);}action(a)=>{root.action(1,a);}choose(n,c,s)=>{root.choose(1,n,c,s);}all(c)=>{root.all(1,c);}open(n)=>{root.open(1,n);}}
     }
-    HorizontalBox {height:36px;vertical-stretch:0;padding:0px;
-        if !root.compact||root.pane-side==0:ActionButton {text:root.tr("上传",root.english);primary:true;enabled:root.can-browse&&root.connected&&root.remote-loaded&&root.local-selected>0;clicked=>{root.action(0,"upload");}}
-        if !root.compact||root.pane-side==1:ActionButton {text:root.tr("下载",root.english);primary:true;enabled:root.can-browse&&root.connected&&root.local-loaded&&root.remote-selected>0;clicked=>{root.action(1,"download");}}
-        if !root.compact||root.pane-side==1:Button {text:root.tr("删除远端所选",root.english);enabled:root.can-browse&&root.connected&&root.remote-selected>0;clicked=>{root.action(1,"delete");}}
-    }
-    HorizontalBox {height:36px;vertical-stretch:0;padding:0px;
-        ComboBox {accessible-label:root.tr("传输限速",root.english);model:[root.tr("不限速",root.english),"1 MiB/s","5 MiB/s","10 MiB/s"];current-index<=>root.rate;enabled:root.enabled&&!root.busy;}
-        Button {text:root.tr("取消操作",root.english);enabled:root.enabled&&root.busy;clicked=>{root.action(0,"cancel");}}
-    }
-    if root.status!="":Text {text:root.status;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
-    if root.current!="":Text {text:root.current;color:Palette.foreground;overflow:elide;vertical-stretch:0;}
-    if root.status!="":Rectangle {height:5px;vertical-stretch:0;background:Palette.border;Rectangle {width:parent.width*min(1,max(0,root.progress));background:Palette.accent-background;}}
-    if root.numbers!="":Text {text:root.numbers;color:Palette.foreground;vertical-stretch:0;}
+    if root.status!="":Text {text:root.status;color:AppColors.ink;wrap:word-wrap;vertical-stretch:0;}
+    if root.current!="":Text {text:root.current;color:AppColors.ink;overflow:elide;vertical-stretch:0;}
+    if root.status!="":Rectangle {height:5px;vertical-stretch:0;border-radius:3px;background:AppColors.edge;Rectangle {width:parent.width*min(1,max(0,root.progress));background:AppColors.accent;animate width {duration:AppColors.motion?160ms:0ms;easing:linear;}}}
+    if root.numbers!="":Text {text:root.numbers;color:AppColors.ink;vertical-stretch:0;}
     if root.error!="":Text {text:root.error;color:#d34b4b;wrap:word-wrap;vertical-stretch:0;}
 }

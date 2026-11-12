@@ -1,0 +1,115 @@
+import {CheckBox} from "check_box.slint";
+import {ScrollView,VerticalBox,HorizontalBox} from "std-widgets.slint";
+import {FormInput} from "form_input.slint";
+import {SelectBox} from "select_box.slint";
+import {ActionButton,ActivityIndicator,AppColors} from "action_button.slint";
+import {DesktopTool} from "desktop_tool.slint";
+import {DeviceListItem} from "workbench_chrome.slint";
+export struct DeviceRow {id:string,name:string,address:string}
+component ConnectionStep inherits HorizontalBox {
+    in property <string> text;in property <int> state;
+    padding:0px;spacing:5px;preferred-width:0px;horizontal-stretch:1;
+    Rectangle {width:5px;height:5px;horizontal-stretch:0;vertical-stretch:0;border-radius:3px;background:root.state==1?AppColors.accent:root.state==3?AppColors.danger:root.state==2?AppColors.accent:AppColors.muted.with-alpha(0.3);}
+    Text {text:root.text;font-size:10px;color:root.state==1||root.state==2?AppColors.accent-ink:root.state==3?AppColors.danger:AppColors.muted;wrap:word-wrap;}
+}
+export component DevicesView inherits Rectangle {
+    in property <bool> english;in property <bool> editable;in property <bool> enabled;
+    in property <bool> busy;in property <bool> connected;in property <bool> discovering;
+    in property <[DeviceRow]> devices;in property <[DeviceRow]> found;
+    in-out property <string> selected-id;in-out property <string> name;in-out property <string> host;in-out property <string> port;in-out property <string> username;
+    in-out property <int> auth;in-out property <string> key-path;in-out property <string> password;in-out property <bool> remember;
+    in-out property <bool> advanced;in-out property <string> display;in-out property <string> xauthority;
+    in property <string> error;in property <string> detail;in property <int> stage:-1;in property <bool> details-open;in property <string> discovery-progress;
+    pure callback tr(string,bool)->string;
+    callback select-device(string);callback select-found(string);callback discover();callback cancel-discovery();callback choose-key();callback connect();callback disconnect();callback save();callback remove();callback desktop();
+    property <[string]> steps:["准备认证资料","解析设备地址","建立 TCP 连接","SSH 密钥交换","验证主机身份","完成 SSH 握手","登录认证","连接完成"];
+    pure function step-state(i:int)->int {if root.connected{return 1;}if i<root.stage{return 1;}if i==root.stage{return root.busy?2:3;}return 0;}
+    property <string> advice:root.stage==0?"检查私钥文件、格式和口令。":root.stage==1?"检查设备地址或 DNS 设置。":root.stage==2?"检查设备是否开机、网络是否互通，以及 SSH 端口是否正确。":root.stage==3||root.stage==5?"确认目标端口运行 SSH 服务，并检查服务端日志。":root.stage==4?"请核对设备指纹；身份变化时不要直接信任新密钥。":root.stage==6?"检查用户名、密码，或设备上的公钥授权。":"";
+    out property <length> advanced-height:advanced-panel.height;
+    in property <bool> observe-motion:false;callback motion(float,float,int,int,bool);
+    property <length> result-height:result-panel.height;
+    property <int> busy-phase:connect-button.busy-phase;property <int> busy-wave:connect-button.busy-wave;
+    function observe(){if root.observe-motion{root.motion(root.advanced-height/1px,root.result-height/1px,root.busy-phase,root.busy-wave,root.busy);}}
+    changed advanced-height=>{root.observe();}changed result-height=>{root.observe();}changed busy-phase=>{root.observe();}changed busy=>{root.observe();}
+    border-radius:16px;border-width:1px;border-color:AppColors.edge;background:AppColors.card.with-alpha(AppColors.dark?0.4:0.48);clip:true;
+    HorizontalBox {padding:12px;spacing:20px;
+        VerticalBox {padding:0px;spacing:12px;width:210px;horizontal-stretch:0;
+            Rectangle {background:AppColors.inset.with-alpha(0.7);border-radius:16px;border-width:1px;border-color:AppColors.edge;
+                VerticalBox {padding:14px;spacing:10px;
+                    Text {text:root.tr("已保存的设备",root.english)+"  "+root.devices.length;font-size:11px;color:AppColors.muted;vertical-stretch:0;}
+                    ScrollView {viewport-width:self.visible-width;viewport-height:saved.preferred-height;vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
+                        saved:=VerticalBox {padding:0px;spacing:6px;min-width:0px;
+                            for device in root.devices:DeviceListItem {name:device.name;address:device.address;selected:root.selected-id==device.id;enabled:root.editable;clicked=>{root.select-device(device.id);}}
+                            if root.devices.length==0:Text {text:root.tr("暂无设备",root.english);color:AppColors.muted;font-size:12px;horizontal-alignment:center;}
+                        }
+                    }
+                }
+            }
+            Rectangle {background:AppColors.inset.with-alpha(0.7);border-radius:16px;border-width:1px;border-color:AppColors.edge;
+                VerticalBox {padding:14px;spacing:10px;
+                    HorizontalBox {padding:0px;spacing:6px;vertical-stretch:0;Text {text:root.tr("局域网设备",root.english)+"  "+root.found.length;font-size:11px;color:AppColors.muted;}ActivityIndicator {active:root.discovering;}}
+                    ScrollView {viewport-width:self.visible-width;viewport-height:found.preferred-height;vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
+                        found:=VerticalBox {padding:0px;spacing:6px;min-width:0px;
+                            for device in root.found:DeviceListItem {name:device.address;address:"SSH · 22";selected:root.host==device.id;enabled:root.editable;clicked=>{root.select-found(device.id);}}
+                            if root.found.length==0:Text {text:root.tr("未发现设备",root.english);color:AppColors.muted;font-size:12px;horizontal-alignment:center;}
+                        }
+                    }
+                    if root.discovery-progress!="":Text {text:root.discovery-progress;color:AppColors.muted;font-size:11px;wrap:word-wrap;vertical-stretch:0;}
+                    HorizontalBox {padding:0px;Rectangle {background:transparent;horizontal-stretch:1;}ActionButton {text:root.tr(root.discovering?"停止搜索":"重新搜索",root.english);enabled:root.enabled&&!root.busy;clicked=>{if root.discovering{root.cancel-discovery();}else{root.discover();}}}}
+                }
+            }
+        }
+        editor-scroll:=ScrollView {viewport-width:self.visible-width;viewport-height:max(self.visible-height,editor.preferred-height+48px);vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
+            editor:=VerticalBox {x:28px;y:max(24px,(editor-scroll.visible-height - self.preferred-height)/2);width:editor-scroll.visible-width - 56px;height:self.preferred-height;padding:0px;spacing:20px;
+                HorizontalBox {padding:0px;spacing:12px;vertical-stretch:0;
+                    Rectangle {width:44px;height:44px;horizontal-stretch:0;border-radius:14px;background:AppColors.soft;border-width:1px;border-color:AppColors.edge;Image {x:12px;y:12px;width:20px;height:20px;source:@image-url("icons/about.svg");colorize:AppColors.accent;}}
+                    Text {text:root.name!=""?root.name:root.tr("添加一台设备",root.english);font-size:18px;font-weight:600;color:AppColors.ink;overflow:elide;vertical-alignment:center;}
+                }
+                VerticalBox {padding:0px;spacing:root.height>850px?20px:14px;vertical-stretch:0;
+                    VerticalBox {padding:0px;spacing:8px;Text {text:root.tr("设备名称",root.english);font-size:12px;color:AppColors.muted;}FormInput {text<=>root.name;label:root.tr("设备名称",root.english);placeholder-text:root.tr("例如：开发控制器",root.english);enabled:root.editable;}}
+                    HorizontalBox {padding:0px;spacing:20px;
+                        VerticalBox {padding:0px;spacing:8px;preferred-width:0px;horizontal-stretch:1;Text {text:root.tr("设备地址",root.english);font-size:12px;color:AppColors.muted;}FormInput {text<=>root.host;label:root.tr("设备地址",root.english);placeholder-text:root.tr("例如：192.168.1.100",root.english);enabled:root.editable;}}
+                        VerticalBox {padding:0px;spacing:8px;preferred-width:0px;horizontal-stretch:1;Text {text:root.tr("SSH 端口",root.english);font-size:12px;color:AppColors.muted;}FormInput {text<=>root.port;label:root.tr("SSH 端口",root.english);enabled:root.editable;}}
+                    }
+                    HorizontalBox {padding:0px;spacing:20px;
+                        VerticalBox {padding:0px;spacing:8px;preferred-width:0px;horizontal-stretch:1;Text {text:root.tr("用户名",root.english);font-size:12px;color:AppColors.muted;}FormInput {text<=>root.username;label:root.tr("用户名",root.english);placeholder-text:root.tr("Linux 登录用户",root.english);enabled:root.editable;}}
+                        VerticalBox {padding:0px;spacing:8px;preferred-width:0px;horizontal-stretch:1;Text {text:root.tr("认证方式",root.english);font-size:12px;color:AppColors.muted;}SelectBox {model:[root.tr("密码",root.english),root.tr("私钥",root.english)];current-index<=>root.auth;enabled:root.editable;accessible-label:root.tr("认证方式",root.english);}}
+                    }
+                    if root.auth==1:VerticalBox {padding:0px;spacing:8px;Text {text:root.tr("私钥文件",root.english);font-size:12px;color:AppColors.muted;}HorizontalBox {padding:0px;spacing:8px;FormInput {text<=>root.key-path;label:root.tr("私钥文件",root.english);enabled:root.editable;}ActionButton {text:root.tr("选择私钥",root.english);enabled:root.editable;clicked=>{root.choose-key();}}}}
+                    VerticalBox {padding:0px;spacing:8px;Text {text:root.tr(root.auth==0?"密码":"密钥口令",root.english);font-size:12px;color:AppColors.muted;}FormInput {text<=>root.password;input-type:InputType.password;label:root.tr(root.auth==0?"密码":"密钥口令",root.english);placeholder-text:root.tr(root.remember?"已加密保存，留空使用":"",root.english);enabled:root.editable;}}
+                    CheckBox {text:root.tr(root.auth==0?"记住密码":"记住密钥口令",root.english);checked<=>root.remember;enabled:root.editable;}
+                    Rectangle {height:1px;vertical-stretch:0;background:AppColors.edge;}
+                    DesktopTool {text:root.tr("桌面连接设置",root.english);icon:@image-url("icons/chevron-right.svg");icon-angle:root.advanced?90deg:0deg;enabled:root.editable;clicked=>{root.advanced=!root.advanced;}}
+                    advanced-panel:=Rectangle {height:root.advanced?74px:0px;vertical-stretch:0;clip:true;background:transparent;animate height {duration:AppColors.motion?260ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}
+                        HorizontalBox {height:66px;padding:0px;spacing:20px;
+                            VerticalBox {width:130px;horizontal-stretch:0;padding:0px;spacing:8px;Text {text:root.tr("显示编号",root.english);font-size:12px;color:AppColors.muted;}FormInput {text<=>root.display;label:root.tr("显示编号",root.english);enabled:root.editable;}}
+                            VerticalBox {padding:0px;spacing:8px;Text {text:root.tr("桌面授权文件",root.english);font-size:12px;color:AppColors.muted;}FormInput {text<=>root.xauthority;label:root.tr("桌面授权文件",root.english);placeholder-text:root.tr("自动选择当前用户的 Xauthority",root.english);enabled:root.editable;}}
+                        }
+                    }
+                }
+                HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
+                    connect-button:=ActionButton {text:root.tr(root.busy?"取消连接":root.connected?"断开设备":"连接设备",root.english);icon:@image-url("icons/connect.svg");has-icon:true;busy:root.busy;primary:true;enabled:root.enabled;clicked=>{if root.busy||root.connected{root.disconnect();}else{root.connect();}}}
+                    ActionButton {text:root.tr("保存配置",root.english);enabled:root.editable;clicked=>{root.save();}}
+                    Rectangle {background:transparent;horizontal-stretch:1;}
+                    ActionButton {visible:root.selected-id!="";text:root.tr("移除配置",root.english);danger:true;enabled:root.editable;clicked=>{root.remove();}}
+                }
+                result-panel:=Rectangle {height:root.details-open&&(root.busy||root.connected||root.error!="")?result.preferred-height+24px:0px;vertical-stretch:0;clip:true;background:transparent;animate height {duration:AppColors.motion?260ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}
+                    result:=VerticalBox {y:12px;width:parent.width;height:self.preferred-height;padding:0px;spacing:10px;
+                        HorizontalBox {padding:0px;spacing:10px;
+                            ActivityIndicator {active:root.busy;}
+                            Image {visible:root.connected;width:20px;height:20px;horizontal-stretch:0;source:@image-url("icons/check.svg");colorize:AppColors.accent;}
+                            VerticalBox {padding:0px;spacing:4px;Text {text:root.tr(root.connected?"设备连接成功":root.busy?"正在连接设备":"连接失败",root.english);font-weight:600;color:AppColors.ink;}Text {text:root.host+":"+root.port;font-size:11px;color:AppColors.muted;}}
+                            Rectangle {background:transparent;horizontal-stretch:1;}
+                            ActionButton {visible:root.connected;text:root.tr("进入远程桌面",root.english);icon:@image-url("icons/go.svg");has-icon:true;primary:true;enabled:root.connected&&root.enabled;clicked=>{root.desktop();}}
+                        }
+                        HorizontalBox {padding:0px;spacing:10px;for i in [0,1,2,3]:ConnectionStep {text:root.tr(root.steps[i],root.english);state:root.step-state(i);}}
+                        HorizontalBox {padding:0px;spacing:10px;for i in [4,5,6,7]:ConnectionStep {text:root.tr(root.steps[i],root.english);state:root.step-state(i);}}
+                        if root.detail!="":Text {text:root.detail;color:AppColors.muted;font-size:11px;wrap:word-wrap;}
+                        if root.error!="":Text {text:root.tr(root.error,root.english);color:AppColors.danger;font-size:12px;wrap:word-wrap;}
+                        if root.error!=""&&root.advice!="":Text {text:root.tr(root.advice,root.english);color:AppColors.muted;font-size:11px;wrap:word-wrap;}
+                    }
+                }
+            }
+        }
+    }
+}

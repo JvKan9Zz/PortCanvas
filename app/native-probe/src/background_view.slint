@@ -1,40 +1,43 @@
-import {Button,LineEdit,Slider,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {ActionButton as Button,AppColors,ActivityIndicator} from "action_button.slint";
+import {LineEdit,Slider,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
 export component BackgroundSettings inherits VerticalBox {
-    in property <bool> compact:false;
+    in property <bool> compact:false;in property <bool> video:false;
     in property <bool> english;in property <bool> enabled;in property <bool> busy;in property <bool> cancellable;
     in property <image> frame;in property <bool> has-frame;in property <color> color;
     in property <int> source-width;in property <int> source-height;
     in property <float> crop-x;in property <float> crop-y;in property <float> crop-width:1;in property <float> crop-height:1;
     in-out property <string> hex;in-out property <float> volume;
     in property <string> status;in property <string> error;
-    pure callback tr(string,bool)->string;callback action(string);callback controls();
-    padding:0px;spacing:8px;
-    Text {text:root.tr("背景",root.english);font-size:22px;font-weight:600;color:Palette.foreground;}
-    GridLayout {padding:0px;spacing:8px;vertical-stretch:0;
-        Rectangle {row:0;col:0;preferred-width:180px;min-width:0px;height:92px;background:root.color;horizontal-stretch:0;clip:true;
-            if root.has-frame:Image {source:root.frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.crop-x*root.source-width);source-clip-y:round(root.crop-y*root.source-height);source-clip-width:max(1,round(root.crop-width*root.source-width));source-clip-height:max(1,round(root.crop-height*root.source-height));}
-        }
-        VerticalBox {row:root.compact?1:0;col:root.compact?0:1;padding:0px;
-            HorizontalBox {padding:0px;
-                Button {text:root.tr("选择图片",root.english);enabled:root.enabled&&!root.busy;clicked=>{root.action("image");}}
-                Button {text:root.tr("选择视频",root.english);enabled:root.enabled&&!root.busy;clicked=>{root.action("video");}}
-                Button {text:root.tr("恢复默认",root.english);enabled:root.enabled&&!root.busy;clicked=>{root.action("reset");}}
-            }
-            HorizontalBox {padding:0px;
-                LineEdit {text<=>root.hex;accessible-label:root.tr("背景颜色",root.english);enabled:root.enabled&&!root.busy;accepted=>{root.action("color");}}
-                Button {text:root.tr("确认",root.english);enabled:root.enabled&&!root.busy;clicked=>{root.action("color");}}
-                if root.cancellable:Button {text:root.tr("取消导入",root.english);clicked=>{root.action("cancel");}}
-            }
-        }
+    pure callback tr(string,bool)->string;callback action(string);callback controls();callback picker-position(float,float);
+    in property <int> focus-ticket;changed focus-ticket=>{color-trigger.focus();}
+    padding:0px;spacing:12px;
+    Text {text:root.tr("背景",root.english);font-size:18px;font-weight:600;color:Palette.foreground;}
+    Rectangle {height:78px;vertical-stretch:0;background:root.color;border-radius:12px;clip:true;
+        if root.has-frame:Image {source:root.frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.crop-x*root.source-width);source-clip-y:round(root.crop-y*root.source-height);source-clip-width:max(1,round(root.crop-width*root.source-width));source-clip-height:max(1,round(root.crop-height*root.source-height));}
     }
-    HorizontalBox {padding:0px;vertical-stretch:0;
+    HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
+        Text {text:root.tr("颜色",root.english);font-size:11px;color:AppColors.muted;horizontal-stretch:0;vertical-alignment:center;}
+        color-trigger:=Rectangle {width:36px;height:32px;horizontal-stretch:0;border-radius:9px;border-width:color-focus.has-focus?2px:1px;border-color:color-focus.has-focus?AppColors.accent:AppColors.edge;background:AppColors.field;
+            Rectangle {x:5px;y:5px;width:parent.width - 10px;height:parent.height - 10px;border-radius:5px;background:root.color;}
+            function open(){root.picker-position(self.absolute-position.x/1px,self.absolute-position.y/1px);root.action("picker");}
+            forward-focus:color-focus;accessible-role:button;accessible-label:root.tr("背景颜色",root.english);accessible-action-default=>{self.open();}
+            color-focus:=FocusScope {enabled:root.enabled&&!root.busy;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{color-trigger.open();return accept;}return reject;}}
+            TouchArea {enabled:root.enabled&&!root.busy;clicked=>{color-focus.focus();color-trigger.open();}}
+        }
+        Rectangle {horizontal-stretch:1;background:transparent;}
+        Button {text:root.tr("选择图片",root.english);enabled:root.enabled&&!root.busy;clicked=>{root.action("image");}}
+        Button {text:root.tr("选择视频",root.english);enabled:root.enabled&&!root.busy;clicked=>{root.action("video");}}
+        Button {text:root.tr("移除背景",root.english);enabled:root.enabled&&!root.busy&&root.has-frame;clicked=>{root.action("remove");}}
+        Button {text:root.tr("恢复默认",root.english);enabled:root.enabled&&!root.busy;clicked=>{root.action("reset");}}
+    }
+    if root.cancellable:Button {text:root.tr("取消导入",root.english);busy:root.busy;clicked=>{root.action("cancel");}}
+    if root.video:HorizontalBox {padding:0px;vertical-stretch:0;
         Text {text:root.tr("视频音量",root.english);color:Palette.foreground;}
-        Slider {accessible-label:root.tr("视频音量",root.english);value<=>root.volume;minimum:0;maximum:100;enabled:root.enabled&&!root.busy;changed(_)=>{root.controls();}}
+        volume-slider:=Slider {accessible-label:root.tr("视频音量",root.english);value<=>root.volume;minimum:0;maximum:100;enabled:root.enabled&&!root.busy;changed(_)=>{root.controls();}}
         Text {text:round(root.volume)+"%";color:Palette.foreground;min-width:45px;horizontal-stretch:0;}
-
     }
-    if root.status!="":Text {text:root.status;color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
-    if root.error!="":Text {text:root.tr(root.error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
+    if root.status!="":HorizontalBox {padding:0px;vertical-stretch:0;ActivityIndicator {active:root.busy;}Text {text:root.status;color:Palette.foreground;wrap:word-wrap;}}
+    if root.error!="":Text {text:root.tr(root.error,root.english);color:Palette.foreground;font-weight:600;wrap:word-wrap;vertical-stretch:0;}
 }
 export component BackgroundCropView inherits VerticalBox {
     in property <bool> english;in property <bool> busy;in property <image> frame;
@@ -45,7 +48,7 @@ export component BackgroundCropView inherits VerticalBox {
     public function focus-selection(){selection.focus();}
     padding:20px;spacing:12px;
     Text {text:root.tr("裁剪背景",root.english);font-size:20px;font-weight:600;color:Palette.foreground;vertical-stretch:0;}
-    Rectangle {background:#171c24;
+    Rectangle {background:#171c24;border-radius:14px;clip:true;
         property <float> scale:min(self.width/max(1,root.source-width)/1px,self.height/max(1,root.source-height)/1px);
         picture:=Rectangle {width:root.source-width*parent.scale*1px;height:root.source-height*parent.scale*1px;x:(parent.width - self.width)/2;y:(parent.height - self.height)/2;
             Image {source:root.frame;width:parent.width;height:parent.height;image-fit:contain;}
@@ -54,7 +57,7 @@ export component BackgroundCropView inherits VerticalBox {
             Rectangle {x:0px;y:root.crop-y*parent.height;width:root.crop-x*parent.width;height:root.crop-height*parent.height;background:#00000090;}
             Rectangle {x:(root.crop-x+root.crop-width)*parent.width;y:root.crop-y*parent.height;width:(1 - root.crop-x - root.crop-width)*parent.width;height:root.crop-height*parent.height;background:#00000090;}
             Rectangle {x:root.crop-x*parent.width;y:root.crop-y*parent.height;width:root.crop-width*parent.width;height:root.crop-height*parent.height;border-width:2px;border-color:#ffffff;background:transparent;
-                for corner in [0,1,2,3]:Rectangle {x:(mod(corner,2)==0?0px:parent.width) - 5px;y:(corner<2?0px:parent.height) - 5px;width:10px;height:10px;background:white;}
+                for corner in [0,1,2,3]:Rectangle {x:(mod(corner,2)==0?0px:parent.width) - 6px;y:(corner<2?0px:parent.height) - 6px;width:13px;height:13px;border-radius:3px;border-width:2px;border-color:white;background:AppColors.accent;}
             }
             selection:=FocusScope {enabled:!root.busy;key-pressed(event)=>{
                 if event.text==Key.Escape{root.response(false);return accept;}
@@ -64,15 +67,21 @@ export component BackgroundCropView inherits VerticalBox {
                 if event.text==Key.UpArrow{root.arrow(0,-0.01,event.modifiers.shift);return accept;}
                 if event.text==Key.DownArrow{root.arrow(0,0.01,event.modifiers.shift);return accept;}return reject;
             }}
-            TouchArea {enabled:!root.busy;pointer-event(event)=>{if event.kind==PointerEventKind.down{selection.focus();root.gesture(0,self.mouse-x/self.width,self.mouse-y/self.height);}if event.kind==PointerEventKind.up{root.gesture(2,self.mouse-x/self.width,self.mouse-y/self.height);}}
+            TouchArea {enabled:!root.busy;
+                property <bool> left-edge:abs(self.mouse-x - root.crop-x*self.width)<12px;
+                property <bool> right-edge:abs(self.mouse-x - (root.crop-x+root.crop-width)*self.width)<12px;
+                property <bool> top-edge:abs(self.mouse-y - root.crop-y*self.height)<12px;
+                property <bool> bottom-edge:abs(self.mouse-y - (root.crop-y+root.crop-height)*self.height)<12px;
+                mouse-cursor:(self.left-edge&&self.top-edge)||(self.right-edge&&self.bottom-edge)?nwse-resize:(self.right-edge&&self.top-edge)||(self.left-edge&&self.bottom-edge)?nesw-resize:move;pointer-event(event)=>{if event.kind==PointerEventKind.down{selection.focus();root.gesture(0,self.mouse-x/self.width,self.mouse-y/self.height);}if event.kind==PointerEventKind.up{root.gesture(2,self.mouse-x/self.width,self.mouse-y/self.height);}}
                 moved=>{if self.pressed{root.gesture(1,self.mouse-x/self.width,self.mouse-y/self.height);}}
             }
         }
     }
     if root.error!="":Text {text:root.tr(root.error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
     HorizontalBox {padding:0px;height:36px;vertical-stretch:0;
-        Button {text:root.tr("取消",root.english);enabled:!root.busy;clicked=>{root.response(false);}}
         Button {text:root.tr("重置范围",root.english);enabled:!root.busy;clicked=>{root.reset();}}
-        Button {text:root.tr("应用",root.english);enabled:!root.busy;clicked=>{root.response(true);}}
+        Rectangle {background:transparent;horizontal-stretch:1;}
+        Button {text:root.tr("取消",root.english);enabled:!root.busy;clicked=>{root.response(false);}}
+        Button {text:root.tr("应用背景",root.english);primary:true;busy:root.busy;enabled:!root.busy;clicked=>{root.response(true);}}
     }
 }

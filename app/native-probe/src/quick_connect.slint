@@ -1,0 +1,24 @@
+import {VerticalBox,HorizontalBox} from "std-widgets.slint";
+import {FormInput} from "form_input.slint";
+import {CheckBox} from "check_box.slint";
+import {ActionButton,ActivityIndicator,AppColors} from "action_button.slint";
+export component QuickConnect inherits VerticalBox {
+    in property <bool> english;in property <bool> busy;in property <bool> enabled;in property <bool> key-auth;
+    in property <string> target;in property <string> error;
+    in-out property <string> name;in-out property <string> username;in-out property <string> password;in-out property <bool> remember;
+    pure callback tr(string,bool)->string;callback submit();callback cancel();
+    public function focus-first(){if root.busy{cancel-entry.focus();}else if root.name!=""&&root.username!=""{password-input.focus();}else{name-input.focus();}}
+    changed busy=>{if root.busy{cancel-entry.focus();}}
+    padding:26px;spacing:16px;
+    HorizontalBox {padding:0px;spacing:10px;vertical-stretch:0;Text {text:root.tr("连接设备",root.english);font-size:20px;font-weight:600;color:AppColors.ink;horizontal-stretch:1;}ActivityIndicator {active:root.busy;}}
+    Text {text:root.target;color:AppColors.muted;font-size:12px;vertical-stretch:0;}
+    VerticalBox {padding:0px;spacing:8px;vertical-stretch:0;Text {text:root.tr("设备名称",root.english);font-size:12px;color:AppColors.muted;}name-input:=FormInput {label:root.tr("设备名称",root.english);text<=>root.name;enabled:root.enabled&&!root.busy;}}
+    VerticalBox {padding:0px;spacing:8px;vertical-stretch:0;Text {text:root.tr("用户名",root.english);font-size:12px;color:AppColors.muted;}FormInput {label:root.tr("用户名",root.english);text<=>root.username;enabled:root.enabled&&!root.busy;}}
+    VerticalBox {padding:0px;spacing:8px;vertical-stretch:0;Text {text:root.tr(root.key-auth?"密钥口令":"密码",root.english);font-size:12px;color:AppColors.muted;}password-input:=FormInput {label:root.tr(root.key-auth?"密钥口令":"密码",root.english);text<=>root.password;input-type:InputType.password;enabled:root.enabled&&!root.busy;accepted=>{root.submit();}}}
+    CheckBox {text:root.tr(root.key-auth?"记住密钥口令":"记住密码",root.english);checked<=>root.remember;enabled:root.enabled&&!root.busy;}
+    if root.error!="":Text {text:root.tr(root.error,root.english);color:AppColors.danger;font-size:12px;wrap:word-wrap;vertical-stretch:0;}
+    HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;Rectangle {background:transparent;horizontal-stretch:1;}
+        cancel-entry:=ActionButton {text:root.tr(root.busy?"取消连接":"取消",root.english);enabled:root.enabled;clicked=>{root.cancel();}}
+        ActionButton {text:root.tr("连接设备",root.english);primary:true;enabled:root.enabled&&!root.busy;clicked=>{root.submit();}}
+    }
+}

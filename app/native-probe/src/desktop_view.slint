@@ -1,5 +1,6 @@
 import {ScrollView,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
-import {ActionButton} from "action_button.slint";
+import {SelectBox} from "select_box.slint";
+import {ActionButton,ActivityIndicator,AppColors} from "action_button.slint";
 import {DesktopTool} from "desktop_tool.slint";
 import {MaterialPanel} from "workbench_chrome.slint";
 export component DesktopView inherits Rectangle {
@@ -9,10 +10,10 @@ export component DesktopView inherits Rectangle {
     in property <bool> material-solid;
     in property <float> material-strength:100;
     property <bool> compact:root.width<650px;
-    property <int> menu-kind:0;
-    changed menu-kind=>{root.tools-open-changed(root.menu-kind!=0);if root.menu-kind==1{quality-smooth.focus();}else if root.menu-kind==2{clipboard-send.focus();}}
+    property <int> menu-kind:0;property <bool> quality-open:false;changed quality-open=>{root.tools-open-changed(root.quality-open||root.menu-kind!=0);}
+    changed menu-kind=>{root.tools-open-changed(root.quality-open||root.menu-kind!=0);if root.menu-kind==2{clipboard-send.focus();}}
     changed expanded=>{root.close-tools();}
-    function close-tools(){if root.menu-kind==1{quality-tool.focus();}else if root.menu-kind==2{more-tool.focus();}root.menu-kind=0;}
+    function close-tools(){quality-tool.close-popup();if root.menu-kind==2{more-tool.focus();}root.menu-kind=0;}
     in property <bool> english;
     in property <bool> enabled:true;
     in property <bool> connected;
@@ -37,7 +38,7 @@ export component DesktopView inherits Rectangle {
     in-out property <bool> read-only:false;
     property <length> pointer-x;
     property <length> pointer-y;
-    property <bool> live:root.ready&&!root.read-only&&root.enabled&&root.menu-kind==0;
+    property <bool> live:root.ready&&!root.read-only&&root.enabled&&root.menu-kind==0&&!root.quality-open;
     pure callback tr(string,bool)->string;
     callback action(string);callback quality(int);callback readonly-changed();callback reboot();callback toggle-expanded();
     callback pointer(float,float,float,float,int,bool);callback motion(float,float,float,float);
@@ -47,10 +48,10 @@ export component DesktopView inherits Rectangle {
     changed focus-revision=>{if root.live{input.focus();}else{expand-tool.focus();}}
     changed fit=>{scroll.viewport-x=0px;scroll.viewport-y=0px;}
 
-    toolbar:=MaterialPanel {x:0px;y:0px;width:parent.width;height:52px;border-radius:14px;
+    toolbar:=MaterialPanel {x:0px;y:0px;width:parent.width;height:46px;border-radius:14px;
         material:root.toolbar-material;active:root.expanded&&root.material-active;solid:root.material-solid;strength:root.material-strength;
         HorizontalBox {padding:8px;spacing:6px;
-            quality-tool:=DesktopTool {text:root.tr(root.mode==0?"流畅":root.mode==1?"清晰":"省资源",root.english);label:root.tr("桌面画质",root.english)+": "+self.text;icon:@image-url("icons/chevron.svg");icon-end:true;enabled:root.enabled;width:root.english?106px:90px;clicked=>{root.menu-kind=root.menu-kind==1?0:1;}}
+            quality-tool:=SelectBox {compact:true;width:root.english?100px:72px;horizontal-stretch:0;accessible-label:root.tr("桌面画质",root.english);model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.mode;enabled:root.enabled;selected(i)=>{root.quality(i);}popup-state(open)=>{root.quality-open=open;}}
             DesktopTool {text:root.tr("适配",root.english);label:root.tr("适应窗口",root.english);icon:@image-url("icons/fit.svg");show-text:!root.compact;checkable:true;checked:root.fit;enabled:root.enabled;clicked=>{root.fit=true;}}
             DesktopTool {text:"1:1";label:root.tr("原始尺寸",root.english);has-icon:false;checkable:true;checked:!root.fit;enabled:root.enabled;clicked=>{root.fit=false;}}
             Rectangle {horizontal-stretch:1;background:transparent;}
@@ -60,8 +61,8 @@ export component DesktopView inherits Rectangle {
             expand-tool:=DesktopTool {label:root.tr(root.expanded?"收起远程桌面":"展开远程桌面",root.english);icon:root.expanded?@image-url("icons/collapse.svg"):@image-url("icons/expand.svg");show-text:false;enabled:root.enabled&&(root.ready||root.expanded);clicked=>{root.toggle-expanded();}}
         }
     }
-    canvas:=Rectangle {x:0px;y:60px;width:parent.width;height:parent.height - 60px - (live-error.visible?live-error.height + 8px:0px);
-        background:#181c24;border-radius:root.expanded?0px:4px;clip:true;min-height:140px;
+    canvas:=Rectangle {x:0px;y:54px;width:parent.width;height:parent.height - 54px - (root.expanded?0px:22px) - (live-error.visible?live-error.height + 8px:0px);
+        background:#181c24;border-radius:root.expanded?0px:14px;clip:true;min-height:140px;
         property <length> edge:root.expanded?0px:2px;
         border-width:root.expanded?0px:input.has-focus?2px:1px;border-color:input.has-focus?#70a5e8:#53657f;
         scroll:=ScrollView {
@@ -112,14 +113,16 @@ export component DesktopView inherits Rectangle {
                 }
             }
         }
-        if !root.ready:VerticalBox {x:24px;height:self.preferred-height;y:(parent.height - self.height)/2;width:parent.width - 48px;padding:0px;spacing:12px;alignment:center;
-            Text {text:root.status;color:#ffffff;wrap:word-wrap;horizontal-alignment:center;}
+        VerticalBox {visible:!root.ready;x:max(16px,(parent.width - 320px)/2);height:self.preferred-height;y:max(16px,(parent.height - self.height)/2);width:min(320px,parent.width - 32px);padding:0px;spacing:12px;alignment:center;
+            HorizontalBox {padding:0px;height:48px;vertical-stretch:0;Rectangle {background:transparent;horizontal-stretch:1;}Rectangle {width:48px;height:48px;horizontal-stretch:0;background:transparent;Image {visible:!root.active;width:48px;height:48px;source:@image-url("icons/desktop.svg");colorize:#a9bad2;}ActivityIndicator {active:root.active;x:15px;y:15px;}}Rectangle {background:transparent;horizontal-stretch:1;}}
+            Text {text:root.status;font-size:18px;font-weight:600;color:#ffffff;wrap:word-wrap;horizontal-alignment:center;}
             if root.error!="":Text {text:root.error;color:#ffffff;wrap:word-wrap;horizontal-alignment:center;}
-            ActionButton {text:root.tr(root.active?"取消连接":root.connected?"连接桌面":"连接设备",root.english);primary:true;enabled:root.enabled;width:180px;horizontal-stretch:0;clicked=>{root.action(root.active?"stop":"start");}}
+            HorizontalBox {padding:0px;Rectangle {background:transparent;horizontal-stretch:1;}ActionButton {text:root.tr(root.active?"取消连接":root.connected?"连接远程桌面":"连接设备",root.english);icon:@image-url("icons/go.svg");has-icon:true;primary:true;enabled:root.enabled;clicked=>{root.action(root.active?"stop":"start");}}Rectangle {background:transparent;horizontal-stretch:1;}}
         }
     }
 
-    live-error:=Rectangle {visible:root.ready&&root.error!="";x:0px;y:parent.height - self.height;width:parent.width;height:error-text.preferred-height + 16px;
+    Text {visible:!root.expanded;x:0px;y:parent.height - 16px;width:parent.width;height:16px;text:root.tr(root.ready?"桌面已连接":root.active?"正在连接桌面…":"桌面未连接",root.english);font-size:11px;color:root.ready?AppColors.accent-ink:AppColors.muted;}
+    live-error:=Rectangle {visible:root.ready&&root.error!="";x:0px;y:parent.height - self.height - (root.expanded?0px:22px);width:parent.width;height:error-text.preferred-height + 16px;
         background:Palette.background;border-radius:8px;border-width:1px;border-color:Palette.border;
         error-text:=Text {x:8px;y:8px;width:parent.width - 16px;text:root.error;wrap:word-wrap;color:Palette.foreground;font-weight:600;}
     }
@@ -127,10 +130,7 @@ export component DesktopView inherits Rectangle {
     tools-menu:=Rectangle {visible:root.menu-kind!=0;x:root.menu-kind==1?0px:max(0px,parent.width - self.width);y:56px;width:min(260px,parent.width);height:130px;
         background:Palette.background;border-radius:12px;border-width:1px;border-color:Palette.border;
         menu-focus:=FocusScope {key-pressed(event)=>{if event.text==Key.Escape{root.close-tools();return accept;}return reject;}
-        quality-smooth:=ActionButton {visible:root.menu-kind==1;x:8px;y:8px;width:parent.width - 16px;height:34px;primary:root.mode==0;text:root.tr("流畅",root.english);clicked=>{root.close-tools();root.quality(0);}}
-        ActionButton {visible:root.menu-kind==1;x:8px;y:48px;width:parent.width - 16px;height:34px;primary:root.mode==1;text:root.tr("清晰",root.english);clicked=>{root.close-tools();root.quality(1);}}
-        ActionButton {visible:root.menu-kind==1;x:8px;y:88px;width:parent.width - 16px;height:34px;primary:root.mode==2;text:root.tr("省资源",root.english);clicked=>{root.close-tools();root.quality(2);}}
-        clipboard-send:=ActionButton {visible:root.menu-kind==2;x:8px;y:8px;width:parent.width - 16px;height:34px;text:root.tr("发送剪贴板",root.english);enabled:root.ready&&!root.read-only&&root.enabled;clicked=>{root.close-tools();root.action("send-clipboard");}}
+            clipboard-send:=ActionButton {visible:root.menu-kind==2;x:8px;y:8px;width:parent.width - 16px;height:34px;text:root.tr("发送剪贴板",root.english);enabled:root.ready&&!root.read-only&&root.enabled;clicked=>{root.close-tools();root.action("send-clipboard");}}
         ActionButton {visible:root.menu-kind==2;x:8px;y:48px;width:parent.width - 16px;height:34px;text:root.tr("复制远端剪贴板",root.english);enabled:root.enabled&&root.clipboard-available;clicked=>{root.close-tools();root.action("copy-clipboard");}}
         ActionButton {visible:root.menu-kind==2;x:8px;y:88px;width:parent.width - 16px;height:34px;text:root.tr("断开桌面",root.english);enabled:root.enabled&&(root.active||root.wanted);clicked=>{root.close-tools();root.action("stop");}}
         }

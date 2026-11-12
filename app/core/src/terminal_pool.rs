@@ -21,7 +21,10 @@ impl Catalog {
     fn read(file:&PathBuf)->Result<Self> {
         if !file.exists(){return Ok(Self::default());}
         anyhow::ensure!(fs::metadata(file)?.len()<=1024*1024,"终端列表超过1MiB，原文件保留。");
-        let data:Self=serde_json::from_slice(&fs::read(file)?).context("终端列表读取失败，原文件保留。")?;
+        Self::decode(&fs::read(file)?)
+    }
+    fn decode(bytes:&[u8])->Result<Self>{
+        let data:Self=serde_json::from_slice(bytes).context("终端列表读取失败，原文件保留。")?;
         for (device,tabs) in &data.devices {
             anyhow::ensure!(regex::Regex::new(r"^wcs-[a-f0-9]{16}$")?.is_match(device),"设备终端标识无效。");
             let mut keys=std::collections::BTreeSet::new();let mut numbers=std::collections::BTreeSet::new();
@@ -36,6 +39,7 @@ impl Catalog {
         let tab=Tab{key:uuid::Uuid::new_v4().to_string(),number};tabs.push(tab.clone());Ok(tab)
     }
 }
+pub(crate) fn validate_catalog(bytes:&[u8])->Result<()>{Catalog::decode(bytes).map(|_|())}
 #[derive(Clone)]
 pub struct TerminalPool {
     devices: DeviceManager,

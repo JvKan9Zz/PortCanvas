@@ -242,6 +242,9 @@ impl Controller {
                     if matches!(ui.get_dialog_kind(), 6 | 7) {
                         ui.set_dialog_kind(0);
                     }
+                    if ui.get_dialog_kind() == 15 && error.is_empty() {
+                        ui.set_dialog_kind(0);
+                    }
                     if !error.is_empty() {
                         ui.set_file_error(text(&error, ui.get_english()).into());
                     }
@@ -282,6 +285,9 @@ impl Controller {
             if let Some(ui) = self.ui.upgrade() {
                 ui.set_file_remote_path("".into());
                 if matches!(ui.get_dialog_kind(), 6 | 7) {
+                    ui.set_dialog_kind(0);
+                }
+                if ui.get_dialog_kind() == 15 && ui.get_file_folder_side() == 1 {
                     ui.set_dialog_kind(0);
                 }
             }
@@ -348,6 +354,15 @@ impl Controller {
             return;
         }
         match action {
+            "new-folder" => {
+                if !self.panels.borrow()[index].loaded { return; }
+                ui.set_file_folder_side(index as i32);
+                ui.set_file_folder_name("".into());
+                ui.set_file_error("".into());
+                ui.set_dialog_title("新建文件夹".into());
+                ui.set_dialog_message(self.panels.borrow()[index].path.clone().into());
+                ui.set_dialog_kind(15);
+            }
             "go" => self.load(
                 index,
                 if index == 0 {
@@ -386,6 +401,18 @@ impl Controller {
             "mkdir" | "upload" | "download" | "delete" => self.mutate(index, action),
             _ => {}
         }
+    }
+    pub fn respond_folder(self: &Rc<Self>, accepted: bool) {
+        let Some(ui) = self.ui.upgrade() else { return };
+        if ui.get_dialog_kind() != 15 || self.mutating.get() { return; }
+        if !accepted { ui.set_dialog_kind(0); return; }
+        let index = ui.get_file_folder_side().clamp(0, 1) as usize;
+        if !self.panels.borrow()[index].loaded { return; }
+        let name = ui.get_file_folder_name();
+        if name.trim().is_empty() { return; }
+        if index == 0 { ui.set_file_local_folder(name); }
+        else { ui.set_file_remote_folder(name); }
+        self.mutate(index, "mkdir");
     }
     fn mutate(self: &Rc<Self>, index: usize, action: &str) {
         let Some(ui) = self.ui.upgrade() else { return };

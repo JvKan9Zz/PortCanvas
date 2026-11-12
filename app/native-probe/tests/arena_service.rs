@@ -49,6 +49,38 @@ async fn connected() -> Result<(support::Fixture, Arc<Services>)> {
     Ok((f, s))
 }
 #[tokio::test]
+async fn camera_and_pose_keep_the_shared_ssh_connection_after_sftp_browsing() -> Result<()> {
+    let root = PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(format!("arena-files-{}",uuid::Uuid::new_v4()));
+    let remote = root.join("remote");
+    std::fs::create_dir_all(&remote)?;
+    std::fs::write(remote.join("owned.txt"), "owned fixture")?;
+    let f = support::Fixture::with_files(remote).await?;
+    let s = Services::new(Paths{data:root.join("data"),documents:root.clone(),local_files:root,portable:true},Arc::new(|_,_|{}),Some("arena-files-test".into()))?;
+    let fingerprint=f.fingerprint.clone();
+    s.connect(f.profile.clone(),zeroize::Zeroizing::new("synthetic-only".into()),Arc::new(move|identity,_|{let accepted=identity.fingerprint==fingerprint;Box::pin(async move{Ok(accepted)})})).await?;
+    let sftp=s.devices.connection()?.sftp().await?;
+    assert!(sftp.read_dir("/").await?.into_iter().next().is_some());
+    let generation=s.devices.generation();
+    let stop=CancellationToken::new();
+    let pose=s.pose.start_for_generation(generation,stop.clone()).await?;
+    let (frames,receiver)=watch::channel(None);
+    let task=tokio::spawn(camera_client::run(s.clone(),generation,"/dev/video0".into(),20,frames,stop.clone()));
+    until(||receiver.borrow().is_some()).await;
+    // Include several five-second SSH keepalive periods, with the SFTP channel retained.
+    for _ in 0..55 {
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        assert_eq!(s.devices.snapshot()["ssh"],"connected");
+        assert!(!task.is_finished(),"camera task ended while SSH was still connected");
+        s.arena.metrics().await?;
+    }
+    stop.cancel();
+    task.await??;
+    s.pose.stop(pose["id"].as_u64()).await;
+    sftp.close().await?;
+    s.shutdown().await;
+    Ok(())
+}
+#[tokio::test]
 async fn native_arena_reuses_ssh_without_http_and_cleans_camera_and_pose() -> Result<()> {
     let (f, s) = connected().await?;
     let generation = s.devices.generation();

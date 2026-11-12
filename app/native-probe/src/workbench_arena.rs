@@ -35,6 +35,7 @@ pub struct Controller {
     pose_id: Cell<Option<u64>>,
     pose: RefCell<(Value, Instant)>,
     metrics: RefCell<Metrics>,
+    plot_aspect: Cell<f64>,
     latest: RefCell<Option<(Value, Value)>>,
     devices: RefCell<Vec<String>>,
     listing: Cell<u64>,
@@ -65,6 +66,7 @@ impl Controller {
             pose_id: Cell::new(None),
             pose: RefCell::new((json!({"phase":"unavailable"}), Instant::now())),
             metrics: RefCell::new(Metrics::default()),
+            plot_aspect: Cell::new(10.),
             latest: RefCell::new(None),
             devices: RefCell::new(Vec::new()),
             listing: Cell::new(0),
@@ -76,6 +78,7 @@ impl Controller {
             uploads: Cell::new(0),
             visibility: RefCell::new(Vec::new()),
         });
+        ui.on_arena_plot_changed({let c=c.clone();move|aspect|{if aspect>0.{c.plot_aspect.set(aspect as f64);c.render_paths();}}});
         ui.on_arena_sync({
             let c = c.clone();
             move || c.sync()
@@ -380,55 +383,33 @@ impl Controller {
             ui.set_arena_has_heading(v["heading"].is_number());
         }
     }
+    fn render_paths(&self){if let Some(ui)=self.ui.upgrade(){
+        ui.set_arena_cpu_path(self.metrics.borrow().path_for_aspect(false,self.plot_aspect.get()).into());
+        ui.set_arena_memory_path(self.metrics.borrow().memory_dashes_for_aspect(self.plot_aspect.get()).into());
+    }}
     fn render_metrics(&self) {
-        let Some(ui) = self.ui.upgrade() else { return };
-        let latest = self.latest.borrow();
-        let english = ui.get_english();
-        let Some((v, r)) = latest.as_ref() else {
-            ui.set_arena_metrics_status(
-                if ui.get_connected() {
-                    "正在读取…"
-                } else {
-                    "设备未连接"
+        let Some(ui)=self.ui.upgrade() else{return};let latest=self.latest.borrow();let english=ui.get_english();
+        let labels=["CPU","内存","交换空间","往返时间","接收","发送","运行时间","负载"];
+        let mut rows=labels.into_iter().enumerate().map(|(i,label)|crate::workbench_ui::MetricRow{label:text(label,english).into(),value:"—".into(),usage:-1.,wide:i>=6}).collect::<Vec<_>>();
+        if let Some((v,r))=latest.as_ref(){
+            if let Some(error)=r["error"].as_str(){ui.set_arena_metrics_status(text(error,english).into());}
+            else{
+                ui.set_arena_metrics_status(text("实时",english).into());
+                if let Some(cpu)=r["cpu"].as_f64(){rows[0].value=format!("{cpu:.1}%").into();rows[0].usage=cpu as f32;}
+                if let (Some(total),Some(free))=(v["memoryTotal"].as_u64(),v["memoryAvailable"].as_u64()){
+                    if total>0&&free<=total{rows[1].value=format!("{} / {}",bytes(total-free),bytes(total)).into();rows[1].usage=(100.*(1.-free as f64/total as f64)) as f32;}
                 }
-                .into(),
-            );
-            ui.set_arena_metrics("CPU —\nRAM —".into());
-            ui.set_arena_cpu_path("".into());
-            ui.set_arena_memory_path("".into());
-            return;
-        };
-        let number = |v: &Value| {
-            v.as_f64()
-                .map(|n| format!("{n:.1}%"))
-                .unwrap_or_else(|| "—".into())
-        };
-        let rate = |v: &Value| {
-            v.as_f64()
-                .map(|n| format!("{}/s", bytes(n as u64)))
-                .unwrap_or_else(|| "—".into())
-        };
-        if let Some(error) = r["error"].as_str() {
-            ui.set_arena_metrics_status(text(error, english).into());
-            ui.set_arena_metrics("CPU —\nRAM —".into());
-        } else {
-            ui.set_arena_metrics_status(text("实时", english).into());
-            let total = v["memoryTotal"].as_u64().unwrap_or(0);
-            let free = v["memoryAvailable"].as_u64().unwrap_or(0);
-            let swap = v["swapTotal"].as_u64().unwrap_or(0);
-            let swap_free = v["swapFree"].as_u64().unwrap_or(0);
-            let load = v["load"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter_map(Value::as_f64)
-                .map(|n| format!("{n:.2}"))
-                .collect::<Vec<_>>()
-                .join(" / ");
-            ui.set_arena_metrics(format!("CPU {}\nRAM {} / {}\nSwap {} / {}\n{}: {}\n↑ {}   ↓ {}\n{}: {:.0} ms · {}: {:.0} min",number(&r["cpu"]),bytes(total.saturating_sub(free)),bytes(total),bytes(swap.saturating_sub(swap_free)),bytes(swap),text("负载",english),load,rate(&r["sent"]),rate(&r["received"]),text("往返时间",english),v["roundTripMs"].as_f64().unwrap_or(0.),text("运行时间",english),v["uptime"].as_f64().unwrap_or(0.)/60.).into());
-        }
-        ui.set_arena_cpu_path(self.metrics.borrow().path(false).into());
-        ui.set_arena_memory_path(self.metrics.borrow().path(true).into());
+                if let (Some(total),Some(free))=(v["swapTotal"].as_u64(),v["swapFree"].as_u64()){
+                    if free<=total{rows[2].value=format!("{} / {}",bytes(total-free),bytes(total)).into();}
+                }
+                if let Some(ms)=v["roundTripMs"].as_f64(){rows[3].value=format!("{ms:.0} ms").into();}
+                for (index,field) in [(4,"received"),(5,"sent")]{if let Some(rate)=r[field].as_f64(){rows[index].value=format!("{}/s",bytes(rate as u64)).into();}}
+                if let Some(seconds)=v["uptime"].as_f64(){rows[6].value=format!("{:.0} min",seconds/60.).into();}
+                let load=v["load"].as_array().into_iter().flatten().filter_map(Value::as_f64).map(|n|format!("{n:.2}")).collect::<Vec<_>>().join(" / ");
+                if !load.is_empty(){rows[7].value=load.into();}
+            }
+        }else{ui.set_arena_metrics_status(text(if ui.get_connected(){"正在读取…"}else{"设备未连接"},english).into());}
+        ui.set_arena_metric_rows(Rc::new(VecModel::from(rows)).into());self.render_paths();
     }
     fn start_camera(self: &Rc<Self>) {
         if !self.visible.get() {

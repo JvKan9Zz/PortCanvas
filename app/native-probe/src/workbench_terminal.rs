@@ -165,6 +165,7 @@ impl Controller {
                 }
             }
         });
+        ui.on_terminal_close_tab({let c=this.clone();move|key|c.action_for("remove",Some(key.as_str()))});
         ui.on_terminal_action({
             let c = this.clone();
             move |action| c.action(action.as_str())
@@ -441,6 +442,7 @@ impl Controller {
                 .map(|(key, n)| TerminalTab {
                     key: key.as_str().into(),
                     title: format!("{} {n}", text("终端", ui.get_english())).into(),
+                    online:s.panes.get(key).is_some_and(|p|p.phase=="connected"),
                 })
                 .collect::<Vec<_>>(),
         )));
@@ -448,6 +450,8 @@ impl Controller {
         if let Some(p) = s.current() {
             ui.set_terminal_phase(p.phase.as_str().into());
             ui.set_terminal_status(text(&p.message, ui.get_english()).into());
+            let snapshot=self.services.terminal.get(&s.active,Some(&s.device)).ok().map(|t|t.snapshot()).unwrap_or_default();
+            ui.set_terminal_information(format!("{} · {}\n{}",ui.get_host(),snapshot["session"].as_str().unwrap_or_default(),snapshot["window"].as_str().unwrap_or_default()).into());
             ui.set_terminal_project(p.project.as_str().into());
             ui.set_terminal_sending(p.sending);
             let logs = self.services.logs.terminal_snapshot(&s.active);
@@ -459,6 +463,7 @@ impl Controller {
                 .into(),
             );
         } else {
+            ui.set_terminal_information(text("会话信息将在连接后显示",ui.get_english()).into());
             ui.set_terminal_phase("disconnected".into());
             ui.set_terminal_status(text("连接设备后可打开终端。", ui.get_english()).into());
             ui.set_terminal_project("".into());
@@ -684,7 +689,8 @@ impl Controller {
             }
         }
     }
-    fn action(&self, action: &str) {
+    fn action(&self,action:&str){self.action_for(action,None);}
+    fn action_for(&self, action: &str,target:Option<&str>) {
         let Some(ui) = self.weak.upgrade() else {
             return;
         };
@@ -700,7 +706,8 @@ impl Controller {
             return;
         }
         let s = self.state.borrow();
-        let (key, device) = (s.active.clone(), s.device.clone());
+        if target.is_some_and(|key|!s.panes.contains_key(key)){return;}
+        let (key, device) = (target.map(str::to_owned).unwrap_or_else(||s.active.clone()), s.device.clone());
         let (cols, rows) = s.dimensions();
         drop(s);
         if matches!(action, "reset" | "remove") {
