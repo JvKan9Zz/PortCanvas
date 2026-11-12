@@ -141,6 +141,9 @@ impl server::Handler for Handler {
         session: &mut server::Session,
     ) -> Result<(), Self::Error> {
         let command = String::from_utf8_lossy(command);
+        // Exec input is handled below by Handler::data. Keeping an unread Channel
+        // also queues every heartbeat, eventually blocking the entire SSH peer.
+        self.channels.remove(&id);
         session.channel_success(id)?;
         if command.contains("PORTCANVAS_REBOOT_SCHEDULED") {
             self.counts.reboots.fetch_add(1,Ordering::SeqCst);
@@ -363,7 +366,7 @@ impl Fixture {
                 };
                 tokio::spawn(async move {
                     if let Ok(session) = server::run_stream(config, socket, handler).await {
-                        let _ = session.await;
+                        if let Err(error) = session.await { eprintln!("Synthetic SSH session ended: {error}"); }
                     }
                 });
             }

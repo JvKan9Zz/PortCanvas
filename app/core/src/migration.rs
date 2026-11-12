@@ -10,9 +10,12 @@ use std::{
     path::{Path, PathBuf},
 };
 mod extensions;
+mod native;
+#[cfg(test)]
+mod native_tests;
 mod session;
 pub use session::MigrationSession;
-const FILES: [&str; 2] = ["devices.json", "log-settings.json"];
+const FILES: [&str; 4] = ["devices.json", "log-settings.json", "settings.json", "terminals.json"];
 fn optional(path: &Path) -> Result<Option<Vec<u8>>> {
     let meta = match fs::symlink_metadata(path) {
         Ok(m) => m,
@@ -60,9 +63,11 @@ fn settings(bytes: &[u8]) -> Result<Settings> {
 pub struct Plan {
     source: PathBuf,
     target: PathBuf,
-    before: [Option<Vec<u8>>; 2],
-    input: [Option<Vec<u8>>; 2],
-    output: [Vec<u8>; 2],
+    before: Vec<Option<Vec<u8>>>,
+    input: Vec<Option<Vec<u8>>>,
+    output: Vec<Vec<u8>>,
+    before_media: Vec<native::Media>,
+    input_media: Vec<native::Media>,
     pub profiles: ProfileData,
     pub settings: Settings,
     pub preview: Value,
@@ -139,27 +144,59 @@ impl Plan {
         Ok(Self {
             source,
             target,
-            before,
-            input,
-            output,
+            before: before.into(),
+            input: input.into(),
+            output: output.into(),
+            before_media: vec![],
+            input_media: vec![],
             profiles: merged,
             settings: logs,
             preview,
         })
     }
-    pub fn apply(self) -> Result<Value> {
-        for (index, name) in FILES.iter().enumerate() {
+    /// Full native import. The legacy two-file API stays available to old adapters.
+    pub fn prepare_native(source: PathBuf, target: PathBuf, current_settings: Settings, legacy_log_root: PathBuf) -> Result<Self> {
+        let mut plan = Self::prepare(source, target, current_settings, legacy_log_root)?;
+        for (index, name) in FILES.iter().enumerate().skip(2) {
+            let input = optional(&plan.source.join(name))?;
+            let before = optional(&plan.target.join(name))?;
+            let output = if index == 2 {
+                native::merge_preferences(input.as_deref(), before.as_deref())?
+            } else {
+                native::merge_terminals(input.as_deref(), before.as_deref())?
+            };
+            plan.input.push(input);
+            plan.before.push(before);
+            plan.output.push(output);
+        }
+        plan.before_media = native::media(&plan.target, plan.before[2].as_deref())?;
+        plan.input_media = native::media(&plan.source, plan.input[2].as_deref())?;
+        native::check_collision(&plan.input_media, &plan.target)?;
+        plan.preview["preferencesImported"] = json!(plan.input[2].is_some());
+        plan.preview["terminalsImported"] = json!(plan.input[3].is_some());
+        plan.preview["backgroundFiles"] = json!(plan.input_media.len());
+        Ok(plan)
+    }
+    fn check_files(&self) -> Result<()> {
+        for (index, name) in FILES.iter().take(self.input.len()).enumerate() {
             if optional(&self.source.join(name))? != self.input[index]
                 || optional(&self.target.join(name))? != self.before[index]
             {
                 bail!("配置在确认期间发生变化，请重新导入。");
             }
         }
+        native::check_media(&self.before_media)?;
+        native::check_media(&self.input_media)?;
+        native::check_collision(&self.input_media, &self.target)?;
+        Ok(())
+    }
+    pub fn apply(self) -> Result<Value> {
+        self.check_files()?;
         let id = uuid::Uuid::new_v4().to_string();
         let backup = self.target.join("migration-backups").join(&id);
         fs::create_dir_all(backup.join("before"))?;
         fs::create_dir_all(backup.join("input"))?;
-        for (index, name) in FILES.iter().enumerate() {
+        for (index, name) in FILES.iter().take(self.input.len()).enumerate() {
             if let Some(bytes) = &self.before[index] {
                 atomic_bytes(&backup.join("before").join(name), bytes)?;
             }
@@ -167,15 +204,30 @@ impl Plan {
                 atomic_bytes(&backup.join("input").join(name), bytes)?;
             }
         }
+        native::copy_media(&self.before_media, &backup.join("before"))?;
+        native::copy_media(&self.input_media, &backup.join("input"))?;
+        // Copying a large video can outlive the confirmation snapshot.
+        self.check_files()?;
+        native::verify_backup(&self.before_media, &backup.join("before"))?;
+        native::verify_backup(&self.input_media, &backup.join("input"))?;
         let report = json!({"schema":"portcanvas.migration/1","id":id,"target":self.target,"source":self.source,"createdAt":crate::log_store::now(),"beforeExists":self.before.iter().map(Option::is_some).collect::<Vec<_>>(),"summary":self.preview});
         atomic_json(&backup.join("report.json"), &report)?;
         let operation: Result<()> = (|| {
-            atomic_bytes(&self.target.join(FILES[0]), &self.output[0])?;
-            atomic_bytes(&self.target.join(FILES[1]), &self.output[1])?;
+            if self.input.len() == 4 {
+                let media = native::media(&backup.join("input"), self.input[2].as_deref())?;
+                native::copy_media(&media, &self.target)?;
+            }
+            for (index, name) in FILES.iter().take(self.output.len()).enumerate() {
+                atomic_bytes(&self.target.join(name), &self.output[index])?;
+            }
             Ok(())
         })();
         if let Err(error) = operation {
-            let rollback = restore_files(&self.target, &self.before);
+            let rollback = (|| -> Result<()> {
+                let media = if self.before.len() == 4 { native::media(&backup.join("before"), self.before[2].as_deref())? } else { vec![] };
+                native::copy_media(&media, &self.target)?;
+                restore_files(&self.target, &self.before)
+            })();
             bail!(
                 "导入失败：{error}；回滚{}。备份：{}",
                 if rollback.is_ok() {
@@ -192,8 +244,8 @@ impl Plan {
         Ok(result)
     }
 }
-fn restore_files(target: &Path, before: &[Option<Vec<u8>>; 2]) -> Result<()> {
-    for (index, name) in FILES.iter().enumerate() {
+fn restore_files(target: &Path, before: &[Option<Vec<u8>>]) -> Result<()> {
+    for (index, name) in FILES.iter().take(before.len()).enumerate() {
         let path = target.join(name);
         if optional(&path)? == before[index] {
             continue;
@@ -215,8 +267,10 @@ pub fn rollback(target: PathBuf, backup: PathBuf) -> Result<Value> {
 }
 struct RestorePlan {
     target: PathBuf,
-    before: [Option<Vec<u8>>; 2],
-    current: [Option<Vec<u8>>; 2],
+    before: Vec<Option<Vec<u8>>>,
+    current: Vec<Option<Vec<u8>>>,
+    before_media: Vec<native::Media>,
+    current_media: Vec<native::Media>,
 }
 impl RestorePlan {
     fn prepare(target: PathBuf, backup: PathBuf) -> Result<Self> {
@@ -238,35 +292,43 @@ impl RestorePlan {
         {
             bail!("迁移回执身份或目标不匹配。");
         }
-        let mut before = [None, None];
         let flags = report["beforeExists"]
             .as_array()
             .context("迁移回执缺少原文件状态。")?;
-        if flags.len() != FILES.len() || flags.iter().any(|v| !v.is_boolean()) {
+        if !matches!(flags.len(), 2 | 4) || flags.iter().any(|v| !v.is_boolean()) {
             bail!("迁移回执中的原文件状态无效。");
         }
-        for (index, name) in FILES.iter().enumerate() {
+        let mut before = vec![None; flags.len()];
+        for (index, name) in FILES.iter().take(flags.len()).enumerate() {
             let saved = optional(&selected.join("before").join(name))?;
             if flags[index].as_bool().unwrap() != saved.is_some() {
                 bail!("迁移备份与回执不一致，未恢复。");
             }
             if let Some(bytes) = saved {
-                if index == 0 {
-                    profiles(&bytes)?;
-                } else {
-                    settings(&bytes)?;
+                match index {
+                    0 => { profiles(&bytes)?; },
+                    1 => { settings(&bytes)?; },
+                    2 => { native::preferences(&bytes)?; },
+                    _ => { native::terminals(&bytes)?; },
                 }
                 before[index] = Some(bytes);
             }
         }
-        let current = [
-            optional(&target.join(FILES[0]))?,
-            optional(&target.join(FILES[1]))?,
-        ];
+        let current = FILES.iter().take(flags.len()).map(|name| optional(&target.join(name))).collect::<Result<Vec<_>>>()?;
+        let before_media = if before.len() == 4 { native::media(&selected.join("before"), before[2].as_deref())? } else { vec![] };
+        let mut current_media = if current.len() == 4 { native::media(&target, current[2].as_deref())? } else { vec![] };
+        // Preserve any destination file the restore will replace, including unreferenced media.
+        for item in &before_media {
+            if !current_media.iter().any(|m| m.name == item.name) && target.join("backgrounds").join(&item.name).try_exists()? {
+                current_media.push(native::Media::open(&target, &item.name)?);
+            }
+        }
         Ok(Self {
             target,
             before,
             current,
+            before_media,
+            current_media,
         })
     }
     fn settings(&self, default_root: PathBuf) -> Result<Settings> {
@@ -284,26 +346,40 @@ impl RestorePlan {
             target,
             before,
             current,
+            before_media,
+            current_media,
         } = self;
-        for (index, name) in FILES.iter().enumerate() {
+        for (index, name) in FILES.iter().take(current.len()).enumerate() {
             if optional(&target.join(name))? != current[index] {
                 bail!("当前资料在恢复前发生变化，未进行覆盖。");
             }
         }
+        native::check_media(&before_media)?;
+        native::check_media(&current_media)?;
         let safety = target
             .join("rollback-backups")
             .join(uuid::Uuid::new_v4().to_string());
         fs::create_dir_all(&safety)?;
-        for (index, name) in FILES.iter().enumerate() {
+        for (index, name) in FILES.iter().take(current.len()).enumerate() {
             if let Some(bytes) = &current[index] {
                 atomic_bytes(&safety.join(name), bytes)?;
             }
         }
-        if let Err(error) = restore_files(&target, &before) {
-            let _ = restore_files(&target, &current);
-            bail!("恢复失败：{error}。当前资料备份：{}", safety.display());
+        native::copy_media(&current_media, &safety)?;
+        native::verify_backup(&current_media, &safety)?;
+        for (index, name) in FILES.iter().take(current.len()).enumerate() {
+            anyhow::ensure!(optional(&target.join(name))? == current[index], "当前资料在备份期间发生变化，未进行覆盖。");
         }
-        Ok(json!({"restored":true,"backup":safety,"logsDeleted":false}))
+        let operation = native::copy_media(&before_media, &target).and_then(|_| restore_files(&target, &before));
+        if let Err(error) = operation {
+            let rollback = (|| -> Result<()> {
+                let saved = current_media.iter().map(|m| native::Media::open(&safety, &m.name)).collect::<Result<Vec<_>>>()?;
+                native::copy_media(&saved, &target)?;
+                restore_files(&target, &current)
+            })();
+            bail!("恢复失败：{error}；当前资料回退{}。备份：{}", if rollback.is_ok() {"已完成"} else {"未完成，请检查备份"}, safety.display());
+        }
+        Ok(json!({"restored":true,"backup":safety,"logsDeleted":false,"preferencesImported":before.len()==4}))
     }
 }
 #[cfg(test)]

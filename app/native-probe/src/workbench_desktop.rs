@@ -336,7 +336,7 @@ impl Controller {
             && self.weak.upgrade().is_some_and(|ui| {
                 ui.get_desktop_ready()
                     && !ui.get_desktop_readonly()
-                    && ui.get_dialog_kind() == 0
+                    && ui.get_dialog_kind() == 0 && !ui.get_settings_open()
                     && ui
                         .window()
                         .with_winit_window(|w| w.has_focus())

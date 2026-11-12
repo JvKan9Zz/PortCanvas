@@ -30,7 +30,7 @@ void main() {
         color/=16.0;
     }
     // Keep native foreground legible even at the most transparent preference.
-    color=mix(color,tint,0.76+0.18*opacity);
+    color=mix(color,tint,0.22+0.58*opacity+(1.0-step(0.5,dot(tint,vec3(0.2126,0.7152,0.0722))))*0.02);
     float dark=1.0-step(0.5,dot(tint,vec3(0.2126,0.7152,0.0722)));
     if(quality==2){
         float light=0.5+0.5*dot(normalize(p+vec2(0.001)),normalize(vec2(-0.6,-0.8)));

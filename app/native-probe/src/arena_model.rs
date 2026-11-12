@@ -82,7 +82,26 @@ impl Metrics {
         self.previous = Some(v);
         Some(r)
     }
-    pub fn path(&self, memory: bool) -> String {
+    pub fn path(&self, memory: bool) -> String {self.path_for_aspect(memory,10.)}
+    /// Dashed memory trace, with the same missing-sample and time-gap rules.
+    pub fn memory_dashes_for_aspect(&self,aspect:f64)->String{
+        let Some(end)=self.points.back().map(|p|p.0)else{return String::new()};
+        let mut path=String::new();let mut previous=None::<(f64,f64,f64)>;
+        for &(t,_,memory) in &self.points{
+            let Some(value)=memory else{previous=None;continue};
+            let x=(100.-(end-t)/60.*100.).clamp(0.,100.)*aspect/10.;let y=(100.-value.clamp(0.,100.))/10.;
+            if let Some((time,a,b))=previous.filter(|(time,_,_)|t-time<8.){
+                let _=time;let dx=x-a;let dy=y-b;let length=dx.hypot(dy);let mut offset=0.;
+                while offset<length{
+                    let start=offset/length;let finish=(offset+0.5).min(length)/length;
+                    path.push_str(&format!("M{:.2},{:.2} L{:.2},{:.2} ",a+dx*start,b+dy*start,a+dx*finish,b+dy*finish));offset+=0.875;
+                }
+            }else{path.push_str(&format!("M{x:.2},{y:.2} "));}
+            previous=Some((t,x,y));
+        }
+        path
+    }
+    pub fn path_for_aspect(&self,memory:bool,aspect:f64)->String {
         let Some(end) = self.points.back().map(|p| p.0) else {
             return String::new();
         };
@@ -97,7 +116,7 @@ impl Metrics {
                 };
                 path.push_str(&format!(
                     "{command}{:.2},{:.2} ",
-                    (100. - (end - t) / 60. * 100.).clamp(0., 100.),
+                    (100. - (end - t) / 60. * 100.).clamp(0., 100.)*aspect/10.,
                     (100. - value.clamp(0., 100.)) / 10.
                 ));
                 last = Some(t);
@@ -117,6 +136,24 @@ pub fn pose_live(value: &Value, elapsed_ms: f64) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn dashed_memory_does_not_bridge_missing_or_stalled_samples(){
+        let mut metrics=Metrics::default();
+        metrics.points.extend([(1.,None,Some(25.)),(3.,None,Some(25.)),(4.,None,None),(5.,None,Some(50.)),(20.,None,Some(75.))]);
+        let path=metrics.memory_dashes_for_aspect(3.75);
+        assert!(path.contains(" L"));
+        assert!(path.ends_with("M37.50,2.50 "));
+        // The isolated value after the missing sample remains a move, not a line.
+        assert!(path.contains("M28.12,5.00 "));
+    }
+    #[test]
+    fn history_coordinates_follow_the_viewport_aspect_and_keep_percentage_units(){
+        let mut metrics=Metrics::default();metrics.points.push_back((10.,Some(50.),Some(25.)));
+        for (aspect,right) in [(1.,10.),(3.75,37.5),(10.,100.)]{
+            assert_eq!(metrics.path_for_aspect(false,aspect),format!("M{right:.2},5.00 "));
+            assert_eq!(metrics.path_for_aspect(true,aspect),format!("M{right:.2},7.50 "));
+        }
+    }
     use serde_json::json;
     fn sample(clock: f64, cpu: u64, idle: u64) -> Value {
         json!({"clock":clock,"generation":1,"cpuTotal":cpu,"cpuIdle":idle,"memoryTotal":1000,"memoryAvailable":250,"network":[{"name":"eth0","received":clock*100.,"sent":clock*50.}]})

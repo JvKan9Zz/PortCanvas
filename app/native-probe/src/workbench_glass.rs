@@ -96,6 +96,19 @@ impl Controller {
             }
         }
     }
+    pub fn reload(&self) -> anyhow::Result<()> {
+        self.timer.stop();
+        let p = self.services.preferences.lock().unwrap().read()?;
+        self.confirmed.set(Some((p.glass_quality, p.glass_opacity)));
+        if let Some(ui) = self.ui.upgrade() {
+            ui.set_glass_quality(index(p.glass_quality));
+            ui.set_bg_material(f32::from(p.glass_opacity));
+            ui.set_glass_loaded(true);
+            ui.set_glass_error("".into());
+        }
+        Ok(())
+    }
+    pub fn flush(&self) { self.shutdown(); }
     pub fn shutdown(&self) {
         if self.timer.running() {
             self.timer.stop();

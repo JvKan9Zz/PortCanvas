@@ -1,6 +1,6 @@
 [package]
 name = "portcanvas-native-probe"
-version = "0.6.0-dev.1"
+version = "0.6.0-beta.1"
 edition = "2021"
 rust-version = "1.90"
 license = "MIT"
@@ -37,6 +37,7 @@ tokio-util = { version = "0.7", features = ["rt"] }
 base64 = "0.22"
 minisign-verify = "=0.3.0"
 semver = "1"
+reqwest = { version = "0.13", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time"] }

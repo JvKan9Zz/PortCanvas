@@ -32,7 +32,7 @@ pub(super) fn extra(value: &Value, known: &[&str]) -> Result<Map<String, Value>>
     }
     Ok(result)
 }
-fn combine(target: &mut Map<String, Value>, input: Map<String, Value>) -> Result<()> {
+pub(super) fn combine(target: &mut Map<String, Value>, input: Map<String, Value>) -> Result<()> {
     for (key, value) in input {
         if let Some(old) = target.get(&key) {
             if old != &value {

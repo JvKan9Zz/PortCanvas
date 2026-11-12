@@ -4,6 +4,7 @@ mod workbench_material;
 mod material_gpu;
 mod workbench_background;
 mod workbench_system;
+mod workbench_update;
 mod workbench_glass;
 mod workbench_arena;
 mod workbench_desktop;
@@ -16,7 +17,7 @@ fn main() {
     if let Err(error) = workbench::run() {
         eprintln!("{error:#}");
         rfd::MessageDialog::new()
-            .set_title("PortCanvas")
+            .set_title("PortCanvas Beta")
             .set_description(format!("{error:#}"))
             .set_level(rfd::MessageLevel::Error)
             .set_buttons(rfd::MessageButtons::Ok)

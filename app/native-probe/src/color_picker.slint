@@ -1,0 +1,71 @@
+import {VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {ActionButton,AppColors} from "action_button.slint";
+import {FormInput} from "form_input.slint";
+export component ColorPicker inherits Rectangle {
+    in property <color> selected-color;
+    in property <color> hue-color;
+    in property <float> hue;in property <float> saturation;in property <float> brightness;
+    in property <int> red;in property <int> green;in property <int> blue;
+    property <string> red-text:root.red+"";property <string> green-text:root.green+"";property <string> blue-text:root.blue+"";
+    property <float> hue-value:root.hue;
+    changed red=>{root.red-text=root.red+"";}changed green=>{root.green-text=root.green+"";}changed blue=>{root.blue-text=root.blue+"";}
+    changed hue=>{root.hue-value=root.hue;}
+    property <[color]> presets:[#eaf0f8,#dce9fa,#d7eee8,#e7dff4,#f2e2d5,#33465f,#172331,#ffffff];
+    property <[string]> preset-names:["#EAF0F8","#DCE9FA","#D7EEE8","#E7DFF4","#F2E2D5","#33465F","#172331","#FFFFFF"];
+    in-out property <string> hex;
+    in property <string> error;in property <bool> english;
+    pure callback tr(string,bool)->string;
+    callback change(float,float,float);callback rgb(int,int,int);callback hex-edited(string);callback response(bool);
+    public function focus-selection(){cancel-button.focus();}
+    min-width:0px;preferred-height:content.preferred-height;
+    FocusScope {width:0px;height:0px;changed has-focus=>{if self.has-focus{if root.error==""{confirm-button.focus();}else{cancel-button.focus();}}}}
+    content:=VerticalBox {
+    padding:14px;spacing:10px;
+    HorizontalBox {padding:0px;vertical-stretch:0;
+        Text {text:root.tr("选择颜色",root.english);font-size:13px;font-weight:600;color:AppColors.ink;horizontal-stretch:1;}
+        Rectangle {background:root.selected-color;width:24px;height:24px;border-radius:7px;border-width:1px;border-color:AppColors.edge;horizontal-stretch:0;}
+    }
+    plane:=Rectangle {height:133px;border-radius:8px;vertical-stretch:0;clip:true;background:@linear-gradient(90deg,#ffffff,root.hue-color);
+        Rectangle {background:@linear-gradient(180deg,#00000000,#000000ff);}
+        Rectangle {x:root.saturation*parent.width - 5px;y:(1-root.brightness)*parent.height - 5px;width:10px;height:10px;border-radius:5px;border-width:2px;border-color:white;background:transparent;}
+        plane-focus:=FocusScope {accessible-role:image;accessible-label:root.tr("饱和度与明度（方向键调整）",root.english);key-pressed(event)=>{
+            if event.text==Key.LeftArrow{root.change(root.hue,max(0,root.saturation - 0.01),root.brightness);return accept;}
+            if event.text==Key.RightArrow{root.change(root.hue,min(1,root.saturation + 0.01),root.brightness);return accept;}
+            if event.text==Key.UpArrow{root.change(root.hue,root.saturation,min(1,root.brightness + 0.01));return accept;}
+            if event.text==Key.DownArrow{root.change(root.hue,root.saturation,max(0,root.brightness - 0.01));return accept;}return reject;
+        }}
+        TouchArea {mouse-cursor:crosshair;clicked=>{plane-focus.focus();root.change(root.hue,max(0,min(1,self.mouse-x/self.width)),max(0,min(1,1-self.mouse-y/self.height)));}moved=>{if self.pressed{root.change(root.hue,max(0,min(1,self.mouse-x/self.width)),max(0,min(1,1-self.mouse-y/self.height)));}}}
+    }
+    HorizontalBox {padding:0px;spacing:8px;height:20px;vertical-stretch:0;
+        Text {text:root.tr("色相",root.english);font-size:11px;color:AppColors.muted;horizontal-stretch:0;vertical-alignment:center;}
+        Rectangle {height:10px;vertical-stretch:0;horizontal-stretch:1;border-radius:5px;background:@linear-gradient(90deg,#ff0000,#ffff00 16.7%,#00ff00 33.3%,#00ffff 50%,#0000ff 66.7%,#ff00ff 83.3%,#ff0000);
+            Rectangle {x:root.hue/360*parent.width - 6px;y:-1px;width:12px;height:12px;border-radius:6px;border-width:2px;border-color:white;background:transparent;}
+            forward-focus:hue-keys;accessible-role:slider;accessible-label:root.tr("色相",root.english);accessible-value:root.hue;accessible-value-minimum:0;accessible-value-maximum:360;
+            accessible-action-increment=>{root.change(min(360,root.hue+1),root.saturation,root.brightness);}accessible-action-decrement=>{root.change(max(0,root.hue - 1),root.saturation,root.brightness);}
+            hue-keys:=FocusScope {key-pressed(event)=>{if event.text==Key.LeftArrow{root.change(max(0,root.hue - 1),root.saturation,root.brightness);return accept;}if event.text==Key.RightArrow{root.change(min(360,root.hue+1),root.saturation,root.brightness);return accept;}if event.text==Key.Home{root.change(0,root.saturation,root.brightness);return accept;}if event.text==Key.End{root.change(360,root.saturation,root.brightness);return accept;}return reject;}}
+            TouchArea {y:-6px;height:22px;clicked=>{hue-keys.focus();root.change(max(0,min(360,self.mouse-x/self.width*360)),root.saturation,root.brightness);}moved=>{if self.pressed{root.change(max(0,min(360,self.mouse-x/self.width*360)),root.saturation,root.brightness);}}}
+        }
+    }
+    HorizontalBox {padding:0px;spacing:8px;height:28px;vertical-stretch:0;
+        for color[index] in root.presets:Rectangle {width:24px;height:28px;horizontal-stretch:0;background:transparent;
+            Rectangle {y:swatch-touch.has-hover?0px:2px;width:24px;height:24px;border-radius:6px;border-width:swatch-keys.has-focus?2px:1px;border-color:swatch-keys.has-focus?AppColors.accent:AppColors.edge;background:color;animate y {duration:AppColors.motion?150ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
+            forward-focus:swatch-keys;accessible-role:button;accessible-label:root.tr("选择颜色",root.english)+" "+root.preset-names[index];accessible-action-default=>{root.hex-edited(root.preset-names[index]);}
+            swatch-keys:=FocusScope {key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.hex-edited(root.preset-names[index]);return accept;}return reject;}}
+            swatch-touch:=TouchArea {clicked=>{swatch-keys.focus();root.hex-edited(root.preset-names[index]);}}
+        }
+    }
+    HorizontalBox {padding:0px;spacing:6px;vertical-stretch:0;
+        VerticalBox {padding:0px;spacing:4px;preferred-width:84px;horizontal-stretch:0;Text {text:"HEX";color:AppColors.muted;font-size:10px;}FormInput {compact:true;label:"HEX";text<=>root.hex;edited(value)=>{root.hex-edited(value);}}}
+        VerticalBox {padding:0px;spacing:4px;preferred-width:50px;horizontal-stretch:0;Text {text:"R";color:AppColors.muted;font-size:10px;}FormInput {compact:true;label:"R";input-type:InputType.number;text<=>root.red-text;edited(value)=>{if value.is-float(){root.red-text=min(255,max(0,round(value.to-float())))+"";root.rgb(min(255,max(0,round(value.to-float()))),root.green,root.blue);}}}}
+        VerticalBox {padding:0px;spacing:4px;preferred-width:50px;horizontal-stretch:0;Text {text:"G";color:AppColors.muted;font-size:10px;}FormInput {compact:true;label:"G";input-type:InputType.number;text<=>root.green-text;edited(value)=>{if value.is-float(){root.green-text=min(255,max(0,round(value.to-float())))+"";root.rgb(root.red,min(255,max(0,round(value.to-float()))),root.blue);}}}}
+        VerticalBox {padding:0px;spacing:4px;preferred-width:50px;horizontal-stretch:0;Text {text:"B";color:AppColors.muted;font-size:10px;}FormInput {compact:true;label:"B";input-type:InputType.number;text<=>root.blue-text;edited(value)=>{if value.is-float(){root.blue-text=min(255,max(0,round(value.to-float())))+"";root.rgb(root.red,root.green,min(255,max(0,round(value.to-float()))));}}}}
+    }
+    if root.error!="":Text {text:root.tr(root.error,root.english);color:AppColors.danger;font-size:11px;wrap:word-wrap;}
+    HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
+        Rectangle {horizontal-stretch:1;background:transparent;}
+        cancel-button:=ActionButton {text:root.tr("取消",root.english);clicked=>{root.response(false);}}
+        confirm-button:=ActionButton {text:root.tr("确认",root.english);primary:true;enabled:root.error=="";clicked=>{root.red-text=root.red+"";root.green-text=root.green+"";root.blue-text=root.blue+"";root.response(true);}}
+    }
+    }
+    FocusScope {width:0px;height:0px;changed has-focus=>{if self.has-focus{plane-focus.focus();}}}
+}

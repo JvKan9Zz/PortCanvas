@@ -11,6 +11,7 @@ pub struct Surface {
 struct Target {
     texture: glow::Texture,
     size: (u32, u32),
+    crop: Option<[f32; 4]>,
 }
 pub struct Gpu {
     gl: glow::Context,
@@ -20,6 +21,7 @@ pub struct Gpu {
     framebuffer: Option<glow::Framebuffer>,
     targets: Vec<Target>,
     source_size: (u32, u32),
+    parameters: Option<(i32, f32, [f32; 3])>,
     pub uploads: u64,
     pub passes: u64,
     pub driver: String,
@@ -140,6 +142,7 @@ impl Gpu {
             framebuffer: None,
             targets: Vec::new(),
             source_size: (0, 0),
+            parameters: None,
             uploads: 0,
             passes: 0,
             driver: String::new(),
@@ -210,6 +213,7 @@ impl Gpu {
         opacity: f32,
         tint: [f32; 3],
     ) -> Result<(slint::Image, Vec<slint::Image>)> {
+        let redraw_all=frame.is_some()||self.parameters!=Some((quality,opacity,tint));
         let gl = &self.gl;
         let _state = State::save(gl);
         gl.bind_buffer(glow::PIXEL_UNPACK_BUFFER, None);
@@ -263,6 +267,7 @@ impl Gpu {
             self.targets.push(Target {
                 texture,
                 size: (0, 0),
+                crop: None,
             });
             self.texture(texture);
         }
@@ -295,6 +300,11 @@ impl Gpu {
         );
         let mut images = Vec::with_capacity(surfaces.len());
         for (target, surface) in self.targets.iter_mut().zip(surfaces) {
+            // A moving overlay does not invalidate unrelated static islands.
+            if !redraw_all&&target.size==surface.size&&target.crop==Some(surface.crop){
+                images.push(ImageBuilder::new_gl_2d_rgba_texture(target.texture.0,target.size.into()).origin(Origin::BottomLeft).build());
+                continue;
+            }
             if target.size != surface.size {
                 gl.bind_texture(glow::TEXTURE_2D, Some(target.texture));
                 gl.tex_image_2d(
@@ -333,6 +343,7 @@ impl Gpu {
                 surface.size.1 as f32,
             );
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
+            target.crop=Some(surface.crop);
             self.passes += 1;
             images.push(
                 ImageBuilder::new_gl_2d_rgba_texture(target.texture.0, target.size.into())
@@ -344,6 +355,7 @@ impl Gpu {
             gl.get_error() == glow::NO_ERROR,
             "OpenGL material operation failed"
         );
+        self.parameters=Some((quality,opacity,tint));
         Ok((
             ImageBuilder::new_gl_2d_rgba_texture(self.source.unwrap().0, self.source_size.into())
                 .origin(Origin::TopLeft)

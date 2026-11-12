@@ -1,6 +1,6 @@
 use crate::{
     workbench::text,
-    workbench_ui::{LogRow, Workbench},
+    workbench_ui::{LogRow, LogFact, Workbench},
 };
 use anyhow::{Context, Result};
 use portcanvas_core::services::Services;
@@ -13,13 +13,14 @@ use std::{
 };
 
 type Jobs = Arc<Mutex<Vec<tokio::task::JoinHandle<()>>>>;
-const STATUSES: [&str; 6] = [
+const STATUSES: [&str; 7] = [
     "",
     "running",
     "succeeded",
     "failed",
     "interrupted",
     "write_error",
+    "session",
 ];
 fn value<'a>(record: &'a Value, key: &str) -> &'a str {
     record[key].as_str().unwrap_or("")
@@ -49,6 +50,7 @@ fn status(record: &Value, english: bool) -> String {
         "failed" => "命令失败",
         "interrupted" => "记录中断",
         "write_error" => "写入失败",
+        "session" => "会话记录",
         other => other,
     };
     format!(
@@ -187,7 +189,7 @@ impl Controller {
         self.jobs.lock().unwrap().retain(|job| !job.is_finished());
     }
     fn visible(ui: &Workbench) -> bool {
-        ui.get_page() == 3 && !ui.get_native_hidden()
+        (ui.get_page()==3||(ui.get_settings_open()&&ui.get_settings_section()==1))&&!ui.get_native_hidden()
     }
     pub fn sync_settings(&self){if let Some(ui)=self.ui.upgrade(){self.state.lock().unwrap().sync_root(self.services.logs.settings().root);self.render(&ui);}}
     pub fn refresh(&self) {
@@ -225,7 +227,7 @@ impl Controller {
                             Ok(page) => {
                                 let current = state.finish_page(version, Some(page));
                                 if current {
-                                    ui.set_logs_error("".into());
+                                    ui.set_logs_error("".into());ui.set_log_usage_known(true);
                                 }
                                 current
                             }
@@ -295,7 +297,9 @@ impl Controller {
         let projects = state.project_options();
         let days = state.day_options();
         ui.set_logs_loading(state.loading);
+        if ui.get_log_directory().as_str()!=state.root.to_string_lossy().as_ref(){ui.set_log_usage_known(false);}
         ui.set_log_directory(state.root.to_string_lossy().as_ref().into());
+        ui.set_log_usage(bytes(state.page.usage_bytes).into());
         let snapshot = self.services.logs.snapshot();
         let notice = if snapshot["configError"] == true {
             value(&snapshot, "message")
@@ -350,6 +354,7 @@ impl Controller {
                     )
                     .into(),
                     status: status(r, english).into(),
+                    tone: match value(r,"status") {"succeeded"=>1,"failed"|"write_error"=>2,"interrupted"=>3,_=>0},
                     removable: removable(r),
                     checked: state.checked.contains(value(r, "id")),
                     selected: state.selected.as_deref() == Some(value(r, "id")),
@@ -362,17 +367,15 @@ impl Controller {
         ui.set_logs_checked(state.checked.len() as i32);
         ui.set_logs_back(!state.history.is_empty());
         ui.set_logs_next(state.page.has_more);
+        let count = if state.history.is_empty() && !state.page.has_more {
+            format!("共 {} 份", state.page.total)
+        } else {
+            format!("第 {} 页 · 共 {} 份", state.history.len()+1, state.page.total)
+        };
         ui.set_logs_summary(
             format!(
                 "{} · {} {}",
-                text(
-                    &format!(
-                        "第 {} 页 · 共 {} 份",
-                        state.history.len() + 1,
-                        state.page.total
-                    ),
-                    english
-                ),
+                text(&count, english),
                 text("全部日志占用", english),
                 bytes(state.page.usage_bytes)
             )
@@ -397,6 +400,16 @@ impl Controller {
                 .as_u64()
                 .map(|n| text(&format!("{:.2} 秒", n as f64 / 1000.), english))
                 .unwrap_or_else(|| text("未确认", english));
+            let fact=|label:&str,value:String|LogFact{label:text(label,english).into(),value:value.into()};
+            ui.set_log_left_facts(ModelRc::new(VecModel::from(vec![
+                fact("项目",value(&record["project"],"name").into()),
+                fact("开始",date(value(record,"startedAt"))),
+                fact("运行目录",value(record,"cwd").into()),
+            ])));
+            ui.set_log_right_facts(ModelRc::new(VecModel::from(vec![
+                fact("退出码",exit.clone()),fact("结束确认",date(value(record,"endedAt"))),fact("耗时",duration.clone()),
+            ])));
+            ui.set_log_file(value(record,"file").into());
             ui.set_log_metadata(
                 format!(
                     "{} · {}\n{} → {}\n{}: {} · {}: {}\n{}: {}\n{}",
@@ -444,6 +457,8 @@ impl Controller {
                 ui.set_log_output(output.into());
             }
         } else {
+            ui.set_log_file("".into());
+            ui.set_log_left_facts(ModelRc::default());ui.set_log_right_facts(ModelRc::default());
             ui.set_log_command("".into());
             ui.set_log_metadata("".into());
             ui.set_log_warning("".into());

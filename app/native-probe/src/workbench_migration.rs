@@ -1,5 +1,6 @@
 use crate::{
-    workbench::{fill, profiles, text},
+    workbench::{fill, preferences, profiles, text},
+    workbench_background, workbench_glass,
     workbench_logs,
     workbench_ui::Workbench,
 };
@@ -28,6 +29,8 @@ pub struct Controller {
     stop: CancellationToken,
     serial: Cell<u64>,
     completed: Cell<u64>,
+    glass: Rc<workbench_glass::Controller>,
+    background: Rc<workbench_background::Controller>,
 }
 impl Controller {
     pub fn install(
@@ -37,6 +40,8 @@ impl Controller {
         jobs: Arc<Mutex<Vec<JoinHandle<()>>>>,
         logs: workbench_logs::Controller,
         legacy: PathBuf,
+        glass: Rc<workbench_glass::Controller>,
+        background: Rc<workbench_background::Controller>,
     ) -> Rc<Self> {
         let c = Rc::new(Self {
             ui: ui.as_weak(),
@@ -49,6 +54,8 @@ impl Controller {
             stop: CancellationToken::new(),
             serial: Cell::new(0),
             completed: Cell::new(0),
+            glass,
+            background,
         });
         ui.on_migration_action({
             let c = c.clone();
@@ -94,9 +101,7 @@ impl Controller {
                     return;
                 }
                 c.completed.set(c.completed.get() + 1);
-                ui.set_migration_status(
-                    text(
-                        &if value["restored"] == true {
+                let status = if value["restored"] == true {
                             format!(
                                 "已恢复导入前资料，日志文件保留。\n当前资料备份：{}",
                                 value["backup"].as_str().unwrap_or_default()
@@ -107,15 +112,17 @@ impl Controller {
                                 value["addedDevices"].as_u64().unwrap_or(0),
                                 value["backup"].as_str().unwrap_or_default()
                             )
-                        },
-                        ui.get_english(),
-                    )
-                    .into(),
-                );
+                        };
                 let refresh = (|| -> Result<()> {
                     profiles(&ui, &c.services)?;
                     let data = c.services.profiles.lock().unwrap().read()?;
                     fill(&ui, data.devices.first());
+                    if value["preferencesImported"] == true {
+                        preferences(&ui, &c.services)?;
+                        c.services.devices.set_environment_source(c.services.preferences.lock().unwrap().read()?.environment_source);
+                        c.glass.reload()?;
+                        c.background.reload();
+                    }
                     c.logs.sync_settings();
                     ui.set_log_limit(
                         c.services
@@ -131,6 +138,7 @@ impl Controller {
                 if let Err(e) = refresh {
                     ui.set_migration_error(e.to_string().into());
                 }
+                ui.set_migration_status(text(&status, ui.get_english()).into());
             }
         });
         c
@@ -142,9 +150,12 @@ impl Controller {
             || ui.get_system_busy()
             || ui.get_busy()
             || ui.get_connected()
+            || ui.get_bg_busy()
         {
             return;
         }
+        self.glass.flush();
+        self.background.flush();
         let guard = match MigrationSession::begin(self.services.clone()) {
             Ok(g) => g,
             Err(e) => {
@@ -205,7 +216,7 @@ impl Controller {
                     (None, "恢复导入前资料", format!("恢复所选迁移之前的PortCanvas配置？\n{}\n当前配置会另存备份；日志文件不会删除。", folder.display()))
                 } else {
                     let source = folder.clone();
-                    let plan = tokio::task::spawn_blocking(move || Plan::prepare(source, target, current, legacy)).await??;
+                    let plan = tokio::task::spawn_blocking(move || Plan::prepare_native(source, target, current, legacy)).await??;
                     let p = &plan.preview;
                     let message = format!("导入旧版资料？\n来源：{}\n目标：{}\n新增设备：{}；受信指纹：{}\n日志位置：{}\n{}\n将备份目标资料；不移动日志，不修改旧版目录。",p["source"].as_str().unwrap_or_default(),p["target"].as_str().unwrap_or_default(),p["addedDevices"],p["addedHostKeys"],p["logRoot"].as_str().unwrap_or_default(),p["warning"].as_str().unwrap_or_default());
                     (Some(plan), "导入旧版资料", message)

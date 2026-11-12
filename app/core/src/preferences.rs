@@ -83,7 +83,7 @@ pub enum Language {
 pub struct PreferenceStore {pub file:PathBuf}
 fn valid_color(value:&str)->bool{value.len()==7&&value.starts_with('#')&&value.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)}
 fn valid_image_name(value:&str)->bool{valid_media_name(value,false)}
-fn valid_media_name(value:&str,video:bool)->bool{
+pub(crate) fn valid_media_name(value:&str,video:bool)->bool{
     value.rsplit_once('.').is_some_and(|(stem,extension)|stem.len()==32&&stem.bytes().all(|b|b.is_ascii_hexdigit())&&if video{matches!(extension,"mp4"|"webm")}else{matches!(extension,"png"|"jpg"|"webp")})
 }
 fn image_extension(bytes:&[u8])->Option<&'static str>{
@@ -95,10 +95,8 @@ fn media_extension(bytes:&[u8],video:bool)->Option<&'static str>{
     if !video{return image_extension(bytes);}
     if bytes.len()>=12&&&bytes[4..8]==b"ftyp"{Some("mp4")}else if bytes.starts_with(b"\x1a\x45\xdf\xa3"){Some("webm")}else{None}
 }
-impl PreferenceStore {
-    pub fn read(&self)->Result<Preferences>{
-        if !self.file.exists(){return Ok(Preferences::default());}
-        let p:Preferences=serde_json::from_slice(&std::fs::read(&self.file)?).context("设置读取失败，原文件保留。")?;
+pub(crate) fn decode(bytes:&[u8])->Result<Preferences>{
+        let p:Preferences=serde_json::from_slice(bytes).context("设置读取失败，原文件保留。")?;
         anyhow::ensure!(p.glass_opacity<=100,"非透明度设置无效，原设置保留。");
         anyhow::ensure!(p.background_volume<=100,"背景音量无效，原设置保留。");
         anyhow::ensure!(p.background_video.as_deref().is_none_or(|name|valid_media_name(name,true)),"背景视频配置无效，原设置保留。");
@@ -106,6 +104,11 @@ impl PreferenceStore {
         anyhow::ensure!(p.background_color.as_deref().is_none_or(valid_color),"背景颜色配置无效，原设置保留。");
         anyhow::ensure!(p.background_image.as_deref().is_none_or(valid_image_name),"背景图片配置无效，原设置保留。");
         anyhow::ensure!(p.background_crop.is_none_or(|crop|crop.valid()),"背景裁剪范围无效，原设置保留。");Ok(p)
+}
+impl PreferenceStore {
+    pub fn read(&self)->Result<Preferences>{
+        if !self.file.exists(){return Ok(Preferences::default());}
+        decode(&std::fs::read(&self.file)?)
     }
     pub fn language(&self)->Language {self.read().map(|p|p.language).unwrap_or_default()}
     pub fn info(&self)->Result<Value>{let p=self.read()?;Ok(json!({"language":p.language,"theme":p.theme,"appearance":p.appearance,"backgroundColor":p.background_color,"backgroundImage":p.background_image,"backgroundCrop":p.background_crop,"backgroundVideo":p.background_video,"backgroundVolume":p.background_volume,"glassOpacity":p.glass_opacity,"glassQuality":p.glass_quality,"desktopMode":p.desktop_mode,"environmentSource":p.environment_source,"version":env!("CARGO_PKG_VERSION"),"repository":REPOSITORY,"updatesSupported":cfg!(windows)}))}

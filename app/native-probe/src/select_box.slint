@@ -1,0 +1,61 @@
+import {Palette,ListView} from "std-widgets.slint";
+import {AppColors} from "action_button.slint";
+export component SelectBox inherits Rectangle {
+    in property <[string]> model;
+    in-out property <int> current-index:0;
+    in property <bool> enabled:true;
+    in property <bool> compact:false;
+    out property <bool> has-focus:keys.has-focus;
+    property <int> highlighted:root.current-index;
+    property <bool> opened:false;
+    property <bool> closing:false;
+    callback popup-state(bool);
+    changed opened=>{root.popup-state(root.opened);}
+    public function close-popup(){if root.opened{root.hide();}}
+    function hide(){root.opened=false;root.closing=true;}
+    changed enabled=>{if !root.enabled{popup.close();root.opened=false;}}
+    callback selected(int);
+    // Controller-owned choices commit only after their handler succeeds. Local
+    // two-way choices (such as camera selection) use this default handler.
+    selected(index)=>{root.current-index=index;}
+    function choose(index:int){if index>=0&&index<root.model.length{root.selected(index);}if root.opened{root.hide();}keys.focus();}
+    function show(){if root.enabled&&root.model.length>0{root.closing=false;root.highlighted=max(0,root.current-index);root.opened=true;popup.show();}}
+    Timer {interval:AppColors.motion?140ms:1ms;running:root.closing;triggered=>{root.closing=false;popup.close();}}
+    min-width:0px;preferred-width:180px;preferred-height:root.compact?30px:36px;min-height:root.compact?30px:36px;vertical-stretch:0;
+    border-radius:10px;border-width:root.has-focus?2px:1px;border-color:root.has-focus?AppColors.accent:AppColors.edge;
+    background:AppColors.field;opacity:root.enabled?1:0.45;forward-focus:keys;
+    animate border-color,background {duration:AppColors.motion?160ms:0ms;}
+    accessible-role:combobox;accessible-enabled:root.enabled;accessible-expandable:true;accessible-expanded:root.opened;
+    accessible-value:root.current-index>=0&&root.current-index<root.model.length?root.model[root.current-index]:"";
+    accessible-action-expand=>{root.show();}
+    Text {x:root.compact?10px:12px;width:parent.width - 42px;height:parent.height;text:root.current-index>=0&&root.current-index<root.model.length?root.model[root.current-index]:"";color:AppColors.ink;font-size:root.compact?11px:12px;vertical-alignment:center;overflow:elide;}
+    Image {x:parent.width - 28px;y:(parent.height - 16px)/2;width:16px;height:16px;source:@image-url("icons/chevron.svg");colorize:AppColors.muted;transform-rotation:root.opened?180deg:0deg;animate transform-rotation {duration:AppColors.motion?240ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
+    keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{
+        if event.text==Key.Return||event.text==" "{root.show();return accept;}
+        if event.text==Key.DownArrow{root.choose(min(root.model.length - 1,root.current-index+1));return accept;}
+        if event.text==Key.UpArrow{root.choose(max(0,root.current-index - 1));return accept;}return reject;
+    }}
+    TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.show();}}
+    popup:=PopupWindow {x:0px;y:root.height + 4px;width:root.width;height:min(6,root.model.length)*36px + 8px;forward-focus:popup-focus;
+        opacity:root.opened?1:0;animate opacity {duration:AppColors.motion?140ms:0ms;}
+        Rectangle {background:AppColors.surface;border-radius:13px;border-width:1px;border-color:AppColors.edge;drop-shadow-offset-y:6px;drop-shadow-blur:24px;drop-shadow-color:#223a661f;}
+        popup-focus:=FocusScope {
+            focus-changed-event=>{if !self.has-focus{root.opened=false;}}
+            key-pressed(event)=>{
+                if event.text==Key.Escape{root.hide();keys.focus();return accept;}
+                if event.text==Key.Return{root.choose(root.highlighted);return accept;}
+                if event.text==Key.DownArrow{root.highlighted=min(root.model.length - 1,root.highlighted+1);return accept;}
+                if event.text==Key.UpArrow{root.highlighted=max(0,root.highlighted - 1);return accept;}
+                return reject;
+            }
+            ListView {x:4px;y:4px;width:parent.width - 8px;height:parent.height - 8px;viewport-y:-max(0,root.highlighted - 5)*36px;
+                for value[index] in root.model:Rectangle {height:36px;border-radius:7px;background:index==root.highlighted?AppColors.soft:transparent;
+                    accessible-role:button;accessible-label:value;accessible-action-default=>{root.choose(index);}
+                    Text {x:8px;width:parent.width - 38px;height:parent.height;text:value;color:AppColors.ink;font-size:12px;vertical-alignment:center;overflow:elide;}
+                    if index==root.current-index:Image {x:parent.width - 26px;y:10px;width:16px;height:16px;source:@image-url("icons/check.svg");colorize:AppColors.accent;}
+                    TouchArea {changed has-hover=>{if self.has-hover{root.highlighted=index;}}clicked=>{root.choose(index);}}
+                }
+            }
+        }
+    }
+}

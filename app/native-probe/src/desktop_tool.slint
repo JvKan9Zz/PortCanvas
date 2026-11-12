@@ -11,19 +11,22 @@ export component DesktopTool inherits Rectangle {
     in property <bool> checkable:false;
     in property <bool> enabled:true;
     in property <bool> danger:false;
+    in property <angle> icon-angle:0deg;
     callback clicked();
-    min-width:34px;preferred-height:36px;vertical-stretch:0;horizontal-stretch:0;
+    min-width:30px;preferred-height:30px;vertical-stretch:0;horizontal-stretch:0;
     preferred-width:(root.has-icon?20px:0px)+(root.show-text?caption.preferred-width:0px)+(root.has-icon&&root.show-text?6px:0px)+20px;
     border-radius:9px;border-width:keys.has-focus?2px:1px;
-    border-color:keys.has-focus?Palette.foreground:root.checked?AppColors.accent.with-alpha(0.45):transparent;
-    background:root.checked?AppColors.accent.with-alpha(0.12):touch.has-hover?Palette.control-background:transparent;
+    border-color:keys.has-focus?AppColors.accent:root.checked?AppColors.accent.with-alpha(0.45):transparent;
+    background:root.checked||touch.pressed?AppColors.soft:touch.has-hover?AppColors.field:transparent;
+    animate background,border-color {duration:AppColors.motion?150ms:0ms;}
+    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.975:1;animate transform-scale {duration:AppColors.motion?180ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}
     opacity:root.enabled?1:0.45;
     accessible-role:button;accessible-label:root.label;accessible-enabled:root.enabled;
     accessible-checkable:root.checkable;accessible-checked:root.checked;
     accessible-action-default=>{if root.enabled{root.clicked();}}
     forward-focus:keys;
-    Image {visible:root.has-icon;source:root.icon;image-fit:contain;x:root.icon-end?parent.width - 30px:10px;y:(parent.height - 20px)/2;width:20px;height:20px;colorize:root.danger?Palette.foreground.mix(#d34b4b,0.45):root.checked?AppColors.accent:Palette.foreground;}
-    caption:=Text {visible:root.show-text;x:root.has-icon&&!root.icon-end?36px:10px;width:parent.width - 20px - (root.has-icon?26px:0px);height:parent.height;text:root.text;color:root.checked&&Palette.color-scheme==ColorScheme.light?AppColors.accent:Palette.foreground;vertical-alignment:center;}
+    Image {visible:root.has-icon;source:root.icon;image-fit:contain;x:root.icon-end?parent.width - 30px:10px;y:(parent.height - 20px)/2;width:20px;height:20px;colorize:root.danger?AppColors.danger:root.checked?AppColors.accent:AppColors.muted;transform-rotation:root.icon-angle;animate transform-rotation {duration:AppColors.motion?260ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
+    caption:=Text {visible:root.show-text;x:root.has-icon&&!root.icon-end?36px:10px;width:parent.width - 20px - (root.has-icon?26px:0px);height:parent.height;text:root.text;color:root.danger?AppColors.danger:root.checked&&!AppColors.dark?AppColors.accent:AppColors.ink;font-size:12px;vertical-alignment:center;}
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
     touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
 }

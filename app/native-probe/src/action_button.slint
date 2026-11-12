@@ -1,20 +1,65 @@
 import {Palette} from "std-widgets.slint";
-export global AppColors {in-out property <color> accent:#356ce5;}
+export global AppColors {in-out property <color> preferred-accent:#356ce5;
+    in-out property <bool> high-contrast:false;
+    out property <color> accent:high-contrast?Palette.accent-background:preferred-accent;
+    in-out property <bool> motion:true;
+    // System is an input preference; use the resolved palette for the actual colors.
+    out property <bool> dark:Palette.background.red*299+Palette.background.green*587+Palette.background.blue*114<128000;
+    out property <color> edge:high-contrast?Palette.border:dark?#ffffff24:#536d8b20;
+    out property <color> surface:high-contrast?Palette.background:dark?#202a3b:#f9fbff;
+    out property <color> field:high-contrast?Palette.control-background:dark?#263247:#ffffffb8;
+    out property <color> inset:high-contrast?Palette.background:dark?#1c2739:#f6f8fc;
+    out property <color> ink:high-contrast?Palette.foreground:dark?#e0e7f3:#202a3b;
+    out property <color> muted:high-contrast?Palette.foreground:dark?#a9b6ca:#5d697f;
+    out property <color> soft:high-contrast?Palette.alternate-background:dark?#263b5d:#e7effc;
+    out property <color> danger:high-contrast?Palette.foreground:dark?#f2b5b0:#b84646;
+    out property <color> on-accent:high-contrast?Palette.accent-foreground:#ffffff;
+    out property <color> accent-ink:high-contrast?Palette.foreground:dark?(preferred-accent==#2b8169?#b0e4d1:preferred-accent==#53657f?#d0def2:#b4ceff):accent;
+    out property <color> terminal:dark?#111a28:#172331;
+    out property <color> card:high-contrast?Palette.background:dark?#19253499:#ffffff9c;
+}
+export global ActivityPattern {callback choose()->int;}
+export component ActivityIndicator inherits Rectangle {
+    in property <bool> active:false;
+    in property <color> ink:AppColors.accent;
+    out property <int> phase:0;out property <int> wave:0;
+    changed active=>{if root.active{root.phase=0;root.wave=ActivityPattern.choose();}}
+    visible:root.active;width:18px;height:18px;background:transparent;
+    accessible-role:none;
+    Timer {interval:75ms;running:root.active&&AppColors.motion;triggered=>{root.phase=root.phase>=19?0:root.phase+1;}}
+    for i in 16:Rectangle {
+        property <float> grid-x:Math.mod(i,4);property <float> grid-y:Math.floor(i/4);
+        property <float> order:root.wave==0?self.grid-x+self.grid-y:root.wave==1?self.grid-x:root.wave==2?self.grid-y:abs(self.grid-x - self.grid-y);
+        x:self.grid-x*5px;y:self.grid-y*5px;width:3px;height:3px;border-radius:1px;background:root.ink;
+        opacity:AppColors.motion?0.61+0.39*Math.sin((root.phase*18 - self.order*45)*1deg):0.7;
+    }
+}
 export component ActionButton inherits Rectangle {
     in property <string> text;
     in property <bool> primary:false;
+    in property <bool> selected:false;
     in property <bool> enabled:true;
+    in property <bool> danger:false;
+    in property <image> icon;
+    in property <bool> has-icon:false;
+    in property <bool> busy:false;
     callback clicked;
-    min-width:64px;min-height:34px;preferred-height:34px;
-    preferred-width:label.preferred-width + 24px;
-    border-radius:4px;border-width:keys.has-focus?2px:1px;
-    border-color:keys.has-focus?Palette.foreground:Palette.border;
-    background:root.primary?(touch.pressed?AppColors.accent.darker(1.2):touch.has-hover?AppColors.accent.darker(1.1):AppColors.accent):Palette.control-background;
+    out property <bool> focused:keys.has-focus;
+    out property <int> busy-phase:progress-dots.phase;out property <int> busy-wave:progress-dots.wave;
+    min-width:64px;height:36px;horizontal-stretch:0;vertical-stretch:0;
+    preferred-width:label.preferred-width + 24px + (root.has-icon||root.busy?24px:0px);
+    border-radius:10px;border-width:keys.has-focus?2px:1px;
+    border-color:keys.has-focus?AppColors.accent:root.selected?AppColors.accent.with-alpha(0.35):AppColors.edge;
+    background:root.primary?(touch.pressed?AppColors.accent.darker(1.2):touch.has-hover?AppColors.accent.darker(1.1):AppColors.accent):root.selected?AppColors.soft:touch.pressed?AppColors.soft:touch.has-hover?AppColors.field:AppColors.surface.with-alpha(0.7);
+    animate background,border-color {duration:AppColors.motion?160ms:0ms;}
+    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.975:1;animate transform-scale {duration:AppColors.motion?180ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}
     opacity:root.enabled?1:0.45;
     accessible-role:button;accessible-label:root.text;accessible-enabled:root.enabled;
     accessible-action-default=>{if root.enabled{root.clicked();}}
     forward-focus:keys;
-    label:=Text {x:12px;width:parent.width - 24px;height:parent.height;text:root.text;color:root.primary?#ffffff:Palette.foreground;horizontal-alignment:center;vertical-alignment:center;overflow:elide;}
+    Image {visible:root.has-icon&&!root.busy;x:12px;y:(parent.height - 16px)/2;width:16px;height:16px;source:root.icon;colorize:root.primary?AppColors.on-accent:root.danger?AppColors.danger:AppColors.ink;}
+    progress-dots:=ActivityIndicator {active:root.busy;ink:root.primary?AppColors.on-accent:AppColors.accent;x:12px;y:(parent.height - 18px)/2;}
+    label:=Text {x:root.has-icon||root.busy?36px:12px;y:0px;width:parent.width - 24px - (root.has-icon||root.busy?24px:0px);height:parent.height;text:root.text;color:root.primary?AppColors.on-accent:root.danger?AppColors.danger:root.selected?AppColors.accent-ink:AppColors.ink;font-size:12px;horizontal-alignment:center;vertical-alignment:center;overflow:elide;}
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
     touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
 }

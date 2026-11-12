@@ -180,10 +180,24 @@ impl Controller {
                 "video" => c.choose(true),
                 "cancel" => c.cancel_stage(),
                 "color" => c.color(false),
+                "picker" => c.open_picker(),
+                "remove" => c.remove_background(),
                 "reset" => c.color(true),
                 _ => {}
             }
         });
+        ui.on_bg_picker_change({let weak=ui.as_weak();move|h,s,v|{if let Some(ui)=weak.upgrade(){picker_hsv(&ui,h as f64,s as f64,v as f64);}}});
+        ui.on_bg_picker_rgb({let weak=ui.as_weak();move|r,g,b|{if let Some(ui)=weak.upgrade(){let [h,s,v]=portcanvas_native_probe::color_model::hsv([r.clamp(0,255) as u8,g.clamp(0,255) as u8,b.clamp(0,255) as u8]);picker_hsv(&ui,h,s,v);}}});
+        ui.on_bg_picker_hex_edited({let weak=ui.as_weak();move|value|{if let Some(ui)=weak.upgrade(){
+            if let Some(rgb)=portcanvas_native_probe::color_model::parse(value.as_str()){
+                let [h,s,v]=portcanvas_native_probe::color_model::hsv(rgb);picker_hsv_input(&ui,h,s,v,false);ui.set_bg_picker_error("".into());
+            }else if value.len()>=7{ui.set_bg_picker_error("请选择有效的背景颜色。".into());}
+        }}});
+        ui.on_bg_picker_response({let c=c.clone();move|accepted|{
+            let Some(ui)=c.ui.upgrade() else{return};if ui.get_dialog_kind()!=14{return;}
+            if accepted {if portcanvas_native_probe::color_model::parse(ui.get_bg_picker_hex().as_str()).is_none(){ui.set_bg_picker_error("请选择有效的背景颜色。".into());return;}ui.set_bg_hex(ui.get_bg_picker_hex());}
+            ui.set_dialog_kind(0);if accepted{c.color(false);}
+        }});
         ui.on_bg_controls({
             let c = c.clone();
             move || {
@@ -336,7 +350,7 @@ impl Controller {
             });
         });
     }
-    fn reload(self: &Rc<Self>) {
+    pub fn reload(self: &Rc<Self>) {
         let (ticket, cancel) = self.begin(false);
         let s = self.services.clone();
         self.task(ticket, move || saved(&s, &cancel));
@@ -419,7 +433,7 @@ impl Controller {
         let ready = self.pending.lock().unwrap().take();
         let Some((_, ready)) = ready else { return };
         if ready.draft.is_some()
-            && (ui.get_page() != 1 || ui.get_native_hidden() || ui.get_dialog_kind() != 0)
+            && (!ui.get_settings_open() || ui.get_native_hidden() || ui.get_dialog_kind() != 0)
         {
             drop(ready);
             ui.set_bg_busy(false);
@@ -454,7 +468,7 @@ impl Controller {
             ui.set_bg_hex(
                 saved_color
                     .clone()
-                    .unwrap_or_else(|| "#eef3fb".into())
+                    .unwrap_or_else(|| "#eaf0f8".into())
                     .into(),
             );
             ui.set_bg_color(
@@ -467,6 +481,7 @@ impl Controller {
             ui.set_bg_volume(p.background_volume as f32);
 
             let media = ready.asset.map(|a| canvas(a, ready.path.unwrap()));
+            ui.set_bg_video(media.as_ref().is_some_and(|m|m.video));
             let video = media.as_ref().is_some_and(|a| a.video);
             let crop = if video { p.background_crop } else { None }.unwrap_or(Crop {
                 x: 0.,
@@ -560,6 +575,18 @@ impl Controller {
         }
         self.sync();
     }
+    fn open_picker(&self){
+        let Some(ui)=self.ui.upgrade() else{return};if ui.get_dialog_kind()!=0||ui.get_bg_busy(){return;}
+        let rgb=portcanvas_native_probe::color_model::parse(ui.get_bg_hex().as_str()).unwrap_or([238,243,251]);
+        let [h,s,v]=portcanvas_native_probe::color_model::hsv(rgb);picker_hsv(&ui,h,s,v);
+        ui.set_bg_picker_error("".into());ui.set_dialog_kind(14);
+    }
+    fn remove_background(self:&Rc<Self>){
+        let Some(ui)=self.ui.upgrade() else{return};if ui.get_bg_busy()||ui.get_dialog_kind()!=0{return;}
+        let player=self.saved.borrow_mut().as_mut().and_then(|c|c.player.take());
+        let (ticket,cancel)=self.begin(false);let services=self.services.clone();
+        self.task(ticket,move||{drop(player);services.preferences.lock().unwrap().remove_background_image()?;saved(&services,&cancel)});
+    }
     fn color(self: &Rc<Self>, reset: bool) {
         let Some(ui) = self.ui.upgrade() else { return };
         if ui.get_bg_busy() || ui.get_dialog_kind() != 0 {
@@ -609,7 +636,7 @@ impl Controller {
         {
             self.visibility.borrow_mut().push(serde_json::json!({"hidden":hidden,"desktopExpanded":ui.get_desktop_expanded(),"textureUploads":self.uploads.get(),"playback":snapshot(self.saved.borrow().as_ref())}));
         }
-        if ui.get_bg_cancellable() && (ui.get_page() != 1 || hidden) {
+        if ui.get_bg_cancellable() && (!ui.get_settings_open() || hidden) {
             self.cancel_stage();
             return;
         }
@@ -726,6 +753,9 @@ impl Controller {
             self.timer.stop();
         }
     }
+    pub fn flush(&self) {
+        if self.save_timer.running() { self.save_timer.stop(); self.persist(); }
+    }
     pub fn shutdown(&self) {
         self.cancel.borrow().cancel();
         self.ticket.fetch_add(1, Ordering::SeqCst);
@@ -780,4 +810,16 @@ fn saved(s: &Services, cancel: &CancellationToken) -> Result<Ready> {
 
 fn snapshot(canvas: Option<&Canvas>) -> serde_json::Value {
     canvas.and_then(|c|c.player.as_ref()).map(|p|p.read(|s|serde_json::json!({"sequence":s.sequence,"loops":s.loops,"position":s.position,"audioActive":s.audio_active,"audioVolume":s.audio_volume,"error":s.error,"audioError":s.audio_error}))).unwrap_or(serde_json::Value::Null)
+}
+
+fn picker_hsv(ui:&Workbench,h:f64,s:f64,v:f64){
+    picker_hsv_input(ui,h,s,v,true);
+}
+fn picker_hsv_input(ui:&Workbench,h:f64,s:f64,v:f64,update_hex:bool){
+    use portcanvas_native_probe::color_model::rgb;
+    let [r,g,b]=rgb(h,s,v);let [hr,hg,hb]=rgb(h,1.,1.);
+    ui.set_bg_picker_hue(h as f32);ui.set_bg_picker_saturation(s.clamp(0.,1.) as f32);ui.set_bg_picker_brightness(v.clamp(0.,1.) as f32);
+    ui.set_bg_picker_red(r as i32);ui.set_bg_picker_green(g as i32);ui.set_bg_picker_blue(b as i32);
+    ui.set_bg_picker_color(slint::Color::from_rgb_u8(r,g,b));ui.set_bg_picker_hue_color(slint::Color::from_rgb_u8(hr,hg,hb));
+    if update_hex{ui.set_bg_picker_hex(format!("#{r:02X}{g:02X}{b:02X}").into());}
 }

@@ -14,6 +14,8 @@ fn marker(n: usize) -> Marker {
         code: Some(if n == 3 { 7 } else { 0 }),
         command: if n == 208 {
             "合成实时记录".into()
+        } else if n == 205 {
+            format!("合成日志 {n:03} --long-command=\"{}\"", "中文路径 /tmp/a b/设置 🧪 ".repeat(12))
         } else {
             format!("合成日志 {n:03}")
         },

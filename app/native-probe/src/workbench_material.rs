@@ -62,7 +62,7 @@ pub struct Controller {
     uploaded: Cell<u64>,
     gpu: RefCell<Option<Gpu>>,
     key: RefCell<Option<Key>>,
-    bindings: RefCell<Option<((u32, u32), Vec<(u32, u32)>)>>,
+    bindings: RefCell<Option<((u32, u32), Vec<(u32, u32)>, u8)>>,
     failed: Cell<bool>,
     uploads: Cell<u64>,
     passes: Cell<u64>,
@@ -87,8 +87,9 @@ pub struct Controller {
     unsubscribe_errors: RefCell<Vec<String>>,
     transitions: RefCell<Vec<serde_json::Value>>,
     record_geometry: bool,
-    last_geometry: Cell<Option<(bool,[f32;4])>>,
+    last_geometry: Cell<Option<(bool,[f32;4],[f32;14])>>,
     geometry: RefCell<Vec<serde_json::Value>>,
+    backdrop_events: RefCell<Vec<serde_json::Value>>,
 }
 impl Controller {
     pub fn install(ui: &Workbench, pending_draw: Arc<AtomicU64>) -> anyhow::Result<Rc<Self>> {
@@ -131,7 +132,10 @@ impl Controller {
             record_geometry: std::env::var_os("PORTCANVAS_WORKBENCH_REPORT").is_some(),
             last_geometry: Cell::new(None),
             geometry: RefCell::new(Vec::new()),
+            backdrop_events: RefCell::new(Vec::new()),
         });
+        ui.set_observe_motion(c.record_geometry);
+        ui.on_settings_backdrop({let c=c.clone();move |capture|c.backdrop(capture)});
         ui.on_material_refresh({
             let c = c.clone();
             move || c.refresh()
@@ -216,7 +220,7 @@ impl Controller {
             self.transitions.borrow_mut().push(serde_json::json!({"policy":policy,"preferred":ui.get_glass_quality(),"opacity":ui.get_bg_material(),"beforePasses":self.passes.get(),"beforeUploads":self.uploads.get()}));
         }
         self.reset_monitor();
-        ui.set_material_solid(policy.solid());
+        ui.set_high_contrast(policy.high_contrast);ui.set_material_solid(policy.solid());
         ui.set_material_status(
             if policy.notice().is_empty() && self.failed.get() {
                 "GPU 玻璃不可用，当前显示基础材质。"
@@ -234,6 +238,8 @@ impl Controller {
         !self.prompted.get()
             && !ui.get_native_hidden()
             && !ui.get_desktop_expanded()
+            && !ui.get_settings_open()
+            && !ui.get_update_busy()
             && ui.get_native_focused()
             && ui.get_dialog_kind() == 0
             && !ui.get_system_busy()
@@ -333,6 +339,8 @@ impl Controller {
             ui.set_material_nav(Default::default());
             ui.set_material_header(Default::default());
             ui.set_material_terminal(Default::default());
+            ui.set_material_work(Default::default());
+            ui.set_material_settings(Default::default());
             ui.window().request_redraw();
         }
     }
@@ -351,9 +359,10 @@ impl Controller {
         let Some(ui) = self.ui.upgrade() else { return };
         if self.record_geometry {
             let r=ui.get_desktop_work_rect();
-            let state=(ui.get_desktop_expanded(),[r.x,r.y,r.width,r.height]);
-            if self.last_geometry.replace(Some(state))!=Some(state) && self.geometry.borrow().len()<512 {
-                self.geometry.borrow_mut().push(serde_json::json!({"ms":self.epoch.elapsed().as_millis(),"expanded":state.0,"rect":state.1}));
+            let c=ui.get_chrome_layout();
+            let state=(ui.get_desktop_expanded(),[r.x,r.y,r.width,r.height],[c.nav,c.drawer,c.drawer_x,c.settings_y,c.settings_opacity,c.settings_tab,c.page,c.dialog_y,c.dialog_opacity,c.advanced,c.connection_height,c.busy_phase,c.busy_wave,c.busy]);
+            if self.last_geometry.replace(Some(state))!=Some(state) && self.geometry.borrow().len()<2048 {
+                self.geometry.borrow_mut().push(serde_json::json!({"ms":self.epoch.elapsed().as_millis(),"expanded":state.0,"rect":state.1,"chrome":state.2}));
             }
         }
         if ui.get_native_hidden() { return; }
@@ -370,6 +379,8 @@ impl Controller {
             ui.set_material_nav(Default::default());
             ui.set_material_header(Default::default());
             ui.set_material_terminal(Default::default());
+            ui.set_material_work(Default::default());
+            ui.set_material_settings(Default::default());
             self.release();
             return;
         }
@@ -384,11 +395,14 @@ impl Controller {
         };
         let expanded=ui.get_desktop_expanded();
         let mut rects=if expanded {vec![rect(ui.get_material_header_rect())]} else {
-            vec![rect(ui.get_material_nav_rect()),rect(ui.get_material_header_rect())]
+            vec![rect(ui.get_material_nav_rect()),rect(ui.get_material_header_rect()),rect(ui.get_desktop_work_rect())]
         };
         if !expanded && ui.get_terminal_visible() {
             rects.push(rect(ui.get_material_terminal_rect()));
         }
+        let terminal_index=(!expanded&&ui.get_terminal_visible()).then_some(3usize);
+        let settings_index=ui.get_settings_open().then_some(rects.len());
+        if ui.get_settings_open(){rects.push(rect(ui.get_material_settings_rect()));}
         if rects.iter().any(|r| r.width <= 0. || r.height <= 0.) {
             return;
         }
@@ -438,6 +452,7 @@ impl Controller {
             let gpu = slot.as_mut().unwrap();
             let frame = (self.uploaded.get() != key.revision)
                 .then(|| (source.0, source.1, pixels.as_bytes()));
+            let previous_passes=gpu.passes;
             let images = gpu.draw(
                 frame,
                 &surfaces,
@@ -447,21 +462,24 @@ impl Controller {
             )?;
             self.uploads
                 .set(self.uploads.get() + u64::from(frame.is_some()));
-            self.passes.set(self.passes.get() + surfaces.len() as u64);
+            let executed=gpu.passes - previous_passes;
+            self.passes.set(self.passes.get() + executed);
             self.quality_passes[key.quality.clamp(0, 2) as usize].set(
-                self.quality_passes[key.quality.clamp(0, 2) as usize].get() + surfaces.len() as u64,
+                self.quality_passes[key.quality.clamp(0, 2) as usize].get() + executed,
             );
             self.uploaded.set(key.revision);
             Ok::<_, anyhow::Error>(images)
         })();
         match result {
             Ok((background, images)) => {
-                let binding = (source, surfaces.iter().map(|s| s.size).collect::<Vec<_>>());
+                let binding = (source, surfaces.iter().map(|s| s.size).collect::<Vec<_>>(),u8::from(expanded)|(u8::from(ui.get_terminal_visible())<<1)|(u8::from(ui.get_settings_open())<<2));
                 if self.bindings.borrow().as_ref() != Some(&binding) {
                     ui.set_bg_frame(background);
                     ui.set_material_nav(if expanded {Default::default()} else {images[0].clone()});
                     ui.set_material_header(images[if expanded {0} else {1}].clone());
-                    ui.set_material_terminal(if expanded {Default::default()} else {images.get(2).cloned().unwrap_or_default()});
+                    ui.set_material_work(if expanded {Default::default()} else {images[2].clone()});
+                    ui.set_material_terminal(terminal_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
+                    ui.set_material_settings(settings_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
                     *self.bindings.borrow_mut() = Some(binding);
                 }
                 ui.set_material_active(true);
@@ -480,16 +498,51 @@ impl Controller {
                 ui.set_material_nav(Default::default());
                 ui.set_material_header(Default::default());
                 ui.set_material_terminal(Default::default());
+            ui.set_material_work(Default::default());
+            ui.set_material_settings(Default::default());
                 self.release();
             }
         }
+    }
+    fn backdrop(&self, capture: bool) {
+        let Some(ui)=self.ui.upgrade() else{return};
+        ui.set_settings_backdrop_active(false);
+        ui.set_settings_backdrop_frame(Default::default());
+        if !capture || ui.get_material_solid() || ui.get_native_hidden() || ui.get_glass_quality()==0 {
+            if self.record_geometry && self.backdrop_events.borrow().len()<64 {
+                self.backdrop_events.borrow_mut().push(serde_json::json!({"capture":false,"released":true}));
+            }
+            return;
+        }
+        // FemtoVG reads its last rendered front buffer once, before the modal is
+        // painted. Keep only the bounded blurred image; no timer or live capture.
+        let started=Instant::now();
+        let result=(||->anyhow::Result<(slint::Image,u32,u32)>{
+            let pixels=ui.window().take_snapshot().map_err(|e|anyhow::anyhow!("{e}"))?;
+            let (width,height)=(pixels.width(),pixels.height());
+            anyhow::ensure!(width>0&&height>0,"empty window snapshot");
+            let limit=if ui.get_glass_quality()==2{1024.0}else{640.0};
+            let ratio=(limit/width as f32).min(640.0/height as f32).min(1.0);
+            let (w,h)=((width as f32*ratio).round().max(1.0) as u32,(height as f32*ratio).round().max(1.0) as u32);
+            let source=image::RgbaImage::from_raw(width,height,pixels.as_bytes().to_vec()).ok_or_else(||anyhow::anyhow!("invalid window pixels"))?;
+            let small=image::imageops::resize(&source,w,h,image::imageops::FilterType::Nearest);
+            let blurred=image::imageops::fast_blur(&small,(6.0*ui.window().scale_factor()*ratio).max(1.0));
+            let buffer=SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(blurred.as_raw(),w,h);
+            Ok((slint::Image::from_rgba8(buffer),w,h))
+        })();
+        let mut event=serde_json::json!({"capture":true,"ms":started.elapsed().as_secs_f64()*1000.0});
+        match result {
+            Ok((image,w,h))=>{ui.set_settings_backdrop_frame(image);ui.set_settings_backdrop_active(true);event["size"]=serde_json::json!([w,h]);}
+            Err(error)=>{event["error"]=error.to_string().into();}
+        }
+        if self.record_geometry && self.backdrop_events.borrow().len()<64 {self.backdrop_events.borrow_mut().push(event);}
     }
     pub fn report(&self) -> serde_json::Value {
         serde_json::json!({"sourceUploads":self.uploads.get(),"materialPasses":self.passes.get(),
             "qualityPasses":self.quality_passes.each_ref().map(Cell::get),"visibility":*self.visibility.borrow(),
             "released":self.released.get(),"driver":*self.driver.borrow(),"error":*self.error.borrow(),
             "policy":self.policy.get(),"os":self.os_report,"subscriptionsReleased":self.os.borrow().is_none()&&self.unsubscribe_errors.borrow().is_empty(),"unsubscribeErrors":*self.unsubscribe_errors.borrow(),
-            "synthetic":self.synthetic.get(),"heartbeatTicks":self.ticks.get(),"prompted":self.prompted.get(),"transitions":*self.transitions.borrow(),"geometry":*self.geometry.borrow()})
+            "synthetic":self.synthetic.get(),"heartbeatTicks":self.ticks.get(),"prompted":self.prompted.get(),"transitions":*self.transitions.borrow(),"backdrop":*self.backdrop_events.borrow(),"chromeFields":["navY","drawerWidth","drawerX","settingsY","settingsOpacity","settingsTabY","pagePhase","dialogY","dialogOpacity","advancedHeight","connectionHeight","busyPhase","busyWave","busy"],"geometry":*self.geometry.borrow()})
     }
     pub fn visibility(&self, hidden: bool) {
         if hidden {
@@ -500,6 +553,7 @@ impl Controller {
         }
     }
     pub fn shutdown(&self) {
+        self.backdrop(false);
         self.reset_monitor();
         if let Some(mut os) = self.os.borrow_mut().take() {
             *self.unsubscribe_errors.borrow_mut() = os.close();
