@@ -5,7 +5,7 @@ use std::{
     sync::{atomic::{AtomicUsize, Ordering}, Arc},
     time::Duration,
 };
-use studio_core::{
+use portcanvas_core::{
     desktop::DesktopService, desktop_settings::DesktopMode, profiles::Profile,
     session::DeviceManager, ssh::{HostCheck, SshConnection},
 };
@@ -180,8 +180,8 @@ async fn desktop_start_timeout_closes_its_owned_process_channel() {
     let devices = DeviceManager::new(Arc::new(|_, _| {}));
     devices.connect(fixture.profile.clone(), secret(), |_| check(true)).await.unwrap();
     let desktop = DesktopService::new(devices.clone());
-    let result = tokio::time::timeout(Duration::from_secs(30), desktop.start("http://tauri.localhost".into(), DesktopMode::Smooth)).await.unwrap();
-    assert!(result.unwrap_err().to_string().contains("桌面启动超时"));
+    let result = tokio::time::timeout(Duration::from_secs(30), desktop.start_native(DesktopMode::Smooth, devices.generation(), CancellationToken::new())).await.unwrap();
+    assert!(result.err().expect("desktop unexpectedly started").to_string().contains("桌面启动超时"));
     fixture.counts.wait_for_cleanup().await;
     assert_eq!(fixture.counts.exec.load(Ordering::SeqCst), 1);
     assert!(devices.connection().is_ok());
@@ -207,7 +207,7 @@ async fn environment_preparation_is_cached_and_quotes_private_paths() {
     devices.connect(fixture.profile.clone(), secret(), |_| check(true)).await.unwrap();
     let connection = devices.connection().unwrap();
     for _ in 0..2 {
-        connection.prepare(studio_core::remote_env::Feature::Terminal, &connection.cancel).await.unwrap();
+        connection.prepare(portcanvas_core::remote_env::Feature::Terminal, &connection.cancel).await.unwrap();
     }
     assert_eq!(fixture.counts.exec.load(Ordering::SeqCst), 1);
     assert!(connection.remote_command("printf test").contains("'/tmp/fixture'\\''s/bin'"));
@@ -230,7 +230,7 @@ async fn canceling_environment_preparation_closes_only_the_owned_channel() {
     let cancel = CancellationToken::new();
     let preparing = {
         let connection = connection.clone(); let cancel = cancel.clone();
-        tokio::spawn(async move { connection.prepare(studio_core::remote_env::Feature::Desktop, &cancel).await })
+        tokio::spawn(async move { connection.prepare(portcanvas_core::remote_env::Feature::Desktop, &cancel).await })
     };
     tokio::time::timeout(Duration::from_secs(3), async {
         while fixture.counts.exec.load(Ordering::SeqCst) == 0 { fixture.counts.changed.notified().await; }
@@ -251,7 +251,7 @@ async fn environment_plan_streams_verified_pc_cache_and_reports_each_phase() {
     let devices=DeviceManager::new(Arc::new(move |name,value|{if name=="environment-progress"{sink.lock().unwrap().push(value);}})).with_runtime_cache(root.clone());
     devices.connect(fixture.profile.clone(),secret(),|_|check(true)).await.unwrap();
     let connection=devices.connection().unwrap();
-    tokio::time::timeout(Duration::from_secs(5),connection.prepare(studio_core::remote_env::Feature::Terminal,&connection.cancel)).await.unwrap().unwrap();
+    tokio::time::timeout(Duration::from_secs(5),connection.prepare(portcanvas_core::remote_env::Feature::Terminal,&connection.cancel)).await.unwrap().unwrap();
     let values=events.lock().unwrap();
     assert!(values.iter().any(|v|v["phase"]=="downloading"&&v["connections"]==0&&v["done"]==3));
     assert!(values.iter().any(|v|v["phase"]=="transferring"&&v["done"]==3&&v["total"]==3));
@@ -265,9 +265,9 @@ async fn changing_runtime_source_applies_to_the_next_preparation_on_the_same_ssh
     let fixture=Fixture::with_environment_reply(true).await;
     let devices=DeviceManager::new(Arc::new(|_,_|{})).with_environment();
     devices.connect(fixture.profile.clone(),secret(),|_|check(true)).await.unwrap();let connection=devices.connection().unwrap();
-    connection.prepare(studio_core::remote_env::Feature::Terminal,&connection.cancel).await.unwrap();
-    devices.set_environment_source(studio_core::preferences::EnvironmentSource::Board);
-    connection.prepare(studio_core::remote_env::Feature::Files,&connection.cancel).await.unwrap();
+    connection.prepare(portcanvas_core::remote_env::Feature::Terminal,&connection.cancel).await.unwrap();
+    devices.set_environment_source(portcanvas_core::preferences::EnvironmentSource::Board);
+    connection.prepare(portcanvas_core::remote_env::Feature::Files,&connection.cancel).await.unwrap();
     let commands=fixture.counts.commands.lock().unwrap();let options=commands.iter().filter_map(|c|environment_options(c)).collect::<Vec<_>>();
     assert_eq!(options.len(),2);assert_eq!(options[0]["source"],"computer");assert_eq!(options[1]["source"],"board");drop(commands);
     assert!(devices.connection().is_ok());devices.disconnect().await;

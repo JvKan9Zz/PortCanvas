@@ -1,6 +1,6 @@
 # Native probe dependency notes
 
-Direct dependencies retain their upstream licenses. Slint uses the retained royalty-free terms and the AboutSlint widget. Remaining transitive notices and distribution obligations must be collected before a production native release.
+Direct dependencies retain their upstream licenses. Slint uses the retained royalty-free terms and the AboutSlint widget. The locked Windows normal/build inventory and retained license texts are bundled in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt); font notices are included separately with the installer.
 
 | Component | Upstream license |
 | --- | --- |

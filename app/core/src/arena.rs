@@ -3,7 +3,6 @@ use anyhow::{Context,Result};
 use serde_json::{json,Value};
 use std::{sync::{Arc,Mutex},time::{Duration,Instant}};
 use tokio_util::sync::CancellationToken;
-use tokio::{io::{AsyncReadExt,AsyncWriteExt},net::{TcpListener,TcpStream}};
 
 const MAX_FRAME:usize=1024*1024;
 #[derive(Default)]
@@ -24,11 +23,11 @@ impl JpegFrames {
 }
 pub struct NativeCameraFrame {pub sequence:u64,pub generation:u64,pub jpeg:Arc<Vec<u8>>}
 struct Running {id:u64,cancel:CancellationToken,done:CancellationToken}
-struct Camera {id:u64,generation:u64,phase:&'static str,message:String,path:String,backend:String,url:String,fps:u32,sent:u64,sent_bytes:u64,meter:Instant,meter_count:u64,stream_fps:Option<f64>,sequence:u64,latest:Option<Arc<Vec<u8>>>,viewer:Instant,native:bool,running:Option<Running>}
+struct Camera {id:u64,generation:u64,phase:&'static str,message:String,path:String,backend:String,fps:u32,sent:u64,sent_bytes:u64,meter:Instant,meter_count:u64,stream_fps:Option<f64>,sequence:u64,latest:Option<Arc<Vec<u8>>>,viewer:Instant,native:bool,running:Option<Running>}
 #[derive(Clone)]
-pub struct ArenaService {devices:DeviceManager,camera:Arc<Mutex<Camera>>,gate:Arc<tokio::sync::Mutex<()>>,changed:Arc<tokio::sync::Notify>}
+pub struct ArenaService {devices:DeviceManager,camera:Arc<Mutex<Camera>>,gate:Arc<tokio::sync::Mutex<()>>}
 impl ArenaService {
-    pub fn new(devices:DeviceManager)->Self{Self {devices,camera:Arc::new(Mutex::new(Camera{id:0,generation:0,phase:"idle",message:String::new(),path:String::new(),backend:String::new(),url:String::new(),fps:20,sent:0,sent_bytes:0,meter:Instant::now(),meter_count:0,stream_fps:None,sequence:0,latest:None,viewer:Instant::now(),native:false,running:None})),gate:Arc::new(tokio::sync::Mutex::new(())),changed:Arc::new(tokio::sync::Notify::new())}}
+    pub fn new(devices:DeviceManager)->Self{Self {devices,camera:Arc::new(Mutex::new(Camera{id:0,generation:0,phase:"idle",message:String::new(),path:String::new(),backend:String::new(),fps:20,sent:0,sent_bytes:0,meter:Instant::now(),meter_count:0,stream_fps:None,sequence:0,latest:None,viewer:Instant::now(),native:false,running:None})),gate:Arc::new(tokio::sync::Mutex::new(()))}}
     pub async fn metrics(&self)->Result<Value>{
         let(generation,connection)=self.devices.connection_with_generation()?;let started=Instant::now();
         let command=python(include_str!("../resources/device_metrics.py"),json!(["metrics"]))?;
@@ -46,43 +45,12 @@ impl ArenaService {
     }
     fn metadata(&self,camera:&Camera)->Value{
         let valid=camera.generation==self.devices.generation();
-        json!({"id":camera.id,"phase":if valid{camera.phase}else{"idle"},"message":if valid{camera.message.as_str()}else{""},"path":camera.path,"backend":camera.backend,"targetFps":camera.fps,"streamUrl":if valid{camera.url.as_str()}else{""},"transport":if camera.native{"native-jpeg"}else{"mjpeg-loopback"},"sequence":camera.sequence,"deliveredFrames":camera.sent,"deliveredBytes":camera.sent_bytes,"streamFps":camera.stream_fps,"frame":null})
+        json!({"id":camera.id,"phase":if valid{camera.phase}else{"idle"},"message":if valid{camera.message.as_str()}else{""},"path":camera.path,"backend":camera.backend,"targetFps":camera.fps,"streamUrl":"","transport":"native-jpeg","sequence":camera.sequence,"deliveredFrames":camera.sent,"deliveredBytes":camera.sent_bytes,"streamFps":camera.stream_fps,"frame":null})
     }
     pub fn status(&self)->Value{self.metadata(&self.camera.lock().unwrap())}
-    async fn serve(&self,listener:TcpListener,id:u64,token:String,cancel:CancellationToken){
-        let pending=Arc::new(tokio::sync::Semaphore::new(4));let viewer=Arc::new(tokio::sync::Semaphore::new(1));
-        loop{
-            let accepted=tokio::select!{_ = cancel.cancelled()=>break,r=listener.accept()=>r};let Ok((socket,_))=accepted else{break};
-            let Ok(permit)=pending.clone().try_acquire_owned()else{continue};let service=self.clone();let token=token.clone();let cancel=cancel.clone();let viewer=viewer.clone();
-            tokio::spawn(async move{let _permit=permit;let _=service.stream(socket,id,&token,cancel,viewer).await;});
-        }
-    }
-    async fn stream(&self,mut socket:TcpStream,id:u64,token:&str,cancel:CancellationToken,viewer:Arc<tokio::sync::Semaphore>)->Result<()>{
-        let mut request=Vec::new();let mut bytes=[0u8;1024];
-        tokio::time::timeout(Duration::from_secs(2),async{
-            while !request.windows(4).any(|s|s==b"\r\n\r\n"){
-                let n=socket.read(&mut bytes).await?;anyhow::ensure!(n>0,"Preview connection closed");request.extend_from_slice(&bytes[..n]);anyhow::ensure!(request.len()<=4096,"Preview request too large");
-            }Ok::<_,anyhow::Error>(())
-        }).await??;
-        let expected=format!("GET /{} HTTP/1.1",token);let line=request.split(|b|*b==b'\n').next().unwrap_or_default();
-        if line.strip_suffix(b"\r").unwrap_or(line)!=expected.as_bytes(){let _=socket.write_all(b"HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").await;return Ok(());}
-        let Ok(_viewer)=viewer.try_acquire_owned()else{let _=socket.write_all(b"HTTP/1.1 409 Conflict\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").await;return Ok(());};
-        socket.set_nodelay(true)?;
-        socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=portcanvas\r\nCache-Control: no-store, no-cache\r\nPragma: no-cache\r\nConnection: close\r\n\r\n").await?;
-        let mut sequence=0;
-        loop{
-            let (frame,ended)={let camera=self.camera.lock().unwrap();let ended=camera.id!=id||camera.generation!=self.devices.generation()||matches!(camera.phase,"idle"|"error");let frame=if !ended&&camera.sequence>sequence{camera.latest.as_ref().map(|data|(camera.sequence,data.clone()))}else{None};(frame,ended)};
-            if ended{break;}
-            if let Some((next,data))=frame{
-                let head=format!("--portcanvas\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\n\r\n",data.len());let mut packet=Vec::with_capacity(head.len()+data.len()+2);packet.extend_from_slice(head.as_bytes());packet.extend_from_slice(&data);packet.extend_from_slice(b"\r\n");
-                tokio::select!{_ = cancel.cancelled()=>break,r=tokio::time::timeout(Duration::from_secs(2),socket.write_all(&packet))=>r??};
-                sequence=next;let mut camera=self.camera.lock().unwrap();if camera.id==id{camera.viewer=Instant::now();camera.sent+=1;camera.sent_bytes+=data.len()as u64;camera.meter_count+=1;if camera.meter.elapsed()>=Duration::from_secs(1){camera.stream_fps=Some(camera.meter_count as f64/camera.meter.elapsed().as_secs_f64());camera.meter=Instant::now();camera.meter_count=0;}}
-            }else{tokio::select!{_ = cancel.cancelled()=>break,_ = self.changed.notified()=>{},_ = tokio::time::sleep(Duration::from_millis(200))=>{}}}
-        }Ok(())
-    }
     async fn stop_inner(&self,expected:Option<u64>){
-        let old={let mut camera=self.camera.lock().unwrap();if expected.is_some()&&expected!=Some(camera.id){return;}camera.latest=None;camera.url.clear();camera.stream_fps=None;camera.phase="idle";camera.message.clear();camera.running.take()};
-        self.changed.notify_one();
+        let old={let mut camera=self.camera.lock().unwrap();if expected.is_some()&&expected!=Some(camera.id){return;}camera.latest=None;camera.stream_fps=None;camera.phase="idle";camera.message.clear();camera.running.take()};
+
         if let Some(old)=old{old.cancel.cancel();let _=tokio::time::timeout(Duration::from_secs(4),old.done.cancelled()).await;}
     }
     pub async fn stop(&self,id:Option<u64>){let _guard=self.gate.lock().await;self.stop_inner(id).await;}
@@ -97,22 +65,16 @@ impl ArenaService {
         if camera.meter.elapsed()>=Duration::from_secs(1){camera.stream_fps=Some(camera.meter_count as f64/camera.meter.elapsed().as_secs_f64());camera.meter=Instant::now();camera.meter_count=0;}
         Ok(Some(NativeCameraFrame{sequence:camera.sequence,generation,jpeg}))
     }
-    pub async fn start(&self,path:String,fps:u32)->Result<Value>{self.start_inner(path,fps,None,CancellationToken::new()).await}
-    pub async fn start_native(&self,path:String,fps:u32,generation:u64,cancel:CancellationToken)->Result<Value>{self.start_inner(path,fps,Some(generation),cancel).await}
-    async fn start_inner(&self,path:String,fps:u32,expected:Option<u64>,request:CancellationToken)->Result<Value>{
+    pub async fn start_native(&self,path:String,fps:u32,expected:u64,request:CancellationToken)->Result<Value>{
         anyhow::ensure!(regex::Regex::new(r"^/dev/video[0-9]{1,3}$").unwrap().is_match(&path),"请选择有效的视频设备。");
         anyhow::ensure!([8,15,20,30].contains(&fps),"请选择有效帧率。");
         let _guard=tokio::select!{biased;_=request.cancelled()=>anyhow::bail!("摄像头连接已取消。"),g=self.gate.lock()=>g};
-        anyhow::ensure!(!request.is_cancelled()&&expected.is_none_or(|g|g==self.devices.generation()),"摄像头连接已变化。");
+        anyhow::ensure!(!request.is_cancelled()&&expected==self.devices.generation(),"摄像头连接已变化。");
         self.stop_inner(None).await;
         let(generation,connection)=self.devices.connection_with_generation()?;
-        anyhow::ensure!(!request.is_cancelled()&&expected.is_none_or(|g|g==generation),"摄像头连接已变化。");
-        let native=expected.is_some();
-        let listener=if native{None}else{Some(TcpListener::bind(("127.0.0.1",0)).await?)};
-        let token=uuid::Uuid::new_v4().simple().to_string();let url=listener.as_ref().map(|l|format!("http://127.0.0.1:{}/{}",l.local_addr().unwrap().port(),token)).unwrap_or_default();
+        anyhow::ensure!(!request.is_cancelled()&&expected==generation,"摄像头连接已变化。");
         let cancel=connection.cancel.child_token();let done=CancellationToken::new();
-        let id={let mut camera=self.camera.lock().unwrap();camera.id+=1;let id=camera.id;camera.generation=generation;camera.native=native;camera.phase="connecting";camera.message.clear();camera.path=path.clone();camera.backend.clear();camera.url=url;camera.fps=fps;camera.sent=0;camera.sent_bytes=0;camera.meter=Instant::now();camera.meter_count=0;camera.stream_fps=None;camera.sequence=0;camera.latest=None;camera.viewer=Instant::now();camera.running=Some(Running{id,cancel:cancel.clone(),done:done.clone()});id};
-        if let Some(listener)=listener{let http=self.clone();let http_cancel=cancel.clone();tokio::spawn(async move{http.serve(listener,id,token,http_cancel).await;});}
+        let id={let mut camera=self.camera.lock().unwrap();camera.id+=1;let id=camera.id;camera.generation=generation;camera.native=true;camera.phase="connecting";camera.message.clear();camera.path=path.clone();camera.backend.clear();camera.fps=fps;camera.sent=0;camera.sent_bytes=0;camera.meter=Instant::now();camera.meter_count=0;camera.stream_fps=None;camera.sequence=0;camera.latest=None;camera.viewer=Instant::now();camera.running=Some(Running{id,cancel:cancel.clone(),done:done.clone()});id};
         let service=self.clone();tokio::spawn(async move{
             let operation=async {
                 connection.prepare(crate::remote_env::Feature::Camera, &cancel).await?;
@@ -131,7 +93,7 @@ impl ArenaService {
                             message=process.wait()=>message
                         };
                         match message {
-                            Some(russh::ChannelMsg::Data{data})=>for frame in parser.push(&data)?{deadline.as_mut().reset(tokio::time::Instant::now()+Duration::from_secs(12));let mut camera=service.camera.lock().unwrap();if camera.running.as_ref().map(|r|r.id)==Some(id)&&!cancel.is_cancelled(){camera.sequence+=1;camera.latest=Some(Arc::new(frame));camera.phase="connected";service.changed.notify_one();}},
+                            Some(russh::ChannelMsg::Data{data})=>for frame in parser.push(&data)?{deadline.as_mut().reset(tokio::time::Instant::now()+Duration::from_secs(12));let mut camera=service.camera.lock().unwrap();if camera.running.as_ref().map(|r|r.id)==Some(id)&&!cancel.is_cancelled(){camera.sequence+=1;camera.latest=Some(Arc::new(frame));camera.phase="connected";}},
                             Some(russh::ChannelMsg::ExtendedData{data,..})=>{
                                 let count=data.len().min(4000-diagnostic.len());diagnostic.extend_from_slice(&data[..count]);
                                 let text=String::from_utf8_lossy(&diagnostic);for line in text.lines(){if let Some(backend)=line.strip_prefix("PORTCANVAS_CAMERA:"){if matches!(backend,"ffmpeg-copy"|"ffmpeg-encode"|"opencv"){let mut camera=service.camera.lock().unwrap();if camera.id==id{camera.backend=backend.to_string();}}}}
@@ -146,7 +108,7 @@ impl ArenaService {
                 let _=process.close().await;result
             }.await;
             {let mut camera=service.camera.lock().unwrap();if camera.running.as_ref().map(|r|r.id)==Some(id){camera.phase=if cancel.is_cancelled(){"idle"}else{"error"};camera.message=operation.err().map(|e|e.to_string()).unwrap_or_default();camera.latest=None;camera.running=None;}}
-            service.changed.notify_one();cancel.cancel();done.cancel();
+            cancel.cancel();done.cancel();
         });
         Ok(self.status())
     }

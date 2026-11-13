@@ -27,7 +27,6 @@ chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1"
 futures-util = "0.3"
 if-addrs = "=0.14.0"
-tokio-tungstenite = "0.28"
 zeroize = "1"
 dunce = "1"
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_Networking_WinHttp"] }

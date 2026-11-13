@@ -8,10 +8,7 @@ use std::{
     sync::{atomic::Ordering, Arc},
     time::Duration,
 };
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    sync::watch,
-};
+use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 async fn until(mut predicate: impl FnMut() -> bool) {
     tokio::time::timeout(Duration::from_secs(8), async {
@@ -154,7 +151,7 @@ async fn native_arena_reuses_ssh_without_http_and_cleans_camera_and_pose() -> Re
     Ok(())
 }
 #[tokio::test]
-async fn camera_decoder_cancel_error_and_legacy_http_keep_resource_ownership() -> Result<()> {
+async fn camera_decoder_cancel_error_and_restart_keep_resource_ownership() -> Result<()> {
     let (f, s) = connected().await?;
     let generation = s.devices.generation();
     let cancel = CancellationToken::new();
@@ -182,21 +179,13 @@ async fn camera_decoder_cancel_error_and_legacy_http_keep_resource_ownership() -
     .is_err());
     until(|| f.counts.arena.cameras.load(Ordering::SeqCst) == 0).await;
     f.counts.arena.bad_jpeg.store(false, Ordering::SeqCst);
-    let state = s.arena.start("/dev/video0".into(), 20).await?;
-    assert_eq!(state["transport"], "mjpeg-loopback");
-    let url = state["streamUrl"]
-        .as_str()
-        .unwrap()
-        .trim_start_matches("http://");
-    let (address, path) = url.split_once('/').unwrap();
-    let mut socket = tokio::net::TcpStream::connect(address).await?;
-    socket
-        .write_all(format!("GET /{path} HTTP/1.1\r\nHost: {address}\r\n\r\n").as_bytes())
-        .await?;
-    let mut buffer = [0u8; 512];
-    let n = socket.read(&mut buffer).await?;
-    assert!(buffer[..n].starts_with(b"HTTP/1.1 200 OK"));
-    s.arena.stop(state["id"].as_u64()).await;
+    let state = s.arena.start_native("/dev/video0".into(), 20, generation, CancellationToken::new()).await?;
+    assert_eq!(state["transport"], "native-jpeg");
+    assert_eq!(state["streamUrl"], "");
+    let id = state["id"].as_u64().unwrap();
+    until(|| s.arena.status()["phase"] == "connected").await;
+    assert!(s.arena.native_frame(id, 0, generation)?.is_some());
+    s.arena.stop(Some(id)).await;
     until(|| f.counts.arena.cameras.load(Ordering::SeqCst) == 0).await;
     s.shutdown().await;
     Ok(())
