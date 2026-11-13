@@ -1,8 +1,8 @@
 # Security notes
 
-SSH host keys are checked before authentication. An unknown host requires confirmation; a changed fingerprint is rejected. Saved credentials use the current user's DPAPI on Windows or a Keychain-protected encryption key on macOS. Private-key files remain on the user's computer.
+SSH host keys are checked before authentication. An unknown host requires confirmation; a changed fingerprint is rejected. The current Windows native preview protects saved credentials with the current user's DPAPI. The historical macOS v0.5.95 client uses a Keychain-protected encryption key. Private-key files remain on the user's computer.
 
-Updates retain the built-in public key, HTTPS endpoint and signed-version verification. The Windows validation workflow neither installs an update nor accesses signing keys or real devices.
+Preview updates use the built-in public key, HTTPS and signed-version verification on a separate prerelease channel; the stable latest.json channel is not changed. The Windows validation workflow neither installs an update nor accesses signing keys or real devices.
 
 ## Cryptographic dependency status
 
@@ -17,4 +17,4 @@ Other Cargo.lock maintenance advisories include platform-specific packages. A lo
 
 局域网发现仅在活动 IPv4 私有/链路本地网段读取 SSH 服务标识，未认证发现结果不视为受信设备。设备名称、账户、凭据由用户提供，主机密钥检查沿用原认证流程。
 
-背景文件由本机随机端口及不可预测路径令牌提供，只映射当前受管背景/导入草稿，不接受任意磁盘路径，不监听外网。HTTP 读取支持范围请求，设置 CSP 只为本机媒体添加 media-src；原有脚本来源及调用窗口校验保持。源文件不会上传外部服务；应用缓存与原文件分别管理。
+原生背景从确认后的本地受管文件或导入草稿直接解码，不创建媒体 HTTP 服务。桌面使用拥有明确生命周期的 SSH/RFB 流，相机通过 SSH 提供最新 JPEG 给原生解码器；不建立 WebSocket 或 HTTP 呈现桥接。源媒体不会上传外部服务，取消导入保留原件；应用缓存与原件分别管理。

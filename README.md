@@ -4,50 +4,41 @@
 
 简体中文 | [English](README.en.md)
 
-统一远程设备工作台 · **Demo V0.5.95**
+Windows 原生远程设备工作台。当前开发版本为 **v0.6.0-beta.1**，尚未发布；安装与实际使用仍可参考 [v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95)。
 
-本版加入启动时局域网 SSH 设备发现、图片与视频背景及视频音量；取消背景图片大小上限，修复大图片只在预览中显示的问题。背景通过电脑本地文件流读取，关闭预览后释放解码资源。保留液态玻璃界面、浅色/深色/跟随系统外观和非透明度。远端缺失组件默认由电脑下载、缓存并通过 SSH 传入，也可在设置中选择板端自行下载。新日志配置默认上限为 1024 MiB。
+原生工作台使用 Slint、Rust、原生 VT/RFB 和 Windows 系统媒体能力，保留 v0.5.95 的页面结构、图标与主要交互。
 
-在一个桌面客户端中连接Linux设备、操作远程桌面、传输文件、运行终端并查看电脑本地日志。
-
-| 功能 | 当前能力 |
+| 功能 | 能力 |
 | --- | --- |
-| 设备 | 启动时搜索局域网 SSH 设备，名称与账户由用户填写；SSH密码/私钥认证，可选加密保存凭据，主机指纹确认、分阶段连接进度与失败定位 |
-| 桌面与文件 | X11远程桌面与三种画质模式、离页暂停/返回恢复；双栏SFTP、盘符切换、拖拽传输、远端删除、进度与取消 |
-| 终端与日志 | 多终端、重启/关闭、断线恢复、可展开命令框与补全；本地按项目/日期记录与清理 |
-| 赛台 | 可开关摄像头，8/15/20/30 FPS；设备性能与60秒曲线；全场左下角米制坐标和定位输入接口 |
-| 设置 | 中英文、三种主题色彩、浅色/深色/跟随系统、背景颜色/图片/视频、视频音量及玻璃非透明度；分组设置与 Windows 软件内更新 |
+| 设备 | 启动时局域网 SSH 发现、密码/私钥、指纹核对、可选加密保存凭据、分阶段连接与取消 |
+| 桌面 | X11 远程桌面、三档画质、适配/1:1、只读、剪贴板；在当前窗口内展开桌面并保留工具栏 |
+| 文件 | 双栏 SFTP、盘符/目录导航、多选与拖拽、递归传输、覆盖确认、限速、取消与远端删除 |
+| 终端与日志 | 多个持久 tmux 终端、中文输入法、复制粘贴、草稿/历史与补全；电脑本地日志及清理 |
+| 赛台 | 按需相机预览、设备性能历史及定位输入接口；没有定位生产程序时显示未接入 |
+| 设置 | 中英文、主题/外观、颜色/图片/视频背景及音量；独立玻璃质量与不透明度，默认 Full |
 
-尚无定位生产程序，坐标默认未接入，不生成模拟实时位置。摄像头默认关闭；最小化、离页和退出回收采集，恢复后需手动开启。原生MJPEG减少树莓派采集重编码，但流量及部分电脑占用会提高，实际性能受设备和网络影响。
+摄像头默认关闭，最小化、离页、断连和退出回收采集，恢复后手动开启。帧率与资源开销受设备、网络及所选媒体影响；卡顿时软件可建议降低玻璃质量，由用户决定。
 
-默认首次补齐组件由电脑联网下载并缓存，再通过 SSH 传给树莓派，板端无须自行联网下载。界面分别显示下载、传输与板端准备状态；下载最多 32 路，不支持分段时使用单连接。自动下载目前适配 Ubuntu 20.04 ARM64 控制器，需保留可用的 APT 包索引、Python 3、dpkg 和已登录的 X11 桌面。已有组件与电脑缓存优先复用。
+## 预览与稳定版
 
-## 下载与使用
+原生 Beta 计划以 **PortCanvas Beta** 独立安装，数据位于 `%LOCALAPPDATA%/PortCanvas/Beta`，与稳定版分开。旧资料须经预览与确认后导入，源文件保留。Beta 更新使用单独的预览通道；当前尚无公开 Beta 安装包。
 
-[Windows V0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS V0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [使用说明](docs/usage.md) · [定位数据接口](docs/pose-protocol.md)
+[Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [使用说明](docs/usage.md) · [定位接口](docs/pose-protocol.md)
 
-Windows 已安装版可在“设置 → 关于”检查更新，也可下载新安装器覆盖安装。 v0.5.8 可直接检查并升级到 v0.5.95；图片和视频均可先框选再应用。运行环境下载方式在“设置 → 存储”中选择；正在准备的任务保持启动时的方式。
+当前原生开发仅面向 Windows x64。Mac 继续使用已发布的 v0.5.95 Universal DMG，ad-hoc 签名、未经 Apple 公证，采用手动更新；后续适配按需另行安排。
 
-V0.5.95 调整设备页在大窗口中的布局，简化设备列表背景，并补齐连接详情的展开、收起动画。默认与纯色背景减少模糊合成，视频预览复用主视频画面；图片与视频背景继续保留玻璃效果。Windows 启动后自动检查更新，有可用版本时在顶部名称右侧提示。
-
-Windows 提供 x64 安装器，手动安装可选择位置，软件内更新沿用已有目录和配置。Mac 提供面向 macOS 13+ 的 Universal DMG，包含 Intel 与 Apple 芯片代码，使用系统 WKWebView；本次补充 Demo V0.5.95 适配，后续可能等正式版推出后再继续适配；Mac 暂不提供应用内更新。两端运行均无需 Node.js、Rust 或 Python。
-
-Mac 包采用 ad-hoc 签名，未经 Apple 公证，首次打开可能需要你按 macOS 提示在“隐私与安全性”中手动允许。Windows 使用 DPAPI，Mac 使用钥匙串保护保存的凭据；加密资料不支持直接跨系统解密。
-
-不再发布便携版、说明压缩包、单独签名和校验清单。Release 除安装包及 GitHub 自动提供的源码外，仅保留 Windows 应用内更新所需的 latest.json，签名包含在其中。
-
-## 源码
+## 源码与构建
 
 | 目录 | 用途 |
 | --- | --- |
-| [app](app) | Tauri 2 + Rust + WebView2工程与[构建说明](app/README.md) |
-| [assets](assets) | 当前品牌与赛台原件 |
-| [docs](docs) | 当前使用与定位接口说明 |
+| [app](app/README.md) | 当前 Rust/Slint 原生工程、构建及安装器 |
+| [assets](assets) | 品牌与赛台原件 |
+| [docs](docs) | 使用与接口说明 |
 
-main只保留当前工程与必要说明。旧版本和历史研发资料见[Releases](https://github.com/JvKan9Zz/PortCanvas/releases)与[Git历史](https://github.com/JvKan9Zz/PortCanvas/commits/main/)；历史提交不改写。
+安装后的 Windows 原生应用不需要 Node.js、Rust 或 Python。Linux 设备功能按需使用已有 SSH、Python 3、tmux、SFTP、x11vnc、FFmpeg/OpenCV；自动准备目前面向 Ubuntu 20.04 ARM64 控制器。缺失组件可由电脑下载并通过 SSH 放入用户缓存，不替换系统 SDK 或已有组件。
+
+历史实现与版本保留在 [Releases](https://github.com/JvKan9Zz/PortCanvas/releases) 和 Git 标签中，不重写历史。
 
 ## 许可证
 
-PortCanvas 项目代码采用 [MIT 许可证](LICENSE)。第三方组件保留各自许可证，见 [第三方声明](app/THIRD-PARTY-NOTICES.txt)。
-
-加密依赖与现有安全边界见[安全说明](docs/security.md)。
+项目代码采用 [MIT](LICENSE)。第三方组件、字体和 Slint 保留各自条款，见 [原生组件声明](app/native-probe/THIRD-PARTY-NOTICES.md) 与随安装器提供的通知。认证、更新及数据边界见 [安全说明](docs/security.md)。
