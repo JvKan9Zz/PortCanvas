@@ -18,6 +18,16 @@ export component TerminalView inherits VerticalBox {
     in property <string> phase;
     in property <string> status;in property <string> info;
     property <bool> metadata-open:false;
+    property <bool> horizontal-lines:true;
+    function reveal-cursor() {
+        if input.has-focus {
+            let x=8px+root.cursor-column*9px;
+            if x < -terminal-scroll.viewport-x || x+9px > -terminal-scroll.viewport-x+terminal-scroll.visible-width {
+                terminal-scroll.viewport-x=-max(0px,x - terminal-scroll.visible-width/2);
+            }
+        }
+    }
+    changed cursor-column=>{root.reveal-cursor();}
     in property <string> error;
     in property <string> log-status;
     in property <bool> connected;
@@ -74,12 +84,13 @@ export component TerminalView inherits VerticalBox {
         ActionButton {text:root.tr("清屏",root.english);enabled:root.enabled&&root.active!="";clicked=>{root.action("clear");}}
         Rectangle {width:root.width<420px?44px:72px;height:36px;horizontal-stretch:0;
             DesktopTool {width:parent.width;height:36px;label:root.tr("更多",root.english);show-text:root.width>=420px;text:root.tr("更多",root.english);icon:root.width<420px?@image-url("icons/more.svg"):@image-url("icons/chevron.svg");icon-angle:root.width<420px?0deg:root.actions-open?180deg:0deg;enabled:root.enabled&&root.active!="";clicked=>{root.actions-open=true;actions-popup.show();}}
-            actions-popup:=PopupWindow {x:0px;y:40px;width:160px;height:120px;forward-focus:menu-keys;
+            actions-popup:=PopupWindow {x:0px;y:40px;width:180px;height:156px;forward-focus:menu-keys;
                 Rectangle {border-radius:13px;background:AppColors.surface;border-width:1px;border-color:AppColors.edge;drop-shadow-offset-y:6px;drop-shadow-blur:24px;drop-shadow-color:#223a661f;}
                 menu-keys:=FocusScope {focus-changed-event=>{if !self.has-focus{root.actions-open=false;}}key-pressed(event)=>{if event.text==Key.Escape{actions-popup.close();root.actions-open=false;return accept;}return reject;}
                     VerticalBox {padding:6px;spacing:0px;
                         ActionButton {text:root.tr("复制选区",root.english);enabled:root.enabled;clicked=>{root.copy();actions-popup.close();root.actions-open=false;}}
                         ActionButton {text:root.tr("粘贴",root.english);enabled:root.live;clicked=>{root.paste();actions-popup.close();root.actions-open=false;}}
+                        ActionButton {text:root.tr("按窗口折行",root.english);selected:!root.horizontal-lines;accessible-checkable:true;accessible-checked:!root.horizontal-lines;clicked=>{root.horizontal-lines=!root.horizontal-lines;terminal-scroll.viewport-x=0px;actions-popup.close();root.actions-open=false;}}
                         ActionButton {text:root.tr("关闭终端",root.english);enabled:root.connected&&!root.busy&&root.enabled&&root.active!="";clicked=>{root.action("remove");actions-popup.close();root.actions-open=false;}}
                     }
                 }
@@ -97,16 +108,25 @@ export component TerminalView inherits VerticalBox {
 
     }
     if root.log-status!="":Text {text:root.log-status;color:AppColors.ink;wrap:word-wrap;vertical-stretch:0;}
-    grid:=Rectangle {
-        background:#181c24;clip:true;border-radius:13px;min-height:120px;
+    Rectangle {
+        min-height:120px;background:#181c24;clip:true;border-radius:13px;
         border-width:input.has-focus?2px:1px;border-color:input.has-focus?#70a5e8:#53657f;
+    terminal-scroll:=ScrollView {
+        x:2px;y:2px;width:parent.width - 4px;height:parent.height - (root.horizontal-lines?14px:4px);
+        viewport-width:root.horizontal-lines?max(self.visible-width,240*9px+16px):self.visible-width;
+        viewport-height:self.visible-height;
+        horizontal-scrollbar-policy:always-off;
+        vertical-scrollbar-policy:always-off;
+    grid:=Rectangle {
+        width:terminal-scroll.viewport-width;height:terminal-scroll.visible-height;
+        background:transparent;clip:true;min-height:120px;
         property <int> columns:max(2,min(1000,floor((self.width - 16px)/9px)));
         property <int> rows:max(1,min(500,floor((self.height - 16px)/21px)));
         changed columns=>{root.resize-grid(self.columns,self.rows);}
         changed rows=>{root.resize-grid(self.columns,self.rows);}
         for cell in root.cells: Rectangle {
             x:8px+cell.column*9px;y:8px+cell.row*21px;width:cell.wide?18px:9px;height:21px;background:cell.paper;
-            Text {text:cell.text;color:cell.ink;font-family:"Consolas";font-size:14px;font-weight:cell.bold?700:400;vertical-alignment:center;}
+            Text {text:cell.text;color:cell.ink;font-family:cell.wide?"Microsoft YaHei UI":"Consolas";font-size:14px;font-weight:cell.bold?700:400;vertical-alignment:center;}
             if cell.underline:Rectangle {y:19px;height:1px;background:cell.ink;}
         }
         Rectangle {visible:root.cursor-visible&&root.live&&root.cursor-row<grid.rows;
@@ -122,11 +142,12 @@ export component TerminalView inherits VerticalBox {
                 if event.kind==PointerEventKind.up&&event.button==PointerEventButton.left {root.select(self.start-x,self.start-y,max(0,floor((self.mouse-x - 8px)/9px)),max(0,floor((self.mouse-y - 8px)/21px)));}
             }
             moved=>{if self.pressed {root.select(self.start-x,self.start-y,max(0,floor((self.mouse-x - 8px)/9px)),max(0,floor((self.mouse-y - 8px)/21px)));}}
-            scroll-event(event)=>{root.scroll(event.delta-y>0px?3:-3);return accept;}
+            scroll-event(event)=>{if event.delta-x!=0px{return reject;}root.scroll(event.delta-y>0px?3:-3);return accept;}
         }
         // The input follows the VT cursor so system IME candidates/preedit have a real anchor.
         // Only committed edits are sent; composition updates remain inside this native item.
         input:=TextInput {
+            changed has-focus=>{root.reveal-cursor();}
             x:8px+min(root.cursor-column,grid.columns - 1)*9px;y:8px+min(root.cursor-row,grid.rows - 1)*21px;
             width:max(9px,grid.width - self.x - 8px);height:21px;
             color:#d8dfeb;font-family:"Consolas";font-size:14px;single-line:true;
@@ -142,6 +163,25 @@ export component TerminalView inherits VerticalBox {
                 return reject;
             }
         }
+    }
+    }
+    horizontal-track:=Rectangle {
+        visible:root.horizontal-lines;x:8px;y:parent.height - 11px;width:parent.width - 16px;height:6px;
+        border-radius:3px;background:#53657f55;
+        property <length> travel:self.width - thumb.width;
+        property <length> range:terminal-scroll.viewport-width - terminal-scroll.visible-width;
+        property <length> origin;
+        property <length> original-offset;
+        thumb:=Rectangle {x:horizontal-track.travel*(-terminal-scroll.viewport-x)/max(1px,horizontal-track.range);width:max(32px,parent.width*terminal-scroll.visible-width/terminal-scroll.viewport-width);height:parent.height;border-radius:3px;background:scroll-touch.has-hover||scroll-touch.pressed?#a4bedf:#7089a9;}
+        accessible-role:slider;accessible-label:root.tr("终端水平滚动",root.english);accessible-value:-terminal-scroll.viewport-x/1px;accessible-value-minimum:0;accessible-value-maximum:self.range/1px;
+        accessible-action-increment=>{terminal-scroll.viewport-x=max(-self.range,terminal-scroll.viewport-x - 90px);}
+        accessible-action-decrement=>{terminal-scroll.viewport-x=min(0px,terminal-scroll.viewport-x + 90px);}
+        scroll-touch:=TouchArea {
+            pointer-event(event)=>{if event.kind==PointerEventKind.down&&event.button==PointerEventButton.left{horizontal-track.origin=self.mouse-x;horizontal-track.original-offset=terminal-scroll.viewport-x;}}
+            moved=>{if self.pressed{terminal-scroll.viewport-x=max(-horizontal-track.range,min(0px,horizontal-track.original-offset - (self.mouse-x - horizontal-track.origin)*horizontal-track.range/max(1px,horizontal-track.travel)));}}
+            clicked=>{terminal-scroll.viewport-x=-horizontal-track.range*max(0,min(1,(self.mouse-x - thumb.width/2)/max(1px,horizontal-track.travel)));}
+        }
+    }
     }
     Rectangle {height:root.expanded?120px:42px;vertical-stretch:0;background:transparent;
         HorizontalBox {padding:0px;spacing:8px;

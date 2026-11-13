@@ -1,0 +1,24 @@
+// Two cubic segments per corner share tangent and curvature; curvature reaches
+// zero at each straight edge. The same radius bounds the GPU material mask.
+export component ContinuousOutline inherits Path {
+    in property <length> radius:24px;
+    property <float> w:root.width/1px;property <float> h:root.height/1px;
+    property <float> r:max(0,min(root.radius/1px,min(root.w,root.h)/2));
+    property <float> c:root.r*0.1591036;
+    property <float> a:4*root.c;property <float> b:2*root.c;
+    viewbox-width:root.w;viewbox-height:root.h;
+    MoveTo {x:root.r;y:0;}
+    LineTo {x:root.w - root.r;y:0;}
+    CubicTo {control-1-x:root.w - root.a;control-1-y:0;control-2-x:root.w - root.b;control-2-y:0;x:root.w - root.c;y:root.c;}
+    CubicTo {control-1-x:root.w;control-1-y:root.b;control-2-x:root.w;control-2-y:root.a;x:root.w;y:root.r;}
+    LineTo {x:root.w;y:root.h - root.r;}
+    CubicTo {control-1-x:root.w;control-1-y:root.h - root.a;control-2-x:root.w;control-2-y:root.h - root.b;x:root.w - root.c;y:root.h - root.c;}
+    CubicTo {control-1-x:root.w - root.b;control-1-y:root.h;control-2-x:root.w - root.a;control-2-y:root.h;x:root.w - root.r;y:root.h;}
+    LineTo {x:root.r;y:root.h;}
+    CubicTo {control-1-x:root.a;control-1-y:root.h;control-2-x:root.b;control-2-y:root.h;x:root.c;y:root.h - root.c;}
+    CubicTo {control-1-x:0;control-1-y:root.h - root.b;control-2-x:0;control-2-y:root.h - root.a;x:0;y:root.h - root.r;}
+    LineTo {x:0;y:root.r;}
+    CubicTo {control-1-x:0;control-1-y:root.a;control-2-x:0;control-2-y:root.b;x:root.c;y:root.c;}
+    CubicTo {control-1-x:root.b;control-1-y:0;control-2-x:root.a;control-2-y:0;x:root.r;y:0;}
+    Close {}
+}

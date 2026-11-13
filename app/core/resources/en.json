@@ -1,4 +1,9 @@
 {
+  "SSH 账户“{username}”没有权限操作“{path}”。请检查该路径及父目录的访问权限。": "SSH account {username} cannot access {path}. Check permissions on this path and its parent directory.",
+  "无法检查删除目标“{path}”：{message}": "Cannot inspect deletion target {path}: {message}",
+  "不透明度": "Opacity",
+  "按窗口折行": "Wrap to window",
+  "终端水平滚动": "Terminal horizontal scroll",
   "设置": "Settings",
   "关闭设置": "Close settings",
   "语言": "Language",

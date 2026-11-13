@@ -26,7 +26,7 @@ export component FilePane inherits Rectangle {
     in-out property <string> path;in-out property <string> folder;
     pure callback tr(string,bool)->string;
     callback action(string);callback choose(int,bool,bool);callback all(bool);callback open(int);
-    border-radius:16px;border-width:1px;border-color:AppColors.edge;background:AppColors.card;clip:true;
+    border-radius:16px;border-width:1px;border-color:AppColors.edge;background:AppColors.card;
     horizontal-stretch:1;preferred-width:0px;
     VerticalBox {padding:0px;spacing:6px;
     HorizontalBox {height:48px;vertical-stretch:0;padding:12px;spacing:8px;
@@ -59,7 +59,7 @@ export component FilePane inherits Rectangle {
         if !root.compact:Text {text:root.tr("修改时间",root.english);color:AppColors.ink;vertical-alignment:center;width:92px;horizontal-stretch:0;horizontal-alignment:right;}
     }
     Rectangle {background:transparent;border-width:root.drop-active?2px:0px;border-color:AppColors.accent;
-        list:=ListView {x:1px;y:1px;width:parent.width - 2px;height:parent.height - 2px;
+        list:=ListView {x:1px;y:1px;width:parent.width - 2px;height:parent.height - 2px;vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
             for row[index] in root.rows:item:=Rectangle {
                 height:40px;background:row.selected?AppColors.soft:row-touch.has-hover?AppColors.field:transparent;
                 border-width:root.drop-active&&root.drop-row==index?2px:keys.has-focus?1px:0px;border-color:root.drop-active&&root.drop-row==index?AppColors.accent:AppColors.accent;
@@ -87,7 +87,9 @@ export component FilePane inherits Rectangle {
             }
         }
     }
-    Text {text:root.message;color:AppColors.muted;font-size:11px;wrap:word-wrap;vertical-stretch:0;min-height:28px;vertical-alignment:center;}
+    Rectangle {height:max(32px,footer.preferred-height + 12px);vertical-stretch:0;background:transparent;
+        footer:=Text {x:12px;y:6px;width:parent.width - 24px;height:parent.height - 12px;text:root.message;color:AppColors.muted;font-size:11px;wrap:word-wrap;vertical-alignment:center;}
+    }
     }
 }
 export component FilesView inherits VerticalBox {
@@ -121,7 +123,7 @@ export component FilesView inherits VerticalBox {
         Rectangle {background:transparent;horizontal-stretch:1;}
         Text {text:root.tr("传输限速",root.english);font-size:11px;color:AppColors.muted;vertical-alignment:center;horizontal-stretch:0;}
         ComboBox {width:100px;horizontal-stretch:0;accessible-label:root.tr("传输限速",root.english);model:[root.tr("不限速",root.english),"1 MiB/s","5 MiB/s","10 MiB/s"];current-index<=>root.rate;enabled:root.enabled&&!root.busy;}
-        if root.busy:Button {text:root.tr("取消操作",root.english);enabled:root.enabled;busy:root.busy;clicked=>{root.action(0,"cancel");}}
+        if root.busy:Button {text:root.tr("取消操作",root.english);enabled:root.enabled;clicked=>{root.action(0,"cancel");}}
     }
     if root.compact:HorizontalBox {padding:0px;vertical-stretch:0;
         ActionButton {text:root.tr("本地",root.english);selected:root.pane-side==0;accessible-checkable:true;accessible-checked:root.pane-side==0;clicked=>{root.pane-side=0;}}
@@ -137,7 +139,7 @@ export component FilesView inherits VerticalBox {
     }
     if root.status!="":Text {text:root.status;color:AppColors.ink;wrap:word-wrap;vertical-stretch:0;}
     if root.current!="":Text {text:root.current;color:AppColors.ink;overflow:elide;vertical-stretch:0;}
-    if root.status!="":Rectangle {height:5px;vertical-stretch:0;border-radius:3px;background:AppColors.edge;Rectangle {width:parent.width*min(1,max(0,root.progress));background:AppColors.accent;animate width {duration:AppColors.motion?160ms:0ms;easing:linear;}}}
+    if root.status!="":Rectangle {height:5px;vertical-stretch:0;border-radius:3px;background:AppColors.edge;Rectangle {x:0px;y:0px;width:parent.width*min(1,max(0,root.progress));background:AppColors.accent;animate width {duration:AppColors.motion?160ms:0ms;easing:linear;}}}
     if root.numbers!="":Text {text:root.numbers;color:AppColors.ink;vertical-stretch:0;}
     if root.error!="":Text {text:root.error;color:#d34b4b;wrap:word-wrap;vertical-stretch:0;}
 }

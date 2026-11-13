@@ -241,6 +241,21 @@ mod tests {
         assert!(term.text().contains("中A e\u{301}🙂"));
     }
     #[test]
+    fn sensor_line_preserves_fullwidth_punctuation_without_inserting_newlines() {
+        let mut term = Terminal::new(240, 4);
+        let line = "01号传感器：123；02号传感器：456；03号传感器：789；04号传感器：012 [END]";
+        for chunk in line.as_bytes().chunks(5) { term.feed(chunk); }
+        assert_eq!(term.text().lines().next(), Some(line));
+        for cell in term.cells().iter().filter(|c| c.text == "：" || c.text == "；") {
+            assert!(cell.wide);
+            assert_eq!(cell.row, 0);
+        }
+        term.select((0, 0), (200, 0));
+        assert_eq!(term.selected_text().as_deref(), Some(line));
+        term.resize(240, 8);
+        assert_eq!(term.text().lines().next(), Some(line));
+    }
+    #[test]
     fn ansi_colors_cursor_and_erasure() {
         let mut term = Terminal::new(20, 4);
         term.feed(b"old\rnew\x1b[K\x1b[2;3H\x1b[38;2;10;20;30mX");

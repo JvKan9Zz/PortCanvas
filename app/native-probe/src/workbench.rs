@@ -152,25 +152,8 @@ fn device_state(ui: &Workbench, value: &serde_json::Value, pending: &PendingHost
     );
     let stage = value["connectionStage"].as_str().unwrap_or("");
     ui.set_connection_stage(match stage {"prepare"=>0,"resolve"=>1,"tcp"=>2,"handshake"=>3,"identity"=>4,"secure"=>5,"authenticate"=>6,"ready"=>7,_=>-1});
-    let label = match stage {
-        "prepare" => "准备认证资料",
-        "resolve" => "解析设备地址",
-        "tcp" => "建立 TCP 连接",
-        "handshake" => "SSH 密钥交换",
-        "identity" => "验证主机身份",
-        "secure" => "完成 SSH 握手",
-        "authenticate" => "登录认证",
-        "ready" => "连接完成",
-        _ => "",
-    };
     ui.set_connection_detail(
-        format!(
-            "{}\n{}",
-            text(label, ui.get_english()),
-            text(value["message"].as_str().unwrap_or(""), ui.get_english())
-        )
-        .trim()
-        .into(),
+        text(value["message"].as_str().unwrap_or(""), ui.get_english()).into(),
     );
     if state != "connecting" && ui.get_dialog_kind() == 2 {
         pending.lock().unwrap().take();

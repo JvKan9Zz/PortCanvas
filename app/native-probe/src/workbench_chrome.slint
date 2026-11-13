@@ -1,18 +1,21 @@
 import {Palette,VerticalBox} from "std-widgets.slint";
 import {AppColors} from "action_button.slint";
+import {ContinuousOutline} from "continuous_outline.slint";
 export component MaterialPanel inherits Rectangle {
     in property <image> material;
     in property <bool> active;
     in property <float> strength:100;
     in property <bool> solid:false;
-    border-radius:24px;clip:true;
-    background:root.solid?AppColors.surface:AppColors.surface.with-alpha((AppColors.dark?0.24:0.22)+0.58*root.strength/100);
-    border-width:1px;border-color:AppColors.dark?#b7cced24:#ffffffeb;
-    drop-shadow-offset-y:8px;drop-shadow-blur:28px;drop-shadow-color:AppColors.dark?#00000026:#2d436e14;
-    if root.active:Image {width:parent.width;height:parent.height;source:root.material;image-fit:fill;}
+    in property <bool> flat:false;
+    border-radius:24px;clip:false;background:transparent;border-width:0px;
+    drop-shadow-offset-y:8px;drop-shadow-blur:28px;drop-shadow-color:root.flat?transparent:AppColors.dark?#00000026:#2d436e14;
+    if !root.flat:ContinuousOutline {x:0px;y:0px;width:parent.width;height:parent.height;radius:root.border-radius;fill:root.solid?AppColors.surface:AppColors.surface.with-alpha((AppColors.dark?0.24:0.22)+0.58*root.strength/100);}
+    if root.active&&!root.flat:Image {x:0px;y:0px;width:parent.width;height:parent.height;source:root.material;image-fit:fill;}
+    if !root.flat:ContinuousOutline {x:0px;y:0px;width:parent.width;height:parent.height;radius:root.border-radius;fill:transparent;stroke-width:1px;stroke:AppColors.high-contrast?AppColors.edge:AppColors.dark?#b7cced24:#ffffffeb;}
     @children
 }
 export component NavButton inherits Rectangle {
+    property <bool> keyboard-focus:true;
     in property <string> text;
     in property <image> icon;
     in property <bool> selected;
@@ -22,20 +25,19 @@ export component NavButton inherits Rectangle {
     preferred-height:64px;min-height:64px;vertical-stretch:0;
     border-radius:17px;
     background:touch.pressed?AppColors.soft:root.selected&&!root.shared-selection?AppColors.soft:transparent;
-    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.96:1;animate transform-scale {duration:AppColors.motion?180ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}
-    border-width:keys.has-focus?1px:0px;border-color:AppColors.accent;
+    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.96:1;animate transform-scale {duration:AppColors.motion?220ms:0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,1.35,0.4,1);}
+    border-width:keys.has-focus&&root.keyboard-focus?1px:0px;border-color:AppColors.accent;
     animate background {duration:AppColors.motion?160ms:0ms;}
-    opacity:root.enabled?1:0.45;
     accessible-role:button;accessible-label:root.text;accessible-enabled:root.enabled;
     accessible-checkable:true;accessible-checked:root.selected;
     accessible-action-default=>{if root.enabled{root.clicked();}}
     forward-focus:keys;
     VerticalBox {padding:6px;spacing:3px;alignment:center;
-        Image {source:root.icon;image-fit:contain;preferred-width:22px;preferred-height:22px;horizontal-stretch:0;vertical-stretch:0;colorize:root.selected&&!AppColors.dark?AppColors.accent:Palette.foreground;}
-        Text {text:root.text;color:root.selected?AppColors.accent-ink:AppColors.muted;font-size:11px;font-weight:500;horizontal-alignment:center;vertical-stretch:0;}
+        Image {source:root.icon;image-fit:contain;preferred-width:22px;preferred-height:22px;horizontal-stretch:0;vertical-stretch:0;colorize:!root.enabled?AppColors.muted.with-alpha(0.45):root.selected&&!AppColors.dark?AppColors.accent:Palette.foreground;}
+        Text {text:root.text;color:!root.enabled?AppColors.muted.with-alpha(0.6):root.selected?AppColors.accent-ink:AppColors.muted;font-size:11px;font-weight:500;horizontal-alignment:center;vertical-stretch:0;}
     }
-    keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
-    touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
+    keys:=FocusScope {enabled:root.enabled;changed has-focus=>{if !self.has-focus{root.keyboard-focus=true;}}key-pressed(event)=>{root.keyboard-focus=true;if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
+    touch:=TouchArea {enabled:root.enabled;clicked=>{root.keyboard-focus=false;keys.focus();root.clicked();}}
 }
 export component DeviceListItem inherits Rectangle {
     in property <string> name;
@@ -49,14 +51,13 @@ export component DeviceListItem inherits Rectangle {
     border-width:keys.has-focus?2px:1px;
     border-color:keys.has-focus?AppColors.accent:root.selected?AppColors.accent.with-alpha(0.35):transparent;
     animate background,border-color {duration:AppColors.motion?160ms:0ms;}
-    opacity:root.enabled?1:0.45;
     accessible-role:button;accessible-label:root.name+" "+root.address;accessible-enabled:root.enabled;
     accessible-checkable:true;accessible-checked:root.selected;
     accessible-action-default=>{if root.enabled{root.clicked();}}
     forward-focus:keys;
-    Image {x:14px;y:19px;width:16px;height:16px;source:@image-url("icons/about.svg");colorize:AppColors.accent;}
-    Text {x:42px;y:14px;width:parent.width - 54px;height:44px;text:root.name;color:root.selected?AppColors.accent-ink:AppColors.ink;font-size:13px;font-weight:500;wrap:char-wrap;overflow:clip;}
-    Text {x:42px;y:60px;width:parent.width - 54px;height:16px;text:root.address;color:AppColors.muted;overflow:elide;font-size:11px;}
+    Image {x:14px;y:19px;width:16px;height:16px;source:@image-url("icons/about.svg");colorize:root.enabled?AppColors.accent:AppColors.accent.with-alpha(0.45);}
+    Text {x:42px;y:14px;width:parent.width - 54px;height:44px;text:root.name;color:!root.enabled?AppColors.muted.with-alpha(0.6):root.selected?AppColors.accent-ink:AppColors.ink;font-size:13px;font-weight:500;wrap:char-wrap;overflow:clip;}
+    Text {x:42px;y:60px;width:parent.width - 54px;height:16px;text:root.address;color:root.enabled?AppColors.muted:AppColors.muted.with-alpha(0.6);overflow:elide;font-size:11px;}
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
     touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
 }

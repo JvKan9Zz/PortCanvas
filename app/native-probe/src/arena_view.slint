@@ -33,8 +33,8 @@ export component ArenaView inherits Rectangle {
             }
             Rectangle {background:#172331;min-height:130px;
                 if root.has-frame:Image {width:parent.width;height:parent.height;source:root.frame;image-fit:contain;}
-                if !root.has-frame:Image {x:(parent.width - 38px)/2;y:(parent.height - 38px)/2;width:38px;height:38px;source:@image-url("icons/camera.svg");colorize:#a9bad2;}
-                ActivityIndicator {x:(parent.width - 18px)/2;y:(parent.height - 18px)/2;active:root.camera-active&&!root.has-frame;}
+                if !root.has-frame&&!root.camera-active&&!root.camera-loading:Image {x:(parent.width - 38px)/2;y:(parent.height - 38px)/2;width:38px;height:38px;source:@image-url("icons/camera.svg");colorize:#a9bad2;}
+                ActivityIndicator {x:(parent.width - 18px)/2;y:(parent.height - 18px)/2;active:root.camera-active&&!root.has-frame&&!root.camera-loading;}
             }
             Text {height:30px;vertical-stretch:0;text:root.tr(root.camera-status,root.english);font-size:11px;color:AppColors.muted;vertical-alignment:center;overflow:elide;}
         }

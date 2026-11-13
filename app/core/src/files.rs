@@ -101,15 +101,22 @@ fn missing(error: &anyhow::Error) -> bool {
         .is_some_and(|e| e.kind() == std::io::ErrorKind::NotFound)
         || matches!(error.downcast_ref::<SftpError>(),Some(SftpError::Status(s))if s.status_code==StatusCode::NoSuchFile)
 }
+#[derive(Debug)]
+struct DeletionTarget(String);
+impl std::fmt::Display for DeletionTarget {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {write!(f,"删除目标：{}",self.0)}
+}
+fn permission_denied(error:&anyhow::Error)->bool {
+    error.downcast_ref::<std::io::Error>().is_some_and(|e|e.kind()==std::io::ErrorKind::PermissionDenied)
+        || matches!(error.downcast_ref::<SftpError>(),Some(SftpError::Status(s))if s.status_code==StatusCode::PermissionDenied)
+}
 pub fn file_error(error: &anyhow::Error) -> String {
     if missing(error) {
         "目录或文件不存在，请刷新后重试。".into()
-    } else if error
-        .downcast_ref::<std::io::Error>()
-        .is_some_and(|e| e.kind() == std::io::ErrorKind::PermissionDenied)
-        || matches!(error.downcast_ref::<SftpError>(),Some(SftpError::Status(s))if s.status_code==StatusCode::PermissionDenied)
-    {
+    } else if permission_denied(error) {
         "没有访问权限，请检查目录或文件权限。".into()
+    } else if let Some(target)=error.downcast_ref::<DeletionTarget>() {
+        format!("无法检查删除目标“{}”：{}",target.0,error.root_cause())
     } else {
         error.to_string()
     }
@@ -298,11 +305,11 @@ async fn removal_plan(access:&Access,parent:&str,names:&[String],cancel:&Cancell
     while let Some((path,visited))=stack.pop(){
         anyhow::ensure!(!cancel.is_cancelled(),"删除已中断。");
         if let Some(meta)=visited{plan.push((path,meta));continue;}
-        let meta=access.stat(&path).await?;
+        let meta=access.stat(&path).await.with_context(||DeletionTarget(path.clone()))?;
         anyhow::ensure!(meta.kind!=Kind::Other,"暂不删除特殊文件：{path}");
         if meta.kind==Kind::Directory{
             stack.push((path.clone(),Some(meta)));
-            for(name,_)in access.list(&path).await?{if name=="."||name==".."{continue;}leaf(&name,false)?;stack.push((access.join(&path,&name),None));}
+            for(name,_)in access.list(&path).await.with_context(||DeletionTarget(path.clone()))?{if name=="."||name==".."{continue;}leaf(&name,false)?;stack.push((access.join(&path,&name),None));}
         }else{plan.push((path,meta));}
     }
     Ok(plan)
@@ -629,15 +636,19 @@ impl FileService {
         {let mut inner=self.inner.lock().unwrap();anyhow::ensure!(inner.job.is_none(),"已有文件操作正在进行，请等待或取消。");inner.job=Some(job.clone());}
         self.update(json!({"busy":true,"operation":"delete","phase":"planning","message":"正在检查删除目标…","bytes":0,"totalBytes":0,"completed":0,"totalFiles":0,"speed":0,"currentFile":""}));
         let mut removed=0usize;
+        let mut current_path=options.parent.clone();
         let operation=async{
             let(g,sftp,home,_)=self.sftp().await?;anyhow::ensure!(g==generation,"设备连接已变化，请刷新后重新选择删除目标。");
-            let parent=sftp.canonicalize(Self::remote_path(&options.parent,&home)?).await?;
+            current_path=Self::remote_path(&options.parent,&home)?;
+            let parent=sftp.canonicalize(&current_path).await?;
+            current_path=parent.clone();
             let access=Access::Remote(sftp.clone());let plan=removal_plan(&access,&parent,&options.names,&job.cancel).await?;
             self.update(json!({"phase":"confirming","totalFiles":plan.len(),"message":"等待确认删除远端项目。"}));
             let mut roots=options.names.iter().map(|n|access.join(&parent,n)).collect::<Vec<_>>();roots.sort();roots.dedup();
             if !confirm(roots).await?{job.user.store(true,Ordering::SeqCst);job.cancel.cancel();return Ok(());}
             self.update(json!({"phase":"deleting","message":"正在删除远端项目…"}));
             for(path,expected)in plan{
+                current_path=path.clone();
                 anyhow::ensure!(generation==self.devices.generation()&&!job.cancel.is_cancelled(),"删除已中断。");
                 // Resolve parents again: never follow a directory replaced by a
                 // symlink after the user confirmed the plan.
@@ -652,7 +663,9 @@ impl FileService {
         };
         let result=tokio::select!{result=operation=>result,_=job.cancel.cancelled()=>Err(anyhow::anyhow!("删除已中断。"))};
         let canceled=job.user.load(Ordering::SeqCst);
-        let message=if canceled{format!("删除已取消，已确认删除 {removed} 个项目。")}else if let Err(error)=&result{file_error(error)}else{format!("已删除 {removed} 个远端项目。")};
+        let message=if canceled{format!("删除已取消，已确认删除 {removed} 个项目。")}else if let Err(error)=&result{
+            if permission_denied(error){let path=error.downcast_ref::<DeletionTarget>().map(|target|target.0.as_str()).unwrap_or(&current_path);format!("SSH 账户“{}”没有权限操作“{}”。请检查该路径及父目录的访问权限。",connection.profile.username,path)}else{file_error(error)}
+        }else{format!("已删除 {removed} 个远端项目。")};
         self.inner.lock().unwrap().job=None;
         self.update(json!({"busy":false,"phase":if canceled{"canceled"}else if result.is_err(){"failed"}else{"completed"},"completed":removed,"speed":0,"message":message}));
         Ok(self.snapshot())

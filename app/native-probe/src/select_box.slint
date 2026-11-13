@@ -23,13 +23,13 @@ export component SelectBox inherits Rectangle {
     Timer {interval:AppColors.motion?140ms:1ms;running:root.closing;triggered=>{root.closing=false;popup.close();}}
     min-width:0px;preferred-width:180px;preferred-height:root.compact?30px:36px;min-height:root.compact?30px:36px;vertical-stretch:0;
     border-radius:10px;border-width:root.has-focus?2px:1px;border-color:root.has-focus?AppColors.accent:AppColors.edge;
-    background:AppColors.field;opacity:root.enabled?1:0.45;forward-focus:keys;
+    background:root.enabled?AppColors.field:AppColors.inset;forward-focus:keys;
     animate border-color,background {duration:AppColors.motion?160ms:0ms;}
     accessible-role:combobox;accessible-enabled:root.enabled;accessible-expandable:true;accessible-expanded:root.opened;
     accessible-value:root.current-index>=0&&root.current-index<root.model.length?root.model[root.current-index]:"";
     accessible-action-expand=>{root.show();}
-    Text {x:root.compact?10px:12px;width:parent.width - 42px;height:parent.height;text:root.current-index>=0&&root.current-index<root.model.length?root.model[root.current-index]:"";color:AppColors.ink;font-size:root.compact?11px:12px;vertical-alignment:center;overflow:elide;}
-    Image {x:parent.width - 28px;y:(parent.height - 16px)/2;width:16px;height:16px;source:@image-url("icons/chevron.svg");colorize:AppColors.muted;transform-rotation:root.opened?180deg:0deg;animate transform-rotation {duration:AppColors.motion?240ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
+    Text {x:root.compact?10px:12px;width:parent.width - 42px;height:parent.height;text:root.current-index>=0&&root.current-index<root.model.length?root.model[root.current-index]:"";color:root.enabled?AppColors.ink:AppColors.muted;font-size:root.compact?11px:12px;vertical-alignment:center;overflow:elide;}
+    Image {x:parent.width - 28px;y:(parent.height - 16px)/2;width:16px;height:16px;source:@image-url("icons/chevron.svg");colorize:root.enabled?AppColors.muted:AppColors.muted.with-alpha(0.45);transform-rotation:root.opened?180deg:0deg;animate transform-rotation {duration:AppColors.motion?240ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{
         if event.text==Key.Return||event.text==" "{root.show();return accept;}
         if event.text==Key.DownArrow{root.choose(min(root.model.length - 1,root.current-index+1));return accept;}

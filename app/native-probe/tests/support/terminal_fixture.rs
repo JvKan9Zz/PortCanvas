@@ -21,6 +21,7 @@ pub mod arena_protocol;
 
 #[derive(Default)]
 pub struct Counts {
+    pub auth_delay_ms: AtomicUsize,
     pub reboots:AtomicUsize,
     pub reboot_status:AtomicUsize,
     pub input: Mutex<BTreeMap<String, Vec<u8>>>,
@@ -91,6 +92,8 @@ impl server::Handler for Handler {
         _: &str,
         password: &str,
     ) -> Result<server::Auth, Self::Error> {
+        let delay=self.counts.auth_delay_ms.load(Ordering::SeqCst);
+        if delay>0{tokio::time::sleep(Duration::from_millis(delay as u64)).await;}
         Ok(if password == "synthetic-only" {
             server::Auth::Accept
         } else {
@@ -229,7 +232,7 @@ impl server::Handler for Handler {
                 .unwrap_or_default();
             self.counts.attached.fetch_add(1, Ordering::SeqCst);
             self.counts.active.fetch_add(1, Ordering::SeqCst);
-            let data=format!("\x1b[2J\x1b[HNative SSH PTY / instance {instance}\r\n中文宽字符 e\u{301} 🙂\r\n\x1b[32mANSI green\x1b[0m\r\n").into_bytes();
+            let data=format!("\x1b[2J\x1b[HNative SSH PTY / instance {instance}\r\n中文宽字符 e\u{301} 🙂\r\n\x1b[32mANSI green\x1b[0m\r\n灰度传感器 左右车轮 编码测距 防跌落 喂你好啊 ：；，。！？（）【】\r\n\x1b[1m灰度传感器 左右车轮 编码测距 防跌落 喂你好啊 ：；，。！？（）【】\x1b[0m\r\n").into_bytes();
             if self.counts.delay_initial_frame.load(Ordering::SeqCst) {
                 let handle=session.handle();
                 tokio::spawn(async move {tokio::time::sleep(Duration::from_millis(300)).await;let _=handle.data(id,data).await;});
