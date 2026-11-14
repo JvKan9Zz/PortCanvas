@@ -3,10 +3,12 @@ import {AppColors} from "action_button.slint";
 export component SettingsTab inherits Rectangle {
     in property <string> text;in property <image> icon;in property <bool> selected;in property <bool> enabled:true;callback clicked();
     out property <float> press-scale:AppColors.motion&&touch.pressed?0.94:1;animate press-scale {duration:AppColors.motion?(touch.pressed?90ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
-    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:root.press-scale;
-    height:42px;background:touch.pressed?AppColors.soft:transparent;border-radius:12px;border-width:0px;
-    Image {x:14px;y:13px;width:16px;height:16px;source:root.icon;colorize:root.selected?AppColors.accent-ink:AppColors.muted;}
-    Text {x:40px;width:parent.width - 48px;height:parent.height;text:root.text;color:root.selected?AppColors.accent-ink:AppColors.ink;font-size:13px;vertical-alignment:center;}
+    height:42px;background:transparent;border-width:0px;
+    Rectangle {width:parent.width;height:parent.height;background:touch.pressed?AppColors.soft:transparent;border-radius:12px;
+        transform-origin:{x:self.width/2,y:self.height/2};transform-scale:root.press-scale;
+        Image {x:14px;y:13px;width:16px;height:16px;source:root.icon;colorize:root.selected?AppColors.accent-ink:AppColors.muted;}
+        Text {x:40px;width:parent.width - 48px;height:parent.height;text:root.text;color:root.selected?AppColors.accent-ink:AppColors.ink;font-size:13px;vertical-alignment:center;}
+    }
     forward-focus:keys;accessible-role:tab;accessible-label:root.text;accessible-checkable:true;accessible-checked:root.selected;accessible-action-default=>{if root.enabled{root.clicked();}}
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
     touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
