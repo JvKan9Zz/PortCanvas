@@ -1,31 +1,33 @@
 import {VerticalBox} from "std-widgets.slint";
 import {AppColors} from "action_button.slint";
 export component SettingsTab inherits Rectangle {
-    property <bool> keyboard-focus:true;
     in property <string> text;in property <image> icon;in property <bool> selected;in property <bool> enabled:true;callback clicked();
-    height:42px;background:touch.pressed?AppColors.soft:transparent;border-radius:12px;border-width:keys.has-focus&&root.keyboard-focus?1px:0px;border-color:AppColors.accent;
-    Image {x:14px;y:13px;width:16px;height:16px;source:root.icon;colorize:root.selected?AppColors.accent-ink:AppColors.muted;}
-    Text {x:40px;width:parent.width - 48px;height:parent.height;text:root.text;color:root.selected?AppColors.accent-ink:AppColors.ink;font-size:13px;vertical-alignment:center;}
+    out property <float> press-scale:AppColors.motion&&touch.pressed?0.94:1;animate press-scale {duration:AppColors.motion?(touch.pressed?90ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
+    height:42px;background:transparent;border-width:0px;
+    Rectangle {width:parent.width;height:parent.height;background:transparent;border-radius:12px;
+        transform-origin:{x:self.width/2,y:self.height/2};transform-scale:root.press-scale;
+        Image {x:14px;y:13px;width:16px;height:16px;source:root.icon;colorize:root.selected?AppColors.accent-ink:AppColors.muted;}
+        Text {x:40px;width:parent.width - 48px;height:parent.height;text:root.text;color:root.selected?AppColors.accent-ink:AppColors.ink;font-size:13px;vertical-alignment:center;}
+    }
     forward-focus:keys;accessible-role:tab;accessible-label:root.text;accessible-checkable:true;accessible-checked:root.selected;accessible-action-default=>{if root.enabled{root.clicked();}}
-    keys:=FocusScope {enabled:root.enabled;changed has-focus=>{if !self.has-focus{root.keyboard-focus=true;}}key-pressed(event)=>{root.keyboard-focus=true;if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
-    touch:=TouchArea {enabled:root.enabled;clicked=>{root.keyboard-focus=false;keys.focus();root.clicked();}}
+    keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
+    touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
 }
 export component SegmentedChoice inherits Rectangle {
     in property <[string]> model;in property <int> current-index;in property <bool> enabled:true;callback selected(int);
     preferred-width:260px;preferred-height:38px;horizontal-stretch:0;vertical-stretch:0;min-height:38px;border-radius:20px;background:AppColors.soft;border-width:1px;border-color:AppColors.edge;
     property <length> segment:(root.width - 8px)/max(1,root.model.length);
     Rectangle {x:4px+root.current-index*root.segment;y:4px;width:root.segment;height:parent.height - 8px;border-radius:16px;background:AppColors.field;drop-shadow-offset-y:1px;drop-shadow-blur:3px;drop-shadow-color:#273e6512;animate x {duration:AppColors.motion?440ms:0ms;easing:cubic-bezier(0.22,0.61,0.36,1);}}
-    for label[index] in root.model:item:=Rectangle {x:4px+index*root.segment;y:4px;width:root.segment;height:parent.height - 8px;background:transparent;border-radius:16px;border-width:keys.has-focus&&self.keyboard-focus?1px:0px;border-color:AppColors.accent;
-        property <bool> keyboard-focus:true;
-        Text {text:label;width:parent.width;height:parent.height;font-size:12px;color:index==root.current-index?AppColors.ink:AppColors.muted;horizontal-alignment:center;vertical-alignment:center;}
+    for label[index] in root.model:item:=Rectangle {x:4px+index*root.segment;y:4px;width:root.segment;height:parent.height - 8px;background:transparent;border-radius:16px;border-width:0px;
+            Text {text:label;width:parent.width;height:parent.height;font-size:12px;color:index==root.current-index?AppColors.ink:AppColors.muted;horizontal-alignment:center;vertical-alignment:center;}
         accessible-role:radio-button;accessible-label:label;accessible-checkable:true;accessible-checked:index==root.current-index;accessible-action-default=>{if root.enabled{root.selected(index);}}
-        forward-focus:keys;keys:=FocusScope {enabled:root.enabled;changed has-focus=>{if !self.has-focus{item.keyboard-focus=true;}}key-pressed(event)=>{item.keyboard-focus=true;if event.text==Key.Return||event.text==" "{root.selected(index);return accept;}if event.text==Key.LeftArrow{root.selected(max(0,index - 1));return accept;}if event.text==Key.RightArrow{root.selected(min(root.model.length - 1,index + 1));return accept;}return reject;}}
-        TouchArea {enabled:root.enabled;clicked=>{item.keyboard-focus=false;keys.focus();root.selected(index);}}
+        forward-focus:keys;keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.selected(index);return accept;}if event.text==Key.LeftArrow{root.selected(max(0,index - 1));return accept;}if event.text==Key.RightArrow{root.selected(min(root.model.length - 1,index + 1));return accept;}return reject;}}
+        TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.selected(index);}}
     }
 }
 export component EnvironmentOption inherits Rectangle {
     in property <string> text;in property <string> detail;in property <bool> selected;in property <bool> enabled:true;callback clicked();callback move();
-    preferred-height:72px;min-height:72px;vertical-stretch:0;border-radius:12px;border-width:1px;border-color:keys.has-focus?AppColors.accent:root.selected?AppColors.accent.with-alpha(0.35):AppColors.edge;background:root.selected?AppColors.soft:AppColors.field;
+    preferred-height:72px;min-height:72px;vertical-stretch:0;border-radius:12px;border-width:1px;border-color:AppColors.edge;background:root.selected?AppColors.soft:AppColors.field;
     animate background,border-color {duration:AppColors.motion?160ms:0ms;}
     Rectangle {x:16px;y:28px;width:15px;height:15px;border-radius:8px;border-width:1px;border-color:root.selected?AppColors.accent-ink:AppColors.muted;background:transparent;Rectangle {visible:root.selected;x:3px;y:3px;width:9px;height:9px;border-radius:5px;background:AppColors.accent;}}
     VerticalBox {x:44px;y:14px;width:parent.width - 80px;height:parent.height - 28px;padding:0px;spacing:4px;Text {text:root.text;color:AppColors.ink;font-size:13px;font-weight:500;}Text {text:root.detail;color:AppColors.muted;font-size:11px;wrap:word-wrap;}}

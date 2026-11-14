@@ -39,9 +39,10 @@ struct State<'a> {
     active: u32,
     texture: Option<glow::Texture>,
     unpack: Option<glow::Buffer>,
+    pack: Option<glow::Buffer>,
     viewport: [i32; 4],
     toggles: [(u32, bool); 4],
-    pixel_store: [(u32, i32); 4],
+    pixel_store: [(u32, i32); 8],
 }
 impl<'a> State<'a> {
     unsafe fn save(gl: &'a glow::Context) -> Self {
@@ -59,6 +60,7 @@ impl<'a> State<'a> {
             read: gl.get_parameter_framebuffer(glow::READ_FRAMEBUFFER_BINDING),
             texture: gl.get_parameter_texture(glow::TEXTURE_BINDING_2D),
             unpack: gl.get_parameter_buffer(glow::PIXEL_UNPACK_BUFFER_BINDING),
+            pack: gl.get_parameter_buffer(glow::PIXEL_PACK_BUFFER_BINDING),
             toggles: [
                 glow::SCISSOR_TEST,
                 glow::BLEND,
@@ -71,6 +73,10 @@ impl<'a> State<'a> {
                 glow::UNPACK_ROW_LENGTH,
                 glow::UNPACK_SKIP_PIXELS,
                 glow::UNPACK_SKIP_ROWS,
+                glow::PACK_ALIGNMENT,
+                glow::PACK_ROW_LENGTH,
+                glow::PACK_SKIP_PIXELS,
+                glow::PACK_SKIP_ROWS,
             ]
             .map(|p| (p, gl.get_parameter_i32(p))),
         }
@@ -93,6 +99,7 @@ impl Drop for State<'_> {
             gl.bind_texture(glow::TEXTURE_2D, self.texture);
             gl.active_texture(self.active);
             gl.bind_buffer(glow::PIXEL_UNPACK_BUFFER, self.unpack);
+            gl.bind_buffer(glow::PIXEL_PACK_BUFFER, self.pack);
             for (p, value) in self.pixel_store {
                 gl.pixel_store_i32(p, value);
             }
@@ -105,6 +112,61 @@ impl Drop for State<'_> {
             }
         }
     }
+}
+
+/// Downsample the completed window on the GPU before reading pixels. Called only
+/// from AfterRendering, while the modal is still transparent and before present.
+pub unsafe fn capture_window(
+    api: &slint::GraphicsAPI,
+    size: (u32, u32),
+    limit: u32,
+) -> Result<(image::RgbaImage, f32)> {
+    let slint::GraphicsAPI::NativeOpenGL { get_proc_address } = api else {
+        bail!("Native OpenGL snapshot unavailable")
+    };
+    ensure!(size.0 > 0 && size.1 > 0, "empty window snapshot");
+    let gl = glow::Context::from_loader_function(|name| {
+        get_proc_address(&std::ffi::CString::new(name).unwrap())
+    });
+    let saved = State::save(&gl);
+    let ratio = (limit as f32 / size.0 as f32).min(640.0 / size.1 as f32).min(1.0);
+    let (w,h) = ((size.0 as f32*ratio).round().max(1.0) as u32,
+                 (size.1 as f32*ratio).round().max(1.0) as u32);
+    let texture = gl.create_texture().map_err(anyhow::Error::msg)?;
+    let framebuffer = match gl.create_framebuffer() {
+        Ok(value) => value,
+        Err(error) => { gl.delete_texture(texture); bail!(error); }
+    };
+    let result = (|| {
+        gl.bind_buffer(glow::PIXEL_UNPACK_BUFFER, None);
+        gl.bind_buffer(glow::PIXEL_PACK_BUFFER, None);
+        gl.bind_texture(glow::TEXTURE_2D, Some(texture));
+        gl.tex_image_2d(glow::TEXTURE_2D,0,glow::RGBA8 as i32,w as i32,h as i32,0,
+            glow::RGBA,glow::UNSIGNED_BYTE,glow::PixelUnpackData::Slice(None));
+        gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER,Some(framebuffer));
+        gl.framebuffer_texture_2d(glow::DRAW_FRAMEBUFFER,glow::COLOR_ATTACHMENT0,
+            glow::TEXTURE_2D,Some(texture),0);
+        ensure!(gl.check_framebuffer_status(glow::DRAW_FRAMEBUFFER)==glow::FRAMEBUFFER_COMPLETE,
+            "snapshot framebuffer incomplete");
+        gl.disable(glow::SCISSOR_TEST);
+        gl.bind_framebuffer(glow::READ_FRAMEBUFFER,saved.draw);
+        gl.blit_framebuffer(0,0,size.0 as i32,size.1 as i32,0,0,w as i32,h as i32,
+            glow::COLOR_BUFFER_BIT,glow::LINEAR);
+        gl.bind_framebuffer(glow::READ_FRAMEBUFFER,Some(framebuffer));
+        gl.pixel_store_i32(glow::PACK_ALIGNMENT,1);
+        gl.pixel_store_i32(glow::PACK_ROW_LENGTH,0);
+        gl.pixel_store_i32(glow::PACK_SKIP_PIXELS,0);
+        gl.pixel_store_i32(glow::PACK_SKIP_ROWS,0);
+        let mut pixels = image::RgbaImage::new(w,h);
+        gl.read_pixels(0,0,w as i32,h as i32,glow::RGBA,glow::UNSIGNED_BYTE,
+            glow::PixelPackData::Slice(Some(pixels.as_mut())));
+        ensure!(gl.get_error()==glow::NO_ERROR,"GPU snapshot readback failed");
+        Ok((pixels,ratio))
+    })();
+    gl.delete_framebuffer(framebuffer);
+    gl.delete_texture(texture);
+    drop(saved);
+    result
 }
 unsafe fn shader(gl: &glow::Context, kind: u32, source: &str) -> Result<glow::Shader> {
     let source = if gl.version().is_embedded {

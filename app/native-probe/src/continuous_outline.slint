@@ -2,8 +2,11 @@
 // zero at each straight edge. The same radius bounds the GPU material mask.
 export component ContinuousOutline inherits Path {
     in property <length> radius:24px;
-    property <float> w:root.width/1px;property <float> h:root.height/1px;
-    property <float> r:max(0,min(root.radius/1px,min(root.w,root.h)/2));
+    // Slint 1.15 fits paths uniformly after subtracting the stroke. Match that
+    // inner viewbox so tall rails and wide bars keep the same outer bounds.
+    stroke-width:0px;
+    property <float> w:max(0,(root.width - root.stroke-width)/1px);property <float> h:max(0,(root.height - root.stroke-width)/1px);
+    property <float> r:max(0,min((root.radius - root.stroke-width/2)/1px,min(root.w,root.h)/2));
     property <float> c:root.r*0.1591036;
     property <float> a:4*root.c;property <float> b:2*root.c;
     viewbox-width:root.w;viewbox-height:root.h;

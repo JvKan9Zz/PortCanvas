@@ -58,11 +58,11 @@ export component FilePane inherits Rectangle {
         Text {text:root.tr("大小",root.english);color:AppColors.ink;vertical-alignment:center;width:75px;horizontal-stretch:0;horizontal-alignment:right;}
         if !root.compact:Text {text:root.tr("修改时间",root.english);color:AppColors.ink;vertical-alignment:center;width:92px;horizontal-stretch:0;horizontal-alignment:right;}
     }
-    Rectangle {background:transparent;border-width:root.drop-active?2px:0px;border-color:AppColors.accent;
+    Rectangle {background:transparent;border-width:root.drop-active?2px:0px;border-color:AppColors.edge;
         list:=ListView {x:1px;y:1px;width:parent.width - 2px;height:parent.height - 2px;vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
             for row[index] in root.rows:item:=Rectangle {
                 height:40px;background:row.selected?AppColors.soft:row-touch.has-hover?AppColors.field:transparent;
-                border-width:root.drop-active&&root.drop-row==index?2px:keys.has-focus?1px:0px;border-color:root.drop-active&&root.drop-row==index?AppColors.accent:AppColors.accent;
+                border-width:root.drop-active&&root.drop-row==index?2px:0px;border-color:AppColors.edge;
                 property <bool> additive;property <bool> range;
                 forward-focus:keys;
                 accessible-role:list-item;accessible-label:row.name;accessible-action-default=>{root.choose(index,false,false);}

@@ -15,11 +15,10 @@ export component DesktopTool inherits Rectangle {
     callback clicked();
     min-width:30px;preferred-height:30px;vertical-stretch:0;horizontal-stretch:0;
     preferred-width:(root.has-icon?20px:0px)+(root.show-text?caption.preferred-width:0px)+(root.has-icon&&root.show-text?6px:0px)+20px;
-    border-radius:9px;border-width:keys.has-focus?2px:1px;
-    border-color:keys.has-focus?AppColors.accent:root.checked?AppColors.accent.with-alpha(0.45):transparent;
+    border-radius:9px;border-width:0px;
     background:root.checked||touch.pressed?AppColors.soft:touch.has-hover?AppColors.field:transparent;
     animate background,border-color {duration:AppColors.motion?150ms:0ms;}
-    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.975:1;animate transform-scale {duration:AppColors.motion?220ms:0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,1.35,0.4,1);}
+    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.94:1;animate transform-scale {duration:AppColors.motion?(touch.pressed?90ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
     accessible-role:button;accessible-label:root.label;accessible-enabled:root.enabled;
     accessible-checkable:root.checkable;accessible-checked:root.checked;
     accessible-action-default=>{if root.enabled{root.clicked();}}

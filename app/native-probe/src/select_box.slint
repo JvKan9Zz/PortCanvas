@@ -22,7 +22,7 @@ export component SelectBox inherits Rectangle {
     function show(){if root.enabled&&root.model.length>0{root.closing=false;root.highlighted=max(0,root.current-index);root.opened=true;popup.show();}}
     Timer {interval:AppColors.motion?140ms:1ms;running:root.closing;triggered=>{root.closing=false;popup.close();}}
     min-width:0px;preferred-width:180px;preferred-height:root.compact?30px:36px;min-height:root.compact?30px:36px;vertical-stretch:0;
-    border-radius:10px;border-width:root.has-focus?2px:1px;border-color:root.has-focus?AppColors.accent:AppColors.edge;
+    border-radius:10px;border-width:1px;border-color:AppColors.edge;
     background:root.enabled?AppColors.field:AppColors.inset;forward-focus:keys;
     animate border-color,background {duration:AppColors.motion?160ms:0ms;}
     accessible-role:combobox;accessible-enabled:root.enabled;accessible-expandable:true;accessible-expanded:root.opened;

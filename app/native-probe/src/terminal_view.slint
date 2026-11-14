@@ -110,7 +110,7 @@ export component TerminalView inherits VerticalBox {
     if root.log-status!="":Text {text:root.log-status;color:AppColors.ink;wrap:word-wrap;vertical-stretch:0;}
     Rectangle {
         min-height:120px;background:#181c24;clip:true;border-radius:13px;
-        border-width:input.has-focus?2px:1px;border-color:input.has-focus?#70a5e8:#53657f;
+        border-width:1px;border-color:#53657f;
     terminal-scroll:=ScrollView {
         x:2px;y:2px;width:parent.width - 4px;height:parent.height - (root.horizontal-lines?14px:4px);
         viewport-width:root.horizontal-lines?max(self.visible-width,240*9px+16px):self.visible-width;

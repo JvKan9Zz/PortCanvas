@@ -17,10 +17,10 @@ export component LiquidSlider inherits Rectangle {
     thumb:=Rectangle {
         width:AppColors.motion&&touch.pressed?36px:28px;height:AppColors.motion&&touch.pressed?22px:18px;
         x:18px+root.fraction*(parent.width - 36px) - self.width/2;y:(parent.height - self.height)/2;
-        border-radius:6px;border-width:keys.has-focus?2px:1px;border-color:!root.enabled?AppColors.edge:keys.has-focus||AppColors.high-contrast?AppColors.accent:AppColors.dark?#ffffff99:#ffffffed;
+        border-radius:6px;border-width:1px;border-color:!root.enabled||AppColors.high-contrast?AppColors.edge:AppColors.dark?#ffffff99:#ffffffed;
         background:!root.enabled?AppColors.inset:AppColors.high-contrast?AppColors.field:AppColors.dark?@linear-gradient(160deg,#b9c8dbcc,#526a88c9):@linear-gradient(160deg,#ffffffef,#e6f0f9bd);
         drop-shadow-offset-y:2px;drop-shadow-blur:8px;drop-shadow-color:!root.enabled||AppColors.high-contrast?transparent:#20335332;
-        animate width,height {duration:AppColors.motion?220ms:0ms;easing:cubic-bezier(0.2,1.25,0.4,1);}
+        animate width,height {duration:AppColors.motion?(touch.pressed?100ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
         Rectangle {visible:root.enabled&&!AppColors.high-contrast;x:4px;y:3px;width:parent.width - 8px;height:3px;border-radius:2px;background:#ffffffaa;}
     }
     accessible-role:slider;accessible-enabled:root.enabled;accessible-value:root.value;accessible-value-minimum:root.minimum;accessible-value-maximum:root.maximum;accessible-value-step:root.step;

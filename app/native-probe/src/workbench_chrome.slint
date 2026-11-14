@@ -15,7 +15,6 @@ export component MaterialPanel inherits Rectangle {
     @children
 }
 export component NavButton inherits Rectangle {
-    property <bool> keyboard-focus:true;
     in property <string> text;
     in property <image> icon;
     in property <bool> selected;
@@ -24,9 +23,11 @@ export component NavButton inherits Rectangle {
     callback clicked();
     preferred-height:64px;min-height:64px;vertical-stretch:0;
     border-radius:17px;
-    background:touch.pressed?AppColors.soft:root.selected&&!root.shared-selection?AppColors.soft:transparent;
-    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.96:1;animate transform-scale {duration:AppColors.motion?220ms:0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,1.35,0.4,1);}
-    border-width:keys.has-focus&&root.keyboard-focus?1px:0px;border-color:AppColors.accent;
+    // Shared selections have one moving plate in the parent, including on press.
+    background:root.shared-selection?transparent:touch.pressed||root.selected?AppColors.soft:transparent;
+    out property <float> press-scale:AppColors.motion&&touch.pressed?0.94:1;animate press-scale {duration:AppColors.motion?(touch.pressed?90ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
+    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:root.press-scale;
+    border-width:0px;
     animate background {duration:AppColors.motion?160ms:0ms;}
     accessible-role:button;accessible-label:root.text;accessible-enabled:root.enabled;
     accessible-checkable:true;accessible-checked:root.selected;
@@ -36,8 +37,8 @@ export component NavButton inherits Rectangle {
         Image {source:root.icon;image-fit:contain;preferred-width:22px;preferred-height:22px;horizontal-stretch:0;vertical-stretch:0;colorize:!root.enabled?AppColors.muted.with-alpha(0.45):root.selected&&!AppColors.dark?AppColors.accent:Palette.foreground;}
         Text {text:root.text;color:!root.enabled?AppColors.muted.with-alpha(0.6):root.selected?AppColors.accent-ink:AppColors.muted;font-size:11px;font-weight:500;horizontal-alignment:center;vertical-stretch:0;}
     }
-    keys:=FocusScope {enabled:root.enabled;changed has-focus=>{if !self.has-focus{root.keyboard-focus=true;}}key-pressed(event)=>{root.keyboard-focus=true;if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
-    touch:=TouchArea {enabled:root.enabled;clicked=>{root.keyboard-focus=false;keys.focus();root.clicked();}}
+    keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
+    touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
 }
 export component DeviceListItem inherits Rectangle {
     in property <string> name;
@@ -46,10 +47,10 @@ export component DeviceListItem inherits Rectangle {
     in property <bool> enabled:true;
     callback clicked();
     height:92px;vertical-stretch:0;
+    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.94:1;animate transform-scale {duration:AppColors.motion?(touch.pressed?90ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
     border-radius:10px;
     background:root.selected?AppColors.field:touch.has-hover?Palette.control-background:transparent;
-    border-width:keys.has-focus?2px:1px;
-    border-color:keys.has-focus?AppColors.accent:root.selected?AppColors.accent.with-alpha(0.35):transparent;
+    border-width:0px;
     animate background,border-color {duration:AppColors.motion?160ms:0ms;}
     accessible-role:button;accessible-label:root.name+" "+root.address;accessible-enabled:root.enabled;
     accessible-checkable:true;accessible-checked:root.selected;

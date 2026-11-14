@@ -8,7 +8,6 @@ export component CheckBox inherits Rectangle {
     function toggle(){if root.enabled{root.checked=!root.checked;root.toggled();}}
     property <float> stroke-phase:root.checked?1:0;
     animate stroke-phase {duration:AppColors.motion?(root.checked?200ms:120ms):0ms;easing:ease-in-out;}
-    Rectangle {x:-3px;y:(parent.height - 22px)/2;width:22px;height:22px;border-radius:7px;background:transparent;border-width:keys.has-focus?1px:0px;border-color:AppColors.accent;}
     Rectangle {x:0px;y:(parent.height - 16px)/2;width:16px;height:16px;border-radius:5px;border-width:1.5px;border-color:root.checked||root.indeterminate?(root.enabled?AppColors.accent:AppColors.accent.with-alpha(0.45)):AppColors.muted.with-alpha(root.enabled?0.55:0.3);background:root.checked||root.indeterminate?(root.enabled?AppColors.accent:AppColors.accent.with-alpha(0.45)):(root.enabled?AppColors.field:AppColors.inset);
         transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.9:1;
         animate background,border-color {duration:AppColors.motion?160ms:0ms;}animate transform-scale {duration:AppColors.motion?200ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}
