@@ -1,5 +1,6 @@
 import {ActionButton as Button,AppColors,ActivityIndicator} from "action_button.slint";
-import {LineEdit,Slider,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {LineEdit,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {LiquidSlider as Slider} from "liquid_slider.slint";
 export component BackgroundSettings inherits VerticalBox {
     in property <bool> compact:false;in property <bool> video:false;
     in property <bool> english;in property <bool> enabled;in property <bool> busy;in property <bool> cancellable;
@@ -30,11 +31,11 @@ export component BackgroundSettings inherits VerticalBox {
         Button {text:root.tr("移除背景",root.english);enabled:root.enabled&&!root.busy&&root.has-frame;clicked=>{root.action("remove");}}
         Button {text:root.tr("恢复默认",root.english);enabled:root.enabled&&!root.busy;clicked=>{root.action("reset");}}
     }
-    if root.cancellable:Button {text:root.tr("取消导入",root.english);busy:root.busy;clicked=>{root.action("cancel");}}
+    if root.cancellable:Button {text:root.tr("取消导入",root.english);clicked=>{root.action("cancel");}}
     if root.video:HorizontalBox {padding:0px;vertical-stretch:0;
-        Text {text:root.tr("视频音量",root.english);color:Palette.foreground;}
+        Text {text:root.tr("视频音量",root.english);color:Palette.foreground;vertical-alignment:center;}
         volume-slider:=Slider {accessible-label:root.tr("视频音量",root.english);value<=>root.volume;minimum:0;maximum:100;enabled:root.enabled&&!root.busy;changed(_)=>{root.controls();}}
-        Text {text:round(root.volume)+"%";color:Palette.foreground;min-width:45px;horizontal-stretch:0;}
+        Text {text:round(root.volume)+"%";color:Palette.foreground;min-width:45px;horizontal-stretch:0;vertical-alignment:center;}
     }
     if root.status!="":HorizontalBox {padding:0px;vertical-stretch:0;ActivityIndicator {active:root.busy;}Text {text:root.status;color:Palette.foreground;wrap:word-wrap;}}
     if root.error!="":Text {text:root.tr(root.error,root.english);color:Palette.foreground;font-weight:600;wrap:word-wrap;vertical-stretch:0;}

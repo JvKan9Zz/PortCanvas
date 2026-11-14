@@ -5,15 +5,17 @@ uniform sampler2D source;
 uniform vec4 crop;
 uniform vec2 source_size;
 uniform vec2 surface_size;
+uniform float corner_radius;
 uniform vec3 tint;
 uniform int quality;
 uniform float opacity;
 void main() {
     vec2 local=vec2(uv.x,1.0-uv.y);
     vec2 p=(local-0.5)*surface_size;
-    float radius=min(20.0,min(surface_size.x,surface_size.y)*0.5);
+    float radius=min(corner_radius,min(surface_size.x,surface_size.y)*0.5);
     vec2 q=abs(p)-(surface_size*0.5-radius);
-    float distance=length(max(q,0.0))+min(max(q.x,q.y),0.0)-radius;
+    vec2 corner=max(q,0.0);
+    float distance=pow(pow(corner.x,4.0)+pow(corner.y,4.0),0.25)+min(max(q.x,q.y),0.0)-radius;
     float alpha=1.0-smoothstep(-1.0,1.0,distance);
     if(alpha==0.0){pixel=vec4(0.0);return;}
     float edge=exp(-max(-distance,0.0)/10.0);
@@ -36,7 +38,5 @@ void main() {
         float light=0.5+0.5*dot(normalize(p+vec2(0.001)),normalize(vec2(-0.6,-0.8)));
         color+=vec3(edge*light*mix(0.12,0.035,dark));
     }
-    float border=1.0-smoothstep(0.0,1.2,abs(distance+0.7));
-    color=mix(color,mix(vec3(1.0),vec3(0.45),dark),border*0.22);
     pixel=vec4(clamp(color,0.0,1.0)*alpha,alpha);
 }

@@ -410,7 +410,23 @@ impl Controller {
         match self.services.terminal.list() {
             Ok(catalog) => {
                 let mut s = self.state.borrow_mut();
+                let connected = s.panes.iter()
+                    .filter(|(_, p)| p.phase == "connected")
+                    .map(|(key, p)| (key.clone(), p.id))
+                    .collect::<Vec<_>>();
                 s.sync(&catalog);
+                let (cols, rows) = s.dimensions();
+                // The grid can change while SSH/tmux is still attaching. Its
+                // debounced resize cannot be sent until that stream is ready.
+                for (key, pane) in &s.panes {
+                    if pane.phase == "connected" && !connected.contains(&(key.clone(), pane.id)) {
+                        if let Ok(service) = self.services.terminal.get(key, Some(&s.device)) {
+                            if self.input.try_send(Input::Resize(service, pane.id, cols as u32, rows as u32)).is_err() {
+                                self.error("终端尺寸队列繁忙，请调整窗口后重试。");
+                            }
+                        }
+                    }
+                }
                 for (key, p) in &mut s.panes {
                     if !p.project_loaded {
                         p.project = self.services.logs.terminal_snapshot(key)["project"]

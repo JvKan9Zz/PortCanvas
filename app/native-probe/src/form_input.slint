@@ -3,18 +3,20 @@ import {AppColors} from "action_button.slint";
 export component FormInput inherits Rectangle {
     callback accepted();
     callback edited(string);
+    callback focused(bool);
     in-out property <string> text;
     in property <string> label;
     in property <string> placeholder-text;
     in property <InputType> input-type:InputType.text;
     in property <bool> enabled:true;
     in property <bool> compact:false;
+    in property <bool> centered:false;
     min-width:0px;preferred-width:180px;preferred-height:root.compact?32px:42px;min-height:root.compact?32px:42px;vertical-stretch:0;
     border-radius:10px;border-width:editor.has-focus?2px:1px;
     border-color:editor.has-focus?AppColors.accent:AppColors.edge;
-    background:AppColors.field;
+    background:root.enabled?AppColors.field:AppColors.inset;
     animate border-color,background {duration:AppColors.motion?160ms:0ms;}
-    opacity:root.enabled?1:0.45;forward-focus:editor;
-    Text {visible:root.text=="";x:root.compact?8px:12px;width:parent.width - (root.compact?16px:24px);height:parent.height;text:root.placeholder-text;color:AppColors.muted;font-size:root.compact?12px:14px;vertical-alignment:center;}
-    editor:=TextInput {x:root.compact?8px:12px;width:parent.width - (root.compact?16px:24px);height:parent.height;text<=>root.text;enabled:root.enabled;input-type:root.input-type;single-line:true;edited=>{root.edited(self.text);}key-pressed(event)=>{if event.text==Key.Return{root.accepted();return accept;}return reject;}color:AppColors.ink;font-size:root.compact?12px:14px;vertical-alignment:center;accessible-label:root.label;}
+    forward-focus:editor;
+    Text {visible:root.text=="";x:root.compact?8px:12px;width:parent.width - (root.compact?16px:24px);height:parent.height;text:root.placeholder-text;color:AppColors.muted;font-size:root.compact?12px:14px;vertical-alignment:center;horizontal-alignment:root.centered?center:left;}
+    editor:=TextInput {x:root.compact?8px:12px;width:parent.width - (root.compact?16px:24px);height:parent.height;text<=>root.text;enabled:root.enabled;input-type:root.input-type;single-line:true;changed has-focus=>{root.focused(self.has-focus);}edited=>{root.edited(self.text);}key-pressed(event)=>{if event.text==Key.Return{root.accepted();return accept;}return reject;}color:root.enabled?AppColors.ink:AppColors.muted;font-size:root.compact?12px:14px;vertical-alignment:center;horizontal-alignment:root.centered?center:left;accessible-label:root.label;}
 }

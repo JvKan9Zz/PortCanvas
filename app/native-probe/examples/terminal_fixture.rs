@@ -12,6 +12,9 @@ async fn main() -> Result<()> {
     anyhow::ensure!(!data.exists(), "fresh fixture directory required");
     std::fs::create_dir_all(&data)?;
     let fixture = support::Fixture::new().await?;
+    if let Ok(delay)=std::env::var("WCS_FIXTURE_AUTH_DELAY_MS") {
+        fixture.counts.auth_delay_ms.store(delay.parse::<usize>()?.min(20000),std::sync::atomic::Ordering::SeqCst);
+    }
     ProfileStore {
         directory: data.clone(),
     }

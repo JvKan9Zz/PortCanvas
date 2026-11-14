@@ -19,14 +19,13 @@ export component DesktopTool inherits Rectangle {
     border-color:keys.has-focus?AppColors.accent:root.checked?AppColors.accent.with-alpha(0.45):transparent;
     background:root.checked||touch.pressed?AppColors.soft:touch.has-hover?AppColors.field:transparent;
     animate background,border-color {duration:AppColors.motion?150ms:0ms;}
-    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.975:1;animate transform-scale {duration:AppColors.motion?180ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}
-    opacity:root.enabled?1:0.45;
+    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.975:1;animate transform-scale {duration:AppColors.motion?220ms:0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,1.35,0.4,1);}
     accessible-role:button;accessible-label:root.label;accessible-enabled:root.enabled;
     accessible-checkable:root.checkable;accessible-checked:root.checked;
     accessible-action-default=>{if root.enabled{root.clicked();}}
     forward-focus:keys;
-    Image {visible:root.has-icon;source:root.icon;image-fit:contain;x:root.icon-end?parent.width - 30px:10px;y:(parent.height - 20px)/2;width:20px;height:20px;colorize:root.danger?AppColors.danger:root.checked?AppColors.accent:AppColors.muted;transform-rotation:root.icon-angle;animate transform-rotation {duration:AppColors.motion?260ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
-    caption:=Text {visible:root.show-text;x:root.has-icon&&!root.icon-end?36px:10px;width:parent.width - 20px - (root.has-icon?26px:0px);height:parent.height;text:root.text;color:root.danger?AppColors.danger:root.checked&&!AppColors.dark?AppColors.accent:AppColors.ink;font-size:12px;vertical-alignment:center;}
+    Image {visible:root.has-icon;source:root.icon;image-fit:contain;x:!root.show-text?(parent.width - 20px)/2:root.icon-end?parent.width - 30px:10px;y:(parent.height - 20px)/2;width:20px;height:20px;colorize:!root.enabled?AppColors.muted.with-alpha(0.45):root.danger?AppColors.danger:root.checked?AppColors.accent:AppColors.muted;transform-rotation:root.icon-angle;animate transform-rotation {duration:AppColors.motion?260ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
+    caption:=Text {visible:root.show-text;x:root.has-icon&&!root.icon-end?36px:10px;width:parent.width - 20px - (root.has-icon?26px:0px);height:parent.height;text:root.text;color:!root.enabled?AppColors.muted.with-alpha(0.6):root.danger?AppColors.danger:root.checked&&!AppColors.dark?AppColors.accent:AppColors.ink;font-size:12px;vertical-alignment:center;}
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
     touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
 }

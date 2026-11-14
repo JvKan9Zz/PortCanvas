@@ -48,7 +48,7 @@ export component LogsView inherits VerticalBox {
                     ActivityIndicator {active:root.loading;}
                 }
                 if root.rows.length==0:Text {text:root.tr("暂无日志",root.english);color:AppColors.muted;horizontal-alignment:center;}
-                ListView {
+                ListView {vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
                     for record in root.rows:Rectangle {height:98px;background:record.selected?AppColors.soft:row-touch.has-hover?AppColors.field:transparent;animate background {duration:AppColors.motion?150ms:0ms;}
                         LogSelectionBox {x:12px;y:10px;width:24px;selected:record.checked;enabled:root.enabled&&record.removable;accessible-label:root.tr("选择日志 "+record.command,root.english);toggled=>{root.toggle(record.id,self.checked);}}
                         VerticalBox {x:42px;y:12px;width:parent.width - 58px;height:parent.height - 24px;padding:0px;spacing:6px;

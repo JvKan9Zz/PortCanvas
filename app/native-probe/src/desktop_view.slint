@@ -64,7 +64,7 @@ export component DesktopView inherits Rectangle {
     canvas:=Rectangle {x:0px;y:54px;width:parent.width;height:parent.height - 54px - (root.expanded?0px:22px) - (live-error.visible?live-error.height + 8px:0px);
         background:#181c24;border-radius:root.expanded?0px:14px;clip:true;min-height:140px;
         property <length> edge:root.expanded?0px:2px;
-        border-width:root.expanded?0px:input.has-focus?2px:1px;border-color:input.has-focus?#70a5e8:#53657f;
+        border-width:0px;
         scroll:=ScrollView {
             x:parent.edge;y:parent.edge;width:parent.width - 2*parent.edge;height:parent.height - 2*parent.edge;
             viewport-width:root.fit?self.visible-width:max(self.visible-width,root.source-width*1px);

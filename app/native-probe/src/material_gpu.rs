@@ -7,11 +7,13 @@ const VERTEX: &str = "#version 330 core\nout vec2 uv;\nvoid main(){uv=vec2((gl_V
 pub struct Surface {
     pub size: (u32, u32),
     pub crop: [f32; 4],
+    pub radius: f32,
 }
 struct Target {
     texture: glow::Texture,
     size: (u32, u32),
     crop: Option<[f32; 4]>,
+    radius: f32,
 }
 pub struct Gpu {
     gl: glow::Context,
@@ -268,6 +270,7 @@ impl Gpu {
                 texture,
                 size: (0, 0),
                 crop: None,
+                radius: -1.0,
             });
             self.texture(texture);
         }
@@ -301,7 +304,7 @@ impl Gpu {
         let mut images = Vec::with_capacity(surfaces.len());
         for (target, surface) in self.targets.iter_mut().zip(surfaces) {
             // A moving overlay does not invalidate unrelated static islands.
-            if !redraw_all&&target.size==surface.size&&target.crop==Some(surface.crop){
+            if !redraw_all&&target.size==surface.size&&target.crop==Some(surface.crop)&&target.radius==surface.radius{
                 images.push(ImageBuilder::new_gl_2d_rgba_texture(target.texture.0,target.size.into()).origin(Origin::BottomLeft).build());
                 continue;
             }
@@ -342,8 +345,10 @@ impl Gpu {
                 surface.size.0 as f32,
                 surface.size.1 as f32,
             );
+            gl.uniform_1_f32(gl.get_uniform_location(program,"corner_radius").as_ref(),surface.radius);
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
             target.crop=Some(surface.crop);
+            target.radius=surface.radius;
             self.passes += 1;
             images.push(
                 ImageBuilder::new_gl_2d_rgba_texture(target.texture.0, target.size.into())

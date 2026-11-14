@@ -6,7 +6,7 @@ use std::{
     io::{Read, Seek, SeekFrom, Write},
     path::PathBuf,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
     },
     time::UNIX_EPOCH,
@@ -17,6 +17,8 @@ pub struct Counts {
     pub writes: AtomicUsize,
     pub renames: AtomicUsize,
     pub removed: AtomicUsize,
+    pub deny_removals: AtomicBool,
+    pub deny_listings: AtomicBool,
 }
 impl Counts {
     pub fn report(&self) -> serde_json::Value {
@@ -145,6 +147,7 @@ impl russh_sftp::server::Handler for Peer {
         self.lstat(id, path).await
     }
     async fn opendir(&mut self, id: u32, path: String) -> Result<Handle, StatusCode> {
+        if self.counts.deny_listings.load(Ordering::SeqCst){return Err(StatusCode::PermissionDenied);}
         let entries = fs::read_dir(self.path(&path)?)
             .map_err(error)?
             .map(|e| {
@@ -230,11 +233,13 @@ impl russh_sftp::server::Handler for Peer {
         Ok(ok(id))
     }
     async fn remove(&mut self, id: u32, path: String) -> Result<Status, StatusCode> {
+        if self.counts.deny_removals.load(Ordering::SeqCst){return Err(StatusCode::PermissionDenied);}
         fs::remove_file(self.path(&path)?).map_err(error)?;
         self.counts.removed.fetch_add(1, Ordering::SeqCst);
         Ok(ok(id))
     }
     async fn rmdir(&mut self, id: u32, path: String) -> Result<Status, StatusCode> {
+        if self.counts.deny_removals.load(Ordering::SeqCst){return Err(StatusCode::PermissionDenied);}
         fs::remove_dir(self.path(&path)?).map_err(error)?;
         self.counts.removed.fetch_add(1, Ordering::SeqCst);
         Ok(ok(id))

@@ -1,4 +1,6 @@
-import {SpinBox,Slider,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {LiquidSlider as Slider} from "liquid_slider.slint";
+import {FormInput} from "form_input.slint";
 import {SegmentedChoice} from "settings_controls.slint";
 import {ActionButton,AppColors} from "action_button.slint";
 // THESIS: Extend the existing native settings page with independent quality and opacity controls.
@@ -10,8 +12,9 @@ import {ActionButton,AppColors} from "action_button.slint";
 export component GlassSettings inherits VerticalBox {
     in property <bool> english;in property <bool> enabled;
     in-out property <int> quality:2;in-out property <float> material:100;
-    property <int> material-number:round(root.material);
-    changed material=>{root.material-number=round(root.material);}
+    property <string> material-text:round(root.material)+"";
+    changed material=>{root.material-text=round(root.material)+"";}
+    function commit-number(){if root.material-text.is-float(){root.material=round(max(0,min(100,root.material-text.to-float())));root.update(true);}root.material-text=round(root.material)+"";}
     in property <string> error;in property <string> notice;
     pure callback tr(string,bool)->string;callback update(bool);
     padding:0px;spacing:8px;
@@ -20,9 +23,12 @@ export component GlassSettings inherits VerticalBox {
         SegmentedChoice {width:260px;model:[root.tr("轻量",root.english),root.tr("均衡",root.english),root.tr("完整",root.english)];current-index:root.quality;enabled:root.enabled;selected(i)=>{root.quality=i;root.update(true);}}
     }
     HorizontalBox {padding:0px;vertical-stretch:0;
-        Text {text:root.tr("非透明度",root.english);font-size:13px;color:AppColors.ink;}
+        Text {text:root.tr("不透明度",root.english);font-size:13px;color:AppColors.ink;vertical-alignment:center;}
         Slider {value<=>root.material;minimum:0;maximum:100;step:1;enabled:root.enabled;accessible-label:root.tr("玻璃不透明度：0% 更通透，100% 更厚实",root.english);changed(_)=>{root.update(false);}released(_)=>{root.update(true);}}
-        SpinBox {preferred-width:90px;min-width:80px;max-width:90px;minimum:0;maximum:100;value<=>root.material-number;enabled:root.enabled;accessible-label:root.tr("玻璃不透明度",root.english);edited(v)=>{root.material=v;root.update(true);}}
+        HorizontalBox {width:78px;horizontal-stretch:0;padding:0px;spacing:4px;
+            number-entry:=FormInput {compact:true;centered:true;label:root.tr("玻璃不透明度",root.english);text<=>root.material-text;input-type:InputType.number;enabled:root.enabled;edited(value)=>{if value.is-float(){let bounded=round(max(0,min(100,value.to-float())));root.material=bounded;if bounded!=value.to-float(){root.material-text=round(bounded)+"";}root.update(false);}}accepted=>{root.commit-number();}focused(focus)=>{if !focus{root.commit-number();}}}
+            Text {text:"%";color:AppColors.muted;font-size:12px;horizontal-stretch:0;vertical-alignment:center;}
+        }
     }
 
     if root.notice!="":Text {text:root.tr(root.notice,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}

@@ -70,6 +70,37 @@ fn temps(root: &Path) -> usize {
         .count()
 }
 #[tokio::test]
+async fn remote_delete_permission_failures_preserve_data_and_report_account_and_path() -> Result<()> {
+    let (f,s,root)=fixture().await?;
+    let directory=root.join("remote/locked dir");
+    std::fs::create_dir(&directory)?;
+    let file=directory.join("传感器.txt");
+    std::fs::write(&file,b"keep on denied deletion")?;
+    let removal=json!({"generation":s.devices.generation(),"parent":"/","names":["locked dir"]});
+    f.counts.files.deny_listings.store(true,Ordering::SeqCst);
+    let no_confirm:Confirmation=Arc::new(|_|Box::pin(async{anyhow::bail!("must inspect before confirming")}));
+    let state=s.files.remove_remote(serde_json::from_value(removal.clone())?,no_confirm).await?;
+    assert_eq!(state["phase"],"failed");
+    assert!(state["message"].as_str().unwrap().contains("/locked dir"));
+    assert!(state["message"].as_str().unwrap().contains(&f.profile.username));
+    assert_eq!(std::fs::read(&file)?,b"keep on denied deletion");
+    f.counts.files.deny_listings.store(false,Ordering::SeqCst);
+    f.counts.files.deny_removals.store(true,Ordering::SeqCst);
+    let state=s.files.remove_remote(serde_json::from_value(removal.clone())?,confirm(true)).await?;
+    assert_eq!(state["phase"],"failed");assert_eq!(state["busy"],false);
+    assert_eq!(state["currentFile"],"/locked dir/传感器.txt");
+    assert!(state["message"].as_str().unwrap().contains("/locked dir/传感器.txt"));
+    assert!(state["message"].as_str().unwrap().contains(&f.profile.username));
+    assert_eq!(std::fs::read(&file)?,b"keep on denied deletion");
+    assert_eq!(f.counts.files.removed.load(Ordering::SeqCst),0);
+    f.counts.files.deny_removals.store(false,Ordering::SeqCst);
+    let state=s.files.remove_remote(serde_json::from_value(removal)?,confirm(true)).await?;
+    assert_eq!(state["phase"],"completed");assert!(!directory.exists());
+    s.shutdown().await;
+    until("permission sample SFTP sessions closed",||f.counts.files.active.load(Ordering::SeqCst)==0).await;
+    Ok(())
+}
+#[tokio::test]
 async fn native_files_use_shared_sftp_for_unicode_recursive_transfer_overwrite_and_delete(
 ) -> Result<()> {
     let (f, s, root) = fixture().await?;

@@ -1,6 +1,7 @@
 import {VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
 import {ActionButton,AppColors} from "action_button.slint";
 import {FormInput} from "form_input.slint";
+import {LiquidSlider} from "liquid_slider.slint";
 export component ColorPicker inherits Rectangle {
     in property <color> selected-color;
     in property <color> hue-color;
@@ -36,15 +37,9 @@ export component ColorPicker inherits Rectangle {
         }}
         TouchArea {mouse-cursor:crosshair;clicked=>{plane-focus.focus();root.change(root.hue,max(0,min(1,self.mouse-x/self.width)),max(0,min(1,1-self.mouse-y/self.height)));}moved=>{if self.pressed{root.change(root.hue,max(0,min(1,self.mouse-x/self.width)),max(0,min(1,1-self.mouse-y/self.height)));}}}
     }
-    HorizontalBox {padding:0px;spacing:8px;height:20px;vertical-stretch:0;
+    HorizontalBox {padding:0px;spacing:8px;height:36px;vertical-stretch:0;
         Text {text:root.tr("色相",root.english);font-size:11px;color:AppColors.muted;horizontal-stretch:0;vertical-alignment:center;}
-        Rectangle {height:10px;vertical-stretch:0;horizontal-stretch:1;border-radius:5px;background:@linear-gradient(90deg,#ff0000,#ffff00 16.7%,#00ff00 33.3%,#00ffff 50%,#0000ff 66.7%,#ff00ff 83.3%,#ff0000);
-            Rectangle {x:root.hue/360*parent.width - 6px;y:-1px;width:12px;height:12px;border-radius:6px;border-width:2px;border-color:white;background:transparent;}
-            forward-focus:hue-keys;accessible-role:slider;accessible-label:root.tr("色相",root.english);accessible-value:root.hue;accessible-value-minimum:0;accessible-value-maximum:360;
-            accessible-action-increment=>{root.change(min(360,root.hue+1),root.saturation,root.brightness);}accessible-action-decrement=>{root.change(max(0,root.hue - 1),root.saturation,root.brightness);}
-            hue-keys:=FocusScope {key-pressed(event)=>{if event.text==Key.LeftArrow{root.change(max(0,root.hue - 1),root.saturation,root.brightness);return accept;}if event.text==Key.RightArrow{root.change(min(360,root.hue+1),root.saturation,root.brightness);return accept;}if event.text==Key.Home{root.change(0,root.saturation,root.brightness);return accept;}if event.text==Key.End{root.change(360,root.saturation,root.brightness);return accept;}return reject;}}
-            TouchArea {y:-6px;height:22px;clicked=>{hue-keys.focus();root.change(max(0,min(360,self.mouse-x/self.width*360)),root.saturation,root.brightness);}moved=>{if self.pressed{root.change(max(0,min(360,self.mouse-x/self.width*360)),root.saturation,root.brightness);}}}
-        }
+        LiquidSlider {minimum:0;maximum:360;value<=>root.hue-value;fill-rail:false;rail:@linear-gradient(90deg,#ff0000,#ffff00 16.7%,#00ff00 33.3%,#00ffff 50%,#0000ff 66.7%,#ff00ff 83.3%,#ff0000);accessible-label:root.tr("色相",root.english);changed(v)=>{root.change(v,root.saturation,root.brightness);}}
     }
     HorizontalBox {padding:0px;spacing:8px;height:28px;vertical-stretch:0;
         for color[index] in root.presets:Rectangle {width:24px;height:28px;horizontal-stretch:0;background:transparent;

@@ -1,0 +1,38 @@
+import {AppColors} from "action_button.slint";
+export component LiquidSlider inherits Rectangle {
+    in-out property <float> value:0;
+    in property <float> minimum:0;in property <float> maximum:100;in property <float> step:1;
+    in property <bool> enabled:true;in property <bool> fill-rail:true;
+    in property <brush> rail:AppColors.edge;
+    callback changed(float);callback released(float);
+    preferred-height:36px;min-height:36px;min-width:48px;horizontal-stretch:1;vertical-stretch:0;
+    background:transparent;forward-focus:keys;
+    property <float> fraction:max(0,min(1,(root.value - root.minimum)/max(1,root.maximum - root.minimum)));
+    function set-value(v:float){let next=min(root.maximum,max(root.minimum,root.minimum+round((v - root.minimum)/max(0.001,root.step))*max(0.001,root.step)));if next!=root.value{root.value=next;root.changed(next);}}
+    function position(x:length){root.set-value(root.minimum+max(0,min(1,(x - 18px)/max(1px,root.width - 36px)))*(root.maximum - root.minimum));}
+    function commit(v:float){root.set-value(v);root.released(root.value);}
+    Rectangle {x:18px;y:(parent.height - 6px)/2;width:parent.width - 36px;height:6px;border-radius:3px;background:root.enabled?root.rail:AppColors.edge;
+        if root.fill-rail:Rectangle {x:0px;y:0px;width:parent.width*root.fraction;height:parent.height;border-radius:3px;background:AppColors.accent.with-alpha(root.enabled?0.72:0.3);}
+    }
+    thumb:=Rectangle {
+        width:AppColors.motion&&touch.pressed?36px:28px;height:AppColors.motion&&touch.pressed?22px:18px;
+        x:18px+root.fraction*(parent.width - 36px) - self.width/2;y:(parent.height - self.height)/2;
+        border-radius:6px;border-width:keys.has-focus?2px:1px;border-color:!root.enabled?AppColors.edge:keys.has-focus||AppColors.high-contrast?AppColors.accent:AppColors.dark?#ffffff99:#ffffffed;
+        background:!root.enabled?AppColors.inset:AppColors.high-contrast?AppColors.field:AppColors.dark?@linear-gradient(160deg,#b9c8dbcc,#526a88c9):@linear-gradient(160deg,#ffffffef,#e6f0f9bd);
+        drop-shadow-offset-y:2px;drop-shadow-blur:8px;drop-shadow-color:!root.enabled||AppColors.high-contrast?transparent:#20335332;
+        animate width,height {duration:AppColors.motion?220ms:0ms;easing:cubic-bezier(0.2,1.25,0.4,1);}
+        Rectangle {visible:root.enabled&&!AppColors.high-contrast;x:4px;y:3px;width:parent.width - 8px;height:3px;border-radius:2px;background:#ffffffaa;}
+    }
+    accessible-role:slider;accessible-enabled:root.enabled;accessible-value:root.value;accessible-value-minimum:root.minimum;accessible-value-maximum:root.maximum;accessible-value-step:root.step;
+    accessible-action-increment=>{root.commit(root.value+root.step);}accessible-action-decrement=>{root.commit(root.value - root.step);}
+    accessible-action-set-value(v)=>{if v.is-float(){root.commit(v.to-float());}}
+    keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{
+        if event.text==Key.RightArrow||event.text==Key.UpArrow{root.commit(root.value+root.step);return accept;}
+        if event.text==Key.LeftArrow||event.text==Key.DownArrow{root.commit(root.value - root.step);return accept;}
+        if event.text==Key.Home{root.commit(root.minimum);return accept;}if event.text==Key.End{root.commit(root.maximum);return accept;}return reject;
+    }}
+    touch:=TouchArea {enabled:root.enabled;
+        pointer-event(event)=>{if event.button==PointerEventButton.left{if event.kind==PointerEventKind.down{keys.focus();root.position(self.mouse-x);}if event.kind==PointerEventKind.up{root.position(self.mouse-x);root.released(root.value);}}}
+        moved=>{if self.pressed{root.position(self.mouse-x);}}
+    }
+}

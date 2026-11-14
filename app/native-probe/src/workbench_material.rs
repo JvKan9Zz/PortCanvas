@@ -51,6 +51,7 @@ struct Key {
     window: (f32, f32),
     crop: [f32; 4],
     rects: Vec<Rect>,
+    radii: Vec<f32>,
     quality: i32,
     opacity: f32,
     tint: [u8; 3],
@@ -340,7 +341,6 @@ impl Controller {
             ui.set_material_header(Default::default());
             ui.set_material_terminal(Default::default());
             ui.set_material_work(Default::default());
-            ui.set_material_settings(Default::default());
             ui.window().request_redraw();
         }
     }
@@ -380,29 +380,22 @@ impl Controller {
             ui.set_material_header(Default::default());
             ui.set_material_terminal(Default::default());
             ui.set_material_work(Default::default());
-            ui.set_material_settings(Default::default());
             self.release();
             return;
         }
         if self.failed.get() {
             return;
         }
-        let rect = |r: crate::workbench_ui::MaterialRect| Rect {
-            x: r.x,
-            y: r.y,
-            width: r.width,
-            height: r.height,
-        };
         let expanded=ui.get_desktop_expanded();
-        let mut rects=if expanded {vec![rect(ui.get_material_header_rect())]} else {
-            vec![rect(ui.get_material_nav_rect()),rect(ui.get_material_header_rect()),rect(ui.get_desktop_work_rect())]
+        let mut panels=if expanded {vec![ui.get_material_header_rect()]} else {
+            vec![ui.get_material_nav_rect(),ui.get_material_header_rect(),ui.get_desktop_work_rect()]
         };
         if !expanded && ui.get_terminal_visible() {
-            rects.push(rect(ui.get_material_terminal_rect()));
+            panels.push(ui.get_material_terminal_rect());
         }
+        let rects=panels.iter().map(|r|Rect{x:r.x,y:r.y,width:r.width,height:r.height}).collect::<Vec<_>>();
+        let radii=panels.iter().map(|r|r.radius).collect::<Vec<_>>();
         let terminal_index=(!expanded&&ui.get_terminal_visible()).then_some(3usize);
-        let settings_index=ui.get_settings_open().then_some(rects.len());
-        if ui.get_settings_open(){rects.push(rect(ui.get_material_settings_rect()));}
         if rects.iter().any(|r| r.width <= 0. || r.height <= 0.) {
             return;
         }
@@ -412,6 +405,7 @@ impl Controller {
             revision: self.revision.get(),
             window: (size.width, size.height),
             rects,
+            radii,
             crop: [
                 ui.get_bg_saved_crop_x(),
                 ui.get_bg_saved_crop_y(),
@@ -429,10 +423,12 @@ impl Controller {
         let surfaces = key
             .rects
             .iter()
-            .map(|r| Surface {
+            .zip(&key.radii)
+            .map(|(r,radius)| Surface {
                 // Material carries no text; logical-size targets bound fill cost at high DPI.
                 size: (r.width.ceil() as u32, r.height.ceil() as u32),
                 crop: project(source, key.crop, key.window, *r),
+                radius:*radius,
             })
             .collect::<Vec<_>>();
         let result = (|| unsafe {
@@ -472,14 +468,13 @@ impl Controller {
         })();
         match result {
             Ok((background, images)) => {
-                let binding = (source, surfaces.iter().map(|s| s.size).collect::<Vec<_>>(),u8::from(expanded)|(u8::from(ui.get_terminal_visible())<<1)|(u8::from(ui.get_settings_open())<<2));
+                let binding = (source, surfaces.iter().map(|s| s.size).collect::<Vec<_>>(),u8::from(expanded)|(u8::from(ui.get_terminal_visible())<<1));
                 if self.bindings.borrow().as_ref() != Some(&binding) {
                     ui.set_bg_frame(background);
                     ui.set_material_nav(if expanded {Default::default()} else {images[0].clone()});
                     ui.set_material_header(images[if expanded {0} else {1}].clone());
                     ui.set_material_work(if expanded {Default::default()} else {images[2].clone()});
                     ui.set_material_terminal(terminal_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
-                    ui.set_material_settings(settings_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
                     *self.bindings.borrow_mut() = Some(binding);
                 }
                 ui.set_material_active(true);
@@ -499,7 +494,6 @@ impl Controller {
                 ui.set_material_header(Default::default());
                 ui.set_material_terminal(Default::default());
             ui.set_material_work(Default::default());
-            ui.set_material_settings(Default::default());
                 self.release();
             }
         }
@@ -508,7 +502,7 @@ impl Controller {
         let Some(ui)=self.ui.upgrade() else{return};
         ui.set_settings_backdrop_active(false);
         ui.set_settings_backdrop_frame(Default::default());
-        if !capture || ui.get_material_solid() || ui.get_native_hidden() || ui.get_glass_quality()==0 {
+        if !capture || ui.get_material_solid() || ui.get_native_hidden() {
             if self.record_geometry && self.backdrop_events.borrow().len()<64 {
                 self.backdrop_events.borrow_mut().push(serde_json::json!({"capture":false,"released":true}));
             }
@@ -521,7 +515,7 @@ impl Controller {
             let pixels=ui.window().take_snapshot().map_err(|e|anyhow::anyhow!("{e}"))?;
             let (width,height)=(pixels.width(),pixels.height());
             anyhow::ensure!(width>0&&height>0,"empty window snapshot");
-            let limit=if ui.get_glass_quality()==2{1024.0}else{640.0};
+            let limit=match ui.get_glass_quality(){2=>1024.0,1=>640.0,_=>320.0};
             let ratio=(limit/width as f32).min(640.0/height as f32).min(1.0);
             let (w,h)=((width as f32*ratio).round().max(1.0) as u32,(height as f32*ratio).round().max(1.0) as u32);
             let source=image::RgbaImage::from_raw(width,height,pixels.as_bytes().to_vec()).ok_or_else(||anyhow::anyhow!("invalid window pixels"))?;
