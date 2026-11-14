@@ -324,7 +324,9 @@ slint::slint! {
                     Rectangle {width:156px;horizontal-stretch:0;background:transparent;
                         Image {y:(parent.height - self.height)/2;source:@image-url("../assets/wordmark.svg");image-fit:contain;width:156px;height:35px;}
                     }
-                    if root.update-phase=="available":ActionButton {text:"v"+root.update-version;enabled:root.can-interact;clicked=>{root.settings-section=2;root.settings-open=true;}}
+                    if root.update-phase=="available":Rectangle {width:update-button.preferred-width;horizontal-stretch:0;background:transparent;
+                        update-button:=ActionButton {y:(parent.height - self.height)/2;text:"v"+root.update-version;enabled:root.can-interact;clicked=>{root.settings-section=2;root.settings-open=true;}}
+                    }
                     Rectangle {background:transparent;horizontal-stretch:1;}
                     Rectangle {width:header-status.preferred-width;horizontal-stretch:0;background:transparent;
                         header-status:=ConnectionBadge {y:(parent.height - self.height)/2;text:root.tr(root.connection-status,root.english);phase:root.connected?2:root.busy?1:root.error!=""?3:0;}
