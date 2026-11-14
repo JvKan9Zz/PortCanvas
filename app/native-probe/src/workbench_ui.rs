@@ -79,6 +79,9 @@ slint::slint! {
         animate settings-backdrop-phase {duration:AppColors.motion?120ms:0ms;easing:ease-out;}
         in-out property <bool> settings-open:false;
         in-out property <bool> settings-presented:false;
+        // Prime the existing sheet's glyph/shadow caches in the first frame.
+        // It remains below one opacity level and never opens the settings flow.
+        in-out property <bool> settings-preparing:true;
         in-out property <int> settings-section:0;
         property <float> settings-progress:root.settings-presented?1:0;
         animate settings-progress {duration:AppColors.motion?(root.settings-open?320ms:220ms):0ms;easing:cubic-bezier(0.22,0.61,0.36,1);}
@@ -208,6 +211,7 @@ slint::slint! {
         in property <string> terminal-status;in property <string> terminal-information;
         in property <string> terminal-error;
         in property <string> terminal-log-status;
+        in property <bool> terminal-log-error;
         in property <bool> terminal-busy:false;
         in property <bool> terminal-sending:false;
         in property <int> terminal-cursor-column;
@@ -316,11 +320,15 @@ slint::slint! {
                 }
             }
             MaterialPanel {visible:!root.desktop-expanded;x:116px;y:16px;width:parent.width - 132px;height:48px;border-radius:17px;material:root.material-header;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
-                HorizontalBox {padding-left:20px;padding-right:16px;spacing:12px;
-                    Image {source:@image-url("../assets/wordmark.svg");image-fit:fill;width:156px;height:35px;horizontal-stretch:0;vertical-stretch:0;}
+                HorizontalBox {padding-left:20px;padding-right:16px;padding-top:0px;padding-bottom:0px;spacing:12px;
+                    Rectangle {width:156px;horizontal-stretch:0;background:transparent;
+                        Image {y:(parent.height - self.height)/2;source:@image-url("../assets/wordmark.svg");image-fit:contain;width:156px;height:35px;}
+                    }
                     if root.update-phase=="available":ActionButton {text:"v"+root.update-version;enabled:root.can-interact;clicked=>{root.settings-section=2;root.settings-open=true;}}
                     Rectangle {background:transparent;horizontal-stretch:1;}
-                    ConnectionBadge {text:root.tr(root.connection-status,root.english);phase:root.connected?2:root.busy?1:root.error!=""?3:0;}
+                    Rectangle {width:header-status.preferred-width;horizontal-stretch:0;background:transparent;
+                        header-status:=ConnectionBadge {y:(parent.height - self.height)/2;text:root.tr(root.connection-status,root.english);phase:root.connected?2:root.busy?1:root.error!=""?3:0;}
+                    }
                     if root.page!=0:Rectangle {width:96px;horizontal-stretch:0;background:transparent;
                         ActionButton {y:(parent.height - self.height)/2;text:root.english?"Terminal":"终端";icon:@image-url("icons/terminal.svg");has-icon:true;primary:root.terminal-open;width:parent.width;enabled:root.can-interact;accessible-checkable:true;accessible-checked:root.terminal-open;clicked=>{root.terminal-open=!root.terminal-open;}}
                     }
@@ -424,14 +432,10 @@ slint::slint! {
             }
             terminal-panel:=MaterialPanel {visible:root.page!=0&&!root.desktop-expanded&&(root.terminal-open||root.drawer-space>0px);opacity:min(1,root.drawer-space/(root.drawer-width+14px));x:parent.width - root.drawer-space - 2px;y:76px;width:root.drawer-width;height:parent.height - 92px;material:root.material-terminal;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
                 VerticalBox {padding:12px;spacing:8px;
-                    HorizontalBox {padding:0px;vertical-stretch:0;
-                        Text {text:root.english?"Terminal":"终端";font-size:18px;font-weight:600;color:Palette.foreground;vertical-alignment:center;}
-                        ActionButton {text:root.english?"Hide":"收起";width:80px;horizontal-stretch:0;clicked=>{root.terminal-open=false;}}
-                    }
                     TerminalView {
                 tabs:root.terminal-tabs;active:root.terminal-active;cells:root.terminal-cells;
                 cursor-column:root.terminal-cursor-column;cursor-row:root.terminal-cursor-row;cursor-visible:root.terminal-cursor-visible;
-                phase:root.terminal-phase;status:root.terminal-status;info:root.terminal-information;error:root.terminal-error;log-status:root.terminal-log-status;
+                phase:root.terminal-phase;status:root.terminal-status;info:root.terminal-information;error:root.terminal-error;log-status:root.terminal-log-status;log-error:root.terminal-log-error;
                 connected:root.connected;busy:root.terminal-busy;sending:root.terminal-sending;enabled:root.can-interact;english:root.english;
                 draft<=>root.terminal-draft;project<=>root.terminal-project;
                 completions:root.terminal-completions;completion-index:root.terminal-completion-index;
@@ -450,14 +454,14 @@ slint::slint! {
                 }
             }
         }
-        Rectangle {visible:root.settings-open||root.settings-progress>0;opacity:root.settings-progress;background:transparent;
+        Rectangle {visible:root.settings-preparing||root.settings-open||root.settings-progress>0;background:transparent;
             // Retain the bounded backdrop until the sheet closes; preference
             // edits must not turn a blurred modal backdrop into the sharp page.
-            if root.settings-backdrop-active&&!root.material-solid:Image {x:0px;y:0px;width:parent.width;height:parent.height;opacity:root.settings-backdrop-phase;source:root.settings-backdrop-frame;image-fit:fill;}
-            Rectangle {background:#23345030;}
+            if root.settings-backdrop-active&&!root.material-solid:Image {x:0px;y:0px;width:parent.width;height:parent.height;opacity:root.settings-backdrop-phase*root.settings-progress;source:root.settings-backdrop-frame;image-fit:fill;}
+            Rectangle {background:#233450.with-alpha(0.19*root.settings-progress);}
             TouchArea {enabled:root.settings-open&&root.can-interact;clicked=>{root.settings-open=false;}}
             settings-panel:=MaterialPanel {x:(parent.width - self.width)/2;y:(parent.height - self.height)/2+(1-root.settings-progress)*18px;width:min(840px,parent.width - 64px);height:min(640px,parent.height - 64px);solid:true;
-                transform-origin:{x:self.width/2,y:self.height/2};transform-scale:0.96+0.04*root.settings-progress;
+                opacity:root.settings-preparing?0.001:root.settings-progress;
                 TouchArea {}
                 settings-focus:=FocusScope {enabled:root.dialog-kind==0&&root.settings-open;
                     FocusScope {width:0px;height:0px;changed has-focus=>{if self.has-focus{settings-close.focus();}}}
@@ -468,7 +472,7 @@ slint::slint! {
                                 Text {text:root.tr("设置",root.english);font-size:20px;font-weight:600;color:AppColors.ink;height:44px;vertical-stretch:0;}
                                 Rectangle {height:142px;vertical-stretch:0;background:transparent;accessible-role:tab-list;
                                     settings-pill:=Rectangle {transform-origin:{x:self.width/2,y:self.height/2};transform-scale:root.settings-section==0?settings-general.press-scale:root.settings-section==1?settings-storage.press-scale:settings-about.press-scale;y:root.settings-section*50px;width:parent.width;height:42px;border-radius:12px;background:AppColors.field;animate y {duration:AppColors.motion?320ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
-                                    settings-general:=SettingsTab {y:0px;width:parent.width;text:root.tr("通用",root.english);icon:@image-url("icons/settings.svg");selected:root.settings-section==0;enabled:root.can-interact;clicked=>{root.settings-section=0;}}
+                                    settings-general:=SettingsTab {y:0px;width:parent.width;text:root.tr("通用",root.english);icon:@image-url("icons/general.svg");selected:root.settings-section==0;enabled:root.can-interact;clicked=>{root.settings-section=0;}}
                                     settings-storage:=SettingsTab {y:50px;width:parent.width;text:root.tr("存储",root.english);icon:@image-url("icons/files.svg");selected:root.settings-section==1;enabled:root.can-interact;clicked=>{root.settings-section=1;}}
                                     settings-about:=SettingsTab {y:100px;width:parent.width;text:root.tr("关于",root.english);icon:@image-url("icons/about.svg");selected:root.settings-section==2;enabled:root.can-interact;clicked=>{root.settings-section=2;}}
                                 }
@@ -541,7 +545,7 @@ slint::slint! {
                         if root.update-message!="":Text {text:root.update-message;color:AppColors.danger;wrap:word-wrap;}
                         if root.update-notes!="":Text {text:root.update-notes;color:AppColors.ink;wrap:word-wrap;}
                         if root.update-phase=="downloading":Rectangle {height:4px;vertical-stretch:0;background:AppColors.edge;Rectangle {x:0px;y:0px;width:parent.width*root.update-progress;background:AppColors.accent;animate width {duration:AppColors.motion?160ms:0ms;}}}
-                        third-party-entry:=DesktopTool {text:root.tr("第三方组件",root.english);icon:@image-url("icons/chevron-right.svg");icon-angle:root.third-party-open?90deg:0deg;enabled:root.can-interact;clicked=>{root.third-party-open=!root.third-party-open;}}
+                        third-party-entry:=DesktopTool {elastic:false;text:root.tr("第三方组件",root.english);icon:@image-url("icons/chevron-right.svg");icon-angle:root.third-party-open?90deg:0deg;enabled:root.can-interact;clicked=>{root.third-party-open=!root.third-party-open;}}
                         if root.third-party-open:AboutSlint {preferred-height:120px;vertical-stretch:0;}
                     }
                                 }

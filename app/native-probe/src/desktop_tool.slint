@@ -11,6 +11,7 @@ export component DesktopTool inherits Rectangle {
     in property <bool> checkable:false;
     in property <bool> enabled:true;
     in property <bool> danger:false;
+    in property <bool> elastic:true;
     in property <angle> icon-angle:0deg;
     callback clicked();
     min-width:30px;preferred-height:30px;vertical-stretch:0;horizontal-stretch:0;
@@ -18,7 +19,7 @@ export component DesktopTool inherits Rectangle {
     border-radius:9px;border-width:0px;
     background:root.checked||touch.pressed?AppColors.soft:touch.has-hover?AppColors.field:transparent;
     animate background,border-color {duration:AppColors.motion?150ms:0ms;}
-    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.94:1;animate transform-scale {duration:AppColors.motion?(touch.pressed?90ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
+    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&root.elastic&&touch.pressed?0.94:1;animate transform-scale {duration:AppColors.motion&&root.elastic?(touch.pressed?90ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
     accessible-role:button;accessible-label:root.label;accessible-enabled:root.enabled;
     accessible-checkable:root.checkable;accessible-checked:root.checked;
     accessible-action-default=>{if root.enabled{root.clicked();}}

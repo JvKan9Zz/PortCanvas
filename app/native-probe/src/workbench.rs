@@ -140,6 +140,7 @@ fn device_state(ui: &Workbench, value: &serde_json::Value, pending: &PendingHost
     let state = value["ssh"].as_str().unwrap_or("disconnected");
     ui.set_busy(state == "connecting");
     ui.set_connected(state == "connected");
+    if state == "connected" { ui.set_password("".into()); }
     if state=="error"&&ui.get_quick_candidate(){ui.set_quick_open(true);}
     ui.set_connection_status(
         match state {
@@ -394,6 +395,9 @@ pub fn run() -> Result<()> {
                 }
             };
             fill(&ui, Some(&profile));
+            // A failed attempt may be retried without retyping a non-persisted
+            // secret. It stays in this form only, and is cleared on success.
+            ui.set_password(secret.as_str().into());
             let _ = profiles(&ui, &services);
             ui.set_busy(true);
             let serial = operation.fetch_add(1, Ordering::SeqCst) + 1;

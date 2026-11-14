@@ -471,6 +471,7 @@ impl Controller {
             ui.set_terminal_project(p.project.as_str().into());
             ui.set_terminal_sending(p.sending);
             let logs = self.services.logs.terminal_snapshot(&s.active);
+            ui.set_terminal_log_error(logs["phase"] == "error");
             ui.set_terminal_log_status(
                 text(
                     logs["message"].as_str().unwrap_or_default(),
@@ -479,6 +480,7 @@ impl Controller {
                 .into(),
             );
         } else {
+            ui.set_terminal_log_error(false);
             ui.set_terminal_information(text("会话信息将在连接后显示",ui.get_english()).into());
             ui.set_terminal_phase("disconnected".into());
             ui.set_terminal_status(text("连接设备后可打开终端。", ui.get_english()).into());

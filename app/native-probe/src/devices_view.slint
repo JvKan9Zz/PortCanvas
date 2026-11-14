@@ -52,8 +52,9 @@ export component DevicesView inherits Rectangle {
                 }
             }
         }
-        editor-scroll:=ScrollView {viewport-width:self.visible-width;viewport-height:max(self.visible-height,editor.preferred-height+48px);vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
-            editor:=VerticalBox {x:28px;y:max(24px,(editor-scroll.visible-height - self.preferred-height)/2);width:editor-scroll.visible-width - 56px;height:self.preferred-height;padding:0px;spacing:20px;
+        VerticalBox {padding:12px;spacing:16px;
+        editor-scroll:=ScrollView {min-height:0px;viewport-width:self.visible-width;viewport-height:max(self.visible-height,editor.preferred-height+16px);vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
+            editor:=VerticalBox {x:8px;y:8px;width:editor-scroll.visible-width - 16px;height:self.preferred-height;padding:0px;spacing:20px;
                 HorizontalBox {padding:0px;spacing:12px;vertical-stretch:0;
                     Rectangle {width:44px;height:44px;horizontal-stretch:0;border-radius:14px;background:AppColors.soft;border-width:1px;border-color:AppColors.edge;Image {x:12px;y:12px;width:20px;height:20px;source:@image-url("icons/about.svg");colorize:AppColors.accent;}}
                     Text {text:root.name!=""?root.name:root.tr("添加一台设备",root.english);font-size:18px;font-weight:600;color:AppColors.ink;overflow:elide;vertical-alignment:center;}
@@ -80,29 +81,29 @@ export component DevicesView inherits Rectangle {
                         }
                     }
                 }
-                HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
-                    connect-button:=ActionButton {text:root.tr(root.busy?"取消连接":root.connected?"断开设备":"连接设备",root.english);icon:@image-url("icons/connect.svg");has-icon:true;busy:root.busy;primary:true;enabled:root.enabled;clicked=>{if root.busy||root.connected{root.disconnect();}else{root.connect();}}}
-                    ActionButton {text:root.tr("保存配置",root.english);enabled:root.editable;clicked=>{root.save();}}
-                    Rectangle {background:transparent;horizontal-stretch:1;}
-                    ActionButton {visible:root.selected-id!="";text:root.tr("移除配置",root.english);danger:true;enabled:root.editable;clicked=>{root.remove();}}
-                }
-                result-panel:=Rectangle {height:root.details-open&&(root.busy||root.connected||root.error!="")?result.preferred-height+24px:0px;vertical-stretch:0;clip:true;background:transparent;animate height {duration:AppColors.motion?260ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}
-                    result:=VerticalBox {y:12px;width:parent.width;height:self.preferred-height;padding:0px;spacing:10px;
-                        Rectangle {height:1px;vertical-stretch:0;background:AppColors.edge;}
-                        HorizontalBox {padding:0px;spacing:12px;height:36px;vertical-stretch:0;
-                            Text {text:root.tr(root.connected?"设备连接成功":root.busy?"正在连接设备":"连接失败",root.english);font-size:14px;font-weight:600;color:AppColors.ink;vertical-alignment:center;horizontal-stretch:0;}
-                            Text {text:root.host+":"+root.port;font-size:11px;color:AppColors.muted;vertical-alignment:center;horizontal-stretch:1;min-width:0px;overflow:elide;}
-                            if root.connected:ActionButton {text:root.tr("进入远程桌面",root.english);icon:@image-url("icons/go.svg");has-icon:true;primary:true;enabled:root.enabled;clicked=>{root.desktop();}}
-                        }
-                        if !root.connected:VerticalBox {padding:0px;spacing:6px;vertical-stretch:0;
-                            if (root.busy||root.error!="")&&root.stage>=0&&root.stage<root.steps.length:Text {text:root.tr(root.steps[root.stage],root.english);font-size:12px;font-weight:500;color:AppColors.ink;vertical-stretch:0;}
-                            if root.busy&&root.detail!="":Text {text:root.detail;color:AppColors.muted;font-size:11px;wrap:word-wrap;vertical-stretch:0;}
-                            if root.error!="":Text {text:root.tr(root.error,root.english);color:AppColors.danger;font-size:12px;wrap:word-wrap;vertical-stretch:0;}
-                            if root.error!=""&&root.advice!="":Text {text:root.tr(root.advice,root.english);color:AppColors.muted;font-size:11px;wrap:word-wrap;vertical-stretch:0;}
-                        }
+            }
+        }
+        VerticalBox {padding:0px;spacing:10px;vertical-stretch:0;
+            Rectangle {height:1px;vertical-stretch:0;background:AppColors.edge;}
+            HorizontalBox {padding:0px;spacing:12px;vertical-stretch:0;
+                connect-button:=ActionButton {text:root.tr(root.busy?"取消连接":root.connected?"断开设备":"连接设备",root.english);icon:@image-url("icons/connect.svg");has-icon:true;busy:root.busy;primary:true;enabled:root.enabled;clicked=>{if root.busy||root.connected{root.disconnect();}else{root.connect();}}}
+                Rectangle {preferred-width:0px;min-width:96px;horizontal-stretch:1;background:transparent;
+                    if root.busy||root.error!="":VerticalBox {height:parent.height;padding:0px;spacing:3px;alignment:center;
+                        Text {text:root.stage>=0&&root.stage<root.steps.length?root.tr(root.steps[root.stage],root.english):root.tr(root.busy?"准备认证资料":"连接失败",root.english);font-size:12px;font-weight:500;color:root.error!=""?AppColors.danger:AppColors.ink;vertical-stretch:0;overflow:elide;}
+                        if root.busy:Text {text:root.detail;color:AppColors.muted;font-size:11px;vertical-stretch:0;overflow:elide;}
                     }
+                    if root.connected:ActionButton {width:min(parent.width,self.preferred-width);y:(parent.height - self.height)/2;text:root.tr("进入远程桌面",root.english);icon:@image-url("icons/go.svg");has-icon:true;enabled:root.enabled;clicked=>{root.desktop();}}
+                }
+                ActionButton {text:root.tr("保存配置",root.english);enabled:root.editable;clicked=>{root.save();}}
+                ActionButton {visible:root.selected-id!="";text:root.tr("移除配置",root.english);danger:true;enabled:root.editable;clicked=>{root.remove();}}
+            }
+            result-panel:=Rectangle {height:root.error!=""&&!root.busy&&!root.connected?result.preferred-height+20px:0px;vertical-stretch:0;clip:true;border-radius:10px;background:AppColors.danger.with-alpha(0.06);
+                result:=VerticalBox {x:12px;y:10px;width:parent.width - 24px;height:self.preferred-height;padding:0px;spacing:6px;
+                    Text {text:root.tr(root.error,root.english);color:AppColors.danger;font-size:12px;wrap:word-wrap;vertical-stretch:0;}
+                    if root.advice!="":Text {text:root.tr(root.advice,root.english);color:AppColors.muted;font-size:11px;wrap:word-wrap;vertical-stretch:0;}
                 }
             }
+        }
         }
     }
 }
