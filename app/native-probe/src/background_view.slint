@@ -18,7 +18,7 @@ export component BackgroundSettings inherits VerticalBox {
     }
     HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
         Text {text:root.tr("颜色",root.english);font-size:11px;color:AppColors.muted;horizontal-stretch:0;vertical-alignment:center;}
-        color-trigger:=Rectangle {width:36px;height:32px;horizontal-stretch:0;border-radius:9px;border-width:color-focus.has-focus?2px:1px;border-color:color-focus.has-focus?AppColors.accent:AppColors.edge;background:AppColors.field;
+        color-trigger:=Rectangle {width:36px;height:32px;horizontal-stretch:0;border-radius:9px;border-width:1px;border-color:AppColors.edge;background:AppColors.field;
             Rectangle {x:5px;y:5px;width:parent.width - 10px;height:parent.height - 10px;border-radius:5px;background:root.color;}
             function open(){root.picker-position(self.absolute-position.x/1px,self.absolute-position.y/1px);root.action("picker");}
             forward-focus:color-focus;accessible-role:button;accessible-label:root.tr("背景颜色",root.english);accessible-action-default=>{self.open();}

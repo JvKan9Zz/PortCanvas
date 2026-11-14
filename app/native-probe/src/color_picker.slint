@@ -43,7 +43,7 @@ export component ColorPicker inherits Rectangle {
     }
     HorizontalBox {padding:0px;spacing:8px;height:28px;vertical-stretch:0;
         for color[index] in root.presets:Rectangle {width:24px;height:28px;horizontal-stretch:0;background:transparent;
-            Rectangle {y:swatch-touch.has-hover?0px:2px;width:24px;height:24px;border-radius:6px;border-width:swatch-keys.has-focus?2px:1px;border-color:swatch-keys.has-focus?AppColors.accent:AppColors.edge;background:color;animate y {duration:AppColors.motion?150ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
+            Rectangle {y:swatch-touch.has-hover?0px:2px;width:24px;height:24px;border-radius:6px;border-width:1px;border-color:AppColors.edge;background:color;animate y {duration:AppColors.motion?150ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
             forward-focus:swatch-keys;accessible-role:button;accessible-label:root.tr("选择颜色",root.english)+" "+root.preset-names[index];accessible-action-default=>{root.hex-edited(root.preset-names[index]);}
             swatch-keys:=FocusScope {key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.hex-edited(root.preset-names[index]);return accept;}return reject;}}
             swatch-touch:=TouchArea {clicked=>{swatch-keys.focus();root.hex-edited(root.preset-names[index]);}}

@@ -10,8 +10,8 @@ export component CommandEditor inherits Rectangle {
     callback edited(string,int);callback focused(bool);callback key(string,bool,bool,bool)->bool;
     forward-focus:input;
     horizontal-stretch:1;vertical-stretch:0;
-    background:Palette.background;border-radius:4px;border-width:input.has-focus?2px:1px;
-    border-color:input.has-focus?Palette.accent-background:Palette.border;
+    background:Palette.background;border-radius:4px;border-width:1px;
+    border-color:Palette.border;
     min-height:34px;preferred-height:root.expanded?100px:min(110px,max(34px,input.preferred-height+12px));
     // The pinned Slint TextInput exposes UTF-8 byte offsets, matching the Rust word scanner.
     changed revision=>{input.set-selection-offsets(root.caret,root.caret);}

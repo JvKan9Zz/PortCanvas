@@ -48,11 +48,11 @@ export component ActionButton inherits Rectangle {
     out property <int> busy-phase:progress-dots.phase;out property <int> busy-wave:progress-dots.wave;
     min-width:64px;height:36px;horizontal-stretch:0;vertical-stretch:0;
     preferred-width:label.preferred-width + 24px + (root.has-icon||root.busy?24px:0px);
-    border-radius:10px;border-width:keys.has-focus?2px:1px;
-    border-color:keys.has-focus?AppColors.accent:root.selected?AppColors.accent.with-alpha(0.35):AppColors.edge;
+    border-radius:10px;border-width:1px;
+    border-color:AppColors.edge;
     background:!root.enabled?AppColors.inset:root.primary?(touch.pressed?AppColors.accent.darker(1.2):touch.has-hover?AppColors.accent.darker(1.1):AppColors.accent):root.selected?AppColors.soft:touch.pressed?AppColors.soft:touch.has-hover?AppColors.field:AppColors.surface.with-alpha(0.7);
     animate background,border-color {duration:AppColors.motion?160ms:0ms;}
-    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.975:1;animate transform-scale {duration:AppColors.motion?220ms:0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,1.35,0.4,1);}
+    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.94:1;animate transform-scale {duration:AppColors.motion?(touch.pressed?90ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
     accessible-role:button;accessible-label:root.text;accessible-enabled:root.enabled;
     accessible-action-default=>{if root.enabled{root.clicked();}}
     forward-focus:keys;

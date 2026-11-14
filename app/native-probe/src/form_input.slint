@@ -12,8 +12,8 @@ export component FormInput inherits Rectangle {
     in property <bool> compact:false;
     in property <bool> centered:false;
     min-width:0px;preferred-width:180px;preferred-height:root.compact?32px:42px;min-height:root.compact?32px:42px;vertical-stretch:0;
-    border-radius:10px;border-width:editor.has-focus?2px:1px;
-    border-color:editor.has-focus?AppColors.accent:AppColors.edge;
+    border-radius:10px;border-width:1px;
+    border-color:AppColors.edge;
     background:root.enabled?AppColors.field:AppColors.inset;
     animate border-color,background {duration:AppColors.motion?160ms:0ms;}
     forward-focus:editor;

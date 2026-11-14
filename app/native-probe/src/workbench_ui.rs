@@ -73,11 +73,12 @@ slint::slint! {
         in property <color> bg-picker-color;in property <color> bg-picker-hue-color;
         in-out property <string> bg-picker-hex;in property <string> bg-picker-error;
         callback bg-picker-change(float,float,float);callback bg-picker-rgb(int,int,int);callback bg-picker-hex-edited(string);callback bg-picker-response(bool);
-        callback settings-backdrop(bool);
+        callback settings-backdrop(bool);callback settings-backdrop-ready(string,image,float);
         in property <image> settings-backdrop-frame;in property <bool> settings-backdrop-active;
+        property <float> settings-backdrop-phase:root.settings-backdrop-active?1:0;
+        animate settings-backdrop-phase {duration:AppColors.motion?120ms:0ms;easing:ease-out;}
         in-out property <bool> settings-open:false;
-        property <bool> settings-presented:false;
-        Timer {interval:1ms;running:root.settings-open&&!root.settings-presented;triggered=>{root.settings-presented=true;}}
+        in-out property <bool> settings-presented:false;
         in-out property <int> settings-section:0;
         property <float> settings-progress:root.settings-presented?1:0;
         animate settings-progress {duration:AppColors.motion?(root.settings-open?320ms:220ms):0ms;easing:cubic-bezier(0.22,0.61,0.36,1);}
@@ -260,7 +261,7 @@ slint::slint! {
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.preferred-accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
-        changed page=>{root.page-entering=true;if root.page!=5{root.desktop-expand(false);}root.material-refresh();root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.terminal-visible{root.terminal-reload();}}
+        changed page=>{root.page-entering=true;if root.page!=5{root.desktop-expand(false);}root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.terminal-visible{root.terminal-reload();}}
         changed native-hidden=>{AppColors.motion=!root.material-solid&&!root.native-hidden;root.bg-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.terminal-visible{root.terminal-reload();}}
         Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.can-interact;triggered=>{root.poll-logs();}}
 
@@ -301,13 +302,13 @@ slint::slint! {
                 VerticalBox {padding-left:9px;padding-right:9px;padding-top:20px;padding-bottom:12px;spacing:12px;
                     Rectangle {height:58px;vertical-stretch:0;background:transparent;Image {x:(parent.width - 43px)/2;width:43px;height:43px;source:@image-url("../assets/portcanvas.png");image-fit:contain;}}
                     Rectangle {height:352px;vertical-stretch:0;background:transparent;
-                        nav-pill:=Rectangle {y:root.nav-index*72px;width:parent.width;height:64px;border-radius:17px;background:AppColors.soft;border-width:1px;border-color:AppColors.accent.with-alpha(0.22);animate y {duration:AppColors.motion?380ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
+                        nav-pill:=Rectangle {transform-origin:{x:self.width/2,y:self.height/2};transform-scale:root.nav-index==0?nav-devices.press-scale:root.nav-index==1?nav-desktop.press-scale:root.nav-index==2?nav-files.press-scale:root.nav-index==3?nav-logs.press-scale:nav-arena.press-scale;y:root.nav-index*72px;width:parent.width;height:64px;border-radius:17px;background:AppColors.soft;animate y {duration:AppColors.motion?320ms:0ms;easing:cubic-bezier(0.22,0.61,0.36,1);}}
                         VerticalBox {padding:0px;spacing:8px;
-                            NavButton {text:root.english?"Devices":"设备";icon:@image-url("icons/devices.svg");shared-selection:true;selected:root.page==0;enabled:root.can-interact;clicked=>{root.page=0;}}
-                            NavButton {text:root.english?"Desktop":"桌面";icon:@image-url("icons/desktop.svg");shared-selection:true;selected:root.page==5;enabled:root.can-interact;clicked=>{root.page=5;}}
-                            NavButton {text:root.english?"Files":"文件";icon:@image-url("icons/files.svg");shared-selection:true;selected:root.page==6;enabled:root.can-interact;clicked=>{root.page=6;}}
-                            NavButton {text:root.english?"Logs":"日志";icon:@image-url("icons/logs.svg");shared-selection:true;selected:root.page==3;enabled:root.can-interact;clicked=>{root.page=3;}}
-                            NavButton {text:root.english?"Arena":"赛台";icon:@image-url("icons/arena.svg");shared-selection:true;selected:root.page==7;enabled:root.can-interact;clicked=>{root.page=7;}}
+                            nav-devices:=NavButton {text:root.english?"Devices":"设备";icon:@image-url("icons/devices.svg");shared-selection:true;selected:root.page==0;enabled:root.can-interact;clicked=>{root.page=0;}}
+                            nav-desktop:=NavButton {text:root.english?"Desktop":"桌面";icon:@image-url("icons/desktop.svg");shared-selection:true;selected:root.page==5;enabled:root.can-interact;clicked=>{root.page=5;}}
+                            nav-files:=NavButton {text:root.english?"Files":"文件";icon:@image-url("icons/files.svg");shared-selection:true;selected:root.page==6;enabled:root.can-interact;clicked=>{root.page=6;}}
+                            nav-logs:=NavButton {text:root.english?"Logs":"日志";icon:@image-url("icons/logs.svg");shared-selection:true;selected:root.page==3;enabled:root.can-interact;clicked=>{root.page=3;}}
+                            nav-arena:=NavButton {text:root.english?"Arena":"赛台";icon:@image-url("icons/arena.svg");shared-selection:true;selected:root.page==7;enabled:root.can-interact;clicked=>{root.page=7;}}
                         }
                     }
                     Rectangle {vertical-stretch:1;background:transparent;}
@@ -452,7 +453,7 @@ slint::slint! {
         Rectangle {visible:root.settings-open||root.settings-progress>0;opacity:root.settings-progress;background:transparent;
             // Retain the bounded backdrop until the sheet closes; preference
             // edits must not turn a blurred modal backdrop into the sharp page.
-            if root.settings-backdrop-active&&!root.material-solid:Image {x:0px;y:0px;width:parent.width;height:parent.height;source:root.settings-backdrop-frame;image-fit:fill;}
+            if root.settings-backdrop-active&&!root.material-solid:Image {x:0px;y:0px;width:parent.width;height:parent.height;opacity:root.settings-backdrop-phase;source:root.settings-backdrop-frame;image-fit:fill;}
             Rectangle {background:#23345030;}
             TouchArea {enabled:root.settings-open&&root.can-interact;clicked=>{root.settings-open=false;}}
             settings-panel:=MaterialPanel {x:(parent.width - self.width)/2;y:(parent.height - self.height)/2+(1-root.settings-progress)*18px;width:min(840px,parent.width - 64px);height:min(640px,parent.height - 64px);solid:true;
@@ -466,7 +467,7 @@ slint::slint! {
                             VerticalBox {padding-left:16px;padding-right:16px;padding-top:24px;padding-bottom:24px;spacing:16px;
                                 Text {text:root.tr("设置",root.english);font-size:20px;font-weight:600;color:AppColors.ink;height:44px;vertical-stretch:0;}
                                 Rectangle {height:142px;vertical-stretch:0;background:transparent;accessible-role:tab-list;
-                                    settings-pill:=Rectangle {y:root.settings-section*50px;width:parent.width;height:42px;border-radius:12px;background:AppColors.field;animate y {duration:AppColors.motion?320ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
+                                    settings-pill:=Rectangle {transform-origin:{x:self.width/2,y:self.height/2};transform-scale:root.settings-section==0?settings-general.press-scale:root.settings-section==1?settings-storage.press-scale:settings-about.press-scale;y:root.settings-section*50px;width:parent.width;height:42px;border-radius:12px;background:AppColors.field;animate y {duration:AppColors.motion?320ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
                                     settings-general:=SettingsTab {y:0px;width:parent.width;text:root.tr("通用",root.english);icon:@image-url("icons/settings.svg");selected:root.settings-section==0;enabled:root.can-interact;clicked=>{root.settings-section=0;}}
                                     settings-storage:=SettingsTab {y:50px;width:parent.width;text:root.tr("存储",root.english);icon:@image-url("icons/files.svg");selected:root.settings-section==1;enabled:root.can-interact;clicked=>{root.settings-section=1;}}
                                     settings-about:=SettingsTab {y:100px;width:parent.width;text:root.tr("关于",root.english);icon:@image-url("icons/about.svg");selected:root.settings-section==2;enabled:root.can-interact;clicked=>{root.settings-section=2;}}

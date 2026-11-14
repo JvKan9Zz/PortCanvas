@@ -91,6 +91,8 @@ pub struct Controller {
     last_geometry: Cell<Option<(bool,[f32;4],[f32;14])>>,
     geometry: RefCell<Vec<serde_json::Value>>,
     backdrop_events: RefCell<Vec<serde_json::Value>>,
+    backdrop_revision: Cell<u64>,
+    pending_backdrop: Cell<Option<u64>>,
 }
 impl Controller {
     pub fn install(ui: &Workbench, pending_draw: Arc<AtomicU64>) -> anyhow::Result<Rc<Self>> {
@@ -134,9 +136,20 @@ impl Controller {
             last_geometry: Cell::new(None),
             geometry: RefCell::new(Vec::new()),
             backdrop_events: RefCell::new(Vec::new()),
+            backdrop_revision: Cell::new(0),
+            pending_backdrop: Cell::new(None),
         });
         ui.set_observe_motion(c.record_geometry);
         ui.on_settings_backdrop({let c=c.clone();move |capture|c.backdrop(capture)});
+        ui.on_settings_backdrop_ready({let c=c.clone();move |ticket,image,blur_ms|{
+            if ticket.parse::<u64>().ok()!=Some(c.backdrop_revision.get()){return;}
+            let Some(ui)=c.ui.upgrade() else{return};
+            if !ui.get_settings_open(){return;}
+            ui.set_settings_backdrop_frame(image);ui.set_settings_backdrop_active(true);
+            if c.record_geometry&&c.backdrop_events.borrow().len()<64 {
+                c.backdrop_events.borrow_mut().push(serde_json::json!({"ready":true,"ms":c.epoch.elapsed().as_millis(),"blurMs":blur_ms}));
+            }
+        }});
         ui.on_material_refresh({
             let c = c.clone();
             move || c.refresh()
@@ -179,6 +192,7 @@ impl Controller {
                 }
                 slint::RenderingState::BeforeRendering => render.draw(api),
                 slint::RenderingState::AfterRendering => {
+                    render.capture_backdrop(api);
                     render.last_render.set(Some(Instant::now()));
                     render.watch();
                     let ticket = pending_draw.swap(0, Ordering::SeqCst);
@@ -500,33 +514,47 @@ impl Controller {
     }
     fn backdrop(&self, capture: bool) {
         let Some(ui)=self.ui.upgrade() else{return};
+        self.backdrop_revision.set(self.backdrop_revision.get().wrapping_add(1));
+        self.pending_backdrop.set(None);
         ui.set_settings_backdrop_active(false);
         ui.set_settings_backdrop_frame(Default::default());
         if !capture || ui.get_material_solid() || ui.get_native_hidden() {
+            if capture {ui.set_settings_presented(true);}
             if self.record_geometry && self.backdrop_events.borrow().len()<64 {
                 self.backdrop_events.borrow_mut().push(serde_json::json!({"capture":false,"released":true}));
             }
             return;
         }
-        // FemtoVG reads its last rendered front buffer once, before the modal is
-        // painted. Keep only the bounded blurred image; no timer or live capture.
+        // Paint one clean frame, then capture it before present. CPU blur runs
+        // off the UI thread; the sheet starts after readback and the blur fades
+        // in when ready, so CPU work cannot hold the opening animation.
+        self.pending_backdrop.set(Some(self.backdrop_revision.get()));
+        ui.window().request_redraw();
+    }
+    fn capture_backdrop(&self, api: &slint::GraphicsAPI) {
+        let Some(ticket)=self.pending_backdrop.take() else{return};
+        let Some(ui)=self.ui.upgrade() else{return};
+        if !ui.get_settings_open(){return;}
         let started=Instant::now();
-        let result=(||->anyhow::Result<(slint::Image,u32,u32)>{
-            let pixels=ui.window().take_snapshot().map_err(|e|anyhow::anyhow!("{e}"))?;
-            let (width,height)=(pixels.width(),pixels.height());
-            anyhow::ensure!(width>0&&height>0,"empty window snapshot");
-            let limit=match ui.get_glass_quality(){2=>1024.0,1=>640.0,_=>320.0};
-            let ratio=(limit/width as f32).min(640.0/height as f32).min(1.0);
-            let (w,h)=((width as f32*ratio).round().max(1.0) as u32,(height as f32*ratio).round().max(1.0) as u32);
-            let source=image::RgbaImage::from_raw(width,height,pixels.as_bytes().to_vec()).ok_or_else(||anyhow::anyhow!("invalid window pixels"))?;
-            let small=image::imageops::resize(&source,w,h,image::imageops::FilterType::Nearest);
-            let blurred=image::imageops::fast_blur(&small,(6.0*ui.window().scale_factor()*ratio).max(1.0));
-            let buffer=SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(blurred.as_raw(),w,h);
-            Ok((slint::Image::from_rgba8(buffer),w,h))
-        })();
-        let mut event=serde_json::json!({"capture":true,"ms":started.elapsed().as_secs_f64()*1000.0});
+        let size=ui.window().size();
+        let limit=match ui.get_glass_quality(){2=>1024,1=>640,_=>320};
+        let result=unsafe{crate::material_gpu::capture_window(api,(size.width,size.height),limit)};
+        ui.set_settings_presented(true);
+        let mut event=serde_json::json!({"capture":true,"readbackMs":started.elapsed().as_secs_f64()*1000.0,"asyncBlur":true});
         match result {
-            Ok((image,w,h))=>{ui.set_settings_backdrop_frame(image);ui.set_settings_backdrop_active(true);event["size"]=serde_json::json!([w,h]);}
+            Ok((mut pixels,ratio))=>{
+                let (w,h)=pixels.dimensions();event["size"]=serde_json::json!([w,h]);
+                let sigma=(6.0*ui.window().scale_factor()*ratio).max(1.0);
+                let weak=self.ui.clone();
+                std::thread::spawn(move||{
+                    let started=Instant::now();
+                    image::imageops::flip_vertical_in_place(&mut pixels);
+                    let blurred=image::imageops::fast_blur(&pixels,sigma);
+                    let buffer=SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(blurred.as_raw(),w,h);
+                    let blur_ms=started.elapsed().as_secs_f32()*1000.0;
+                    let _=weak.upgrade_in_event_loop(move|ui|ui.invoke_settings_backdrop_ready(ticket.to_string().into(),slint::Image::from_rgba8(buffer),blur_ms));
+                });
+            }
             Err(error)=>{event["error"]=error.to_string().into();}
         }
         if self.record_geometry && self.backdrop_events.borrow().len()<64 {self.backdrop_events.borrow_mut().push(event);}
