@@ -81,7 +81,7 @@ export component LogsView inherits VerticalBox {
                 }
                 if !root.selected:Text {text:root.tr("选择一份日志查看详情",root.english);color:AppColors.muted;vertical-stretch:0;}
                 if root.selected:ScrollView {viewport-width:self.visible-width;viewport-height:max(self.visible-height,detail-content.preferred-height);vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;min-height:0px;
-                detail-content:=VerticalBox {width:parent.width;padding:0px;spacing:12px;
+                detail-content:=VerticalBox {x:0px;y:0px;width:parent.width;height:max(parent.height,self.preferred-height);padding:0px;spacing:12px;
                     Rectangle {height:42px;vertical-stretch:0;border-radius:10px;background:AppColors.inset;
                         Text {x:12px;width:parent.width - 24px;height:parent.height;text:root.command;color:AppColors.ink;overflow:elide;vertical-alignment:center;}
                     }

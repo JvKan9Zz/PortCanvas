@@ -376,7 +376,7 @@ slint::slint! {
                 tr(s,e)=>{return root.tr(s,e);}filter(p,d,s)=>{root.filter-logs(p,d,s);}refresh=>{root.refresh-logs();}select(id)=>{root.select-log(id);}toggle(id,c)=>{root.toggle-log(id,c);}all(c)=>{root.select-all-logs(c);}page(next)=>{root.log-page(next);}remove=>{root.remove-logs();}open=>{root.open-log-directory(true);}
             }
             if root.page==7:ScrollView {viewport-width:self.visible-width;viewport-height:max(self.visible-height,arena-content.natural-height);vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
-            arena-content:=ArenaView {width:parent.width;height:parent.height;
+            arena-content:=ArenaView {x:0px;y:0px;width:parent.width;height:max(parent.height,self.natural-height);
                 english:root.english;enabled:root.can-interact;connected:root.connected;
                 cameras:root.arena-cameras;camera-index<=>root.arena-camera-index;rate<=>root.arena-rate;
                 camera-active:root.arena-camera-active;camera-loading:root.arena-camera-loading;frame:root.arena-frame;has-frame:root.arena-has-frame;

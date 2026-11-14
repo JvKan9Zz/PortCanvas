@@ -19,7 +19,8 @@ export component ArenaView inherits Rectangle {
     property <length> side-width:root.narrow?root.width:(root.width - 18px)/3;
     property <length> camera-height:root.side-width*0.625+122px;
     property <length> metrics-height:root.narrow?410px:root.height - camera-card.height - 16px;
-    property <length> stage-y:root.narrow?root.camera-height+root.metrics-height+32px:0px;
+    // The narrow stack must not depend on the viewport's own height.
+    property <length> stage-y:root.narrow?root.camera-height+410px+32px:0px;
     out property <length> natural-height:root.narrow?root.stage-y+420px:root.camera-height+436px;
     background:transparent;
     camera-card:=Rectangle {x:0px;y:0px;width:root.side-width;height:root.camera-height;border-radius:16px;border-width:1px;border-color:AppColors.edge;background:AppColors.card;clip:true;
@@ -42,8 +43,8 @@ export component ArenaView inherits Rectangle {
         }
     }
     Rectangle {x:0px;y:camera-card.height+16px;width:root.side-width;height:root.metrics-height;background:AppColors.card;border-radius:16px;border-width:1px;border-color:AppColors.edge;clip:true;
-        ScrollView {viewport-width:self.visible-width;viewport-height:metrics.preferred-height;vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
-            metrics:=VerticalBox {width:parent.width;padding:16px;spacing:14px;
+        ScrollView {viewport-width:self.visible-width;viewport-height:max(self.visible-height,metrics.preferred-height);vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
+            metrics:=VerticalBox {x:0px;y:0px;width:parent.width;height:self.preferred-height;padding:16px;spacing:14px;
                 HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
                     Text {text:root.tr("设备性能",root.english);font-size:13px;font-weight:600;color:AppColors.ink;horizontal-stretch:1;}
                     ActivityIndicator {active:root.connected&&root.metrics-status==root.tr("正在读取…",root.english);}
