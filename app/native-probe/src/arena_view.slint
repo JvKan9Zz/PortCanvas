@@ -18,9 +18,10 @@ export component ArenaView inherits Rectangle {
     property <bool> narrow:root.width<760px;
     property <length> side-width:root.narrow?root.width:(root.width - 18px)/3;
     property <length> camera-height:root.side-width*0.625+122px;
-    property <length> metrics-height:root.narrow?410px:root.height - camera-card.height - 16px;
+    property <length> narrow-metrics-height:max(410px,metrics.preferred-height+4px);
+    property <length> metrics-height:root.narrow?root.narrow-metrics-height:root.height - camera-card.height - 16px;
     // The narrow stack must not depend on the viewport's own height.
-    property <length> stage-y:root.narrow?root.camera-height+410px+32px:0px;
+    property <length> stage-y:root.narrow?root.camera-height+root.narrow-metrics-height+32px:0px;
     out property <length> natural-height:root.narrow?root.stage-y+420px:root.camera-height+436px;
     background:transparent;
     camera-card:=Rectangle {x:0px;y:0px;width:root.side-width;height:root.camera-height;border-radius:16px;border-width:1px;border-color:AppColors.edge;background:AppColors.card;clip:true;
