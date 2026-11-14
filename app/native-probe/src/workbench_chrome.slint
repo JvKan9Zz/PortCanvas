@@ -23,7 +23,8 @@ export component NavButton inherits Rectangle {
     callback clicked();
     preferred-height:64px;min-height:64px;vertical-stretch:0;
     border-radius:17px;
-    background:touch.pressed?AppColors.soft:root.selected&&!root.shared-selection?AppColors.soft:transparent;
+    // Shared selections have one moving plate in the parent, including on press.
+    background:root.shared-selection?transparent:touch.pressed||root.selected?AppColors.soft:transparent;
     out property <float> press-scale:AppColors.motion&&touch.pressed?0.94:1;animate press-scale {duration:AppColors.motion?(touch.pressed?90ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
     transform-origin:{x:self.width/2,y:self.height/2};transform-scale:root.press-scale;
     border-width:0px;
