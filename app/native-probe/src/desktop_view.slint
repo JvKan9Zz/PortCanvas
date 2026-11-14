@@ -51,7 +51,7 @@ export component DesktopView inherits Rectangle {
     toolbar:=MaterialPanel {x:0px;y:0px;width:parent.width;height:46px;border-radius:14px;
         material:root.toolbar-material;active:root.expanded&&root.material-active;solid:root.material-solid;strength:root.material-strength;
         HorizontalBox {padding:8px;spacing:6px;
-            quality-tool:=SelectBox {compact:true;width:root.english?100px:72px;horizontal-stretch:0;accessible-label:root.tr("桌面画质",root.english);model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.mode;enabled:root.enabled;selected(i)=>{root.quality(i);}popup-state(open)=>{root.quality-open=open;}}
+            quality-tool:=SelectBox {compact:true;width:root.english?112px:96px;horizontal-stretch:0;accessible-label:root.tr("桌面画质",root.english);model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.mode;enabled:root.enabled;selected(i)=>{root.quality(i);}popup-state(open)=>{root.quality-open=open;}}
             DesktopTool {text:root.tr("适配",root.english);label:root.tr("适应窗口",root.english);icon:@image-url("icons/fit.svg");show-text:!root.compact;checkable:true;checked:root.fit;enabled:root.enabled;clicked=>{root.fit=true;}}
             DesktopTool {text:"1:1";label:root.tr("原始尺寸",root.english);has-icon:false;checkable:true;checked:!root.fit;enabled:root.enabled;clicked=>{root.fit=false;}}
             Rectangle {horizontal-stretch:1;background:transparent;}
@@ -62,7 +62,7 @@ export component DesktopView inherits Rectangle {
         }
     }
     canvas:=Rectangle {x:0px;y:54px;width:parent.width;height:parent.height - 54px - (root.expanded?0px:22px) - (live-error.visible?live-error.height + 8px:0px);
-        background:#181c24;border-radius:root.expanded?0px:14px;clip:true;min-height:140px;
+        background:#181c24;border-radius:14px;clip:true;min-height:140px;
         property <length> edge:root.expanded?0px:2px;
         border-width:0px;
         scroll:=ScrollView {

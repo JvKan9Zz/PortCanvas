@@ -1,6 +1,4 @@
 import {ScrollView,ListView,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
-import {FormInput as LineEdit} from "form_input.slint";
-import {ConnectionBadge} from "workbench_chrome.slint";
 import {ActionButton,ActionButton as Button,ActivityIndicator,AppColors} from "action_button.slint";
 import {DesktopTool} from "desktop_tool.slint";
 import {CommandEditor} from "command_editor.slint";
@@ -17,7 +15,6 @@ export component TerminalView inherits VerticalBox {
     in property <bool> cursor-visible:true;
     in property <string> phase;
     in property <string> status;in property <string> info;
-    property <bool> metadata-open:false;
     property <bool> horizontal-lines:true;
     function reveal-cursor() {
         if input.has-focus {
@@ -30,6 +27,7 @@ export component TerminalView inherits VerticalBox {
     changed cursor-column=>{root.reveal-cursor();}
     in property <string> error;
     in property <string> log-status;
+    in property <bool> log-error;
     in property <bool> connected;
     in property <bool> busy;
     in property <bool> sending;
@@ -79,9 +77,9 @@ export component TerminalView inherits VerticalBox {
     property <float> completion-phase:root.completions-visible?1:0;
     animate completion-phase {duration:AppColors.motion?140ms:0ms;}
     HorizontalBox {padding:0px;spacing:6px;height:36px;vertical-stretch:0;
-        ActionButton {primary:root.phase!="connected";busy:root.phase=="connecting";text:root.tr(!root.connected?(root.width<420px?"连接":"连接设备"):root.phase=="connected"?"断开":root.phase=="connecting"?(root.width<420px?"取消":"取消连接"):(root.width<420px?"连接":"连接终端"),root.english);enabled:root.enabled&&!root.busy&&(!root.connected||root.active!="");clicked=>{if !root.connected{root.connect-device();}else{root.resize-grid(grid.columns,grid.rows);root.action(root.phase=="connected"||root.phase=="connecting"?"stop":"start");}}}
-        ActionButton {text:root.tr("重启",root.english);enabled:root.connected&&!root.busy&&root.enabled&&root.active!="";clicked=>{root.action("reset");}}
-        ActionButton {text:root.tr("清屏",root.english);enabled:root.enabled&&root.active!="";clicked=>{root.action("clear");}}
+        ActionButton {horizontal-stretch:1;preferred-width:0px;primary:root.phase!="connected";busy:root.phase=="connecting";text:root.tr(!root.connected?(root.width<420px?"连接":"连接设备"):root.phase=="connected"?"断开":root.phase=="connecting"?(root.width<420px?"取消":"取消连接"):(root.width<420px?"连接":"连接终端"),root.english);enabled:root.enabled&&!root.busy&&(!root.connected||root.active!="");clicked=>{if !root.connected{root.connect-device();}else{root.resize-grid(grid.columns,grid.rows);root.action(root.phase=="connected"||root.phase=="connecting"?"stop":"start");}}}
+        ActionButton {width:64px;text:root.tr("重启",root.english);enabled:root.connected&&!root.busy&&root.enabled&&root.active!="";clicked=>{root.action("reset");}}
+        ActionButton {width:64px;text:root.tr("清屏",root.english);enabled:root.enabled&&root.active!="";clicked=>{root.action("clear");}}
         Rectangle {width:root.width<420px?44px:72px;height:36px;horizontal-stretch:0;
             DesktopTool {width:parent.width;height:36px;label:root.tr("更多",root.english);show-text:root.width>=420px;text:root.tr("更多",root.english);icon:root.width<420px?@image-url("icons/more.svg"):@image-url("icons/chevron.svg");icon-angle:root.width<420px?0deg:root.actions-open?180deg:0deg;enabled:root.enabled&&root.active!="";clicked=>{root.actions-open=true;actions-popup.show();}}
             actions-popup:=PopupWindow {x:0px;y:40px;width:180px;height:156px;forward-focus:menu-keys;
@@ -97,17 +95,10 @@ export component TerminalView inherits VerticalBox {
             }
         }
     }
-    DesktopTool {text:root.tr("会话信息",root.english);icon:@image-url("icons/chevron-right.svg");icon-angle:root.metadata-open?90deg:0deg;enabled:root.enabled;clicked=>{root.metadata-open=!root.metadata-open;}}
-    Rectangle {height:root.metadata-open?60px:0px;vertical-stretch:0;clip:true;background:transparent;animate height {duration:AppColors.motion?260ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}Text {width:parent.width;text:root.info;color:AppColors.muted;font-size:11px;wrap:word-wrap;}}
-    ConnectionBadge {width:root.width;text:root.tr(root.status,root.english);phase:root.phase=="connected"?2:root.phase=="connecting"?1:root.error!=""?3:0;}
-    if root.error!="":Text {text:root.error;color:#d34b4b;wrap:word-wrap;vertical-stretch:0;}
-    HorizontalBox {padding:0px;spacing:8px;height:34px;vertical-stretch:0;
-        Text {text:root.tr("日志项目",root.english);color:AppColors.ink;vertical-alignment:center;horizontal-stretch:0;}
-        project-input:=LineEdit {label:root.tr("日志项目",root.english);text<=>root.project;enabled:root.connected&&root.enabled;edited(value)=>{root.project-edited(value);}}
-        Button {text:root.tr("保存项目",root.english);enabled:root.connected&&root.enabled&&!root.busy;clicked=>{root.action("project");}}
-
+    Rectangle {height:max(32px,status-label.preferred-height+16px);vertical-stretch:0;border-radius:9px;background:(root.error!=""||root.log-error?AppColors.danger:AppColors.muted).with-alpha(0.06);
+        Rectangle {x:10px;y:14px;width:4px;height:4px;border-radius:2px;background:root.error!=""||root.log-error?AppColors.danger:root.phase=="connected"?#4f9e7d:AppColors.muted;}
+        status-label:=Text {x:22px;y:8px;width:parent.width - 34px;height:self.preferred-height;text:root.error!=""?root.error:root.log-error?root.log-status:root.tr(root.status,root.english);color:root.error!=""||root.log-error?AppColors.danger:AppColors.muted;font-size:12px;wrap:word-wrap;}
     }
-    if root.log-status!="":Text {text:root.log-status;color:AppColors.ink;wrap:word-wrap;vertical-stretch:0;}
     Rectangle {
         min-height:120px;background:#181c24;clip:true;border-radius:13px;
         border-width:1px;border-color:#53657f;
@@ -158,7 +149,7 @@ export component TerminalView inherits VerticalBox {
                 if self.preedit-text!=""{return reject;}
                 if event.modifiers.control&&event.modifiers.shift&&(event.text=="c"||event.text=="C"){root.copy();return accept;}
                 if event.modifiers.control&&(event.text=="v"||event.text=="V"){root.paste();return accept;}
-                if event.text==Key.Tab&&event.modifiers.control {project-input.focus();return accept;}
+                if event.text==Key.Tab&&event.modifiers.control {command.focus();return accept;}
                 if root.key(event.text,event.modifiers.control,event.modifiers.alt,event.modifiers.shift){return accept;}
                 return reject;
             }

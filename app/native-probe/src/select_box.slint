@@ -9,6 +9,8 @@ export component SelectBox inherits Rectangle {
     property <int> highlighted:root.current-index;
     property <bool> opened:false;
     property <bool> closing:false;
+    property <float> reveal:root.opened?1:0;
+    animate reveal {duration:AppColors.motion?(root.opened?180ms:140ms):0ms;easing:cubic-bezier(0.16,1,0.3,1);}
     callback popup-state(bool);
     changed opened=>{root.popup-state(root.opened);}
     public function close-popup(){if root.opened{root.hide();}}
@@ -37,9 +39,9 @@ export component SelectBox inherits Rectangle {
     }}
     TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.show();}}
     popup:=PopupWindow {x:0px;y:root.height + 4px;width:root.width;height:min(6,root.model.length)*36px + 8px;forward-focus:popup-focus;
-        opacity:root.opened?1:0;animate opacity {duration:AppColors.motion?140ms:0ms;}
+        Rectangle {width:parent.width;height:parent.height*root.reveal;clip:true;opacity:root.reveal;background:transparent;
         Rectangle {background:AppColors.surface;border-radius:13px;border-width:1px;border-color:AppColors.edge;drop-shadow-offset-y:6px;drop-shadow-blur:24px;drop-shadow-color:#223a661f;}
-        popup-focus:=FocusScope {
+        popup-focus:=FocusScope {width:parent.width;height:min(6,root.model.length)*36px + 8px;
             focus-changed-event=>{if !self.has-focus{root.opened=false;}}
             key-pressed(event)=>{
                 if event.text==Key.Escape{root.hide();keys.focus();return accept;}
@@ -56,6 +58,7 @@ export component SelectBox inherits Rectangle {
                     TouchArea {changed has-hover=>{if self.has-hover{root.highlighted=index;}}clicked=>{root.choose(index);}}
                 }
             }
+        }
         }
     }
 }

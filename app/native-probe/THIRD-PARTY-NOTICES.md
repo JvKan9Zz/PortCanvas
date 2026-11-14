@@ -2,6 +2,8 @@
 
 Direct dependencies retain their upstream licenses. Slint uses the retained royalty-free terms and the AboutSlint widget. The locked Windows normal/build inventory and retained license texts are bundled in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt); font notices are included separately with the installer.
 
+Settings and General icons are from [Microsoft Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons), copyright Microsoft Corporation, used under the [MIT license](src/icons/FLUENT-LICENSE.txt). Their SVGs are embedded; no icon font is required.
+
 | Component | Upstream license |
 | --- | --- |
 | slint-1.15.1 | GPL-3.0-only OR LicenseRef-Slint-Royalty-free-2.0 OR LicenseRef-Slint-Software-3.0 |

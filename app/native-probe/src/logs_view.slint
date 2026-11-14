@@ -33,7 +33,9 @@ export component LogsView inherits VerticalBox {
             Text {text:root.tr("状态",root.english);font-size:11px;color:AppColors.muted;}
             SelectBox {accessible-label:root.tr("日志状态",root.english);model:[root.tr("全部状态",root.english),root.tr("记录中",root.english),root.tr("命令成功",root.english),root.tr("命令失败",root.english),root.tr("记录中断",root.english),root.tr("写入失败",root.english),root.tr("会话记录",root.english)];current-index<=>root.status-index;enabled:root.enabled;selected(i)=>{root.status-index=i;root.filter(root.project-index,root.day-index,i);}}
         }
-        ActionButton {text:root.tr("清理所选",root.english);danger:true;icon:@image-url("icons/trash.svg");has-icon:true;enabled:root.enabled&&root.checked>0;clicked=>{root.remove();}}
+        Rectangle {width:clear-button.preferred-width;horizontal-stretch:0;background:transparent;
+            clear-button:=ActionButton {y:parent.height - self.height;text:root.tr("清理所选",root.english);danger:true;icon:@image-url("icons/trash.svg");has-icon:true;enabled:root.enabled&&root.checked>0;clicked=>{root.remove();}}
+        }
         Rectangle {background:transparent;horizontal-stretch:1;}
     }
     if root.notice!="":Text {text:root.notice;color:AppColors.muted;wrap:word-wrap;vertical-stretch:0;}

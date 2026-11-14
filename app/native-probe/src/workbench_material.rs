@@ -83,6 +83,8 @@ pub struct Controller {
     epoch: Instant,
     last_tick: Cell<Instant>,
     last_render: Cell<Option<Instant>>,
+    frame_started: Cell<Option<Instant>>,
+    settings_frames: RefCell<Vec<serde_json::Value>>,
     prompted: Cell<bool>,
     ticks: Cell<u64>,
     unsubscribe_errors: RefCell<Vec<String>>,
@@ -128,6 +130,8 @@ impl Controller {
             epoch: Instant::now(),
             last_tick: Cell::new(Instant::now()),
             last_render: Cell::new(None),
+            frame_started: Cell::new(None),
+            settings_frames: RefCell::new(Vec::new()),
             prompted: Cell::new(false),
             ticks: Cell::new(0),
             unsubscribe_errors: Default::default(),
@@ -190,8 +194,22 @@ impl Controller {
                     render.key.borrow_mut().take();
                     render.bindings.borrow_mut().take();
                 }
-                slint::RenderingState::BeforeRendering => render.draw(api),
+                slint::RenderingState::BeforeRendering => {
+                    if render.record_geometry {render.frame_started.set(Some(Instant::now()));}
+                    render.draw(api);
+                }
                 slint::RenderingState::AfterRendering => {
+                    if let Some(ui)=render.ui.upgrade() {
+                        if ui.get_settings_preparing() {ui.set_settings_preparing(false);ui.window().request_redraw();}
+                    }
+                    if render.record_geometry {
+                        if let (Some(started),Some(ui))=(render.frame_started.take(),render.ui.upgrade()) {
+                            let phase=ui.get_chrome_layout().settings_opacity;
+                            if (ui.get_settings_open()||phase>0.0)&&render.settings_frames.borrow().len()<240 {
+                                render.settings_frames.borrow_mut().push(serde_json::json!({"atMs":render.epoch.elapsed().as_secs_f64()*1000.0,"drawMs":started.elapsed().as_secs_f64()*1000.0,"phase":phase}));
+                            }
+                        }
+                    }
                     render.capture_backdrop(api);
                     render.last_render.set(Some(Instant::now()));
                     render.watch();
@@ -528,6 +546,9 @@ impl Controller {
         // Paint one clean frame, then capture it before present. CPU blur runs
         // off the UI thread; the sheet starts after readback and the blur fades
         // in when ready, so CPU work cannot hold the opening animation.
+        if self.record_geometry && self.backdrop_events.borrow().len()<64 {
+            self.backdrop_events.borrow_mut().push(serde_json::json!({"requestedAtMs":self.epoch.elapsed().as_secs_f64()*1000.0}));
+        }
         self.pending_backdrop.set(Some(self.backdrop_revision.get()));
         ui.window().request_redraw();
     }
@@ -564,7 +585,7 @@ impl Controller {
             "qualityPasses":self.quality_passes.each_ref().map(Cell::get),"visibility":*self.visibility.borrow(),
             "released":self.released.get(),"driver":*self.driver.borrow(),"error":*self.error.borrow(),
             "policy":self.policy.get(),"os":self.os_report,"subscriptionsReleased":self.os.borrow().is_none()&&self.unsubscribe_errors.borrow().is_empty(),"unsubscribeErrors":*self.unsubscribe_errors.borrow(),
-            "synthetic":self.synthetic.get(),"heartbeatTicks":self.ticks.get(),"prompted":self.prompted.get(),"transitions":*self.transitions.borrow(),"backdrop":*self.backdrop_events.borrow(),"chromeFields":["navY","drawerWidth","drawerX","settingsY","settingsOpacity","settingsTabY","pagePhase","dialogY","dialogOpacity","advancedHeight","connectionHeight","busyPhase","busyWave","busy"],"geometry":*self.geometry.borrow()})
+            "synthetic":self.synthetic.get(),"heartbeatTicks":self.ticks.get(),"prompted":self.prompted.get(),"transitions":*self.transitions.borrow(),"backdrop":*self.backdrop_events.borrow(),"settingsFrames":*self.settings_frames.borrow(),"chromeFields":["navY","drawerWidth","drawerX","settingsY","settingsOpacity","settingsTabY","pagePhase","dialogY","dialogOpacity","advancedHeight","connectionHeight","busyPhase","busyWave","busy"],"geometry":*self.geometry.borrow()})
     }
     pub fn visibility(&self, hidden: bool) {
         if hidden {
