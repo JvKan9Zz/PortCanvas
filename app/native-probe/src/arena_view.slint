@@ -16,9 +16,11 @@ export component ArenaView inherits Rectangle {
     pure callback tr(string,bool)->string;
     callback toggle-camera();callback refresh-cameras();callback plot-resized(float);
     property <bool> narrow:root.width<760px;
-    property <length> side-width:root.narrow?(root.width - 16px)/2:(root.width - 18px)/3;
-    property <length> camera-height:root.narrow?390px:root.side-width*0.625+122px;
-    out property <length> natural-height:root.narrow?800px:root.camera-height+436px;
+    property <length> side-width:root.narrow?root.width:(root.width - 18px)/3;
+    property <length> camera-height:root.side-width*0.625+122px;
+    property <length> metrics-height:root.narrow?410px:root.height - camera-card.height - 16px;
+    property <length> stage-y:root.narrow?root.camera-height+root.metrics-height+32px:0px;
+    out property <length> natural-height:root.narrow?root.stage-y+420px:root.camera-height+436px;
     background:transparent;
     camera-card:=Rectangle {x:0px;y:0px;width:root.side-width;height:root.camera-height;border-radius:16px;border-width:1px;border-color:AppColors.edge;background:AppColors.card;clip:true;
         VerticalBox {padding:0px;spacing:0px;
@@ -39,7 +41,7 @@ export component ArenaView inherits Rectangle {
             Text {height:30px;vertical-stretch:0;text:root.tr(root.camera-status,root.english);font-size:11px;color:AppColors.muted;vertical-alignment:center;overflow:elide;}
         }
     }
-    Rectangle {x:root.narrow?root.side-width+16px:0px;y:root.narrow?0px:camera-card.height+16px;width:root.side-width;height:root.narrow?390px:root.height - camera-card.height - 16px;background:AppColors.card;border-radius:16px;border-width:1px;border-color:AppColors.edge;clip:true;
+    Rectangle {x:0px;y:camera-card.height+16px;width:root.side-width;height:root.metrics-height;background:AppColors.card;border-radius:16px;border-width:1px;border-color:AppColors.edge;clip:true;
         ScrollView {viewport-width:self.visible-width;viewport-height:metrics.preferred-height;vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
             metrics:=VerticalBox {width:parent.width;padding:16px;spacing:14px;
                 HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
@@ -72,7 +74,7 @@ history-plot:=Rectangle {height:80px;vertical-stretch:0;min-width:0px;background
             }
         }
     }
-    Rectangle {x:root.narrow?0px:root.side-width+18px;y:root.narrow?406px:0px;width:root.narrow?root.width:root.width - root.side-width - 18px;height:root.narrow?root.height - 406px:root.height;background:AppColors.card;border-radius:16px;border-width:1px;border-color:AppColors.edge;clip:true;
+    Rectangle {x:root.narrow?0px:root.side-width+18px;y:root.stage-y;width:root.narrow?root.width:root.width - root.side-width - 18px;height:root.narrow?root.height - root.stage-y:root.height;background:AppColors.card;border-radius:16px;border-width:1px;border-color:AppColors.edge;clip:true;
         VerticalBox {padding:12px;spacing:8px;
             HorizontalBox {padding:6px;height:44px;vertical-stretch:0;spacing:10px;
                 Text {text:root.tr("赛台",root.english);font-size:21px;font-weight:600;color:AppColors.ink;horizontal-stretch:1;}

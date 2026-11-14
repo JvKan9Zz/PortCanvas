@@ -71,7 +71,7 @@ export component LogsView inherits VerticalBox {
                 }
             }
         }
-        Rectangle {x:root.compact?0px:parent.width*0.44+7px;y:root.compact?parent.height*0.45+7px:0px;width:root.compact?parent.width:parent.width*0.56 - 7px;height:root.compact?parent.height*0.55 - 7px:parent.height;background:AppColors.card;border-radius:16px;
+        details-panel:=Rectangle {x:root.compact?0px:parent.width*0.44+7px;y:root.compact?parent.height*0.45+7px:0px;width:root.compact?parent.width:parent.width*0.56 - 7px;height:root.compact?parent.height*0.55 - 7px:parent.height;background:AppColors.card;border-radius:16px;
             VerticalBox {padding:18px;spacing:12px;
                 HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
                     Text {text:root.tr("运行详情",root.english);font-size:16px;font-weight:600;color:AppColors.ink;}
@@ -80,7 +80,8 @@ export component LogsView inherits VerticalBox {
                     ActivityIndicator {active:root.reading&&root.output=="";}
                 }
                 if !root.selected:Text {text:root.tr("选择一份日志查看详情",root.english);color:AppColors.muted;vertical-stretch:0;}
-                if root.selected:VerticalBox {padding:0px;spacing:12px;
+                if root.selected:ScrollView {viewport-width:self.visible-width;viewport-height:max(self.visible-height,detail-content.preferred-height);vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;min-height:0px;
+                detail-content:=VerticalBox {width:parent.width;padding:0px;spacing:12px;
                     Rectangle {height:42px;vertical-stretch:0;border-radius:10px;background:AppColors.inset;
                         Text {x:12px;width:parent.width - 24px;height:parent.height;text:root.command;color:AppColors.ink;overflow:elide;vertical-alignment:center;}
                     }
@@ -93,12 +94,13 @@ export component LogsView inherits VerticalBox {
                         }
                     }
                     if root.warning!="":Text {text:root.warning;color:AppColors.danger;font-size:11px;wrap:word-wrap;vertical-stretch:0;}
-                    Rectangle {background:AppColors.terminal;border-radius:10px;clip:true;min-height:80px;
+                    Rectangle {background:AppColors.terminal;border-radius:10px;clip:true;height:max(160px,details-panel.height - 300px);vertical-stretch:0;
                         output-scroll:=ScrollView {x:12px;y:12px;width:parent.width - 24px;height:parent.height - 24px;viewport-width:max(self.visible-width,raw.preferred-width);viewport-height:max(self.visible-height,raw.preferred-height);
                             raw:=TextInput {width:output-scroll.viewport-width;height:output-scroll.viewport-height;text:root.output;read-only:true;single-line:false;wrap:no-wrap;color:#e0e7f3;font-family:"Consolas";font-size:12px;accessible-label:root.tr("日志原文",root.english);}
                         }
                     }
                     Text {text:root.file;color:AppColors.muted;font-size:10px;overflow:elide;vertical-stretch:0;}
+                }
                 }
             }
         }
