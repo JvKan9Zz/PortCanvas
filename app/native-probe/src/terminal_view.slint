@@ -117,7 +117,7 @@ export component TerminalView inherits VerticalBox {
         changed rows=>{root.resize-grid(self.columns,self.rows);}
         for cell in root.cells: Rectangle {
             x:8px+cell.column*9px;y:8px+cell.row*21px;width:cell.wide?18px:9px;height:21px;background:cell.paper;
-            Text {text:cell.text;color:cell.ink;font-family:cell.wide?"Microsoft YaHei UI":"Consolas";font-size:14px;font-weight:cell.bold?700:400;vertical-alignment:center;}
+            Text {text:cell.text;color:cell.ink;font-family:cell.wide?"PortCanvas UI":"Consolas";font-size:14px;font-weight:cell.bold?700:400;vertical-alignment:center;}
             if cell.underline:Rectangle {y:19px;height:1px;background:cell.ink;}
         }
         Rectangle {visible:root.cursor-visible&&root.live&&root.cursor-row<grid.rows;

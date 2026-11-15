@@ -1,4 +1,7 @@
 slint::slint! {
+    import "../assets/ui-regular.ttf";
+    import "../assets/ui-medium.ttf";
+    import "../assets/ui-semibold.ttf";
     export {ActivityPattern} from "action_button.slint";
     import {CheckBox} from "check_box.slint";
     import {SelectBox as ComboBox} from "select_box.slint";
@@ -34,7 +37,7 @@ slint::slint! {
         title:"PortCanvas Beta · v"+root.app-version;
         icon:@image-url("../assets/portcanvas.png");
         preferred-width:1200px;preferred-height:820px;min-width:1000px;min-height:700px;
-        default-font-family:root.english?"Segoe UI":"Microsoft YaHei UI";default-font-size:14px;
+        default-font-family:"PortCanvas UI";default-font-size:14px;
         background:Palette.background;
         no-frame:root.window-is-fullscreen;
         init=>{Palette.color-scheme=ColorScheme.light;}
