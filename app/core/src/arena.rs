@@ -81,7 +81,7 @@ impl ArenaService {
                 {let mut camera=service.camera.lock().unwrap();if camera.id==id{camera.viewer=Instant::now();}}
                 let mut process=tokio::select!{_ = cancel.cancelled()=>return Ok::<(),anyhow::Error>(()),result=connection.channel()=>result?};
                 let result=async {
-                    let command=python(include_str!("../resources/camera_stream.py"),json!(["camera",json!({"path":path,"fps":fps}).to_string()]))?;
+                    let command=python(include_str!("../resources/camera_stream.py"),json!(["camera",json!({"path":path,"fps":fps,"pull":true}).to_string()]))?;
                     tokio::select!{_ = cancel.cancelled()=>return Ok(()),result=process.exec(true,connection.remote_command(&command))=>result?};
                     let mut parser=JpegFrames::default();let mut diagnostic=Vec::new();let mut heartbeat=tokio::time::interval(Duration::from_secs(1));
                     let deadline=tokio::time::sleep(Duration::from_secs(12));tokio::pin!(deadline);
@@ -93,7 +93,13 @@ impl ArenaService {
                             message=process.wait()=>message
                         };
                         match message {
-                            Some(russh::ChannelMsg::Data{data})=>for frame in parser.push(&data)?{deadline.as_mut().reset(tokio::time::Instant::now()+Duration::from_secs(12));let mut camera=service.camera.lock().unwrap();if camera.running.as_ref().map(|r|r.id)==Some(id)&&!cancel.is_cancelled(){camera.sequence+=1;camera.latest=Some(Arc::new(frame));camera.phase="connected";}},
+                            Some(russh::ChannelMsg::Data{data})=>{
+                                for frame in parser.push(&data)? {
+                                    deadline.as_mut().reset(tokio::time::Instant::now()+Duration::from_secs(12));
+                                    {let mut camera=service.camera.lock().unwrap();if camera.running.as_ref().map(|r|r.id)==Some(id)&&!cancel.is_cancelled(){camera.sequence+=1;camera.latest=Some(Arc::new(frame));camera.phase="connected";}}
+                                    tokio::select!{_ = cancel.cancelled()=>return Ok(()),result=process.data(&b"r"[..])=>result?};
+                                }
+                            },
                             Some(russh::ChannelMsg::ExtendedData{data,..})=>{
                                 let count=data.len().min(4000-diagnostic.len());diagnostic.extend_from_slice(&data[..count]);
                                 let text=String::from_utf8_lossy(&diagnostic);for line in text.lines(){if let Some(backend)=line.strip_prefix("PORTCANVAS_CAMERA:"){if matches!(backend,"ffmpeg-copy"|"ffmpeg-encode"|"opencv"){let mut camera=service.camera.lock().unwrap();if camera.id==id{camera.backend=backend.to_string();}}}}

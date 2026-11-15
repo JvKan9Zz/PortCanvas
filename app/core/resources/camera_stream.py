@@ -18,6 +18,8 @@ if fps not in (8,15,20,30):sys.exit('Invalid frame rate')
 child=None
 child_lock=threading.Lock()
 stopping=threading.Event()
+pull=bool(config.get("pull",False))
+credits=threading.Semaphore(2)
 
 def stop_child():
     with child_lock:process=child
@@ -30,8 +32,13 @@ def stop_child():
 def disconnected():
     while True:
         ready,_,_=select.select([0],[],[],15)
-        if not ready or not os.read(0,1):
+        if not ready:
             stopping.set();stop_child();os._exit(0)
+        data=os.read(0,4096)
+        if not data:
+            stopping.set();stop_child();os._exit(0)
+        if pull:
+            for _ in range(data.count(b'r')):credits.release()
 
 def native_mjpeg():
     fd=os.open(path,os.O_RDONLY|os.O_NONBLOCK)
@@ -74,24 +81,41 @@ def copied_mjpeg(executable,copy=True):
             diagnostic.extend(data[:max(0,3500-len(diagnostic))])
     threading.Thread(target=errors,daemon=True).start()
     print('PORTCANVAS_CAMERA:'+('ffmpeg-copy' if copy else 'ffmpeg-encode'),file=sys.stderr,flush=True)
-    reader=process.stdout;deadline=time.monotonic()
-    while True:
-        length=None
-        for _ in range(12):
-            line=reader.readline(1025)
-            if not line:raise RuntimeError(diagnostic.decode('utf-8','replace').strip() or 'Camera capture ended')
-            if len(line)>1024:raise RuntimeError('Invalid camera multipart header')
-            if line.lower().startswith(b'content-length:'):length=int(line.split(b':',1)[1].strip())
-            if line in (b'\r\n',b'\n') and length is not None:break
-        else:raise RuntimeError('Invalid camera multipart header')
-        if length is None or not 4<=length<=1048576:raise RuntimeError('Invalid camera frame size')
-        payload=bytearray()
-        while len(payload)<length:
-            block=reader.read(length-len(payload))
-            if not block:raise RuntimeError('Truncated camera frame')
-            payload.extend(block)
-        now=time.monotonic()
-        if now>=deadline:send(payload);deadline=next_deadline(now,deadline)
+    reader=process.stdout
+    condition=threading.Condition();latest=[0,None,None]
+    def drain():
+        try:
+            while not stopping.is_set():
+                length=None
+                for _ in range(12):
+                    line=reader.readline(1025)
+                    if not line:raise RuntimeError(diagnostic.decode('utf-8','replace').strip() or 'Camera capture ended')
+                    if len(line)>1024:raise RuntimeError('Invalid camera multipart header')
+                    if line.lower().startswith(b'content-length:'):length=int(line.split(b':',1)[1].strip())
+                    if line in (b'\r\n',b'\n') and length is not None:break
+                else:raise RuntimeError('Invalid camera multipart header')
+                if length is None or not 4<=length<=1048576:raise RuntimeError('Invalid camera frame size')
+                payload=bytearray()
+                while len(payload)<length:
+                    block=reader.read(length-len(payload))
+                    if not block:raise RuntimeError('Truncated camera frame')
+                    payload.extend(block)
+                with condition:
+                    latest[0]+=1;latest[1]=bytes(payload);condition.notify()
+        except Exception as error:
+            with condition:latest[2]=error;condition.notify()
+    threading.Thread(target=drain,daemon=True).start()
+    sequence=0;deadline=time.monotonic()
+    while not stopping.is_set():
+        if pull and not credits.acquire(timeout=0.1):continue
+        remaining=deadline-time.monotonic()
+        if remaining>0:stopping.wait(remaining)
+        with condition:
+            condition.wait_for(lambda:latest[0]!=sequence or latest[2] is not None or stopping.is_set())
+            if latest[2] is not None:raise latest[2]
+            if stopping.is_set():return
+            sequence=latest[0];payload=latest[1]
+        send(payload);deadline=next_deadline(time.monotonic(),deadline)
 
 def opencv_preview():
     import cv2
@@ -100,13 +124,14 @@ def opencv_preview():
         if not capture.isOpened():raise RuntimeError('Cannot open camera; check device access or whether it is in use')
         capture.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc(*'MJPG'))
         capture.set(cv2.CAP_PROP_FRAME_WIDTH,640);capture.set(cv2.CAP_PROP_FRAME_HEIGHT,480)
-        capture.set(cv2.CAP_PROP_FPS,30);capture.set(cv2.CAP_PROP_BUFFERSIZE,4)
+        capture.set(cv2.CAP_PROP_FPS,30);capture.set(cv2.CAP_PROP_BUFFERSIZE,1)
         print('PORTCANVAS_CAMERA:opencv',file=sys.stderr,flush=True)
         deadline=time.monotonic()
         while True:
             if not capture.grab():raise RuntimeError('Camera stopped returning frames')
             now=time.monotonic()
             if now<deadline:continue
+            if pull and not credits.acquire(blocking=False):continue
             ok,frame=capture.retrieve()
             if not ok or frame is None:raise RuntimeError('Camera stopped returning frames')
             height,width=frame.shape[:2];scale=min(640/width,480/height,1)

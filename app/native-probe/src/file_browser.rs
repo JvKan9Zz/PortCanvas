@@ -125,6 +125,21 @@ impl Panel {
     }
 }
 /// List viewport in logical window coordinates. Offset is the scroll viewport's y.
+pub fn selected_file_path(panels: &[Panel; 2]) -> Option<String> {
+    if panels.iter().map(|p| p.selected.len()).sum::<usize>() != 1 { return None; }
+    for (side, panel) in panels.iter().enumerate() {
+        if panel.selected.is_empty() { continue; }
+        if !panel.loaded || panel.loading || !panel.error.is_empty() { return None; }
+        let entry=panel.entries.iter().find(|e|panel.selected.contains(&e.name)&&e.kind=="file")?;
+        return Some(if side==1 {
+            format!("{}/{}", panel.path.trim_end_matches('/'), entry.name)
+        } else {
+            std::path::Path::new(&panel.path).join(&entry.name).to_string_lossy().into_owned()
+        });
+    }
+    None
+}
+
 pub fn hit_row(x: f32, y: f32, area: [f32; 5], count: usize) -> Option<Option<usize>> {
     let [left, top, width, height, offset] = area;
     if width <= 0. || height <= 0. || x < left || y < top || x >= left + width || y >= top + height {
@@ -164,6 +179,22 @@ mod tests {
         p.reset();
         assert!(!p.receive(old, Ok(data())));
         assert!(!p.loaded && p.selected.is_empty());
+    }
+    #[test]
+    fn copy_path_requires_one_current_regular_file_across_both_panes() {
+        let mut panels=[Panel::default(),Panel::default()];
+        let ticket=panels[1].begin();
+        assert!(panels[1].receive(ticket,Ok(serde_json::json!({"path":"/home/bcsh","entries":[
+            {"name":"中文 程序.py","type":"file"},{"name":"folder","type":"directory"},{"name":"shortcut","type":"link"}
+        ]}))));
+        assert!(selected_file_path(&panels).is_none());
+        panels[1].choose(0,false,false);
+        assert_eq!(selected_file_path(&panels).as_deref(),Some("/home/bcsh/中文 程序.py"));
+        panels[1].choose(1,false,false);assert!(selected_file_path(&panels).is_none());
+        panels[1].choose(2,false,false);assert!(selected_file_path(&panels).is_none());
+        panels[1].choose(0,false,false);panels[0].selected.insert("other.txt".into());assert!(selected_file_path(&panels).is_none());
+        panels[0].selected.clear();panels[1].loading=true;assert!(selected_file_path(&panels).is_none());
+        panels[1].loading=false;panels[1].path="/".into();assert_eq!(selected_file_path(&panels).as_deref(),Some("/中文 程序.py"));
     }
     #[test]
     fn multi_selection_ranges_folders_and_failures_preserve_names() {

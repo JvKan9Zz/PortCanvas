@@ -1,7 +1,11 @@
 slint::slint! {
+    import "../assets/ui-regular.ttf";
+    import "../assets/ui-medium.ttf";
+    import "../assets/ui-semibold.ttf";
     export {ActivityPattern} from "action_button.slint";
     import {CheckBox} from "check_box.slint";
     import {SelectBox as ComboBox} from "select_box.slint";
+    import {SelectPopupHost} from "select_popup.slint";
     import {ScrollView,ListView,TextEdit,VerticalBox,HorizontalBox,Palette,AboutSlint} from "std-widgets.slint";
     import {FormInput as LineEdit} from "form_input.slint";
     import {TerminalView,TerminalCell,TerminalTab,CompletionRow} from "terminal_view.slint";
@@ -16,12 +20,13 @@ slint::slint! {
     import {FilesView,FileRow,FileArea} from "files_view.slint";
     import {ActionButton,ActionButton as Button,AppColors} from "action_button.slint";
     import {MaterialPanel,NavButton,DeviceListItem,ConnectionBadge} from "workbench_chrome.slint";
-    export struct ChromeLayout {nav:float,drawer:float,drawer-x:float,settings-y:float,settings-opacity:float,settings-tab:float,page:float,dialog-y:float,dialog-opacity:float,advanced:float,connection-height:float,busy-phase:float,busy-wave:float,busy:float}
+    export struct ChromeLayout {nav:float,drawer:float,drawer-x:float,settings-y:float,settings-opacity:float,settings-tab:float,page:float,dialog-y:float,dialog-opacity:float,advanced:float,connection-height:float,busy-phase:float,busy-wave:float,busy:float,select-phase:float,select-y:float,select-height:float}
     export struct MaterialRect {x:float,y:float,width:float,height:float,radius:float}
     import {LogsView,LogRow,LogFact} from "logs_view.slint";
     import {DevicesView,DeviceRow} from "devices_view.slint";
     export component Workbench inherits Window {
         callback notify(string);in property <string> toast-message;in-out property <bool> toast-open:false;
+        callback select-popup-state(bool);
         property <float> toast-phase:root.toast-open?1:0;
         animate toast-phase {duration:AppColors.motion?(root.toast-open?280ms:180ms):0ms;easing:cubic-bezier(0.16,1,0.3,1);}
         in-out property <bool> quick-open:false;in-out property <bool> quick-candidate:false;
@@ -30,11 +35,12 @@ slint::slint! {
         animate quick-phase {duration:AppColors.motion?(root.quick-open?260ms:180ms):0ms;easing:cubic-bezier(0.16,1,0.3,1);}
         changed quick-open=>{if root.quick-open{quick-view.focus-first();}}
         changed quick-phase=>{if root.quick-phase==0&&!root.quick-open{main-focus.focus();}}
+        in property <int> terminal-history-lines;
         in property <string> app-version;
         title:"PortCanvas Beta · v"+root.app-version;
         icon:@image-url("../assets/portcanvas.png");
         preferred-width:1200px;preferred-height:820px;min-width:1000px;min-height:700px;
-        default-font-family:root.english?"Segoe UI":"Microsoft YaHei UI";default-font-size:14px;
+        default-font-family:"PortCanvas UI";default-font-size:14px;
         background:Palette.background;
         no-frame:root.window-is-fullscreen;
         init=>{Palette.color-scheme=ColorScheme.light;}
@@ -73,10 +79,8 @@ slint::slint! {
         in property <color> bg-picker-color;in property <color> bg-picker-hue-color;
         in-out property <string> bg-picker-hex;in property <string> bg-picker-error;
         callback bg-picker-change(float,float,float);callback bg-picker-rgb(int,int,int);callback bg-picker-hex-edited(string);callback bg-picker-response(bool);
-        callback settings-backdrop(bool);callback settings-backdrop-ready(string,image,float);
+        callback settings-backdrop(bool);
         in property <image> settings-backdrop-frame;in property <bool> settings-backdrop-active;
-        property <float> settings-backdrop-phase:root.settings-backdrop-active?1:0;
-        animate settings-backdrop-phase {duration:AppColors.motion?120ms:0ms;easing:ease-out;}
         in-out property <bool> settings-open:false;
         in-out property <bool> settings-presented:false;
         // Prime the existing sheet's glyph/shadow caches in the first frame.
@@ -125,6 +129,7 @@ slint::slint! {
         in property <bool> file-local-loading;in property <bool> file-remote-loading;
         in property <bool> file-local-loaded;in property <bool> file-remote-loaded;
         in property <int> file-local-selected;in property <int> file-remote-selected;
+        in property <bool> file-copy-path-enabled;
         in property <bool> file-mutating;in property <string> file-status;in property <string> file-current;in property <string> file-numbers;in property <string> file-error;
         in property <float> file-progress;in-out property <int> file-rate:0;
         callback files-sync();callback files-state-changed();callback files-action(int,string);
@@ -150,13 +155,17 @@ slint::slint! {
         in property <string> material-status;
         callback material-refresh();callback material-controls();callback material-response(bool);
         changed material-solid=>{AppColors.motion=!root.material-solid&&!root.native-hidden;root.bg-sync();}
+        in property <image> material-settings;in property <image> material-dialog;
+        out property <bool> material-settings-visible:root.settings-preparing||root.settings-open||root.settings-progress>0;
+        out property <MaterialRect> material-settings-rect:{x:settings-panel.x/1px,y:settings-panel.y/1px,width:settings-panel.width/1px,height:settings-panel.height/1px,radius:24};
+        out property <MaterialRect> material-dialog-rect:{x:modal-panel.x/1px,y:modal-panel.y/1px,width:modal-panel.width/1px,height:modal-panel.height/1px,radius:24};
         in property <image> material-nav;in property <image> material-header;in property <image> material-terminal;in property <image> material-work;
         out property <color> material-tint:Palette.background;
         out property <MaterialRect> material-nav-rect:{x:16,y:16,width:84,height:(root.height - 32px)/1px,radius:24};
         out property <MaterialRect> material-header-rect:root.desktop-expanded?{x:(work-area.x+work-layout.padding-left)/1px,y:(work-area.y+work-layout.padding-top)/1px,width:(work-area.width - work-layout.padding-left - work-layout.padding-right)/1px,height:46,radius:14}:{x:116,y:16,width:(root.width - 132px)/1px,height:48,radius:17};
         out property <MaterialRect> desktop-work-rect:{x:work-area.x/1px,y:work-area.y/1px,width:work-area.width/1px,height:work-area.height/1px,radius:work-area.border-radius/1px};
         out property <MaterialRect> material-terminal-rect:{x:terminal-panel.x/1px,y:76,width:terminal-panel.width/1px,height:(root.height - 92px)/1px,radius:terminal-panel.border-radius/1px};
-        out property <ChromeLayout> chrome-layout:{nav:nav-pill.y/1px,drawer:root.drawer-space/1px,drawer-x:terminal-panel.x/1px,settings-y:settings-panel.y/1px,settings-opacity:root.settings-progress,settings-tab:settings-pill.y/1px,page:root.page-phase,dialog-y:modal-panel.y/1px,dialog-opacity:root.dialog-phase,advanced:root.observed-advanced,connection-height:root.observed-connection,busy-phase:root.observed-busy-phase,busy-wave:root.observed-busy-wave,busy:root.observed-busy?1:0};
+        out property <ChromeLayout> chrome-layout:{nav:nav-pill.y/1px,drawer:root.drawer-space/1px,drawer-x:terminal-panel.x/1px,settings-y:settings-panel.y/1px,settings-opacity:root.settings-progress,settings-tab:settings-pill.y/1px,page:root.page-phase,dialog-y:modal-panel.y/1px,dialog-opacity:root.dialog-phase,advanced:root.observed-advanced,connection-height:root.observed-connection,busy-phase:root.observed-busy-phase,busy-wave:root.observed-busy-wave,busy:root.observed-busy?1:0,select-phase:select-host.phase,select-y:select-host.menu-top/1px,select-height:select-host.revealed-height/1px};
         property <int> nav-index:root.page==5?1:root.page==6?2:root.page==3?3:root.page==7?4:0;
         property <bool> compact-content:root.terminal-visible&&root.width<1360px;
         property <length> drawer-preferred:-1px;
@@ -287,12 +296,16 @@ slint::slint! {
         property <bool> can-edit:!root.busy && !root.connected && !root.logs-mutating && root.can-interact;
         callback select-device(string);callback select-found(string);callback new-device();
         callback save-device();callback connect-device();callback disconnect-device();callback remove-device();
+        in-out property <string> program-path;in-out property <string> program-directory;
+        in-out property <int> program-mode:0;in-out property <bool> program-sudo:false;in property <string> program-error;
+        callback terminal-program-open();callback terminal-program-run();callback terminal-program-response(bool);
         callback choose-key();callback discover();callback cancel-discovery();callback respond(bool);
         callback set-language(int);callback set-appearance(int);callback set-environment(int);callback set-desktop-mode(int);callback save-log-limit(string);
         changed appearance=>{Palette.color-scheme=root.appearance==0?ColorScheme.light:root.appearance==1?ColorScheme.dark:ColorScheme.unknown;}
         changed dialog-kind=>{if root.dialog-kind!=0{root.painted-dialog=root.dialog-kind;}root.bg-sync();if root.dialog-kind==14{picker-view.focus-selection();}else if root.dialog-kind==8{crop-view.focus-selection();}else if root.dialog-kind==15{folder-name.focus();}else if root.dialog-kind!=0 {cancel-response.focus();}else if root.settings-open{settings-general.focus();}else{main-focus.focus();}}
         Rectangle {background:root.bg-custom?root.bg-color:AppColors.dark?#131e30:@linear-gradient(135deg,#edf3fa,#f4f5fa 58%,#e9eff8);
             if root.bg-has-frame:Image {source:root.bg-frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.bg-saved-crop-x*root.bg-width);source-clip-y:round(root.bg-saved-crop-y*root.bg-height);source-clip-width:max(1,round(root.bg-saved-crop-width*root.bg-width));source-clip-height:max(1,round(root.bg-saved-crop-height*root.bg-height));}
+            if root.material-settings-visible&&root.settings-backdrop-active&&!root.material-solid:Image {source:root.settings-backdrop-frame;width:parent.width;height:parent.height;image-fit:fill;}
         }
         if root.material-solid:Rectangle {background:Palette.background;}
         // THESIS: A clear work area between the familiar left rail and optional shared terminal.
@@ -406,6 +419,7 @@ slint::slint! {
                 local-loading:root.file-local-loading;remote-loading:root.file-remote-loading;
                 local-loaded:root.file-local-loaded;remote-loaded:root.file-remote-loaded;
                 local-selected:root.file-local-selected;remote-selected:root.file-remote-selected;
+                copy-path-enabled:root.file-copy-path-enabled;
                 status:root.file-status;current:root.file-current;numbers:root.file-numbers;error:root.file-error;progress:root.file-progress;rate<=>root.file-rate;
                 tr(s,e)=>{return root.tr(s,e);}action(i,a)=>{root.files-action(i,a);}choose(i,n,c,s)=>{root.files-choose(i,n,c,s);}all(i,c)=>{root.files-all(i,c);}open(i,n)=>{root.files-open(i,n);}
             }
@@ -439,6 +453,7 @@ slint::slint! {
                 cursor-column:root.terminal-cursor-column;cursor-row:root.terminal-cursor-row;cursor-visible:root.terminal-cursor-visible;
                 phase:root.terminal-phase;status:root.terminal-status;info:root.terminal-information;error:root.terminal-error;log-status:root.terminal-log-status;log-error:root.terminal-log-error;
                 connected:root.connected;busy:root.terminal-busy;sending:root.terminal-sending;enabled:root.can-interact;english:root.english;
+                history-lines:root.terminal-history-lines;
                 draft<=>root.terminal-draft;project<=>root.terminal-project;
                 completions:root.terminal-completions;completion-index:root.terminal-completion-index;
                 completion-loading:root.terminal-completion-loading;completion-truncated:root.terminal-completion-truncated;
@@ -451,18 +466,15 @@ slint::slint! {
                 draft-edited(value,cursor)=>{root.terminal-draft-edited(value,cursor);}project-edited(value)=>{root.terminal-project-edited(value);}
                 editor-key(value,ctrl,shift,alt,expanded)=>{return root.terminal-editor-key(value,ctrl,shift,alt,expanded);}
                 editor-focused(value)=>{root.terminal-editor-focused(value);}choose-completion(index)=>{root.terminal-choose-completion(index);}
-                send-command=>{root.terminal-send-command();}
+                send-command=>{root.terminal-send-command();}configure-program=>{root.terminal-program-open();}run-program=>{root.terminal-program-run();}
             }
                 }
             }
         }
         Rectangle {visible:root.settings-preparing||root.settings-open||root.settings-progress>0;background:transparent;
-            // Retain the bounded backdrop until the sheet closes; preference
-            // edits must not turn a blurred modal backdrop into the sharp page.
-            if root.settings-backdrop-active&&!root.material-solid:Image {x:0px;y:0px;width:parent.width;height:parent.height;opacity:root.settings-backdrop-phase*root.settings-progress;source:root.settings-backdrop-frame;image-fit:fill;}
             Rectangle {background:#233450.with-alpha(0.19*root.settings-progress);}
             TouchArea {enabled:root.settings-open&&root.can-interact;clicked=>{root.settings-open=false;}}
-            settings-panel:=MaterialPanel {x:(parent.width - self.width)/2;y:(parent.height - self.height)/2+(1-root.settings-progress)*18px;width:min(840px,parent.width - 64px);height:min(640px,parent.height - 64px);solid:true;
+            settings-panel:=MaterialPanel {x:(parent.width - self.width)/2;y:(parent.height - self.height)/2+(1-root.settings-progress)*18px;width:min(840px,parent.width - 64px);height:min(640px,parent.height - 64px);material:root.material-settings;active:root.material-active;strength:128;solid:root.material-solid;
                 opacity:root.settings-preparing?0.001:root.settings-progress;
                 TouchArea {}
                 settings-focus:=FocusScope {enabled:root.dialog-kind==0&&root.settings-open;
@@ -570,10 +582,10 @@ slint::slint! {
             visible:root.painted-dialog!=0;opacity:root.dialog-phase;
             background:root.painted-dialog==14?transparent:#00000070;
             TouchArea {clicked=>{if root.painted-dialog==14{root.bg-picker-response(false);}}}
-            modal-panel:=Rectangle {
+            modal-panel:=MaterialPanel {material:root.material-dialog;active:root.material-active;strength:128;solid:root.material-solid;
                 width:root.painted-dialog==14?286px:root.painted-dialog==8?min(800px,root.width - 64px):min(root.width - 64px,640px);height:root.painted-dialog==8?min(560px,root.height - 64px):root.painted-dialog==14?picker-view.preferred-height:panel.preferred-height;
                 x:root.painted-dialog==14?min(root.width - self.width - 16px,max(16px,root.color-anchor-x)):(root.width - self.width)/2;y:root.painted-dialog==14?min(root.height - self.height - 16px,max(16px,root.color-anchor-y>self.height+16px?root.color-anchor-y - self.height - 8px:root.color-anchor-y+38px)):(root.height - self.height)/2+(1-root.dialog-phase)*6px;
-                background:AppColors.surface;border-radius:root.painted-dialog==14?14px:24px;drop-shadow-offset-y:12px;drop-shadow-blur:32px;drop-shadow-color:#223a6624;border-width:1px;border-color:AppColors.edge;
+                background:transparent;border-radius:root.painted-dialog==14?14px:24px;drop-shadow-offset-y:12px;drop-shadow-blur:32px;drop-shadow-color:#223a6624;border-width:1px;border-color:AppColors.edge;
                 modal-focus:=FocusScope {enabled:root.dialog-kind!=0;
                     FocusScope {width:0px;height:0px;enabled:root.painted-dialog!=8&&root.painted-dialog!=14;changed has-focus=>{if self.has-focus{confirm-response.focus();}}}
                     key-pressed(event)=>{if root.painted-dialog==14{if event.text==Key.Escape{root.bg-picker-response(false);return accept;}return reject;}if root.painted-dialog==8{if event.text==Key.Escape{root.bg-crop-response(false);return accept;}return reject;}if event.text==Key.Escape{root.respond(false);return accept;}return reject;}
@@ -585,15 +597,36 @@ slint::slint! {
                         source-width:root.bg-preview-width;source-height:root.bg-preview-height;crop-x:root.bg-crop-x;crop-y:root.bg-crop-y;crop-width:root.bg-crop-width;crop-height:root.bg-crop-height;error:root.bg-error;
                         tr(s,e)=>{return root.tr(s,e);}response(v)=>{root.bg-crop-response(v);}reset=>{root.bg-crop-reset();}gesture(k,x,y)=>{root.bg-crop-gesture(k,x,y);}arrow(x,y,r)=>{root.bg-crop-arrow(x,y,r);}
                     }
-                    panel:=VerticalBox {visible:root.painted-dialog!=8&&root.painted-dialog!=14;padding:24px;spacing:18px;
-                        Text {text:root.tr(root.dialog-title,root.english);font-size:20px;font-weight:600;color:Palette.foreground;}
-                        Text {text:root.migration-executing?root.tr("正在迁移资料…",root.english):root.system-executing?root.tr("正在提交重启请求…",root.english):root.dialog-message;wrap:word-wrap;color:Palette.foreground;}
-                        folder-name:=LineEdit {visible:root.painted-dialog==15;label:root.tr("文件夹名称",root.english);text<=>root.file-folder-name;enabled:root.dialog-kind==15&&!root.file-mutating;accepted=>{root.respond(true);}}
+                    panel:=VerticalBox {visible:root.painted-dialog!=8&&root.painted-dialog!=14;width:parent.width;height:self.preferred-height;padding:24px;spacing:root.painted-dialog==16?0px:16px;
+                        Text {text:root.tr(root.dialog-title,root.english);font-size:20px;font-weight:600;color:Palette.foreground;vertical-stretch:0;}
+                        if root.dialog-message!=""||root.migration-executing||root.system-executing:Text {text:root.migration-executing?root.tr("正在迁移资料…",root.english):root.system-executing?root.tr("正在提交重启请求…",root.english):root.dialog-message;wrap:word-wrap;color:Palette.foreground;vertical-stretch:0;min-height:48px;}
+                        folder-name:=LineEdit {preferred-height:root.painted-dialog==15?42px:0px;min-height:0px;visible:root.painted-dialog==15;label:root.tr("文件夹名称",root.english);text<=>root.file-folder-name;enabled:root.dialog-kind==15&&!root.file-mutating;accepted=>{root.respond(true);}}
+                        Rectangle {height:root.painted-dialog==16?program-fields.preferred-height:0px;vertical-stretch:0;visible:root.painted-dialog==16;clip:true;background:transparent;
+                            program-fields:=VerticalBox {width:parent.width;height:self.preferred-height;padding:0px;padding-top:16px;spacing:16px;
+                                VerticalBox {padding:0px;spacing:6px;vertical-stretch:0;
+                                    Text {text:root.tr("板端程序路径",root.english);font-size:12px;font-weight:500;color:AppColors.ink;vertical-stretch:0;}
+                                    LineEdit {text<=>root.program-path;label:root.tr("板端程序路径",root.english);placeholder-text:"/home/bcsh/.../main.py";}
+                                }
+                                VerticalBox {padding:0px;spacing:6px;vertical-stretch:0;
+                                    Text {text:root.tr("运行目录",root.english);font-size:12px;font-weight:500;color:AppColors.ink;vertical-stretch:0;}
+                                    LineEdit {text<=>root.program-directory;label:root.tr("运行目录",root.english);placeholder-text:root.tr("留空使用程序所在目录",root.english);}
+                                }
+                                VerticalBox {padding:0px;spacing:6px;vertical-stretch:0;
+                                    Text {text:root.tr("运行方式",root.english);font-size:12px;font-weight:500;color:AppColors.ink;vertical-stretch:0;}
+                                    HorizontalBox {padding:0px;spacing:16px;height:36px;
+                                        ComboBox {width:220px;horizontal-stretch:0;model:[root.tr("自动识别",root.english),"Python 3","Shell",root.tr("可执行文件",root.english)];current-index<=>root.program-mode;}
+                                        CheckBox {text:root.tr("使用 sudo 运行",root.english);checked<=>root.program-sudo;}
+                                        Rectangle {background:transparent;horizontal-stretch:1;}
+                                    }
+                                }
+                                if root.program-error!="":Text {text:root.tr(root.program-error,root.english);color:AppColors.danger;wrap:word-wrap;vertical-stretch:0;}
+                            }
+                        }
                         if root.painted-dialog==15&&root.file-error!="":Text {text:root.file-error;color:AppColors.danger;wrap:word-wrap;}
-                        HorizontalBox {padding:0px;spacing:8px;
+                        HorizontalBox {padding:0px;padding-top:root.painted-dialog==16?20px:0px;spacing:8px;
                             Rectangle {background:transparent;horizontal-stretch:1;}
                             cancel-response:=ActionButton {enabled:!root.system-executing&&!root.migration-executing&&!(root.painted-dialog==15&&root.file-mutating);text:root.tr(root.painted-dialog==12?"保持当前":"取消",root.english);primary:false;clicked=>{root.respond(false);}}
-                            confirm-response:=ActionButton {busy:root.painted-dialog==15&&root.file-mutating;enabled:!root.system-executing&&!root.migration-executing&&(root.painted-dialog!=15||(!root.file-mutating&&root.file-folder-name!=""));text:root.tr(root.painted-dialog==15?"创建":root.painted-dialog==13?"安装并重启":root.painted-dialog==12?(root.material-suggestion-target==1?"切换到均衡":"切换到轻量"):root.painted-dialog==2?"信任并连接":root.painted-dialog==3?"清理所选":(root.painted-dialog==4||root.painted-dialog==9)?"确认重启":root.painted-dialog==5?"确认关闭":root.painted-dialog==6?"确认覆盖":root.painted-dialog==7?"确认删除":root.painted-dialog==10?"确认导入":root.painted-dialog==11?"确认恢复":"确认移除",root.english);primary:root.painted-dialog==15||root.painted-dialog==2||root.painted-dialog==8||root.painted-dialog==10||root.painted-dialog==13;danger:root.painted-dialog==3||root.painted-dialog==4||root.painted-dialog==5||root.painted-dialog==6||root.painted-dialog==7||root.painted-dialog==9||root.painted-dialog==11;clicked=>{root.respond(true);}}
+                            confirm-response:=ActionButton {busy:root.painted-dialog==15&&root.file-mutating;enabled:!root.system-executing&&!root.migration-executing&&(root.painted-dialog!=16||(root.terminal-phase=="connected"&&!root.terminal-sending))&&(root.painted-dialog!=15||(!root.file-mutating&&root.file-folder-name!=""));text:root.tr(root.painted-dialog==16?"保存并运行":root.painted-dialog==15?"创建":root.painted-dialog==13?"安装并重启":root.painted-dialog==12?(root.material-suggestion-target==1?"切换到均衡":"切换到轻量"):root.painted-dialog==2?"信任并连接":root.painted-dialog==3?"清理所选":(root.painted-dialog==4||root.painted-dialog==9)?"确认重启":root.painted-dialog==5?"确认关闭":root.painted-dialog==6?"确认覆盖":root.painted-dialog==7?"确认删除":root.painted-dialog==10?"确认导入":root.painted-dialog==11?"确认恢复":"确认移除",root.english);primary:root.painted-dialog==16||root.painted-dialog==15||root.painted-dialog==2||root.painted-dialog==8||root.painted-dialog==10||root.painted-dialog==13;danger:root.painted-dialog==3||root.painted-dialog==4||root.painted-dialog==5||root.painted-dialog==6||root.painted-dialog==7||root.painted-dialog==9||root.painted-dialog==11;clicked=>{root.respond(true);}}
                             FocusScope {width:0px;height:0px;enabled:root.painted-dialog!=8&&root.painted-dialog!=14;changed has-focus=>{if self.has-focus{cancel-response.focus();}}}
                         }
                     }
@@ -604,6 +637,8 @@ slint::slint! {
             toast-text:=Text {x:18px;y:14px;width:parent.width - 36px;text:root.toast-message;color:#f2f6fc;font-size:13px;wrap:word-wrap;}
             TouchArea {}
         }
+
+        select-host:=SelectPopupHost {x:0px;y:0px;width:parent.width;height:parent.height;state-changed(open)=>{root.select-popup-state(open);}}
 
     }
 }

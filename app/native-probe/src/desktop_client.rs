@@ -273,16 +273,16 @@ pub async fn run(
         services.desktop.awaiting_frame(id);
         let mut frame=Frame::default();let mut coverage=None::<Coverage>;let mut ready=false;let mut dirty=false;let mut outstanding=true;let mut full_request=false;let mut full_retry=false;let mut held=Held::default();let mut motion_open=true;let mut pixels_received=false;
         let deadline=tokio::time::sleep(Duration::from_secs(20));tokio::pin!(deadline);
-        let mut tick=tokio::time::interval(Duration::from_secs_f64(mode.tuning()["frameInterval"].as_f64().unwrap()));tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let interval=Duration::from_secs_f64(mode.tuning()["frameInterval"].as_f64().unwrap());
+        let request_due=tokio::time::sleep(interval);tokio::pin!(request_due);
         let operation=async {loop {tokio::select! {
-            biased;
             _=cancel.cancelled()=>break,
             _=frames.closed()=>break,
             _=backend_cancel.cancelled()=>bail!("远程桌面通道已结束。"),
             _=&mut deadline,if !ready=>bail!("等待完整桌面画面超时。"),
             command=inputs.recv()=>match command {Some(command)=>held.input(&client,command,ready,frame.view,&cancel).await?,None=>break},
             changed=motion.changed(),if motion_open=>{if changed.is_err(){motion_open=false;}else if ready {let point=*motion.borrow_and_update();if point.view==frame.view {held.pointer(&client,point,None,&cancel).await?;}}},
-            _=tick.tick()=>{if !outstanding {send(&client,if full_request{X11Event::FullRefresh}else{X11Event::Refresh},&cancel).await?;outstanding=true;full_request=false;}},
+            _=&mut request_due,if !outstanding=>{send(&client,if full_request{X11Event::FullRefresh}else{X11Event::Refresh},&cancel).await?;outstanding=true;full_request=false;request_due.as_mut().reset(tokio::time::Instant::now()+interval);},
             event=client.recv_event()=>{
                 let event=event?;
                 let size=match &event {VncEvent::SetResolution(s)=>Some((s.width,s.height)),VncEvent::DesktopUpdate(update)=>update.layout.as_ref().map(|s|(s.width,s.height)),_=>None};

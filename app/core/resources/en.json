@@ -847,5 +847,21 @@
   "设备尚未连接。": "Device is not connected.",
   "留空表示不限；自动清理最早的已结束日志，保留正在记录的日志。": "Leave blank for no limit. The oldest finished logs are removed first; active recordings are kept.",
   "后台无活动": "No background activity",
-  "设备配置已保存。": "Device profile saved."
+  "设备配置已保存。": "Device profile saved.",
+  "运行程序": "Run program",
+  "设置启动程序": "Configure program",
+  "启动程序": "Launch program",
+  "运行方式": "Launch mode",
+  "复制路径": "Copy path",
+  "路径已复制": "Path copied",
+  "板端程序路径": "Program path on device",
+  "留空使用程序所在目录": "Use the program directory if empty",
+  "自动识别": "Automatic",
+  "可执行文件": "Executable",
+  "使用 sudo 运行": "Run with sudo",
+  "保存并运行": "Save and run",
+  "请先连接终端。": "Connect the terminal first.",
+  "请输入板端程序的完整绝对路径。": "Enter the absolute program path on the device.",
+  "程序运行方式无效。": "Invalid program launch mode.",
+  "请输入有效的板端运行目录。": "Enter a valid working directory on the device."
 }

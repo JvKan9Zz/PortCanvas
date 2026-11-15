@@ -299,6 +299,21 @@ impl Controller {
                 }
             }
         });
+        ui.on_terminal_program_open({let c=this.clone();move||c.open_program()});
+        ui.on_terminal_program_run({let c=this.clone();move||{
+            let Some(ui)=c.weak.upgrade() else{return};
+            let saved=c.services.preferences.lock().unwrap().read().map(|p|p.programs.get(ui.get_selected_id().as_str()).cloned());
+            match saved {Ok(Some(program))=>c.run_program(program),Ok(None)=>c.open_program(),Err(error)=>c.error(&error.to_string())}
+        }});
+        ui.on_terminal_program_response({let c=this.clone();move|accepted|{
+            let Some(ui)=c.weak.upgrade() else{return};
+            if !accepted{ui.set_dialog_kind(0);return;}
+            let program=portcanvas_core::program::ProgramLaunch{path:ui.get_program_path().trim().into(),directory:ui.get_program_directory().trim().into(),interpreter:ui.get_program_mode() as u8,sudo:ui.get_program_sudo()};
+            let result=c.services.preferences.lock().unwrap().save_program(ui.get_selected_id().as_str(),program.clone());
+            if let Err(error)=result{ui.set_program_error(error.to_string().into());return;}
+            ui.set_dialog_kind(0);
+            if ui.get_terminal_phase()=="connected"{c.run_program(program);}
+        }});
         ui.on_terminal_scroll({
             let c = this.clone();
             move |lines| {
@@ -405,6 +420,27 @@ impl Controller {
         });
         this.reload();
         this
+    }
+    fn open_program(&self) {
+        let Some(ui)=self.weak.upgrade() else{return};
+        if ui.get_terminal_phase()!="connected"||ui.get_terminal_busy(){return;}
+        let saved=self.services.preferences.lock().unwrap().read().map(|p|p.programs.get(ui.get_selected_id().as_str()).cloned().unwrap_or_default());
+        let program=match saved{Ok(p)=>p,Err(error)=>{self.error(&error.to_string());return;}};
+        ui.set_program_path(program.path.into());ui.set_program_directory(program.directory.into());
+        ui.set_program_mode(program.interpreter.into());ui.set_program_sudo(program.sudo);ui.set_program_error("".into());
+        ui.set_dialog_title("启动程序".into());ui.set_dialog_message("".into());ui.set_dialog_kind(16);
+    }
+    fn run_program(&self,program:portcanvas_core::program::ProgramLaunch) {
+        let Some(ui)=self.weak.upgrade() else{return};
+        if ui.get_terminal_phase()!="connected"||ui.get_terminal_busy()||ui.get_terminal_sending(){self.error(&text("请先连接终端。",ui.get_english()));return;}
+        let command=match program.command(){Ok(command)=>command,Err(error)=>{self.error(&text(&error.to_string(),ui.get_english()));return;}};
+        let value=self.state.borrow().current().map(|p|String::from_utf8(p.terminal.command(&command)).unwrap());
+        if let Some(value)=value{
+            if self.send(value,Some(command)){
+                if let Some(p)=self.state.borrow_mut().current_mut(){p.sending=true;}
+                self.render();
+            }
+        }
     }
     pub fn reload(&self) {
         match self.services.terminal.list() {
@@ -679,6 +715,8 @@ impl Controller {
         ui.set_terminal_cursor_column(column as i32);
         ui.set_terminal_cursor_row(row as i32);
         ui.set_terminal_cursor_visible(s.current().is_some_and(|p| p.terminal.cursor_visible()));
+        let (history, _) = s.current().map(|p| p.terminal.scrollback()).unwrap_or_default();
+        ui.set_terminal_history_lines(history as i32);
     }
     fn error(&self, message: &str) {
         if let Some(ui) = self.weak.upgrade() {

@@ -90,11 +90,10 @@ pub struct Controller {
     unsubscribe_errors: RefCell<Vec<String>>,
     transitions: RefCell<Vec<serde_json::Value>>,
     record_geometry: bool,
-    last_geometry: Cell<Option<(bool,[f32;4],[f32;14])>>,
+    last_geometry: Cell<Option<(bool,[f32;4],[f32;17])>>,
     geometry: RefCell<Vec<serde_json::Value>>,
     backdrop_events: RefCell<Vec<serde_json::Value>>,
-    backdrop_revision: Cell<u64>,
-    pending_backdrop: Cell<Option<u64>>,
+    select_events: RefCell<Vec<serde_json::Value>>,
 }
 impl Controller {
     pub fn install(ui: &Workbench, pending_draw: Arc<AtomicU64>) -> anyhow::Result<Rc<Self>> {
@@ -140,20 +139,13 @@ impl Controller {
             last_geometry: Cell::new(None),
             geometry: RefCell::new(Vec::new()),
             backdrop_events: RefCell::new(Vec::new()),
-            backdrop_revision: Cell::new(0),
-            pending_backdrop: Cell::new(None),
+            select_events: RefCell::new(Vec::new()),
         });
         ui.set_observe_motion(c.record_geometry);
-        ui.on_settings_backdrop({let c=c.clone();move |capture|c.backdrop(capture)});
-        ui.on_settings_backdrop_ready({let c=c.clone();move |ticket,image,blur_ms|{
-            if ticket.parse::<u64>().ok()!=Some(c.backdrop_revision.get()){return;}
-            let Some(ui)=c.ui.upgrade() else{return};
-            if !ui.get_settings_open(){return;}
-            ui.set_settings_backdrop_frame(image);ui.set_settings_backdrop_active(true);
-            if c.record_geometry&&c.backdrop_events.borrow().len()<64 {
-                c.backdrop_events.borrow_mut().push(serde_json::json!({"ready":true,"ms":c.epoch.elapsed().as_millis(),"blurMs":blur_ms}));
-            }
+        ui.on_select_popup_state({let c=c.clone();move|open|{
+            if c.record_geometry&&c.select_events.borrow().len()<64{c.select_events.borrow_mut().push(serde_json::json!({"open":open,"atMs":c.epoch.elapsed().as_secs_f64()*1000.0}));}
         }});
+        ui.on_settings_backdrop({let c=c.clone();move |capture|c.backdrop(capture)});
         ui.on_material_refresh({
             let c = c.clone();
             move || c.refresh()
@@ -210,7 +202,6 @@ impl Controller {
                             }
                         }
                     }
-                    render.capture_backdrop(api);
                     render.last_render.set(Some(Instant::now()));
                     render.watch();
                     let ticket = pending_draw.swap(0, Ordering::SeqCst);
@@ -392,7 +383,7 @@ impl Controller {
         if self.record_geometry {
             let r=ui.get_desktop_work_rect();
             let c=ui.get_chrome_layout();
-            let state=(ui.get_desktop_expanded(),[r.x,r.y,r.width,r.height],[c.nav,c.drawer,c.drawer_x,c.settings_y,c.settings_opacity,c.settings_tab,c.page,c.dialog_y,c.dialog_opacity,c.advanced,c.connection_height,c.busy_phase,c.busy_wave,c.busy]);
+            let state=(ui.get_desktop_expanded(),[r.x,r.y,r.width,r.height],[c.nav,c.drawer,c.drawer_x,c.settings_y,c.settings_opacity,c.settings_tab,c.page,c.dialog_y,c.dialog_opacity,c.advanced,c.connection_height,c.busy_phase,c.busy_wave,c.busy,c.select_phase,c.select_y,c.select_height]);
             if self.last_geometry.replace(Some(state))!=Some(state) && self.geometry.borrow().len()<2048 {
                 self.geometry.borrow_mut().push(serde_json::json!({"ms":self.epoch.elapsed().as_millis(),"expanded":state.0,"rect":state.1,"chrome":state.2}));
             }
@@ -425,6 +416,12 @@ impl Controller {
         if !expanded && ui.get_terminal_visible() {
             panels.push(ui.get_material_terminal_rect());
         }
+        let settings_index=ui.get_material_settings_visible().then_some(panels.len());
+        if settings_index.is_some(){panels.push(ui.get_material_settings_rect());}
+        let backdrop_index=ui.get_material_settings_visible().then_some(panels.len());
+        if backdrop_index.is_some(){let size=ui.window().size().to_logical(ui.window().scale_factor());panels.push(crate::workbench_ui::MaterialRect{x:0.0,y:0.0,width:size.width,height:size.height,radius:0.0});}
+        let dialog_index=(ui.get_painted_dialog()!=0).then_some(panels.len());
+        if dialog_index.is_some(){panels.push(ui.get_material_dialog_rect());}
         let rects=panels.iter().map(|r|Rect{x:r.x,y:r.y,width:r.width,height:r.height}).collect::<Vec<_>>();
         let radii=panels.iter().map(|r|r.radius).collect::<Vec<_>>();
         let terminal_index=(!expanded&&ui.get_terminal_visible()).then_some(3usize);
@@ -455,12 +452,13 @@ impl Controller {
         let surfaces = key
             .rects
             .iter()
-            .zip(&key.radii)
-            .map(|(r,radius)| Surface {
+            .zip(&key.radii).enumerate()
+            .map(|(index,(r,radius))| Surface {
                 // Material carries no text; logical-size targets bound fill cost at high DPI.
-                size: (r.width.ceil() as u32, r.height.ceil() as u32),
+                size: if Some(index)==backdrop_index{let scale=(640.0/r.width).min(480.0/r.height).min(1.0);((r.width*scale).ceil() as u32,(r.height*scale).ceil() as u32)}else{(r.width.ceil() as u32, r.height.ceil() as u32)},
                 crop: project(source, key.crop, key.window, *r),
                 radius:*radius,
+                opacity:if Some(index)==settings_index||Some(index)==dialog_index{128.0}else{key.opacity},
             })
             .collect::<Vec<_>>();
         let result = (|| unsafe {
@@ -507,6 +505,10 @@ impl Controller {
                     ui.set_material_header(images[if expanded {0} else {1}].clone());
                     ui.set_material_work(if expanded {Default::default()} else {images[2].clone()});
                     ui.set_material_terminal(terminal_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
+                    ui.set_material_settings(settings_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
+                    ui.set_material_dialog(dialog_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
+                    ui.set_settings_backdrop_frame(backdrop_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
+                    ui.set_settings_backdrop_active(backdrop_index.is_some());
                     *self.bindings.borrow_mut() = Some(binding);
                 }
                 ui.set_material_active(true);
@@ -532,8 +534,6 @@ impl Controller {
     }
     fn backdrop(&self, capture: bool) {
         let Some(ui)=self.ui.upgrade() else{return};
-        self.backdrop_revision.set(self.backdrop_revision.get().wrapping_add(1));
-        self.pending_backdrop.set(None);
         ui.set_settings_backdrop_active(false);
         ui.set_settings_backdrop_frame(Default::default());
         if !capture || ui.get_material_solid() || ui.get_native_hidden() {
@@ -543,49 +543,20 @@ impl Controller {
             }
             return;
         }
-        // Paint one clean frame, then capture it before present. CPU blur runs
-        // off the UI thread; the sheet starts after readback and the blur fades
-        // in when ready, so CPU work cannot hold the opening animation.
         if self.record_geometry && self.backdrop_events.borrow().len()<64 {
-            self.backdrop_events.borrow_mut().push(serde_json::json!({"requestedAtMs":self.epoch.elapsed().as_secs_f64()*1000.0}));
+            self.backdrop_events.borrow_mut().push(serde_json::json!({"requestedAtMs":self.epoch.elapsed().as_secs_f64()*1000.0,"liveGpu":true}));
         }
-        self.pending_backdrop.set(Some(self.backdrop_revision.get()));
-        ui.window().request_redraw();
-    }
-    fn capture_backdrop(&self, api: &slint::GraphicsAPI) {
-        let Some(ticket)=self.pending_backdrop.take() else{return};
-        let Some(ui)=self.ui.upgrade() else{return};
-        if !ui.get_settings_open(){return;}
-        let started=Instant::now();
-        let size=ui.window().size();
-        let limit=match ui.get_glass_quality(){2=>1024,1=>640,_=>320};
-        let result=unsafe{crate::material_gpu::capture_window(api,(size.width,size.height),limit)};
+        self.bindings.borrow_mut().take();
+        self.key.borrow_mut().take();
         ui.set_settings_presented(true);
-        let mut event=serde_json::json!({"capture":true,"readbackMs":started.elapsed().as_secs_f64()*1000.0,"asyncBlur":true});
-        match result {
-            Ok((mut pixels,ratio))=>{
-                let (w,h)=pixels.dimensions();event["size"]=serde_json::json!([w,h]);
-                let sigma=(6.0*ui.window().scale_factor()*ratio).max(1.0);
-                let weak=self.ui.clone();
-                std::thread::spawn(move||{
-                    let started=Instant::now();
-                    image::imageops::flip_vertical_in_place(&mut pixels);
-                    let blurred=image::imageops::fast_blur(&pixels,sigma);
-                    let buffer=SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(blurred.as_raw(),w,h);
-                    let blur_ms=started.elapsed().as_secs_f32()*1000.0;
-                    let _=weak.upgrade_in_event_loop(move|ui|ui.invoke_settings_backdrop_ready(ticket.to_string().into(),slint::Image::from_rgba8(buffer),blur_ms));
-                });
-            }
-            Err(error)=>{event["error"]=error.to_string().into();}
-        }
-        if self.record_geometry && self.backdrop_events.borrow().len()<64 {self.backdrop_events.borrow_mut().push(event);}
+        ui.window().request_redraw();
     }
     pub fn report(&self) -> serde_json::Value {
         serde_json::json!({"sourceUploads":self.uploads.get(),"materialPasses":self.passes.get(),
             "qualityPasses":self.quality_passes.each_ref().map(Cell::get),"visibility":*self.visibility.borrow(),
             "released":self.released.get(),"driver":*self.driver.borrow(),"error":*self.error.borrow(),
             "policy":self.policy.get(),"os":self.os_report,"subscriptionsReleased":self.os.borrow().is_none()&&self.unsubscribe_errors.borrow().is_empty(),"unsubscribeErrors":*self.unsubscribe_errors.borrow(),
-            "synthetic":self.synthetic.get(),"heartbeatTicks":self.ticks.get(),"prompted":self.prompted.get(),"transitions":*self.transitions.borrow(),"backdrop":*self.backdrop_events.borrow(),"settingsFrames":*self.settings_frames.borrow(),"chromeFields":["navY","drawerWidth","drawerX","settingsY","settingsOpacity","settingsTabY","pagePhase","dialogY","dialogOpacity","advancedHeight","connectionHeight","busyPhase","busyWave","busy"],"geometry":*self.geometry.borrow()})
+            "synthetic":self.synthetic.get(),"heartbeatTicks":self.ticks.get(),"prompted":self.prompted.get(),"transitions":*self.transitions.borrow(),"backdrop":*self.backdrop_events.borrow(),"selectEvents":*self.select_events.borrow(),"settingsFrames":*self.settings_frames.borrow(),"chromeFields":["navY","drawerWidth","drawerX","settingsY","settingsOpacity","settingsTabY","pagePhase","dialogY","dialogOpacity","advancedHeight","connectionHeight","busyPhase","busyWave","busy","selectPhase","selectY","selectHeight"],"geometry":*self.geometry.borrow()})
     }
     pub fn visibility(&self, hidden: bool) {
         if hidden {

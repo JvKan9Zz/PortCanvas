@@ -13,7 +13,8 @@ export component TerminalView inherits VerticalBox {
     in property <int> cursor-column;
     in property <int> cursor-row;
     in property <bool> cursor-visible:true;
-    in property <string> phase;
+    in property <int> history-lines;
+        in property <string> phase;
     in property <string> status;in property <string> info;
     property <bool> horizontal-lines:true;
     function reveal-cursor() {
@@ -48,9 +49,9 @@ export component TerminalView inherits VerticalBox {
     callback committed(string);callback key(string,bool,bool,bool)->bool;
     callback draft-edited(string,int);callback project-edited(string);callback send-command();
     callback editor-key(string,bool,bool,bool,bool)->bool;callback editor-focused(bool);callback choose-completion(int);
-    callback connect-device();
+    callback connect-device();callback configure-program();callback run-program();
     property <bool> live:root.connected&&root.phase=="connected"&&!root.busy&&root.enabled;
-    HorizontalBox {padding:0px;spacing:8px;height:36px;vertical-stretch:0;
+    HorizontalBox {visible:root.tabs.length>0;padding:0px;spacing:0px;height:root.tabs.length>0?36px:0px;vertical-stretch:0;
         ScrollView {viewport-height:36px;vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
             HorizontalBox {padding:0px;spacing:6px;height:36px;
                 for tab[index] in root.tabs:Rectangle {width:min(160px,max(100px,tab-label.preferred-width+58px));horizontal-stretch:0;height:32px;border-radius:9px;border-width:1px;border-color:tab.key==root.active?AppColors.edge:transparent;background:tab.key==root.active?AppColors.field:tab-touch.has-hover?AppColors.field:transparent;animate background {duration:AppColors.motion?150ms:0ms;}
@@ -69,7 +70,7 @@ export component TerminalView inherits VerticalBox {
                 }
             }
         }
-        Button {text:root.tr("新建",root.english);icon:@image-url("icons/plus.svg");has-icon:true;busy:root.busy;enabled:root.connected&&!root.busy&&root.enabled;clicked=>{root.action("create");}}
+
     }
     property <bool> actions-open:false;
     changed enabled=>{if !root.enabled{root.actions-open=false;actions-popup.close();}}
@@ -78,14 +79,17 @@ export component TerminalView inherits VerticalBox {
     animate completion-phase {duration:AppColors.motion?140ms:0ms;}
     HorizontalBox {padding:0px;spacing:6px;height:36px;vertical-stretch:0;
         ActionButton {horizontal-stretch:1;preferred-width:0px;primary:root.phase!="connected";busy:root.phase=="connecting";text:root.tr(!root.connected?(root.width<420px?"连接":"连接设备"):root.phase=="connected"?"断开":root.phase=="connecting"?(root.width<420px?"取消":"取消连接"):(root.width<420px?"连接":"连接终端"),root.english);enabled:root.enabled&&!root.busy&&(!root.connected||root.active!="");clicked=>{if !root.connected{root.connect-device();}else{root.resize-grid(grid.columns,grid.rows);root.action(root.phase=="connected"||root.phase=="connecting"?"stop":"start");}}}
-        ActionButton {width:64px;text:root.tr("重启",root.english);enabled:root.connected&&!root.busy&&root.enabled&&root.active!="";clicked=>{root.action("reset");}}
-        ActionButton {width:64px;text:root.tr("清屏",root.english);enabled:root.enabled&&root.active!="";clicked=>{root.action("clear");}}
-        Rectangle {width:root.width<420px?44px:72px;height:36px;horizontal-stretch:0;
-            DesktopTool {width:parent.width;height:36px;label:root.tr("更多",root.english);show-text:root.width>=420px;text:root.tr("更多",root.english);icon:root.width<420px?@image-url("icons/more.svg"):@image-url("icons/chevron.svg");icon-angle:root.width<420px?0deg:root.actions-open?180deg:0deg;enabled:root.enabled&&root.active!="";clicked=>{root.actions-open=true;actions-popup.show();}}
-            actions-popup:=PopupWindow {x:0px;y:40px;width:180px;height:156px;forward-focus:menu-keys;
+        DesktopTool {height:36px;show-text:root.width>=420px;text:root.tr("重启",root.english);label:root.tr("重启",root.english);icon:@image-url("icons/restart.svg");enabled:root.connected&&!root.busy&&root.enabled&&root.active!="";clicked=>{root.action("reset");}}
+        DesktopTool {height:36px;show-text:root.width>=420px;text:root.tr("清屏",root.english);label:root.tr("清屏",root.english);icon:@image-url("icons/eraser.svg");enabled:root.enabled&&root.active!="";clicked=>{root.action("clear");}}
+        DesktopTool {width:32px;height:36px;show-text:false;label:root.tr("运行程序",root.english);icon:@image-url("icons/play.svg");enabled:root.live&&!root.sending;clicked=>{root.run-program();}}
+        DesktopTool {width:32px;height:36px;show-text:false;label:root.tr("新建终端",root.english);icon:@image-url("icons/plus.svg");enabled:root.connected&&!root.busy&&root.enabled;clicked=>{root.action("create");}}
+        Rectangle {width:32px;height:36px;horizontal-stretch:0;
+            DesktopTool {width:parent.width;height:36px;label:root.tr("更多",root.english);show-text:false;text:root.tr("更多",root.english);icon:root.width<420px?@image-url("icons/more.svg"):@image-url("icons/chevron.svg");icon-angle:root.width<420px?0deg:root.actions-open?180deg:0deg;enabled:root.enabled&&root.active!="";clicked=>{root.actions-open=true;actions-popup.show();}}
+            actions-popup:=PopupWindow {x:0px;y:40px;width:180px;height:192px;forward-focus:menu-keys;
                 Rectangle {border-radius:13px;background:AppColors.surface;border-width:1px;border-color:AppColors.edge;drop-shadow-offset-y:6px;drop-shadow-blur:24px;drop-shadow-color:#223a661f;}
                 menu-keys:=FocusScope {focus-changed-event=>{if !self.has-focus{root.actions-open=false;}}key-pressed(event)=>{if event.text==Key.Escape{actions-popup.close();root.actions-open=false;return accept;}return reject;}
                     VerticalBox {padding:6px;spacing:0px;
+                        ActionButton {text:root.tr("设置启动程序",root.english);enabled:root.live;clicked=>{actions-popup.close();root.actions-open=false;root.configure-program();}}
                         ActionButton {text:root.tr("复制选区",root.english);enabled:root.enabled;clicked=>{root.copy();actions-popup.close();root.actions-open=false;}}
                         ActionButton {text:root.tr("粘贴",root.english);enabled:root.live;clicked=>{root.paste();actions-popup.close();root.actions-open=false;}}
                         ActionButton {text:root.tr("按窗口折行",root.english);selected:!root.horizontal-lines;accessible-checkable:true;accessible-checked:!root.horizontal-lines;clicked=>{root.horizontal-lines=!root.horizontal-lines;terminal-scroll.viewport-x=0px;actions-popup.close();root.actions-open=false;}}
@@ -117,7 +121,7 @@ export component TerminalView inherits VerticalBox {
         changed rows=>{root.resize-grid(self.columns,self.rows);}
         for cell in root.cells: Rectangle {
             x:8px+cell.column*9px;y:8px+cell.row*21px;width:cell.wide?18px:9px;height:21px;background:cell.paper;
-            Text {text:cell.text;color:cell.ink;font-family:cell.wide?"Microsoft YaHei UI":"Consolas";font-size:14px;font-weight:cell.bold?700:400;vertical-alignment:center;}
+            Text {text:cell.text;color:cell.ink;font-family:cell.wide?"PortCanvas UI":"Consolas";font-size:14px;font-weight:cell.bold?700:400;vertical-alignment:center;}
             if cell.underline:Rectangle {y:19px;height:1px;background:cell.ink;}
         }
         Rectangle {visible:root.cursor-visible&&root.live&&root.cursor-row<grid.rows;
@@ -133,7 +137,11 @@ export component TerminalView inherits VerticalBox {
                 if event.kind==PointerEventKind.up&&event.button==PointerEventButton.left {root.select(self.start-x,self.start-y,max(0,floor((self.mouse-x - 8px)/9px)),max(0,floor((self.mouse-y - 8px)/21px)));}
             }
             moved=>{if self.pressed {root.select(self.start-x,self.start-y,max(0,floor((self.mouse-x - 8px)/9px)),max(0,floor((self.mouse-y - 8px)/21px)));}}
-            scroll-event(event)=>{if event.delta-x!=0px{return reject;}root.scroll(event.delta-y>0px?3:-3);return accept;}
+            scroll-event(event)=>{
+                if event.delta-x!=0px{terminal-scroll.viewport-x=max(terminal-scroll.visible-width - terminal-scroll.viewport-width,min(0px,terminal-scroll.viewport-x+event.delta-x));}
+                if event.delta-y!=0px{root.scroll(event.delta-y>0px?3:-3);}
+                return accept;
+            }
         }
         // The input follows the VT cursor so system IME candidates/preedit have a real anchor.
         // Only committed edits are sent; composition updates remain inside this native item.
@@ -147,6 +155,10 @@ export component TerminalView inherits VerticalBox {
             edited=>{if self.text!=""{root.committed(self.text);self.text="";}}
             key-pressed(event)=>{
                 if self.preedit-text!=""{return reject;}
+                if event.modifiers.shift&&event.text==Key.PageUp{root.scroll(grid.rows);return accept;}
+                if event.modifiers.shift&&event.text==Key.PageDown{root.scroll(-grid.rows);return accept;}
+                if event.modifiers.control&&event.modifiers.shift&&event.text==Key.Home{root.scroll(root.history-lines);return accept;}
+                if event.modifiers.control&&event.modifiers.shift&&event.text==Key.End{root.scroll(-root.history-lines);return accept;}
                 if event.modifiers.control&&event.modifiers.shift&&(event.text=="c"||event.text=="C"){root.copy();return accept;}
                 if event.modifiers.control&&(event.text=="v"||event.text=="V"){root.paste();return accept;}
                 if event.text==Key.Tab&&event.modifiers.control {command.focus();return accept;}

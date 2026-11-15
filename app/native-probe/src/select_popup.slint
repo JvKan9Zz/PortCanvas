@@ -1,0 +1,70 @@
+import {ListView} from "std-widgets.slint";
+import {AppColors} from "action_button.slint";
+
+// Shared by the native window's select boxes; no window is created on click.
+export global SelectPopup {
+    in-out property <[string]> model;
+    in-out property <int> serial:0;
+    in-out property <int> committed:0;
+    in-out property <int> result:-1;
+    in-out property <int> current:-1;
+    in-out property <int> highlighted:0;
+    in-out property <length> anchor-x;
+    in-out property <length> anchor-y;
+    in-out property <length> anchor-height;
+    in-out property <length> anchor-width;
+    in-out property <bool> opened:false;
+    public function choose(index:int) {
+        if index>=0&&index<SelectPopup.model.length {
+            SelectPopup.result=index;SelectPopup.committed=SelectPopup.serial;
+        }
+        SelectPopup.opened=false;
+    }
+}
+
+export component SelectPopupHost inherits Rectangle {
+    background:transparent;
+    property <bool> opened:SelectPopup.opened;
+    callback state-changed(bool);
+    out property <float> phase:root.opened?1:0;
+    out property <length> menu-top:menu.y;
+    out property <length> revealed-height:menu.height;
+    property <length> menu-height:min(6,SelectPopup.model.length)*36px+8px;
+    property <bool> upward:SelectPopup.anchor-y+SelectPopup.anchor-height+root.menu-height+12px>root.height&&SelectPopup.anchor-y>root.menu-height+12px;
+    visible:root.opened||root.phase>0;
+    animate phase {duration:AppColors.motion?(root.opened?220ms:150ms):0ms;easing:cubic-bezier(0.16,1,0.3,1);}
+    changed opened=>{root.state-changed(root.opened);if root.opened{menu-keys.focus();}}
+    changed width=>{SelectPopup.opened=false;}
+    changed height=>{SelectPopup.opened=false;}
+    TouchArea {enabled:root.opened;clicked=>{SelectPopup.opened=false;}}
+    menu:=Rectangle {
+        x:max(8px,min(SelectPopup.anchor-x,root.width - self.width - 8px));
+        y:root.upward?SelectPopup.anchor-y - 4px - self.height:SelectPopup.anchor-y+SelectPopup.anchor-height+4px;
+        width:min(SelectPopup.anchor-width,root.width - 16px);height:root.menu-height*root.phase;
+        clip:true;opacity:min(1,root.phase*3);background:transparent;
+        Rectangle {x:0px;y:0px;width:parent.width;height:parent.height;background:AppColors.surface;border-radius:13px;border-width:1px;border-color:AppColors.edge;}
+        // Keep the edge adjacent to the source fixed when expanding up or down.
+        menu-keys:=FocusScope {
+            enabled:root.opened;
+            x:0px;y:root.upward?menu.height - root.menu-height:0px;width:parent.width;height:root.menu-height;
+            key-pressed(event)=>{
+                if event.text==Key.Escape{SelectPopup.opened=false;return accept;}
+                if event.text==Key.Return||event.text==" "{SelectPopup.choose(SelectPopup.highlighted);return accept;}
+                if event.text==Key.DownArrow{SelectPopup.highlighted=min(SelectPopup.model.length - 1,SelectPopup.highlighted+1);return accept;}
+                if event.text==Key.UpArrow{SelectPopup.highlighted=max(0,SelectPopup.highlighted - 1);return accept;}
+                if event.text==Key.Home{SelectPopup.highlighted=0;return accept;}
+                if event.text==Key.End{SelectPopup.highlighted=SelectPopup.model.length - 1;return accept;}
+                if event.text==Key.Tab{SelectPopup.opened=false;return accept;}
+                return reject;
+            }
+            ListView {x:4px;y:4px;width:parent.width - 8px;height:parent.height - 8px;viewport-y:-max(0,SelectPopup.highlighted - 5)*36px;
+                for value[index] in SelectPopup.model:Rectangle {height:36px;border-radius:7px;background:index==SelectPopup.highlighted?AppColors.soft:transparent;
+                    accessible-role:button;accessible-label:value;accessible-action-default=>{SelectPopup.choose(index);}
+                    Text {x:8px;width:parent.width - 38px;height:parent.height;text:value;color:AppColors.ink;font-size:round(12px/1phx)*1phx;vertical-alignment:center;overflow:elide;}
+                    if index==SelectPopup.current:Image {x:parent.width - 26px;y:10px;width:16px;height:16px;source:@image-url("icons/check.svg");colorize:AppColors.accent;}
+                    TouchArea {enabled:root.opened;changed has-hover=>{if self.has-hover{SelectPopup.highlighted=index;}}clicked=>{SelectPopup.choose(index);}}
+                }
+            }
+        }
+    }
+}

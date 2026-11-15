@@ -8,6 +8,8 @@ use std::io::{Read,Write};
 pub const REPOSITORY:&str="https://github.com/JvKan9Zz/PortCanvas";
 #[derive(Clone,Deserialize,Serialize)]
 pub struct Preferences {
+    #[serde(default,skip_serializing_if="std::collections::BTreeMap::is_empty")]
+    pub programs:std::collections::BTreeMap<String,crate::program::ProgramLaunch>,
     #[serde(default)]
     pub language:Language,
     #[serde(default)]
@@ -34,8 +36,15 @@ pub struct Preferences {
     pub glass_quality:GlassQuality,
 }
 fn default_glass_opacity()->u8{100}
+impl PreferenceStore {
+    pub fn save_program(&self,device:&str,program:crate::program::ProgramLaunch)->Result<()> {
+        anyhow::ensure!(!device.is_empty(),"请先选择设备。");program.command()?;
+        let mut preferences=self.read()?;preferences.programs.insert(device.into(),program);
+        write_preferences(&self.file,&preferences)
+    }
+}
 impl Default for Preferences{
-    fn default()->Self{Self{language:Language::default(),theme:Theme::default(),desktop_mode:Default::default(),environment_source:EnvironmentSource::default(),appearance:Appearance::default(),background_color:None,background_image:None,background_crop:None,background_video:None,background_volume:0,glass_opacity:100,glass_quality:GlassQuality::default()}}
+    fn default()->Self{Self{programs:Default::default(),language:Language::default(),theme:Theme::default(),desktop_mode:Default::default(),environment_source:EnvironmentSource::default(),appearance:Appearance::default(),background_color:None,background_image:None,background_crop:None,background_video:None,background_volume:0,glass_opacity:100,glass_quality:GlassQuality::default()}}
 }
 #[derive(Clone,Copy,Default,Debug,Deserialize,Serialize,PartialEq,Eq)]
 #[serde(rename_all="lowercase")]
@@ -156,6 +165,17 @@ impl PreferenceStore {
         let draft=BackgroundDraft::open(&source,&store.backgrounds().unwrap(),true,|_,_|Ok(())).unwrap();draft.commit(&store,BackgroundCrop{x:0.0,y:0.0,width:1.0,height:1.0}).unwrap();assert!(store.read().unwrap().background_video.is_some());assert!(store.read().unwrap().background_image.is_none());
         for volume in [0,50,100]{store.save_background_volume(volume).unwrap();assert_eq!(store.info().unwrap()["backgroundVolume"],volume);}assert!(store.save_background_volume(101).is_err());
         let media=store.background_path().unwrap().unwrap();store.save_background_color(None).unwrap();assert!(!media.exists());assert!(source.exists());assert_eq!(store.info().unwrap()["backgroundVolume"],100);std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]fn program_presets_are_per_device_and_preserve_existing_settings(){
+        let root=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(uuid::Uuid::new_v4().to_string());
+        std::fs::create_dir_all(&root).unwrap();let store=PreferenceStore{file:root.join("settings.json")};
+        std::fs::write(&store.file,br#"{"language":"en","theme":"green","glassOpacity":35}"#).unwrap();
+        assert!(store.read().unwrap().programs.is_empty());
+        for (device,path) in [("first","/home/bcsh/one.py"),("second","/home/bcsh/two.sh")]{store.save_program(device,crate::program::ProgramLaunch{path:path.into(),..Default::default()}).unwrap();}
+        store.save_appearance(Appearance::Dark).unwrap();
+        let value=store.read().unwrap();assert_eq!(value.programs["first"].path,"/home/bcsh/one.py");assert_eq!(value.programs["second"].path,"/home/bcsh/two.sh");assert_eq!(value.glass_opacity,35);assert!(value.theme==Theme::Green);
+        let before=std::fs::read(&store.file).unwrap();assert!(store.save_program("first",crate::program::ProgramLaunch::default()).is_err());assert_eq!(std::fs::read(&store.file).unwrap(),before);
+        std::fs::remove_dir_all(root).unwrap();
     }
     #[test]fn appearance_is_saved_and_other_settings_are_preserved(){
         let root=PathBuf::from(std::env::var_os("WCS_TEST_ROOT").unwrap()).join(uuid::Uuid::new_v4().to_string());std::fs::create_dir_all(&root).unwrap();

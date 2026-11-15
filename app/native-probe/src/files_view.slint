@@ -1,3 +1,4 @@
+import {SplitHandle} from "split_handle.slint";
 import {CheckBox} from "check_box.slint";
 import {DesktopTool} from "desktop_tool.slint";
 import {FormInput as LineEdit} from "form_input.slint";
@@ -71,12 +72,16 @@ export component FilePane inherits Rectangle {
                     if event.text==" "{root.choose(index,event.modifiers.control,event.modifiers.shift);return accept;}
                     return reject;
                 }}
-                HorizontalBox {padding-left:12px;padding-right:12px;padding-top:2px;padding-bottom:2px;spacing:6px;
-                    FileCheck {selected:row.selected;accessible-label:root.tr("选择 "+row.name,root.english);enabled:root.enabled;width:28px;horizontal-stretch:0;choose=>{root.choose(index,true,false);}}
-                    Image {width:16px;height:16px;horizontal-stretch:0;source:row.directory?@image-url("icons/files.svg"):row.kind==root.tr("链接",root.english)?@image-url("icons/connect.svg"):@image-url("icons/file.svg");colorize:AppColors.accent;}
-                    Text {text:row.name;color:AppColors.ink;overflow:elide;min-width:0px;preferred-width:0px;horizontal-stretch:1;}
-                    Text {text:row.directory?root.tr("文件夹",root.english):row.kind==root.tr("链接",root.english)?row.kind:row.size;color:AppColors.muted;width:75px;horizontal-stretch:0;overflow:elide;horizontal-alignment:right;}
-                    if !root.compact:Text {text:row.modified;color:AppColors.muted;width:92px;horizontal-stretch:0;overflow:elide;horizontal-alignment:right;}
+                HorizontalBox {x:0px;y:0px;width:parent.width;height:parent.height - 1px;padding-left:12px;padding-right:12px;padding-top:0px;padding-bottom:0px;spacing:6px;
+                    Rectangle {width:28px;horizontal-stretch:0;background:transparent;
+                        FileCheck {y:(parent.height - self.height)/2;selected:row.selected;accessible-label:root.tr("选择 "+row.name,root.english);enabled:root.enabled;width:28px;choose=>{root.choose(index,true,false);}}
+                    }
+                    Rectangle {width:16px;horizontal-stretch:0;background:transparent;
+                        Image {y:(parent.height - self.height)/2;width:16px;height:16px;source:row.directory?@image-url("icons/files.svg"):row.kind==root.tr("链接",root.english)?@image-url("icons/connect.svg"):@image-url("icons/file.svg");colorize:AppColors.accent;}
+                    }
+                    Text {height:parent.height;text:row.name;color:AppColors.ink;vertical-alignment:center;overflow:elide;min-width:0px;preferred-width:0px;horizontal-stretch:1;}
+                    Text {height:parent.height;text:row.directory?root.tr("文件夹",root.english):row.kind==root.tr("链接",root.english)?row.kind:row.size;color:AppColors.muted;vertical-alignment:center;width:75px;horizontal-stretch:0;overflow:elide;horizontal-alignment:right;}
+                    if !root.compact:Text {height:parent.height;text:row.modified;color:AppColors.muted;vertical-alignment:center;width:92px;horizontal-stretch:0;overflow:elide;horizontal-alignment:right;}
                 }
                 Rectangle {y:parent.height - 1px;width:parent.width;height:1px;background:AppColors.edge;}
                 row-touch:=TouchArea {x:42px;width:parent.width - 36px;enabled:root.enabled;
@@ -93,6 +98,7 @@ export component FilePane inherits Rectangle {
     }
 }
 export component FilesView inherits VerticalBox {
+    property <float> split:0.5;
     in property <bool> compact:false;
     property <int> pane-side:0;
     function invalidate-hidden() {if root.compact {root.geometry(root.pane-side==0?1:0,{x:0,y:0,width:0,height:0,offset:0});}}
@@ -110,6 +116,7 @@ export component FilesView inherits VerticalBox {
     in property <bool> local-loading;in property <bool> remote-loading;
     in property <bool> local-loaded;in property <bool> remote-loaded;
     in property <int> local-selected;in property <int> remote-selected;
+    in property <bool> copy-path-enabled;
     in property <string> status;in property <string> current;in property <string> numbers;in property <string> error;
     in property <float> progress;in-out property <int> rate;
     pure callback tr(string,bool)->string;
@@ -120,6 +127,7 @@ export component FilesView inherits VerticalBox {
     HorizontalBox {height:36px;vertical-stretch:0;padding:0px;spacing:8px;
         ActionButton {text:root.tr(root.compact?"上传":"上传至远端设备",root.english);icon:@image-url("icons/upload.svg");has-icon:true;primary:true;enabled:root.can-browse&&root.connected&&root.remote-loaded&&root.local-selected>0;clicked=>{root.action(0,"upload");}}
         ActionButton {text:root.tr(root.compact?"下载":"下载至电脑",root.english);icon:@image-url("icons/download.svg");has-icon:true;enabled:root.can-browse&&root.connected&&root.local-loaded&&root.remote-selected>0;clicked=>{root.action(1,"download");}}
+        ActionButton {text:root.compact?"":root.tr("复制路径",root.english);accessible-label:root.tr("复制路径",root.english);icon:@image-url("icons/copy.svg");has-icon:true;enabled:root.can-browse&&root.copy-path-enabled;clicked=>{root.action(0,"copy-path");}}
         Rectangle {background:transparent;horizontal-stretch:1;}
         Text {text:root.tr("传输限速",root.english);font-size:11px;color:AppColors.muted;vertical-alignment:center;horizontal-stretch:0;}
         ComboBox {width:100px;horizontal-stretch:0;accessible-label:root.tr("传输限速",root.english);model:[root.tr("不限速",root.english),"1 MiB/s","5 MiB/s","10 MiB/s"];current-index<=>root.rate;enabled:root.enabled&&!root.busy;}
@@ -129,10 +137,11 @@ export component FilesView inherits VerticalBox {
         ActionButton {text:root.tr("本地",root.english);selected:root.pane-side==0;accessible-checkable:true;accessible-checked:root.pane-side==0;clicked=>{root.pane-side=0;}}
         ActionButton {text:root.tr("远端",root.english);selected:root.pane-side==1;accessible-checkable:true;accessible-checked:root.pane-side==1;clicked=>{root.pane-side=1;}}
     }
-    HorizontalBox {padding:0px;spacing:14px;
-        if !root.compact||root.pane-side==0:FilePane {compact:root.compact;english:root.english;remote:false;enabled:root.can-browse;connected:root.connected;rows:root.local-rows;selected-count:root.local-selected;path<=>root.local-path;folder<=>root.local-folder;message:root.local-message;loading:root.local-loading;loaded:root.local-loaded;
+    panes:=HorizontalBox {padding:0px;spacing:0px;
+        if !root.compact||root.pane-side==0:FilePane {width:root.compact?panes.width:(panes.width - 14px)*root.split;horizontal-stretch:0;compact:root.compact;english:root.english;remote:false;enabled:root.can-browse;connected:root.connected;rows:root.local-rows;selected-count:root.local-selected;path<=>root.local-path;folder<=>root.local-folder;message:root.local-message;loading:root.local-loading;loaded:root.local-loaded;
             geometry-ticket:root.geometry-ticket;drives:root.drives;drive-index<=>root.drive-index;drive(n)=>{root.drive(n);}geometry(a)=>{root.geometry(0,a);}drop-active:root.drop-side==0;drop-row:root.drop-row;drop-label:root.drop-label;
             tr(s,e)=>{return root.tr(s,e);}action(a)=>{root.action(0,a);}choose(n,c,s)=>{root.choose(0,n,c,s);}all(c)=>{root.all(0,c);}open(n)=>{root.open(0,n);}}
+        if !root.compact:SplitHandle {width:14px;horizontal-stretch:0;span:panes.width - 14px;fraction<=>root.split;label:root.english?"Resize file panes":"调整文件面板大小";}
         if !root.compact||root.pane-side==1:FilePane {compact:root.compact;english:root.english;remote:true;enabled:root.can-browse&&root.connected;connected:root.connected;rows:root.remote-rows;selected-count:root.remote-selected;path<=>root.remote-path;folder<=>root.remote-folder;message:root.remote-message;loading:root.remote-loading;loaded:root.remote-loaded;
             geometry-ticket:root.geometry-ticket;geometry(a)=>{root.geometry(1,a);}drop-active:root.drop-side==1;drop-row:root.drop-row;drop-label:root.drop-label;
             tr(s,e)=>{return root.tr(s,e);}action(a)=>{root.action(1,a);}choose(n,c,s)=>{root.choose(1,n,c,s);}all(c)=>{root.all(1,c);}open(n)=>{root.open(1,n);}}

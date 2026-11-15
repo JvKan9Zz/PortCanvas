@@ -527,6 +527,7 @@ pub fn run() -> Result<()> {
         move |accepted| {
             if let Some(ui) = weak.upgrade() {
                 let kind = ui.get_dialog_kind();
+                if kind==16{ui.invoke_terminal_program_response(accepted);return;}
                 if kind==15{files.respond_folder(accepted);return;}
                 if kind==13{updater.respond(accepted);return;}
                 if kind==12{ui.invoke_material_response(accepted);return;}

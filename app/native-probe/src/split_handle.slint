@@ -1,0 +1,20 @@
+import {AppColors} from "action_button.slint";
+export component SplitHandle inherits Rectangle {
+    in-out property <float> fraction:0.5;
+    in property <length> span;
+    in property <bool> vertical:false;
+    in property <string> label;
+    property <float> pressed-fraction;
+    property <length> pressed-origin;
+    background:transparent;min-width:0px;min-height:0px;
+    Rectangle {x:root.vertical?(parent.width - 32px)/2:4px;y:root.vertical?4px:(parent.height - 32px)/2;width:root.vertical?32px:3px;height:root.vertical?3px:32px;border-radius:2px;background:touch.has-hover||touch.pressed?AppColors.accent:AppColors.muted.with-alpha(0.3);}
+    accessible-role:slider;accessible-label:root.label;accessible-value:root.fraction*100;accessible-value-minimum:25;accessible-value-maximum:75;
+    accessible-action-increment=>{root.fraction=min(0.75,root.fraction+0.025);}
+    accessible-action-decrement=>{root.fraction=max(0.25,root.fraction - 0.025);}
+    forward-focus:keys;
+    keys:=FocusScope {key-pressed(event)=>{if event.text==Key.LeftArrow||event.text==Key.UpArrow{root.fraction=max(0.25,root.fraction - 0.025);return accept;}if event.text==Key.RightArrow||event.text==Key.DownArrow{root.fraction=min(0.75,root.fraction+0.025);return accept;}return reject;}}
+    touch:=TouchArea {mouse-cursor:root.vertical?n-resize:e-resize;clicked=>{keys.focus();}
+        pointer-event(event)=>{if event.kind==PointerEventKind.down&&event.button==PointerEventButton.left{root.pressed-fraction=root.fraction;root.pressed-origin=root.vertical?self.absolute-position.y+self.mouse-y:self.absolute-position.x+self.mouse-x;}}
+        moved=>{if self.pressed&&root.span>0px{let position=root.vertical?self.absolute-position.y+self.mouse-y:self.absolute-position.x+self.mouse-x;root.fraction=max(0.25,min(0.75,root.pressed-fraction+(position - root.pressed-origin)/root.span));}}
+    }
+}

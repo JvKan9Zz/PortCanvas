@@ -1,3 +1,4 @@
+import {SplitHandle} from "split_handle.slint";
 import {CheckBox} from "check_box.slint";
 import {VerticalBox,HorizontalBox,ListView,ScrollView} from "std-widgets.slint";
 import {SelectBox} from "select_box.slint";
@@ -9,6 +10,7 @@ component LogSelectionBox inherits CheckBox {
     changed selected=>{root.checked=root.selected;}
 }
 export component LogsView inherits VerticalBox {
+    property <float> split:0.44;
     in property <bool> compact;in property <bool> english;in property <bool> enabled;in property <bool> loading;
     in property <[string]> projects;in property <[string]> days;
     in-out property <int> project-index;in-out property <int> day-index;in-out property <int> status-index;
@@ -42,7 +44,7 @@ export component LogsView inherits VerticalBox {
     if root.message!="":Text {text:root.message;color:AppColors.muted;wrap:word-wrap;vertical-stretch:0;}
     if root.error!="":Text {text:root.error;color:AppColors.danger;wrap:word-wrap;vertical-stretch:0;}
     body:=Rectangle {background:transparent;min-height:180px;
-        Rectangle {x:0px;y:0px;width:root.compact?parent.width:parent.width*0.44 - 7px;height:root.compact?parent.height*0.45 - 7px:parent.height;background:AppColors.card;border-radius:16px;clip:true;
+        Rectangle {x:0px;y:0px;width:root.compact?parent.width:parent.width*root.split - 7px;height:root.compact?parent.height*root.split - 7px:parent.height;background:AppColors.card;border-radius:16px;clip:true;
             VerticalBox {padding:0px;spacing:0px;
                 HorizontalBox {padding:12px;height:44px;vertical-stretch:0;
                     CheckBox {width:24px;horizontal-stretch:0;visible:root.rows.length>0;accessible-label:root.tr("选择本页",root.english);checked<=>root.all-checked;indeterminate:root.checked>0&&!root.all-checked;enabled:root.enabled&&root.selectable;toggled=>{root.all(self.checked);}}
@@ -73,7 +75,8 @@ export component LogsView inherits VerticalBox {
                 }
             }
         }
-        details-panel:=Rectangle {x:root.compact?0px:parent.width*0.44+7px;y:root.compact?parent.height*0.45+7px:0px;width:root.compact?parent.width:parent.width*0.56 - 7px;height:root.compact?parent.height*0.55 - 7px:parent.height;background:AppColors.card;border-radius:16px;
+        SplitHandle {x:root.compact?0px:parent.width*root.split - 7px;y:root.compact?parent.height*root.split - 7px:0px;width:root.compact?parent.width:14px;height:root.compact?14px:parent.height;vertical:root.compact;span:root.compact?parent.height:parent.width;fraction<=>root.split;label:root.english?"Resize log list and details":"调整日志列表与详情大小";}
+        details-panel:=Rectangle {x:root.compact?0px:parent.width*root.split+7px;y:root.compact?parent.height*root.split+7px:0px;width:root.compact?parent.width:parent.width*(1-root.split) - 7px;height:root.compact?parent.height*(1-root.split) - 7px:parent.height;background:AppColors.card;border-radius:16px;
             VerticalBox {padding:18px;spacing:12px;
                 HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
                     Text {text:root.tr("运行详情",root.english);font-size:16px;font-weight:600;color:AppColors.ink;}

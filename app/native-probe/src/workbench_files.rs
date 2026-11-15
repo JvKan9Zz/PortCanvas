@@ -6,7 +6,7 @@ use portcanvas_core::{
     files::{Confirmation, Side},
     services::Services,
 };
-use portcanvas_native_probe::file_browser::{bytes, hit_row, Panel};
+use portcanvas_native_probe::file_browser::{bytes, hit_row, selected_file_path, Panel};
 use serde_json::{json, Value};
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::{
@@ -354,6 +354,13 @@ impl Controller {
             return;
         }
         match action {
+            "copy-path" => {
+                let Some(path)=selected_file_path(&self.panels.borrow()) else { return; };
+                match arboard::Clipboard::new().and_then(|mut clip|clip.set_text(path)) {
+                    Ok(())=>ui.invoke_notify(text("路径已复制",ui.get_english()).into()),
+                    Err(error)=>ui.set_file_error(error.to_string().into()),
+                }
+            }
             "new-folder" => {
                 if !self.panels.borrow()[index].loaded { return; }
                 ui.set_file_folder_side(index as i32);
@@ -529,6 +536,7 @@ impl Controller {
             return;
         }
         let english = ui.get_english();
+        ui.set_file_copy_path_enabled(!busy&&selected_file_path(&self.panels.borrow()).is_some());
         for index in 0..2 {
             let panels = self.panels.borrow();
             let p = &panels[index];
