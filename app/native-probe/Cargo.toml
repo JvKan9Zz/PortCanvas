@@ -1,6 +1,6 @@
 [package]
 name = "portcanvas-native-probe"
-version = "0.6.0-beta.1"
+version = "0.6.0-beta.2"
 edition = "2021"
 rust-version = "1.90"
 license = "MIT"
@@ -23,6 +23,11 @@ required-features = ["gui"]
 [[example]]
 name = "glass_poc"
 path = "examples/glass_poc/main.rs"
+required-features = ["gui"]
+
+[[example]]
+name = "font_probe"
+path = "examples/font_probe.rs"
 required-features = ["gui"]
 
 [dependencies]
@@ -63,3 +68,6 @@ opt-level = "s"
 lto = "thin"
 codegen-units = 1
 strip = true
+
+[patch.crates-io]
+i-slint-renderer-femtovg = { path = "../vendor/i-slint-renderer-femtovg" }
