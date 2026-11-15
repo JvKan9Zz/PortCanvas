@@ -4,7 +4,7 @@
 
 简体中文 | [English](README.en.md)
 
-Windows 原生远程设备工作台。当前开发版本为 **v0.6.0-beta.1**，尚未发布；安装与实际使用仍可参考 [v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95)。
+Windows 原生远程设备工作台。[**v0.6.0-beta.1 预览版已发布**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0-beta.1)，稳定版仍为 [v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95)。
 
 原生工作台使用 Slint、Rust、原生 VT/RFB 和 Windows 系统媒体能力，保留 v0.5.95 的页面结构、图标与主要交互。
 
@@ -21,7 +21,7 @@ Windows 原生远程设备工作台。当前开发版本为 **v0.6.0-beta.1**，
 
 ## 预览与稳定版
 
-原生 Beta 计划以 **PortCanvas Beta** 独立安装，数据位于 `%LOCALAPPDATA%/PortCanvas/Beta`，与稳定版分开。旧资料须经预览与确认后导入，源文件保留。Beta 更新使用单独的预览通道；当前尚无公开 Beta 安装包。
+原生 Beta 以 **PortCanvas Beta** 独立安装，数据位于 `%LOCALAPPDATA%/PortCanvas/Beta`，与稳定版分开。旧资料须经预览与确认后导入，源文件保留。Beta 更新使用单独的预览通道。[下载 Windows x64 安装器](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.0-beta.1/PortCanvas_Beta_0.6.0-beta.1_x64-setup.exe)，安装后从桌面“PortCanvas Beta”打开。已收集的界面、字体、终端滚动和视频延迟问题将继续在 beta.2 修正。
 
 [Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [使用说明](docs/usage.md) · [定位接口](docs/pose-protocol.md)
 

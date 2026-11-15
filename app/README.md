@@ -1,6 +1,6 @@
 # PortCanvas Windows native application
 
-The v0.6.0-beta.1 development line uses Slint/winit/FemtoVG, native VT and RFB clients, Windows Media Foundation and shared Rust services. It has no frontend bundle, npm install, Tauri or WebView build step. The preview is not yet published; M7 acceptance remains in progress. Windows x64 is the current target. Historical macOS v0.5.95 builds remain in the tagged release.
+The v0.6.0-beta.1 development line uses Slint/winit/FemtoVG, native VT and RFB clients, Windows Media Foundation and shared Rust services. It has no frontend bundle, npm install, Tauri or WebView build step. [Beta.1 is published as a preview](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0-beta.1); M7 performance acceptance remains in progress. Windows x64 is the current target. Historical macOS v0.5.95 builds remain in the tagged release.
 
 ## Build
 
