@@ -1,6 +1,6 @@
 # PortCanvas Windows 原生预览使用说明
 
-对应开发中的 v0.6.0-beta.1，尚未发布；已发布的 v0.5.95 行为与恢复方式以其版本标签为准。
+对应已发布的 [v0.6.0-beta.1 预览版](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0-beta.1)。下载 Windows x64 安装器，安装后从桌面“PortCanvas Beta”打开；与 v0.5.95 稳定版独立安装。已收集的界面、字体、终端滚动与视频延迟问题将继续在 beta.2 修正。
 
 摄像头默认关闭。在赛台页选择树莓派的视频设备与目标帧率（8 / 15 / 20 / 30 FPS），再点击开启；默认20 FPS，网络较弱或需要减少传输量时选8 FPS。实际帧率受设备、网络与电脑影响。
 

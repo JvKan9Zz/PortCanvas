@@ -4,11 +4,11 @@
 
 [简体中文](README.md) | English
 
-A native Windows workspace for remote Linux devices. **v0.6.0-beta.1 is in development and has not been published.** The existing [v0.5.95 release](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) remains available.
+A native Windows workspace for remote Linux devices. [**v0.6.0-beta.1 is available as a preview**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0-beta.1). The stable release remains [v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95).
 
 The Rust/Slint workbench restores v0.5.95's page structure and icons, with native VT/RFB and Windows media playback. It provides SSH discovery and authentication, window-contained remote desktop expansion, dual-pane SFTP, persistent tmux terminals, local logs, camera preview and device metrics. Glass quality and opacity are independent; Full is the default, and a lower-quality suggestion requires the user's choice.
 
-The planned PortCanvas Beta installation and `%LOCALAPPDATA%/PortCanvas/Beta` data directory are separate from the stable application. Legacy import requires review and confirmation and preserves its source. The preview update channel is independent; no public Beta installer is available yet.
+The PortCanvas Beta installation and `%LOCALAPPDATA%/PortCanvas/Beta` data directory are separate from the stable application. Legacy import requires review and confirmation and preserves its source. The preview update channel is independent. [Download the Windows x64 installer](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.0-beta.1/PortCanvas_Beta_0.6.0-beta.1_x64-setup.exe), then open the PortCanvas Beta desktop shortcut. Reported interface, font, terminal scrolling and video latency issues are being addressed for beta.2.
 
 [Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [Usage](docs/usage.md) · [Pose protocol](docs/pose-protocol.md)
 
