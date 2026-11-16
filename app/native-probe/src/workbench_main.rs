@@ -14,6 +14,15 @@ mod workbench_files;
 mod workbench_terminal;
 mod workbench_ui;
 fn main() {
+    if std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--cleanup-legacy-install")) {
+        let result = (|| -> anyhow::Result<()> {
+            let exe=std::env::current_exe()?;
+            let local=std::env::args_os().nth(2).ok_or_else(||anyhow::anyhow!("缺少应用缓存根目录。"))?;
+            portcanvas_native_probe::legacy_cleanup::clean(exe.parent().unwrap(),std::path::Path::new(&local))
+        })();
+        if let Err(error)=result {eprintln!("{error:#}");std::process::exit(1);}
+        return;
+    }
     if let Err(error) = workbench::run() {
         eprintln!("{error:#}");
         rfd::MessageDialog::new()

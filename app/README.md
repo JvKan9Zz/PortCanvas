@@ -1,6 +1,6 @@
 # PortCanvas Windows native application
 
-The v0.6.0 application uses Slint/winit/FemtoVG, native VT and RFB clients, Windows Media Foundation and shared Rust services. It has no frontend bundle, npm install, Tauri or WebView build step. [v0.6.0 is the Windows native release](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0). Windows x64 is the current target. Historical macOS v0.5.95 builds remain in the tagged release.
+The v0.6.1 application uses Slint/winit/FemtoVG, native VT and RFB clients, Windows Media Foundation and shared Rust services. It has no frontend bundle, npm install, Tauri or WebView build step. [v0.6.1 is the Windows native release](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1). Windows x64 is the current target. Historical macOS v0.5.95 builds remain in the tagged release.
 
 ## Build
 
@@ -15,7 +15,7 @@ The release binary is `native-probe/target/x86_64-pc-windows-msvc/release/PortCa
 The current-user installer is built separately:
 
 ```bash
-python tools/native_installer.py --binary native-probe/target/x86_64-pc-windows-msvc/release/PortCanvasNative.exe --output target/PortCanvas_0.6.0_x64-setup.exe
+python tools/native_installer.py --binary native-probe/target/x86_64-pc-windows-msvc/release/PortCanvasNative.exe --output target/PortCanvas_0.6.1_x64-setup.exe
 ```
 
 NSIS must be available through `--makensis`, PATH, or its existing local cache. The installer uses PortCanvas installation, shortcut and registry identities. Signing uses `tools/native_sign.py` with the existing protected updater key and password file. Never commit those inputs. `latest.json` carries the version-bound signature for the stable update channel. Building does not publish or install a release.

@@ -4,7 +4,7 @@
 
 简体中文 | [English](README.en.md)
 
-Windows 原生远程设备工作台。[**下载 v0.6.0 正式版**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0)。
+Windows 原生远程设备工作台。[**下载 v0.6.1 正式版**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1)。
 
 原生工作台使用 Slint、Rust、原生 VT/RFB 和 Windows 系统媒体能力，保留 v0.5.95 的页面结构、图标与主要交互。
 
@@ -21,7 +21,7 @@ Windows 原生远程设备工作台。[**下载 v0.6.0 正式版**](https://gith
 
 ## 安装与旧版资料
 
-[下载 Windows x64 安装器](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.0/PortCanvas_0.6.0_x64-setup.exe)，安装后从桌面“PortCanvas”打开。正式版资料位于 `%LOCALAPPDATA%/PortCanvas/Stable`，与原生 Beta 分开。首次使用可从设备页导入旧版或 Beta 的资料目录，确认前可预览，原目录保留。旧便携目录 `data/` 请一并保留。软件内更新使用稳定通道。
+[下载 Windows x64 安装器](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.1/PortCanvas_0.6.1_x64-setup.exe)，安装后从桌面“PortCanvas”打开。正式版资料位于 `%LOCALAPPDATA%/PortCanvas/Stable`，与原生 Beta 分开。首次使用可从设备页导入旧版或 Beta 的资料目录，确认前可预览，原目录保留。旧便携目录 `data/` 请一并保留。软件内更新使用稳定通道。
 
 [Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [使用说明](docs/usage.md) · [定位接口](docs/pose-protocol.md)
 

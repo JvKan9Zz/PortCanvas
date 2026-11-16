@@ -22,5 +22,6 @@ pub mod terminal_editor;
 pub mod terminal_sessions;
 pub mod update;
 pub mod update_client;
+pub mod legacy_cleanup;
 pub mod color_model;
 #[cfg(windows)]pub mod instance;

@@ -274,6 +274,8 @@ pub fn run() -> Result<()> {
     });
     let paths = data_paths()?;
     let _instance=portcanvas_native_probe::instance::acquire(&paths.data)?;
+    // Before UI input can start another update; never race a newly staged package.
+    portcanvas_native_probe::legacy_cleanup::finish_update(&paths.data);
     let legacy_logs = paths.documents.join("Wheel Combat Studio/Logs");
     ui.set_data_directory(paths.data.to_string_lossy().as_ref().into());
     let services = Services::new(paths, events, std::env::var("WCS_TERMINAL_NAMESPACE").ok())?;

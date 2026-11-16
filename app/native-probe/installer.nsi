@@ -10,10 +10,13 @@ Unicode true
   !define REGKEY "PortCanvas"
 !endif
 !ifndef VERSION
-  !define VERSION "0.6.0"
+  !define VERSION "0.6.1"
 !endif
 !ifndef VERSION_QUAD
-  !define VERSION_QUAD "0.6.0.0"
+  !define VERSION_QUAD "0.6.1.0"
+!endif
+!ifndef LEGACY_LOCAL_DATA
+  !define LEGACY_LOCAL_DATA "$LOCALAPPDATA"
 !endif
 !ifndef BINARY
   !error "BINARY must name the verified native release executable"
@@ -46,6 +49,22 @@ VIAddVersionKey "LegalCopyright" "PortCanvas contributors"
 
 Function .onInit
   ${GetParameters} $0
+  ; Older Tauri installers used only the uninstall entry, including custom paths.
+  ClearErrors
+  ${GetOptions} $0 "/D=" $1
+  ${If} ${Errors}
+    ReadRegStr $1 HKCU "Software\${REGKEY}" "InstallDir"
+    ${If} $1 == ""
+      ReadRegStr $1 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${REGKEY}" "InstallLocation"
+      StrCpy $2 $1 1
+      ${If} $2 == '$\"'
+        StrCpy $1 $1 -1 1
+      ${EndIf}
+      ${If} ${FileExists} "$1\PortCanvas.exe"
+        StrCpy $INSTDIR $1
+      ${EndIf}
+    ${EndIf}
+  ${EndIf}
   ${GetOptions} $0 "/PID=" $1
   ${If} $1 != ""
     System::Call 'kernel32::OpenProcess(i 0x100000, i 0, i r1) p.r2'
@@ -64,7 +83,11 @@ Function .onInstSuccess
   ${GetParameters} $0
   ClearErrors
   ${GetOptions} $0 "/RESTART" $1
-  IfErrors restart_done
+  ${If} ${Errors}
+    ClearErrors
+    ${GetOptions} $0 "/R" $1
+    IfErrors restart_done
+  ${EndIf}
   Exec '"$INSTDIR\PortCanvas.exe"'
   restart_done:
 FunctionEnd
@@ -97,6 +120,19 @@ Section "PortCanvas" Main
     SetErrorLevel 1
     Abort "The previous version was preserved."
   ${EndIf}
+  ; Run the new native helper only after replacing the old executable. Keep the
+  ; old binary available until the retired caches/resources are removed.
+  ClearErrors
+  ExecWait '"$INSTDIR\PortCanvas.exe" --cleanup-legacy-install "${LEGACY_LOCAL_DATA}"' $0
+  ${If} ${Errors}
+    StrCpy $0 1
+  ${EndIf}
+  ${If} $0 != 0
+    Delete "$INSTDIR\PortCanvas.exe"
+    Rename "$INSTDIR\PortCanvas.previous.exe" "$INSTDIR\PortCanvas.exe"
+    SetErrorLevel 1
+    Abort "Close the old PortCanvas and retry. User data has been preserved."
+  ${EndIf}
   Delete "$INSTDIR\PortCanvas.previous.exe"
   File "assets\portcanvas.ico"
   File /oname=FONT-NOTICES.txt "assets\NOTICE.txt"
@@ -113,6 +149,7 @@ Section "PortCanvas" Main
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${REGKEY}" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${REGKEY}" "NoRepair" 1
   CreateDirectory "$SMPROGRAMS\${PRODUCT}"
+  Delete "$SMPROGRAMS\${PRODUCT}.lnk"
   CreateShortCut "$SMPROGRAMS\${PRODUCT}\${PRODUCT}.lnk" "$INSTDIR\PortCanvas.exe"
   CreateShortCut "$DESKTOP\${PRODUCT}.lnk" "$INSTDIR\PortCanvas.exe" "" "$INSTDIR\portcanvas.ico"
 SectionEnd
