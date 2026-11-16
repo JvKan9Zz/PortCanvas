@@ -216,6 +216,7 @@ slint::slint! {
         in property <[TerminalTab]> terminal-tabs;
         in property <[TerminalCell]> terminal-cells;
         in property <string> terminal-active;
+        in property <int> terminal-active-index:-1;
         in property <string> terminal-phase;
         in property <string> terminal-status;in property <string> terminal-information;
         in property <string> terminal-error;
@@ -449,7 +450,7 @@ slint::slint! {
             terminal-panel:=MaterialPanel {visible:root.page!=0&&!root.desktop-expanded&&(root.terminal-open||root.drawer-space>0px);opacity:min(1,root.drawer-space/(root.drawer-width+14px));x:parent.width - root.drawer-space - 2px;y:76px;width:root.drawer-width;height:parent.height - 92px;material:root.material-terminal;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
                 VerticalBox {padding:12px;spacing:8px;
                     TerminalView {
-                tabs:root.terminal-tabs;active:root.terminal-active;cells:root.terminal-cells;
+                tabs:root.terminal-tabs;active:root.terminal-active;active-index:root.terminal-active-index;cells:root.terminal-cells;
                 cursor-column:root.terminal-cursor-column;cursor-row:root.terminal-cursor-row;cursor-visible:root.terminal-cursor-visible;
                 phase:root.terminal-phase;status:root.terminal-status;info:root.terminal-information;error:root.terminal-error;log-status:root.terminal-log-status;log-error:root.terminal-log-error;
                 connected:root.connected;busy:root.terminal-busy;sending:root.terminal-sending;enabled:root.can-interact;english:root.english;

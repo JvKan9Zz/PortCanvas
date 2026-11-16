@@ -8,7 +8,7 @@ use portcanvas_native_probe::{
     terminal_editor::Reply,
     terminal_sessions::{key_bytes, Sessions},
 };
-use slint::{ComponentHandle, ModelRc, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::{
     cell::{Cell, RefCell},
     collections::VecDeque,
@@ -489,15 +489,18 @@ impl Controller {
             .map(|(key, p)| (key, p.number))
             .collect::<Vec<_>>();
         tabs.sort_by_key(|(_, n)| *n);
-        ui.set_terminal_tabs(ModelRc::new(VecModel::from(
-            tabs.into_iter()
+        ui.set_terminal_active_index(tabs.iter().position(|(key, _)| **key == s.active).map_or(-1, |i| i as i32));
+        let rows = tabs.into_iter()
                 .map(|(key, n)| TerminalTab {
                     key: key.as_str().into(),
                     title: format!("{} {n}", text("终端", ui.get_english())).into(),
                     online:s.panes.get(key).is_some_and(|p|p.phase=="connected"),
                 })
-                .collect::<Vec<_>>(),
-        )));
+                .collect::<Vec<_>>();
+        // A selection-only update must keep the focused tab item alive.
+        if ui.get_terminal_tabs().iter().ne(rows.iter().cloned()) {
+            ui.set_terminal_tabs(ModelRc::new(VecModel::from(rows)));
+        }
         ui.set_terminal_active(s.active.as_str().into());
         if let Some(p) = s.current() {
             ui.set_terminal_phase(p.phase.as_str().into());

@@ -9,6 +9,22 @@ export component TerminalView inherits VerticalBox {
     padding:0px;spacing:8px;
     in property <[TerminalTab]> tabs;
     in property <string> active;
+    in property <int> active-index:-1;
+    property <length> tab-width:root.english?132px:112px;
+    property <length> tabs-width:max(0px,root.tabs.length*(root.tab-width+6px) - 6px);
+    property <bool> tabs-overflow:root.tabs-width>root.width;
+    function reveal-active-tab() {
+        if root.active-index>=0 {
+            let left=root.active-index*(root.tab-width+6px);
+            if left < -tabs-scroll.viewport-x {tabs-scroll.viewport-x= -left;}
+            else if left+root.tab-width > -tabs-scroll.viewport-x+tabs-scroll.visible-width {
+                tabs-scroll.viewport-x=tabs-scroll.visible-width - left - root.tab-width;
+            }
+        }
+        tabs-scroll.viewport-x=max(min(0px,tabs-scroll.visible-width - root.tabs-width),min(0px,tabs-scroll.viewport-x));
+    }
+    changed active-index=>{root.reveal-active-tab();}
+    changed tabs-width=>{root.reveal-active-tab();}
     in property <[TerminalCell]> cells;
     in property <int> cursor-column;
     in property <int> cursor-row;
@@ -52,25 +68,32 @@ export component TerminalView inherits VerticalBox {
     callback connect-device();callback configure-program();callback run-program();
     property <bool> live:root.connected&&root.phase=="connected"&&!root.busy&&root.enabled;
     HorizontalBox {visible:root.tabs.length>0;padding:0px;spacing:0px;height:root.tabs.length>0?36px:0px;vertical-stretch:0;
-        ScrollView {viewport-height:36px;vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
-            HorizontalBox {padding:0px;spacing:6px;height:36px;
-                for tab[index] in root.tabs:Rectangle {width:min(160px,max(100px,tab-label.preferred-width+58px));horizontal-stretch:0;height:32px;border-radius:9px;border-width:1px;border-color:tab.key==root.active?AppColors.edge:transparent;background:tab.key==root.active?AppColors.field:tab-touch.has-hover?AppColors.field:transparent;animate background {duration:AppColors.motion?150ms:0ms;}
+        DesktopTool {visible:root.tabs-overflow;width:root.tabs-overflow?28px:0px;height:32px;show-text:false;label:root.tr("向前浏览终端",root.english);icon:@image-url("icons/chevron-right.svg");icon-angle:180deg;enabled:root.enabled&&tabs-scroll.viewport-x<0px;clicked=>{tabs-scroll.viewport-x=min(0px,tabs-scroll.viewport-x+max(root.tab-width+6px,tabs-scroll.visible-width - root.tab-width));}}
+        tabs-keys:=FocusScope {horizontal-stretch:1;min-width:0px;preferred-width:0px;enabled:root.enabled&&!root.busy;key-pressed(event)=>{
+            if root.active-index<0{return reject;}
+            if event.text==Key.LeftArrow{root.select-tab(root.tabs[max(0,root.active-index - 1)].key);return accept;}
+            if event.text==Key.RightArrow{root.select-tab(root.tabs[min(root.tabs.length - 1,root.active-index + 1)].key);return accept;}
+            if event.text==Key.Home{root.select-tab(root.tabs[0].key);return accept;}
+            if event.text==Key.End{root.select-tab(root.tabs[root.tabs.length - 1].key);return accept;}return reject;
+        }
+        tabs-scroll:=ScrollView {width:parent.width;height:36px;viewport-width:root.tabs-width;viewport-height:36px;vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
+            changed visible-width=>{root.reveal-active-tab();}
+            TouchArea {
+                width:root.tabs-width;height:36px;
+                scroll-event(event)=>{tabs-scroll.viewport-x=max(min(0px,tabs-scroll.visible-width - root.tabs-width),min(0px,tabs-scroll.viewport-x+(event.delta-x!=0px?event.delta-x:event.delta-y)));return accept;}
+            HorizontalBox {padding:0px;spacing:6px;width:root.tabs-width;height:36px;
+                for tab in root.tabs:Rectangle {width:root.tab-width;horizontal-stretch:0;height:32px;border-radius:9px;border-width:1px;border-color:tab.key==root.active?AppColors.edge:transparent;background:tab.key==root.active?AppColors.field:tab-touch.has-hover?AppColors.field:transparent;animate background {duration:AppColors.motion?150ms:0ms;}
                     Rectangle {x:10px;y:14px;width:4px;height:4px;border-radius:3px;background:tab.online?#4f9e7d:AppColors.muted.with-alpha(0.45);}
                     tab-label:=Text {x:20px;width:parent.width - 52px;height:parent.height;text:tab.title;font-size:12px;color:AppColors.ink;vertical-alignment:center;overflow:elide;}
-                    tab-focus:=FocusScope {enabled:root.enabled&&!root.busy;key-pressed(event)=>{
-                        if event.text==Key.Return||event.text==" "{root.select-tab(tab.key);return accept;}
-                        if event.text==Key.LeftArrow{root.select-tab(root.tabs[max(0,index - 1)].key);return accept;}
-                        if event.text==Key.RightArrow{root.select-tab(root.tabs[min(root.tabs.length - 1,index + 1)].key);return accept;}
-                        if event.text==Key.Home{root.select-tab(root.tabs[0].key);return accept;}
-                        if event.text==Key.End{root.select-tab(root.tabs[root.tabs.length - 1].key);return accept;}return reject;
-                    }}
-                    tab-touch:=TouchArea {width:parent.width - 30px;enabled:root.enabled&&!root.busy;clicked=>{tab-focus.focus();root.select-tab(tab.key);}}
+                    tab-touch:=TouchArea {width:parent.width - 30px;enabled:root.enabled&&!root.busy;clicked=>{tabs-keys.focus();root.select-tab(tab.key);}}
                     DesktopTool {x:parent.width - 30px;width:30px;height:32px;show-text:false;label:root.tr("关闭终端",root.english)+" "+tab.title;icon:@image-url("icons/close.svg");enabled:root.enabled&&root.connected&&!root.busy;clicked=>{root.close-tab(tab.key);}}
-                    forward-focus:tab-focus;accessible-role:button;accessible-label:tab.title;accessible-checkable:true;accessible-checked:tab.key==root.active;accessible-action-default=>{root.select-tab(tab.key);}
+                    forward-focus:tabs-keys;accessible-role:button;accessible-label:tab.title;accessible-checkable:true;accessible-checked:tab.key==root.active;accessible-action-default=>{tabs-keys.focus();root.select-tab(tab.key);}
                 }
             }
+            }
         }
-
+        }
+        DesktopTool {visible:root.tabs-overflow;width:root.tabs-overflow?28px:0px;height:32px;show-text:false;label:root.tr("向后浏览终端",root.english);icon:@image-url("icons/chevron-right.svg");enabled:root.enabled&&tabs-scroll.viewport-x>tabs-scroll.visible-width - root.tabs-width;clicked=>{tabs-scroll.viewport-x=max(tabs-scroll.visible-width - root.tabs-width,tabs-scroll.viewport-x - max(root.tab-width+6px,tabs-scroll.visible-width - root.tab-width));}}
     }
     property <bool> actions-open:false;
     changed enabled=>{if !root.enabled{root.actions-open=false;actions-popup.close();}}

@@ -717,6 +717,8 @@
   "原生终端窗口已关闭。": "The native terminal window is closed.",
   "终端数据帧无效。": "Invalid terminal data frame.",
   "新建终端": "New terminal",
+  "向前浏览终端": "Scroll terminal tabs backward",
+  "向后浏览终端": "Scroll terminal tabs forward",
   "断开终端": "Detach terminal",
   "重启终端": "Restart terminal",
   "关闭终端": "Close terminal",
