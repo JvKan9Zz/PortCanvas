@@ -1,12 +1,12 @@
-# PortCanvas v0.6.0 使用说明
+# PortCanvas v0.6.1 使用说明
 
-[下载 Windows x64 正式版](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0)，安装后从桌面“PortCanvas”打开。应用采用 Rust/Slint、原生 VT/RFB 和 Windows 媒体能力，无需 Node.js、Rust、Python 或 WebView 运行环境。
+[下载 Windows x64 正式版](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1)，安装后从桌面“PortCanvas”打开。应用采用 Rust/Slint、原生 VT/RFB 和 Windows 媒体能力，无需 Node.js、Rust、Python 或 WebView 运行环境。
 
 ## 安装与资料
 
 正式版资料位于 `%LOCALAPPDATA%/PortCanvas/Stable`，与原生 Beta 的资料目录独立。首次使用时，在设备页选择“导入旧版资料”，选择包含 `devices.json` 的旧版或 Beta 资料目录，预览后确认导入。原文件、日志和素材保持保留；需要撤回时可从迁移备份恢复。
 
-旧便携版的 `data/` 目录和旧安装版资料目录不要随程序删除。同一台 Windows 电脑上的加密凭据可继续按原有身份校验使用；跨电脑迁移后需要重新输入密码。
+升级安装会清理 PortCanvas 旧版专属 WebView 缓存、旧版本图标和已识别的旧更新暂存文件；配置、加密凭据、终端列表、日志、背景素材及用户自建文件保留。短暂占用会自动重试；持续占用或异常目录链接会取消安装、恢复旧程序并弹出提示。安装完成后启动应用会清理已使用的更新包；仍被占用时留待下次启动处理。旧便携版的 `data/` 目录和旧安装版资料目录不要随程序删除。同一台 Windows 电脑上的加密凭据可继续按原有身份校验使用；跨电脑迁移后需要重新输入密码。
 
 ## 连接设备
 

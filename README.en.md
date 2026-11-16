@@ -4,11 +4,11 @@
 
 [简体中文](README.md) | English
 
-A native Windows workspace for remote Linux devices. [**Download v0.6.0**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0).
+A native Windows workspace for remote Linux devices. [**Download v0.6.1**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1).
 
 The Rust/Slint workbench restores v0.5.95's page structure and icons, with native VT/RFB and Windows media playback. It provides SSH discovery and authentication, window-contained remote desktop expansion, dual-pane SFTP, persistent tmux terminals, local logs, camera preview and device metrics. Glass quality and opacity are independent; Full is the default, and a lower-quality suggestion requires the user's choice.
 
-[Download the Windows x64 installer](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.0/PortCanvas_0.6.0_x64-setup.exe), then open the PortCanvas desktop shortcut. Stable data lives in `%LOCALAPPDATA%/PortCanvas/Stable`, separately from the native Beta. Review and confirm import of legacy or Beta data from the Devices page; the source remains intact. Keep portable `data/` folders. In-app updates use the stable channel. Terminals support scrollable tabs, horizontal long-line viewing, vertical history, and per-device program launch presets. File and log panes are resizable, and a single selected regular file can have its full path copied.
+[Download the Windows x64 installer](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.1/PortCanvas_0.6.1_x64-setup.exe), then open the PortCanvas desktop shortcut. Stable data lives in `%LOCALAPPDATA%/PortCanvas/Stable`, separately from the native Beta. Review and confirm import of legacy or Beta data from the Devices page; the source remains intact. Keep portable `data/` folders. In-app updates use the stable channel. Terminals support scrollable tabs, horizontal long-line viewing, vertical history, and per-device program launch presets. File and log panes are resizable, and a single selected regular file can have its full path copied.
 
 [Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [Usage](docs/usage.md) · [Pose protocol](docs/pose-protocol.md)
 
