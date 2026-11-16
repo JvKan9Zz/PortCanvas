@@ -122,14 +122,26 @@ Section "PortCanvas" Main
   ${EndIf}
   ; Run the new native helper only after replacing the old executable. Keep the
   ; old binary available until the retired caches/resources are removed.
+  StrCpy $2 0
+  cleanup_retry:
   ClearErrors
   ExecWait '"$INSTDIR\PortCanvas.exe" --cleanup-legacy-install "${LEGACY_LOCAL_DATA}"' $0
   ${If} ${Errors}
     StrCpy $0 1
   ${EndIf}
   ${If} $0 != 0
+    ${If} $2 < 2
+      IntOp $2 $2 + 1
+      Sleep 1000
+      Goto cleanup_retry
+    ${EndIf}
     Delete "$INSTDIR\PortCanvas.exe"
     Rename "$INSTDIR\PortCanvas.previous.exe" "$INSTDIR\PortCanvas.exe"
+    ${If} $LANGUAGE == ${LANG_SIMPCHINESE}
+      MessageBox MB_OK|MB_ICONEXCLAMATION "旧版文件或缓存未能清理，安装已取消。$\r$\n请关闭旧版 PortCanvas 后重试；若仍失败，请检查缓存目录权限或目录链接。$\r$\n你的用户资料已保留。"
+    ${Else}
+      MessageBox MB_OK|MB_ICONEXCLAMATION "Old files or caches could not be removed. Installation was cancelled.$\r$\nClose the old PortCanvas and retry. If this persists, check cache permissions or directory links.$\r$\nYour user data was preserved."
+    ${EndIf}
     SetErrorLevel 1
     Abort "Close the old PortCanvas and retry. User data has been preserved."
   ${EndIf}
