@@ -373,7 +373,6 @@ slint::slint! {
                 Rectangle {background:transparent;horizontal-stretch:1;}
                 if root.page==5:HorizontalBox {padding:0px;spacing:8px;
                     ActionButton {text:root.tr(root.desktop-active&&!root.desktop-ready?"取消连接":root.desktop-ready?"重新连接桌面":"连接桌面",root.english);icon:@image-url("icons/connect.svg");has-icon:true;primary:true;enabled:root.can-interact;clicked=>{if root.desktop-active&&!root.desktop-ready{root.desktop-action("stop");}else{if root.desktop-ready{root.desktop-action("stop");}root.desktop-action("start");}}}
-                    ActionButton {text:root.tr("断开桌面",root.english);enabled:root.can-interact&&(root.desktop-active||root.desktop-wanted);clicked=>{root.desktop-action("stop");}}
                 }
                 if root.page==3:ActionButton {text:root.tr("刷新",root.english);icon:@image-url("icons/restart.svg");has-icon:true;enabled:root.can-browse;clicked=>{root.refresh-logs();}}
                 if root.page==6:ConnectionBadge {text:root.tr(root.file-remote-loaded&&root.connected?"SFTP 已连接":"SFTP 未连接",root.english);phase:root.file-remote-loaded&&root.connected?2:0;}

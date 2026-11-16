@@ -123,14 +123,21 @@ export component FilesView inherits VerticalBox {
     callback action(int,string);callback choose(int,int,bool,bool);callback all(int,bool);callback open(int,int);
     changed geometry-ticket=>{root.invalidate-hidden();}
     property <bool> can-browse:root.enabled&&!root.busy&&!root.local-loading&&!root.remote-loading;
+    property <bool> stacked-tools:root.width<560px;
     min-width:0px;padding:0px;spacing:8px;
     HorizontalBox {height:36px;vertical-stretch:0;padding:0px;spacing:8px;
         ActionButton {text:root.tr(root.compact?"上传":"上传至远端设备",root.english);icon:@image-url("icons/upload.svg");has-icon:true;primary:true;enabled:root.can-browse&&root.connected&&root.remote-loaded&&root.local-selected>0;clicked=>{root.action(0,"upload");}}
         ActionButton {text:root.tr(root.compact?"下载":"下载至电脑",root.english);icon:@image-url("icons/download.svg");has-icon:true;enabled:root.can-browse&&root.connected&&root.local-loaded&&root.remote-selected>0;clicked=>{root.action(1,"download");}}
-        ActionButton {text:root.compact?"":root.tr("复制路径",root.english);accessible-label:root.tr("复制路径",root.english);icon:@image-url("icons/copy.svg");has-icon:true;enabled:root.can-browse&&root.copy-path-enabled;clicked=>{root.action(0,"copy-path");}}
+        ActionButton {text:root.tr("复制路径",root.english);icon:@image-url("icons/copy.svg");has-icon:true;enabled:root.can-browse&&root.copy-path-enabled;clicked=>{root.action(0,"copy-path");}}
         Rectangle {background:transparent;horizontal-stretch:1;}
+        if !root.stacked-tools:Text {text:root.tr("传输限速",root.english);font-size:11px;color:AppColors.muted;vertical-alignment:center;horizontal-stretch:0;}
+        if !root.stacked-tools:ComboBox {width:100px;horizontal-stretch:0;accessible-label:root.tr("传输限速",root.english);model:[root.tr("不限速",root.english),"1 MiB/s","5 MiB/s","10 MiB/s"];current-index<=>root.rate;enabled:root.enabled&&!root.busy;}
+        if root.busy&&!root.stacked-tools:Button {text:root.tr("取消操作",root.english);enabled:root.enabled;clicked=>{root.action(0,"cancel");}}
+    }
+    if root.stacked-tools:HorizontalBox {height:36px;vertical-stretch:0;padding:0px;spacing:8px;
         Text {text:root.tr("传输限速",root.english);font-size:11px;color:AppColors.muted;vertical-alignment:center;horizontal-stretch:0;}
         ComboBox {width:100px;horizontal-stretch:0;accessible-label:root.tr("传输限速",root.english);model:[root.tr("不限速",root.english),"1 MiB/s","5 MiB/s","10 MiB/s"];current-index<=>root.rate;enabled:root.enabled&&!root.busy;}
+        Rectangle {background:transparent;horizontal-stretch:1;}
         if root.busy:Button {text:root.tr("取消操作",root.english);enabled:root.enabled;clicked=>{root.action(0,"cancel");}}
     }
     if root.compact:HorizontalBox {padding:0px;vertical-stretch:0;
