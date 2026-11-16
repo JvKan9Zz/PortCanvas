@@ -4,22 +4,22 @@ Unicode true
 !include "FileFunc.nsh"
 !cd "${__FILEDIR__}"
 !ifndef PRODUCT
-  !define PRODUCT "PortCanvas Beta"
+  !define PRODUCT "PortCanvas"
 !endif
 !ifndef REGKEY
-  !define REGKEY "PortCanvasBeta"
+  !define REGKEY "PortCanvas"
 !endif
 !ifndef VERSION
-  !define VERSION "0.6.0-beta.1"
+  !define VERSION "0.6.0"
 !endif
 !ifndef VERSION_QUAD
-  !define VERSION_QUAD "0.6.0.1"
+  !define VERSION_QUAD "0.6.0.0"
 !endif
 !ifndef BINARY
   !error "BINARY must name the verified native release executable"
 !endif
 !ifndef OUTPUT
-  !error "OUTPUT must name the preview installer"
+  !error "OUTPUT must name the installer"
 !endif
 Name "${PRODUCT}"
 OutFile "${OUTPUT}"
@@ -28,9 +28,9 @@ InstallDirRegKey HKCU "Software\${REGKEY}" "InstallDir"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 VIProductVersion "${VERSION_QUAD}"
-VIAddVersionKey "ProductName" "PortCanvas Beta"
+VIAddVersionKey "ProductName" "PortCanvas"
 VIAddVersionKey "ProductVersion" "${VERSION}"
-VIAddVersionKey "FileDescription" "PortCanvas native preview installer"
+VIAddVersionKey "FileDescription" "PortCanvas native installer"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "LegalCopyright" "PortCanvas contributors"
 !define MUI_ABORTWARNING
@@ -54,7 +54,7 @@ Function .onInit
       System::Call 'kernel32::CloseHandle(p r2)'
       ${If} $3 != 0
         SetErrorLevel 1
-        Abort "PortCanvas Beta is still closing. Try again after it closes."
+        Abort "PortCanvas is still closing. Try again after it closes."
       ${EndIf}
     ${EndIf}
   ${EndIf}
@@ -65,39 +65,39 @@ Function .onInstSuccess
   ClearErrors
   ${GetOptions} $0 "/RESTART" $1
   IfErrors restart_done
-  Exec '"$INSTDIR\PortCanvasBeta.exe"'
+  Exec '"$INSTDIR\PortCanvas.exe"'
   restart_done:
 FunctionEnd
 
-Section "PortCanvas Beta" Main
+Section "PortCanvas" Main
   SetShellVarContext current
   SetOutPath "$INSTDIR"
   SetOverwrite on
   ClearErrors
-  Delete "$INSTDIR\PortCanvasBeta.previous.exe"
+  Delete "$INSTDIR\PortCanvas.previous.exe"
   ${If} ${Errors}
     SetErrorLevel 1
-    Abort "Close the previous preview and try again."
+    Abort "Close the previous version and try again."
   ${EndIf}
-  File /oname=PortCanvasBeta.new.exe "${BINARY}"
+  File /oname=PortCanvas.new.exe "${BINARY}"
   ; Preserve the previous executable if replacement fails or it is still running.
   ClearErrors
-  IfFileExists "$INSTDIR\PortCanvasBeta.exe" 0 commit
-  Rename "$INSTDIR\PortCanvasBeta.exe" "$INSTDIR\PortCanvasBeta.previous.exe"
+  IfFileExists "$INSTDIR\PortCanvas.exe" 0 commit
+  Rename "$INSTDIR\PortCanvas.exe" "$INSTDIR\PortCanvas.previous.exe"
   ${If} ${Errors}
-    Delete "$INSTDIR\PortCanvasBeta.new.exe"
+    Delete "$INSTDIR\PortCanvas.new.exe"
     SetErrorLevel 1
-    Abort "Close PortCanvas Beta and try again."
+    Abort "Close PortCanvas and try again."
   ${EndIf}
   commit:
   ClearErrors
-  Rename "$INSTDIR\PortCanvasBeta.new.exe" "$INSTDIR\PortCanvasBeta.exe"
+  Rename "$INSTDIR\PortCanvas.new.exe" "$INSTDIR\PortCanvas.exe"
   ${If} ${Errors}
-    Rename "$INSTDIR\PortCanvasBeta.previous.exe" "$INSTDIR\PortCanvasBeta.exe"
+    Rename "$INSTDIR\PortCanvas.previous.exe" "$INSTDIR\PortCanvas.exe"
     SetErrorLevel 1
-    Abort "The previous preview was preserved."
+    Abort "The previous version was preserved."
   ${EndIf}
-  Delete "$INSTDIR\PortCanvasBeta.previous.exe"
+  Delete "$INSTDIR\PortCanvas.previous.exe"
   File "assets\portcanvas.ico"
   File /oname=FONT-NOTICES.txt "assets\NOTICE.txt"
   File "assets\LICENSE-Macintosh-Skeletal.txt"
@@ -113,20 +113,20 @@ Section "PortCanvas Beta" Main
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${REGKEY}" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${REGKEY}" "NoRepair" 1
   CreateDirectory "$SMPROGRAMS\${PRODUCT}"
-  CreateShortCut "$SMPROGRAMS\${PRODUCT}\${PRODUCT}.lnk" "$INSTDIR\PortCanvasBeta.exe"
-  CreateShortCut "$DESKTOP\${PRODUCT}.lnk" "$INSTDIR\PortCanvasBeta.exe" "" "$INSTDIR\portcanvas.ico"
+  CreateShortCut "$SMPROGRAMS\${PRODUCT}\${PRODUCT}.lnk" "$INSTDIR\PortCanvas.exe"
+  CreateShortCut "$DESKTOP\${PRODUCT}.lnk" "$INSTDIR\PortCanvas.exe" "" "$INSTDIR\portcanvas.ico"
 SectionEnd
 
 Section "Uninstall"
   SetShellVarContext current
   ClearErrors
-  Delete "$INSTDIR\PortCanvasBeta.exe"
+  Delete "$INSTDIR\PortCanvas.exe"
   ${If} ${Errors}
     SetErrorLevel 1
-    Abort "Close PortCanvas Beta and try uninstalling again."
+    Abort "Close PortCanvas and try uninstalling again."
   ${EndIf}
-  Delete "$INSTDIR\PortCanvasBeta.new.exe"
-  Delete "$INSTDIR\PortCanvasBeta.previous.exe"
+  Delete "$INSTDIR\PortCanvas.new.exe"
+  Delete "$INSTDIR\PortCanvas.previous.exe"
   Delete "$INSTDIR\Uninstall.exe"
   Delete "$INSTDIR\portcanvas.ico"
   Delete "$INSTDIR\FONT-NOTICES.txt"
@@ -139,6 +139,6 @@ Section "Uninstall"
   Delete "$DESKTOP\${PRODUCT}.lnk"
   DeleteRegKey HKCU "Software\${REGKEY}"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${REGKEY}"
-  ; Non-recursive: user-created files and independent preview data are retained.
+  ; Non-recursive: user-created files and independent application data are retained.
   RMDir "$INSTDIR"
 SectionEnd

@@ -179,7 +179,7 @@ fn data_paths() -> Result<Paths> {
     let data = if let Some(data) = std::env::var_os("WCS_DATA_DIR") {
         PathBuf::from(data)
     } else {
-        known_folder(&FOLDERID_LocalAppData)?.join("PortCanvas/Beta")
+        known_folder(&FOLDERID_LocalAppData)?.join("PortCanvas/Stable")
     };
     anyhow::ensure!(data.is_absolute(), "应用数据目录须为绝对路径");
     std::fs::create_dir_all(&data)?;
@@ -527,6 +527,7 @@ pub fn run() -> Result<()> {
         move |accepted| {
             if let Some(ui) = weak.upgrade() {
                 let kind = ui.get_dialog_kind();
+                if kind==16{ui.invoke_terminal_program_response(accepted);return;}
                 if kind==15{files.respond_folder(accepted);return;}
                 if kind==13{updater.respond(accepted);return;}
                 if kind==12{ui.invoke_material_response(accepted);return;}

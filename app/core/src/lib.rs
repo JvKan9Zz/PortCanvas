@@ -1,4 +1,5 @@
 pub mod arena;
+pub mod program;
 pub mod arena_pose;
 pub mod preferences;
 pub mod discovery;

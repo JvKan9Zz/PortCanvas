@@ -72,6 +72,9 @@ impl Terminal {
     pub fn scroll(&mut self, lines: i32) {
         self.term.scroll_display(Scroll::Delta(lines));
     }
+    pub fn scrollback(&self) -> (usize, usize) {
+        (self.term.grid().history_size(), self.term.grid().display_offset())
+    }
     pub fn clear(&mut self) {
         self.term.clear_screen(ClearMode::All);
         self.term.clear_screen(ClearMode::Saved);
@@ -282,6 +285,26 @@ mod tests {
         term.scroll(10);
         assert!(!term.text().contains("line-1499"));
         assert!(term.responses().is_empty());
+    }
+    #[test]
+    fn history_position_tracks_navigation_and_preserves_wide_lines() {
+        let mut term = Terminal::new(240, 4);
+        for n in 0..30 { term.feed(format!("row-{n:02} {} END\r\n", "传感器：123；".repeat(10)).as_bytes()); }
+        let (history, offset) = term.scrollback();
+        assert!(history > 20);
+        assert_eq!(offset, 0);
+        assert!(term.text().contains("row-29"));
+        term.scroll(6);
+        assert_eq!(term.scrollback(), (history, 6));
+        assert!(!term.text().contains("row-29"));
+        assert!(term.cells().iter().any(|c| c.column > 80));
+        term.scroll(history as i32 * 2);
+        assert_eq!(term.scrollback(), (history, history));
+        assert!(term.text().starts_with("row-00"));
+        term.scroll(-(history as i32) * 2);
+        assert_eq!(term.scrollback(), (history, 0));
+        term.clear();
+        assert_eq!(term.scrollback(), (0, 0));
     }
     #[test]
     fn resize_and_selection_preserve_unicode() {

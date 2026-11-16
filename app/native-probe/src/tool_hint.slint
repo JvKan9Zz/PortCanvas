@@ -1,0 +1,32 @@
+import {AppColors} from "action_button.slint";
+export global ToolHint {
+    in-out property <string> text;
+    in-out property <int> ticket:0;
+    in-out property <length> anchor-x;
+    in-out property <length> anchor-y;
+    in-out property <length> anchor-width;
+    in-out property <length> anchor-height;
+    public function clear(){ToolHint.ticket+=1;ToolHint.text="";}
+}
+
+export component ToolHintHost inherits Rectangle {
+    in property <int> page;
+    in property <bool> settings-open;
+    in property <int> dialog-kind;
+    in property <bool> hidden;
+    changed page=>{ToolHint.clear();}
+    changed settings-open=>{ToolHint.clear();}
+    changed dialog-kind=>{ToolHint.clear();}
+    changed hidden=>{ToolHint.clear();}
+    changed width=>{ToolHint.clear();}
+    changed height=>{ToolHint.clear();}
+    visible:ToolHint.text!=""&&!root.hidden;
+    hint:=Rectangle {
+        width:min(260px,caption.preferred-width+20px);height:caption.preferred-height+14px;
+        x:max(8px,min(ToolHint.anchor-x+(ToolHint.anchor-width - self.width)/2,root.width - self.width - 8px));
+        y:ToolHint.anchor-y+ToolHint.anchor-height+6px+self.height<root.height - 8px?ToolHint.anchor-y+ToolHint.anchor-height+6px:max(8px,ToolHint.anchor-y - self.height - 6px);
+        border-radius:8px;border-width:1px;border-color:AppColors.edge;background:AppColors.surface;
+        drop-shadow-offset-y:4px;drop-shadow-blur:14px;drop-shadow-color:#17233126;
+        caption:=Text {x:10px;y:7px;width:parent.width - 20px;text:ToolHint.text;font-size:12px;color:AppColors.ink;wrap:word-wrap;}
+    }
+}

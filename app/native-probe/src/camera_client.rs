@@ -59,7 +59,7 @@ pub async fn run(
             );
             if let Some(frame) = s.arena.native_frame(id, sequence, generation)? {
                 sequence = frame.sequence;
-                let decoded = decode(sequence, &frame.jpeg)?;
+                let decoded = tokio::task::spawn_blocking(move || decode(sequence, &frame.jpeg)).await??;
                 if cancel.is_cancelled() {
                     break;
                 }

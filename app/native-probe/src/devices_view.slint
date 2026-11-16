@@ -87,12 +87,13 @@ export component DevicesView inherits Rectangle {
             Rectangle {height:1px;vertical-stretch:0;background:AppColors.edge;}
             HorizontalBox {padding:0px;spacing:12px;vertical-stretch:0;
                 connect-button:=ActionButton {text:root.tr(root.busy?"取消连接":root.connected?"断开设备":"连接设备",root.english);icon:@image-url("icons/connect.svg");has-icon:true;busy:root.busy;primary:true;enabled:root.enabled;clicked=>{if root.busy||root.connected{root.disconnect();}else{root.connect();}}}
-                Rectangle {preferred-width:0px;min-width:96px;horizontal-stretch:1;background:transparent;
+                if root.connected:ActionButton {text:root.tr("进入远程桌面",root.english);icon:@image-url("icons/go.svg");has-icon:true;enabled:root.enabled;clicked=>{root.desktop();}}
+                Rectangle {preferred-width:0px;min-width:root.busy||root.error!=""?96px:0px;horizontal-stretch:1;background:transparent;
                     if root.busy||root.error!="":VerticalBox {height:parent.height;padding:0px;spacing:3px;alignment:center;
                         Text {text:root.stage>=0&&root.stage<root.steps.length?root.tr(root.steps[root.stage],root.english):root.tr(root.busy?"准备认证资料":"连接失败",root.english);font-size:12px;font-weight:500;color:root.error!=""?AppColors.danger:AppColors.ink;vertical-stretch:0;overflow:elide;}
                         if root.busy:Text {text:root.detail;color:AppColors.muted;font-size:11px;vertical-stretch:0;overflow:elide;}
                     }
-                    if root.connected:ActionButton {width:min(parent.width,self.preferred-width);y:(parent.height - self.height)/2;text:root.tr("进入远程桌面",root.english);icon:@image-url("icons/go.svg");has-icon:true;enabled:root.enabled;clicked=>{root.desktop();}}
+
                 }
                 ActionButton {text:root.tr("保存配置",root.english);enabled:root.editable;clicked=>{root.save();}}
                 ActionButton {visible:root.selected-id!="";text:root.tr("移除配置",root.english);danger:true;enabled:root.editable;clicked=>{root.remove();}}

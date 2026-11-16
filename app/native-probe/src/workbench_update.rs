@@ -20,7 +20,7 @@ pub struct Controller {
 impl Controller {
     pub fn install(ui:&Workbench,runtime:Arc<Runtime>,jobs:Arc<Mutex<Vec<JoinHandle<()>>>>)->Result<Rc<Self>>{
         #[cfg(debug_assertions)] let channel=Channel::from_environment(KEY)?;
-        #[cfg(not(debug_assertions))] let channel=Channel::beta(KEY);
+        #[cfg(not(debug_assertions))] let channel=Channel::stable(KEY);
         let c=Rc::new(Self{ui:ui.as_weak(),runtime,jobs,state:Arc::new(Mutex::new(State::default())),channel});
         ui.on_update_action({let c=c.clone();move|name|c.action(name.as_str())});
         ui.on_update_changed({let c=c.clone();move||c.render()});
@@ -42,7 +42,7 @@ impl Controller {
             if ui.get_dialog_kind()!=0||ui.get_file_mutating()||ui.get_migration_busy()||ui.get_system_busy()||ui.get_busy(){return;}
             if self.state.lock().unwrap().phase!="ready"{return;}
             ui.set_dialog_title(text("安装更新",ui.get_english()).into());
-            ui.set_dialog_message(text("安装完成后将重新打开预览版；本机连接会断开，远端持久终端可在重连后恢复。",ui.get_english()).into());
+            ui.set_dialog_message(text("安装完成后将重新打开 PortCanvas；本机连接会断开，远端持久终端可在重连后恢复。",ui.get_english()).into());
             ui.set_dialog_kind(13);return;
         }
         if !matches!(name,"check"|"download"){return;}
@@ -87,10 +87,10 @@ impl Controller {
         let plan=s.plan.as_ref().context("请重新检查更新。")?;let bytes=s.bytes.as_ref().context("请重新下载更新。")?;
         portcanvas_native_probe::update::verify(bytes,&self.channel.public_key,&plan.signature,env!("CARGO_PKG_VERSION"),&plan.version)?;
         let dir=PathBuf::from(ui.get_data_directory().as_str()).join("updates");std::fs::create_dir_all(&dir)?;
-        let package=dir.join("PortCanvasBeta-update.exe");std::fs::write(&package,bytes)?;
+        let package=dir.join("PortCanvas-update.exe");std::fs::write(&package,bytes)?;
         let readback=std::fs::read(&package)?;
         portcanvas_native_probe::update::verify(&readback,&self.channel.public_key,&plan.signature,env!("CARGO_PKG_VERSION"),&plan.version)?;
-        let exe=std::env::current_exe()?;ensure!(exe.file_name().is_some_and(|name|name=="PortCanvasBeta.exe"),"此开发构建请使用预览版安装器进行安装。");let install_dir=exe.parent().context("无法确定安装位置。")?;
+        let exe=std::env::current_exe()?;ensure!(exe.file_name().is_some_and(|name|name=="PortCanvas.exe"),"此开发构建请使用正式版安装器进行安装。");let install_dir=exe.parent().context("无法确定安装位置。")?;
         let mut command=std::process::Command::new(package);
         command.arg("/S").arg(format!("/PID={}",std::process::id())).arg("/RESTART");
         #[cfg(windows)] {use std::os::windows::process::CommandExt;command.raw_arg(format!("/D={}",install_dir.display()));}

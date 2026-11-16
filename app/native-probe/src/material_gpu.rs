@@ -8,12 +8,14 @@ pub struct Surface {
     pub size: (u32, u32),
     pub crop: [f32; 4],
     pub radius: f32,
+    pub opacity: f32,
 }
 struct Target {
     texture: glow::Texture,
     size: (u32, u32),
     crop: Option<[f32; 4]>,
     radius: f32,
+    opacity: f32,
 }
 pub struct Gpu {
     gl: glow::Context,
@@ -114,60 +116,6 @@ impl Drop for State<'_> {
     }
 }
 
-/// Downsample the completed window on the GPU before reading pixels. Called only
-/// from AfterRendering, while the modal is still transparent and before present.
-pub unsafe fn capture_window(
-    api: &slint::GraphicsAPI,
-    size: (u32, u32),
-    limit: u32,
-) -> Result<(image::RgbaImage, f32)> {
-    let slint::GraphicsAPI::NativeOpenGL { get_proc_address } = api else {
-        bail!("Native OpenGL snapshot unavailable")
-    };
-    ensure!(size.0 > 0 && size.1 > 0, "empty window snapshot");
-    let gl = glow::Context::from_loader_function(|name| {
-        get_proc_address(&std::ffi::CString::new(name).unwrap())
-    });
-    let saved = State::save(&gl);
-    let ratio = (limit as f32 / size.0 as f32).min(640.0 / size.1 as f32).min(1.0);
-    let (w,h) = ((size.0 as f32*ratio).round().max(1.0) as u32,
-                 (size.1 as f32*ratio).round().max(1.0) as u32);
-    let texture = gl.create_texture().map_err(anyhow::Error::msg)?;
-    let framebuffer = match gl.create_framebuffer() {
-        Ok(value) => value,
-        Err(error) => { gl.delete_texture(texture); bail!(error); }
-    };
-    let result = (|| {
-        gl.bind_buffer(glow::PIXEL_UNPACK_BUFFER, None);
-        gl.bind_buffer(glow::PIXEL_PACK_BUFFER, None);
-        gl.bind_texture(glow::TEXTURE_2D, Some(texture));
-        gl.tex_image_2d(glow::TEXTURE_2D,0,glow::RGBA8 as i32,w as i32,h as i32,0,
-            glow::RGBA,glow::UNSIGNED_BYTE,glow::PixelUnpackData::Slice(None));
-        gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER,Some(framebuffer));
-        gl.framebuffer_texture_2d(glow::DRAW_FRAMEBUFFER,glow::COLOR_ATTACHMENT0,
-            glow::TEXTURE_2D,Some(texture),0);
-        ensure!(gl.check_framebuffer_status(glow::DRAW_FRAMEBUFFER)==glow::FRAMEBUFFER_COMPLETE,
-            "snapshot framebuffer incomplete");
-        gl.disable(glow::SCISSOR_TEST);
-        gl.bind_framebuffer(glow::READ_FRAMEBUFFER,saved.draw);
-        gl.blit_framebuffer(0,0,size.0 as i32,size.1 as i32,0,0,w as i32,h as i32,
-            glow::COLOR_BUFFER_BIT,glow::LINEAR);
-        gl.bind_framebuffer(glow::READ_FRAMEBUFFER,Some(framebuffer));
-        gl.pixel_store_i32(glow::PACK_ALIGNMENT,1);
-        gl.pixel_store_i32(glow::PACK_ROW_LENGTH,0);
-        gl.pixel_store_i32(glow::PACK_SKIP_PIXELS,0);
-        gl.pixel_store_i32(glow::PACK_SKIP_ROWS,0);
-        let mut pixels = image::RgbaImage::new(w,h);
-        gl.read_pixels(0,0,w as i32,h as i32,glow::RGBA,glow::UNSIGNED_BYTE,
-            glow::PixelPackData::Slice(Some(pixels.as_mut())));
-        ensure!(gl.get_error()==glow::NO_ERROR,"GPU snapshot readback failed");
-        Ok((pixels,ratio))
-    })();
-    gl.delete_framebuffer(framebuffer);
-    gl.delete_texture(texture);
-    drop(saved);
-    result
-}
 unsafe fn shader(gl: &glow::Context, kind: u32, source: &str) -> Result<glow::Shader> {
     let source = if gl.version().is_embedded {
         source.replacen(
@@ -333,6 +281,7 @@ impl Gpu {
                 size: (0, 0),
                 crop: None,
                 radius: -1.0,
+                opacity: -1.0,
             });
             self.texture(texture);
         }
@@ -353,10 +302,6 @@ impl Gpu {
             gl.get_uniform_location(program, "quality").as_ref(),
             quality,
         );
-        gl.uniform_1_f32(
-            gl.get_uniform_location(program, "opacity").as_ref(),
-            opacity / 100.0,
-        );
         gl.uniform_3_f32_slice(gl.get_uniform_location(program, "tint").as_ref(), &tint);
         gl.uniform_2_f32(
             gl.get_uniform_location(program, "source_size").as_ref(),
@@ -366,7 +311,7 @@ impl Gpu {
         let mut images = Vec::with_capacity(surfaces.len());
         for (target, surface) in self.targets.iter_mut().zip(surfaces) {
             // A moving overlay does not invalidate unrelated static islands.
-            if !redraw_all&&target.size==surface.size&&target.crop==Some(surface.crop)&&target.radius==surface.radius{
+            if !redraw_all&&target.size==surface.size&&target.crop==Some(surface.crop)&&target.radius==surface.radius&&target.opacity==surface.opacity{
                 images.push(ImageBuilder::new_gl_2d_rgba_texture(target.texture.0,target.size.into()).origin(Origin::BottomLeft).build());
                 continue;
             }
@@ -408,9 +353,11 @@ impl Gpu {
                 surface.size.1 as f32,
             );
             gl.uniform_1_f32(gl.get_uniform_location(program,"corner_radius").as_ref(),surface.radius);
+            gl.uniform_1_f32(gl.get_uniform_location(program,"opacity").as_ref(),surface.opacity/100.0);
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
             target.crop=Some(surface.crop);
             target.radius=surface.radius;
+            target.opacity=surface.opacity;
             self.passes += 1;
             images.push(
                 ImageBuilder::new_gl_2d_rgba_texture(target.texture.0, target.size.into())

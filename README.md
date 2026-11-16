@@ -4,7 +4,7 @@
 
 简体中文 | [English](README.en.md)
 
-Windows 原生远程设备工作台。[**v0.6.0-beta.1 预览版已发布**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0-beta.1)，稳定版仍为 [v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95)。
+Windows 原生远程设备工作台。[**下载 v0.6.0 正式版**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0)。
 
 原生工作台使用 Slint、Rust、原生 VT/RFB 和 Windows 系统媒体能力，保留 v0.5.95 的页面结构、图标与主要交互。
 
@@ -12,16 +12,16 @@ Windows 原生远程设备工作台。[**v0.6.0-beta.1 预览版已发布**](htt
 | --- | --- |
 | 设备 | 启动时局域网 SSH 发现、密码/私钥、指纹核对、可选加密保存凭据、分阶段连接与取消 |
 | 桌面 | X11 远程桌面、三档画质、适配/1:1、只读、剪贴板；在当前窗口内展开桌面并保留工具栏 |
-| 文件 | 双栏 SFTP、盘符/目录导航、多选与拖拽、递归传输、覆盖确认、限速、取消与远端删除 |
-| 终端与日志 | 多个持久 tmux 终端、中文输入法、复制粘贴、草稿/历史与补全；电脑本地日志及清理 |
+| 文件 | 可调双栏 SFTP、单文件复制路径、多选与拖拽、递归传输、覆盖确认、限速、取消与远端删除 |
+| 终端与日志 | 可滚动的多终端标签、中文输入法、双向滚动、草稿/历史与补全、一键启动程序；可调日志详情及清理 |
 | 赛台 | 按需相机预览、设备性能历史及定位输入接口；没有定位生产程序时显示未接入 |
 | 设置 | 中英文、主题/外观、颜色/图片/视频背景及音量；独立玻璃质量与不透明度，默认 Full |
 
 摄像头默认关闭，最小化、离页、断连和退出回收采集，恢复后手动开启。帧率与资源开销受设备、网络及所选媒体影响；卡顿时软件可建议降低玻璃质量，由用户决定。
 
-## 预览与稳定版
+## 安装与旧版资料
 
-原生 Beta 以 **PortCanvas Beta** 独立安装，数据位于 `%LOCALAPPDATA%/PortCanvas/Beta`，与稳定版分开。旧资料须经预览与确认后导入，源文件保留。Beta 更新使用单独的预览通道。[下载 Windows x64 安装器](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.0-beta.1/PortCanvas_Beta_0.6.0-beta.1_x64-setup.exe)，安装后从桌面“PortCanvas Beta”打开。已收集的界面、字体、终端滚动和视频延迟问题将继续在 beta.2 修正。
+[下载 Windows x64 安装器](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.0/PortCanvas_0.6.0_x64-setup.exe)，安装后从桌面“PortCanvas”打开。正式版资料位于 `%LOCALAPPDATA%/PortCanvas/Stable`，与原生 Beta 分开。首次使用可从设备页导入旧版或 Beta 的资料目录，确认前可预览，原目录保留。旧便携目录 `data/` 请一并保留。软件内更新使用稳定通道。
 
 [Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [使用说明](docs/usage.md) · [定位接口](docs/pose-protocol.md)
 
