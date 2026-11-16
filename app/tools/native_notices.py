@@ -59,7 +59,7 @@ for package in sorted((packages[i] for i in selected),key=lambda x:(x['name'],x[
     vcs = directory/'.cargo_vcs_info.json'
     revision = json.loads(vcs.read_text()).get('git',{}).get('sha1') if vcs.exists() else None
     paths.update(supplements/item['path'] for item in sources if item['revision']==revision and repository(item['repo'])==repository(package.get('repository')))
-    references = sorted({number for path in paths if (number := retain(path)) is not None})
+    references = sorted({number for path in sorted(paths) if (number := retain(path)) is not None})
     row = {'name':package['name'],'version':package['version'],'license':package.get('license'),'repository':package.get('repository'),'revision':revision,'texts':references}
     rows.append(row)
     if not references: missing.append({k:row[k] for k in ('name','version','license','repository','revision')})
@@ -80,6 +80,8 @@ for row in rows:
 lines.append(f"\nRust standard library | license texts: {', '.join(map(str,rust_licenses))}\n")
 for number, value in enumerate(texts,1):
     lines.append(f'\n----- License text {number} -----\n{value}\n')
+icon_license=app/'native-probe/src/icons/FLUENT-LICENSE.txt'
+lines.append('\nMicrosoft Fluent UI System Icons (Settings, Options)\n'+icon_license.read_text(encoding='utf-8').strip()+'\n')
 args.output.parent.mkdir(parents=True,exist_ok=True)
 args.output.write_text('\n'.join(line.rstrip() for line in ''.join(lines).splitlines())+'\n',encoding='utf-8')
 args.inventory.parent.mkdir(parents=True,exist_ok=True)
