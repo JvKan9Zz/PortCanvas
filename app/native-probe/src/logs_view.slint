@@ -10,7 +10,7 @@ component LogSelectionBox inherits CheckBox {
     changed selected=>{root.checked=root.selected;}
 }
 export component LogsView inherits VerticalBox {
-    property <float> split:0.44;
+    property <float> split:root.compact?0.32:0.44;
     in property <bool> compact;in property <bool> english;in property <bool> enabled;in property <bool> loading;
     in property <[string]> projects;in property <[string]> days;
     in-out property <int> project-index;in-out property <int> day-index;in-out property <int> status-index;
@@ -90,18 +90,18 @@ export component LogsView inherits VerticalBox {
                     Rectangle {height:42px;vertical-stretch:0;border-radius:10px;background:AppColors.inset;
                         Text {x:12px;width:parent.width - 24px;height:parent.height;text:root.command;color:AppColors.ink;overflow:elide;vertical-alignment:center;}
                     }
+                    if root.warning!="":Text {text:root.warning;color:AppColors.danger;font-size:11px;wrap:word-wrap;vertical-stretch:0;}
+                    Rectangle {background:AppColors.terminal;border-radius:10px;clip:true;height:max(220px,details-panel.height - 150px);vertical-stretch:0;
+                        output-scroll:=ScrollView {x:12px;y:12px;width:parent.width - 24px;height:parent.height - 24px;viewport-width:max(self.visible-width,raw.preferred-width);viewport-height:max(self.visible-height,raw.preferred-height);
+                            raw:=TextInput {width:output-scroll.viewport-width;height:output-scroll.viewport-height;text:root.output;read-only:true;single-line:false;wrap:no-wrap;color:#e0e7f3;font-family:"Consolas";font-size:12px;accessible-label:root.tr("日志原文",root.english);}
+                        }
+                    }
                     HorizontalBox {padding:0px;spacing:14px;vertical-stretch:0;
                         VerticalBox {padding:0px;spacing:10px;preferred-width:0px;horizontal-stretch:1;
                             for fact in root.left-facts:VerticalBox {padding:0px;spacing:3px;vertical-stretch:0;Text {text:fact.label;color:AppColors.muted;font-size:11px;}Text {text:fact.value;color:AppColors.ink;font-size:12px;overflow:elide;}}
                         }
                         VerticalBox {padding:0px;spacing:10px;preferred-width:0px;horizontal-stretch:1;
                             for fact in root.right-facts:VerticalBox {padding:0px;spacing:3px;vertical-stretch:0;Text {text:fact.label;color:AppColors.muted;font-size:11px;}Text {text:fact.value;color:AppColors.ink;font-size:12px;overflow:elide;}}
-                        }
-                    }
-                    if root.warning!="":Text {text:root.warning;color:AppColors.danger;font-size:11px;wrap:word-wrap;vertical-stretch:0;}
-                    Rectangle {background:AppColors.terminal;border-radius:10px;clip:true;height:max(160px,details-panel.height - 300px);vertical-stretch:0;
-                        output-scroll:=ScrollView {x:12px;y:12px;width:parent.width - 24px;height:parent.height - 24px;viewport-width:max(self.visible-width,raw.preferred-width);viewport-height:max(self.visible-height,raw.preferred-height);
-                            raw:=TextInput {width:output-scroll.viewport-width;height:output-scroll.viewport-height;text:root.output;read-only:true;single-line:false;wrap:no-wrap;color:#e0e7f3;font-family:"Consolas";font-size:12px;accessible-label:root.tr("日志原文",root.english);}
                         }
                     }
                     Text {text:root.file;color:AppColors.muted;font-size:10px;overflow:elide;vertical-stretch:0;}
