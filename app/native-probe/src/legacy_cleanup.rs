@@ -85,9 +85,37 @@ fn clean_portable_stage(install: &Path, name: &str) -> Result<()> {
 /// Called after starting the installed app; a still-running installer is retried
 /// on the next start. There is only one fixed package name, never a version pile.
 pub fn finish_update(data: &Path) {
+    finish_update_at(data, &std::env::temp_dir());
+}
+
+fn finish_update_at(data: &Path, temp: &Path) {
     if let Ok(Some(path)) = owned_path(data, Path::new("updates/PortCanvas-update.exe")) {
         if path.is_file() { let _ = fs::remove_file(path); }
     }
+    // The retired Tauri updater used tempdir.keep() and exited without Drop.
+    // Remove only its exact installer filename, retaining unknown contents.
+    let _ = clean_updater_temp(temp);
+}
+
+fn clean_updater_temp(root: &Path) -> Result<()> {
+    for entry in fs::read_dir(root)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        let Some((version, suffix)) = name.strip_prefix("PortCanvas-").and_then(|s| s.split_once("-updater-")) else { continue };
+        if suffix.is_empty() || !suffix.bytes().all(|c| c.is_ascii_alphanumeric()) { continue; }
+        let Ok(version_number) = semver::Version::parse(version) else { continue };
+        if version_number > semver::Version::parse(env!("CARGO_PKG_VERSION"))? { continue; }
+        // A linked or occupied legacy cache is left for a subsequent start.
+        let Ok(Some(directory)) = owned_path(root, Path::new(name)) else { continue };
+        if !directory.is_dir() { continue; }
+        let relative = Path::new(name).join(format!("PortCanvas-{version}-installer.exe"));
+        if let Ok(Some(file)) = owned_path(root, &relative) {
+            if file.is_file() { let _ = fs::remove_file(file); }
+        }
+        if fs::read_dir(&directory)?.next().is_none() { let _ = fs::remove_dir(directory); }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -126,9 +154,25 @@ mod tests {
         for name in ["LICENSE","portcanvas-0.5.8.ico","data/webview",stage] {assert!(!install.join(name).exists());}
         assert!(!local.join("io.portcanvas.app/EBWebView").exists());
         write(&install,"updates/PortCanvas-update.exe",b"installed package")?;
-        finish_update(&install);
+        finish_update_at(&install,&local);
         assert!(!install.join("updates/PortCanvas-update.exe").exists());
         clean(&install,&local)?;
+        fs::remove_dir_all(root)?;Ok(())
+    }
+    #[test]
+    fn retired_updater_packages_are_removed_without_touching_future_updates_or_unknown_files() -> Result<()> {
+        let root=fixture()?;let temp=root.join("temp");fs::create_dir(&temp)?;
+        write(&temp,"PortCanvas-0.6.1-updater-owned/PortCanvas-0.6.1-installer.exe",b"old package")?;
+        write(&temp,"PortCanvas-0.6.1-updater-mixed/PortCanvas-0.6.1-installer.exe",b"old package")?;
+        write(&temp,"PortCanvas-0.6.1-updater-mixed/user.txt",b"keep")?;
+        write(&temp,"PortCanvas-99.0.0-updater-future/PortCanvas-99.0.0-installer.exe",b"future package")?;
+        write(&temp,"Other-0.6.1-updater-owned/Other-0.6.1-installer.exe",b"other app")?;
+        clean_updater_temp(&temp)?;
+        assert!(!temp.join("PortCanvas-0.6.1-updater-owned").exists());
+        assert!(!temp.join("PortCanvas-0.6.1-updater-mixed/PortCanvas-0.6.1-installer.exe").exists());
+        assert_eq!(fs::read(temp.join("PortCanvas-0.6.1-updater-mixed/user.txt"))?,b"keep");
+        assert_eq!(fs::read(temp.join("PortCanvas-99.0.0-updater-future/PortCanvas-99.0.0-installer.exe"))?,b"future package");
+        assert_eq!(fs::read(temp.join("Other-0.6.1-updater-owned/Other-0.6.1-installer.exe"))?,b"other app");
         fs::remove_dir_all(root)?;Ok(())
     }
     #[test]
