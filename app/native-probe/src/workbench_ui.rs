@@ -6,6 +6,7 @@ slint::slint! {
     import {CheckBox} from "check_box.slint";
     import {SelectBox as ComboBox} from "select_box.slint";
     import {SelectPopupHost} from "select_popup.slint";
+    import {ToolHint,ToolHintHost} from "tool_hint.slint";
     import {ScrollView,ListView,TextEdit,VerticalBox,HorizontalBox,Palette,AboutSlint} from "std-widgets.slint";
     import {FormInput as LineEdit} from "form_input.slint";
     import {TerminalView,TerminalCell,TerminalTab,CompletionRow} from "terminal_view.slint";
@@ -638,7 +639,8 @@ slint::slint! {
             TouchArea {}
         }
 
-        select-host:=SelectPopupHost {x:0px;y:0px;width:parent.width;height:parent.height;state-changed(open)=>{root.select-popup-state(open);}}
+        select-host:=SelectPopupHost {x:0px;y:0px;width:parent.width;height:parent.height;state-changed(open)=>{ToolHint.clear();root.select-popup-state(open);}}
+        ToolHintHost {width:parent.width;height:parent.height;page:root.page;settings-open:root.settings-open;dialog-kind:root.dialog-kind;hidden:root.native-hidden;}
 
     }
 }
