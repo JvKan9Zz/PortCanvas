@@ -189,6 +189,7 @@ impl Controller {
         ui.on_bg_picker_change({let weak=ui.as_weak();move|h,s,v|{if let Some(ui)=weak.upgrade(){picker_hsv(&ui,h as f64,s as f64,v as f64);}}});
         ui.on_bg_picker_rgb({let weak=ui.as_weak();move|r,g,b|{if let Some(ui)=weak.upgrade(){let [h,s,v]=portcanvas_native_probe::color_model::hsv([r.clamp(0,255) as u8,g.clamp(0,255) as u8,b.clamp(0,255) as u8]);picker_hsv(&ui,h,s,v);}}});
         ui.on_bg_picker_hex_edited({let weak=ui.as_weak();move|value|{if let Some(ui)=weak.upgrade(){
+            ui.set_bg_picker_hex(value.clone());
             if let Some(rgb)=portcanvas_native_probe::color_model::parse(value.as_str()){
                 let [h,s,v]=portcanvas_native_probe::color_model::hsv(rgb);picker_hsv_input(&ui,h,s,v,false);ui.set_bg_picker_error("".into());
             }else if value.len()>=7{ui.set_bg_picker_error("请选择有效的背景颜色。".into());}
