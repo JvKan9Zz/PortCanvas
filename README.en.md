@@ -4,11 +4,11 @@
 
 [简体中文](README.md) | English
 
-A native Windows workspace for remote Linux devices. [**v0.6.0-beta.1 is available as a preview**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0-beta.1). The stable release remains [v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95).
+A native Windows workspace for remote Linux devices. [**Download v0.6.0**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.0).
 
 The Rust/Slint workbench restores v0.5.95's page structure and icons, with native VT/RFB and Windows media playback. It provides SSH discovery and authentication, window-contained remote desktop expansion, dual-pane SFTP, persistent tmux terminals, local logs, camera preview and device metrics. Glass quality and opacity are independent; Full is the default, and a lower-quality suggestion requires the user's choice.
 
-The PortCanvas Beta installation and `%LOCALAPPDATA%/PortCanvas/Beta` data directory are separate from the stable application. Legacy import requires review and confirmation and preserves its source. The preview update channel is independent. [Download the Windows x64 installer](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.0-beta.1/PortCanvas_Beta_0.6.0-beta.1_x64-setup.exe), then open the PortCanvas Beta desktop shortcut. Reported interface, font, terminal scrolling and video latency issues are being addressed for beta.2.
+[Download the Windows x64 installer](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.0/PortCanvas_0.6.0_x64-setup.exe), then open the PortCanvas desktop shortcut. Stable data lives in `%LOCALAPPDATA%/PortCanvas/Stable`, separately from the native Beta. Review and confirm import of legacy or Beta data from the Devices page; the source remains intact. Keep portable `data/` folders. In-app updates use the stable channel. Terminals support scrollable tabs, horizontal long-line viewing, vertical history, and per-device program launch presets. File and log panes are resizable, and a single selected regular file can have its full path copied.
 
 [Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [Usage](docs/usage.md) · [Pose protocol](docs/pose-protocol.md)
 

@@ -8,6 +8,7 @@ use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
 pub const BETA_RELEASES: &str = "https://api.github.com/repos/JvKan9Zz/PortCanvas/releases?per_page=20";
+pub const STABLE_MANIFEST: &str = "https://github.com/JvKan9Zz/PortCanvas/releases/latest/download/latest.json";
 
 #[derive(Clone)]
 pub struct Channel {
@@ -16,13 +17,16 @@ pub struct Channel {
     loopback: bool,
 }
 impl Channel {
+    pub fn stable(public_key: &str) -> Self {
+        Self { public_key: public_key.trim().into(), endpoint: STABLE_MANIFEST.into(), loopback: false }
+    }
     pub fn beta(public_key: &str) -> Self {
         Self { public_key: public_key.trim().into(), endpoint: BETA_RELEASES.into(), loopback: false }
     }
     /// Disposable updater lab only. These hooks are absent from release builds.
     #[cfg(debug_assertions)]
     pub fn from_environment(public_key: &str) -> Result<Self> {
-        let Ok(endpoint) = std::env::var("PORTCANVAS_UPDATE_TEST_ENDPOINT") else { return Ok(Self::beta(public_key)); };
+        let Ok(endpoint) = std::env::var("PORTCANVAS_UPDATE_TEST_ENDPOINT") else { return Ok(Self::stable(public_key)); };
         let key = std::env::var_os("PORTCANVAS_UPDATE_TEST_PUBLIC_KEY").context("更新实验缺少测试公钥文件。")?;
         let channel = Self { public_key: std::fs::read_to_string(key)?.trim().into(), endpoint, loopback: true };
         channel.url(&channel.endpoint)?;
@@ -46,7 +50,7 @@ impl Channel {
         let operation = async {
             let response = client.get(&self.endpoint).send().await?.error_for_status()?;
             let value: Value = serde_json::from_str(&response.text().await?)?;
-            let manifest = if self.loopback { value } else {
+            let manifest = if self.loopback || self.endpoint == STABLE_MANIFEST { value } else {
                 let Some(url) = beta_manifest(&value, current)? else { return Ok(None); };
                 let response = client.get(url).send().await?.error_for_status()?;
                 serde_json::from_str(&response.text().await?)?
@@ -57,6 +61,9 @@ impl Channel {
     }
     fn plan(&self, value: &Value, current: &str) -> Result<Option<Plan>> {
         let Some(plan) = Plan::parse(value, current)? else { return Ok(None) };
+        if self.endpoint == STABLE_MANIFEST {
+            ensure!(Version::parse(&plan.version)?.pre.is_empty(), "稳定更新通道不接受预览版本。");
+        }
         self.url(&plan.url)?;
         Ok(Some(plan))
     }
@@ -142,6 +149,15 @@ pub async fn check_beta(current: &str, cancel: &CancellationToken) -> Result<Opt
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn stable_channel_accepts_only_newer_stable_manifests() {
+        let channel=Channel::stable("");
+        let manifest=|version:&str|json!({"version":version,"platforms":{"windows-x86_64":{"url":"https://example.test/setup.exe","signature":"signed"}}});
+        assert!(channel.plan(&manifest("0.6.1"),"0.6.0").unwrap().is_some());
+        assert!(channel.plan(&manifest("0.6.0"),"0.6.0").unwrap().is_none());
+        assert!(channel.plan(&manifest("0.5.95"),"0.6.0").unwrap().is_none());
+        assert!(channel.plan(&manifest("0.7.0-beta.1"),"0.6.0").is_err());
+    }
     #[test]
     fn manifests_reject_downgrades_and_insecure_packages() {
         let value = json!({"version":"0.6.0-beta.2","platforms":{"windows-x86_64":{"url":"https://example.test/setup.exe","signature":"signed"}}});

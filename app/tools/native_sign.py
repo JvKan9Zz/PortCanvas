@@ -1,4 +1,4 @@
-"""Sign a preview installer with native Minisign and embed its version-bound signature.
+"""Sign an installer with native Minisign and embed its version-bound signature.
 
 Existing Tauri key files are outer-base64 Minisign files; only that wrapper is
 decoded temporarily beside the protected source key. No new key is generated.
@@ -7,6 +7,7 @@ import argparse
 import base64
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -28,8 +29,8 @@ public_key = args.public_key.resolve(strict=True)
 output = args.output.resolve()
 if output.exists():
     raise SystemExit('Preserve the existing manifest; choose a fresh output.')
-if not args.version.startswith('0.6.0-beta.'):
-    raise SystemExit('This packaging entry point is scoped to the 0.6.0 preview channel.')
+if args.version != '0.6.0' and not re.fullmatch(r'0\.6\.0-beta\.[0-9]+', args.version):
+    raise SystemExit('This packaging entry point is scoped to the 0.6.0 release family.')
 
 def checked(arguments, password=b''):
     result = subprocess.run([str(args.minisign.resolve(strict=True)), *map(str, arguments)], input=password,
@@ -56,4 +57,4 @@ with tempfile.TemporaryDirectory(prefix='portcanvas-sign-', dir=key.parent) as p
                     'url':f'https://github.com/JvKan9Zz/PortCanvas/releases/download/v{args.version}/{installer.name}',
                     'signature':signed}}}
     output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-print('Native signature verified and embedded in the preview manifest; temporary key copies removed.')
+print('Native signature verified and embedded in the update manifest; temporary key copies removed.')

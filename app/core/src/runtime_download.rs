@@ -22,7 +22,7 @@ pub(crate) struct Package {
 impl Plan {
     pub fn validate(&self) -> Result<u64> {
         anyhow::ensure!(self.os == "ubuntu" && self.release == "20.04" && self.architecture == "arm64",
-            "Beta 自动下载目前支持 Ubuntu 20.04 ARM64 控制器；其他环境请先手动准备组件。");
+            "自动下载目前支持 Ubuntu 20.04 ARM64 控制器；其他环境请先手动准备组件。");
         anyhow::ensure!(!self.packages.is_empty() && self.packages.len() <= 128, "组件清单数量无效。");
         let mut total = 0;
         for package in &self.packages {

@@ -179,7 +179,7 @@ fn data_paths() -> Result<Paths> {
     let data = if let Some(data) = std::env::var_os("WCS_DATA_DIR") {
         PathBuf::from(data)
     } else {
-        known_folder(&FOLDERID_LocalAppData)?.join("PortCanvas/Beta")
+        known_folder(&FOLDERID_LocalAppData)?.join("PortCanvas/Stable")
     };
     anyhow::ensure!(data.is_absolute(), "应用数据目录须为绝对路径");
     std::fs::create_dir_all(&data)?;

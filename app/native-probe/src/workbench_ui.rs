@@ -38,7 +38,7 @@ slint::slint! {
         changed quick-phase=>{if root.quick-phase==0&&!root.quick-open{main-focus.focus();}}
         in property <int> terminal-history-lines;
         in property <string> app-version;
-        title:"PortCanvas Beta · v"+root.app-version;
+        title:"PortCanvas · v"+root.app-version;
         icon:@image-url("../assets/portcanvas.png");
         preferred-width:1200px;preferred-height:820px;min-width:1000px;min-height:700px;
         default-font-family:"PortCanvas UI";default-font-size:14px;
@@ -544,7 +544,7 @@ slint::slint! {
                                     if root.settings-section==2:VerticalBox {padding:0px;spacing:16px;
                         VerticalBox {padding-top:12px;padding-bottom:16px;padding-left:0px;padding-right:0px;spacing:12px;vertical-stretch:0;
                             HorizontalBox {padding:0px;Rectangle {background:transparent;horizontal-stretch:1;}Image {source:@image-url("../assets/portcanvas.png");width:76px;height:76px;horizontal-stretch:0;vertical-stretch:0;}Rectangle {background:transparent;horizontal-stretch:1;}}
-                            Text {text:"PortCanvas Beta";font-size:24px;font-weight:600;color:AppColors.ink;horizontal-alignment:center;}
+                            Text {text:"PortCanvas";font-size:24px;font-weight:600;color:AppColors.ink;horizontal-alignment:center;}
                             HorizontalBox {padding:0px;Rectangle {background:transparent;horizontal-stretch:1;}Rectangle {preferred-width:version-label.preferred-width+20px;height:28px;border-radius:14px;background:AppColors.soft;horizontal-stretch:0;version-label:=Text {x:10px;width:parent.width - 20px;height:parent.height;text:"v"+root.app-version;font-size:11px;color:AppColors.muted;vertical-alignment:center;}}Rectangle {background:transparent;horizontal-stretch:1;}}
                         }
                         Rectangle {height:1px;vertical-stretch:0;background:AppColors.edge;}
