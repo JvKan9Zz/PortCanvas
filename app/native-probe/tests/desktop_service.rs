@@ -307,6 +307,23 @@ async fn native_desktop_over_shared_ssh_preserves_quality_pixels_input_resize_an
     Ok(())
 }
 #[tokio::test]
+async fn explicit_stop_with_queued_input_releases_the_desktop_without_an_error() -> Result<()> {
+    let fixture = support::Fixture::new().await?;
+    let (services, _) = connect(&fixture).await?;
+    let client = Client::new(services.clone(), DesktopMode::Smooth);
+    until("complete framebuffer before queued input", || client.frames.borrow().is_some()).await;
+    let view = client.frame().view;
+    for key in 0x61..0x71 {
+        client.command(view, Command::Key(key, true)).await?;
+    }
+    client.stop().await?;
+    released(&fixture).await;
+    assert!(fixture.counts.desktop.held.lock().unwrap().is_empty());
+    assert_eq!(services.devices.snapshot()["ssh"], "connected");
+    services.shutdown().await;
+    Ok(())
+}
+#[tokio::test]
 async fn incomplete_first_frame_never_allows_input_and_cancellation_releases_tunnel() -> Result<()>
 {
     for behavior in [

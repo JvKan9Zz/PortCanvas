@@ -124,7 +124,6 @@ impl Panel {
         })
     }
 }
-/// List viewport in logical window coordinates. Offset is the scroll viewport's y.
 pub fn selected_file_path(panels: &[Panel; 2]) -> Option<String> {
     if panels.iter().map(|p| p.selected.len()).sum::<usize>() != 1 { return None; }
     for (side, panel) in panels.iter().enumerate() {
@@ -140,6 +139,7 @@ pub fn selected_file_path(panels: &[Panel; 2]) -> Option<String> {
     None
 }
 
+/// List viewport in logical window coordinates. Offset is the scroll viewport's y.
 pub fn hit_row(x: f32, y: f32, area: [f32; 5], count: usize) -> Option<Option<usize>> {
     let [left, top, width, height, offset] = area;
     if width <= 0. || height <= 0. || x < left || y < top || x >= left + width || y >= top + height {

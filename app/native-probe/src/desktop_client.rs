@@ -327,7 +327,9 @@ pub async fn run(
     } else {
         services.desktop.stop(Some(id)).await;
     }
-    result
+    // A stop can race a queued input/refresh branch after fair selection.
+    // Its cancellation error is expected; all cleanup above still runs.
+    if cancel.is_cancelled() { Ok(()) } else { result }
 }
 
 pub fn point(
