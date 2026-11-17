@@ -18,12 +18,13 @@ concurrency:
 
 jobs:
   universal:
-    runs-on: macos-26
+    runs-on: macos-15-intel
     timeout-minutes: 90
     defaults:
       run:
         shell: bash
     env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       RUSTUP_TOOLCHAIN: '1.90.0'
       MACOSX_DEPLOYMENT_TARGET: '13.0'
       CARGO_TARGET_DIR: ${{ github.workspace }}-macos-ci/portcanvas-target
@@ -49,7 +50,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ${{ env.CARGO_TARGET_DIR }}
-          key: macos26-${{ runner.arch }}-universal-rust190-${{ hashFiles('app/core/Cargo.lock', 'app/native-probe/Cargo.lock') }}
+          key: macos15-intel-universal-rust190-${{ hashFiles('app/core/Cargo.lock', 'app/native-probe/Cargo.lock') }}
+          restore-keys: macos15-intel-rust190-
       - name: Test shared services and native platform contracts on the runner architecture
         run: |
           python3 -B app/tools/macos_test_keychain.py test --manifest-path app/core/Cargo.toml --locked --features downloads
@@ -71,43 +73,3 @@ jobs:
             ${{ runner.temp }}/portcanvas-macos-artifacts/validation.json
           if-no-files-found: error
           retention-days: 14
-
-  intel-compatibility:
-    # Verified runner-images labels: macos-15-intel is x64; default Xcode is 16.4.
-    runs-on: macos-15-intel
-    timeout-minutes: 60
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
-      RUSTUP_TOOLCHAIN: '1.90.0'
-      MACOSX_DEPLOYMENT_TARGET: '13.0'
-      CARGO_TARGET_DIR: ${{ github.workspace }}-macos-ci/portcanvas-target
-      WCS_TEST_ROOT: ${{ github.workspace }}-macos-ci/portcanvas-tests
-      WCS_DATA_DIR: ${{ github.workspace }}-macos-ci/portcanvas-tests/gui-data
-      TMPDIR: ${{ github.workspace }}-macos-ci/portcanvas-temp/
-      PORTCANVAS_TEST_KEYCHAIN_SERVICE: io.portcanvas.test.credentials.ci-${{ github.run_id }}-${{ github.run_attempt }}-intel
-      PYTHONDONTWRITEBYTECODE: '1'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Record the Intel compatibility host and SDK
-        run: |
-          sw_vers
-          test "$(uname -m)" = x86_64
-          xcrun --show-sdk-version
-          mkdir -p "$WCS_DATA_DIR" "$TMPDIR"
-          rustup toolchain install 1.90.0 --profile minimal
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ${{ env.CARGO_TARGET_DIR }}
-          key: macos15-intel-rust190-${{ hashFiles('app/core/Cargo.lock', 'app/native-probe/Cargo.lock') }}
-      - name: Test shared and native contracts on Intel macOS 15
-        run: |
-          python3 -B app/tools/macos_test_keychain.py test --manifest-path app/core/Cargo.toml --locked --features downloads
-          python3 -B app/tools/macos_test_keychain.py test --manifest-path app/native-probe/Cargo.toml --locked
-          cargo check --manifest-path app/native-probe/Cargo.toml --locked --features gui
-          python3 -B -m unittest discover -s app/tests -p 'test_*.py'
-      - name: Remove only exact test Keychain services recorded by this job
-        if: always()
-        run: python3 -B app/tools/macos_test_keychain.py cleanup
