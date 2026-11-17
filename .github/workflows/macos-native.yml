@@ -26,10 +26,10 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: '1.90.0'
       MACOSX_DEPLOYMENT_TARGET: '13.0'
-      CARGO_TARGET_DIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-target
-      WCS_TEST_ROOT: ${{ github.workspace }}/../portcanvas-ci/portcanvas-tests
-      WCS_DATA_DIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-tests/gui-data
-      TMPDIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-temp/
+      CARGO_TARGET_DIR: ${{ github.workspace }}-macos-ci/portcanvas-target
+      WCS_TEST_ROOT: ${{ github.workspace }}-macos-ci/portcanvas-tests
+      WCS_DATA_DIR: ${{ github.workspace }}-macos-ci/portcanvas-tests/gui-data
+      TMPDIR: ${{ github.workspace }}-macos-ci/portcanvas-temp/
       PORTCANVAS_TEST_KEYCHAIN_SERVICE: io.portcanvas.test.credentials.ci-${{ github.run_id }}-${{ github.run_attempt }}-universal
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
@@ -80,10 +80,10 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       RUSTUP_TOOLCHAIN: '1.90.0'
       MACOSX_DEPLOYMENT_TARGET: '13.0'
-      CARGO_TARGET_DIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-target
-      WCS_TEST_ROOT: ${{ github.workspace }}/../portcanvas-ci/portcanvas-tests
-      WCS_DATA_DIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-tests/gui-data
-      TMPDIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-temp/
+      CARGO_TARGET_DIR: ${{ github.workspace }}-macos-ci/portcanvas-target
+      WCS_TEST_ROOT: ${{ github.workspace }}-macos-ci/portcanvas-tests
+      WCS_DATA_DIR: ${{ github.workspace }}-macos-ci/portcanvas-tests/gui-data
+      TMPDIR: ${{ github.workspace }}-macos-ci/portcanvas-temp/
       PORTCANVAS_TEST_KEYCHAIN_SERVICE: io.portcanvas.test.credentials.ci-${{ github.run_id }}-${{ github.run_attempt }}-intel
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
