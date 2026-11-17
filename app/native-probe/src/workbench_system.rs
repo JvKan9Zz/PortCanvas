@@ -150,6 +150,10 @@ fn open(action: &str) -> Result<()> {
         ensure!(path.is_dir(), "目录不存在或不是绝对路径。");
         path.as_os_str().to_owned()
     };
+    #[cfg(target_os="macos")]
+    anyhow::ensure!(std::process::Command::new("/usr/bin/open").arg(&target).status()?.success(),"无法打开目录或链接。");
+    #[cfg(windows)]
+    {
     use std::os::windows::ffi::OsStrExt;
     use windows::{
         core::{w, PCWSTR},
@@ -171,5 +175,6 @@ fn open(action: &str) -> Result<()> {
         )
     };
     ensure!(status.0 as isize > 32, "无法打开目录或仓库。");
+    }
     Ok(())
 }

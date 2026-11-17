@@ -1,10 +1,12 @@
+mod support;
 use anyhow::Result;
 use portcanvas_core::{
     logs::LogService,
     preferences::{Appearance, PreferenceStore},
-    profiles::{Profile, ProfileStore},
     session::DeviceManager,
 };
+#[cfg(any(windows, all(target_os = "macos", debug_assertions)))]
+use portcanvas_core::profiles::{Profile, ProfileStore};
 use serde_json::{json, Value};
 use std::{
     fs,
@@ -53,9 +55,13 @@ fn preference_extensions_survive_edits_and_deleted_media_stays_deleted() -> Resu
     fs::remove_dir_all(root)?;
     Ok(())
 }
-#[cfg(windows)]
+// Mac credential cases require the disposable debug Keychain hook; Windows DPAPI cases
+// remain enabled in every build profile. Other configuration cases also run in release.
+#[cfg(any(windows, all(target_os = "macos", debug_assertions)))]
 #[test]
 fn profile_extensions_follow_ids_while_credentials_remain_usable_and_private() -> Result<()> {
+    #[cfg(target_os = "macos")]
+    let _keychain = support::keychain()?;
     let root = root()?;
     let store = ProfileStore {
         directory: root.clone(),

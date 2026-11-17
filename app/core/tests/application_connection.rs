@@ -1,4 +1,8 @@
 //! Owned loopback SSH; no device or system command execution.
+//! Every fixture remembers a credential. Mac release tests exclude this crate because the
+//! disposable Keychain override is deliberately unavailable in production builds.
+#![cfg(any(not(target_os = "macos"), debug_assertions))]
+mod support;
 use anyhow::Result;
 use portcanvas_core::{
     application::HostConfirmation,
@@ -36,6 +40,8 @@ impl server::Handler for Ssh {
     }
 }
 struct Fixture {
+    #[cfg(target_os = "macos")]
+    _keychain: Arc<support::TestKeychain>,
     services: Arc<Services>,
     profile: Profile,
     root: PathBuf,
@@ -44,6 +50,8 @@ struct Fixture {
 }
 impl Fixture {
     async fn new() -> Result<Self> {
+        #[cfg(target_os = "macos")]
+        let keychain = support::keychain()?;
         let root =
             PathBuf::from(std::env::var_os("WCS_TEST_ROOT").expect("isolated WCS_TEST_ROOT"))
                 .join(format!("application-{}", uuid::Uuid::new_v4()));
@@ -87,6 +95,8 @@ impl Fixture {
         )?;
         let profile = services.save_profile(profile, "synthetic-only")?;
         Ok(Self {
+            #[cfg(target_os = "macos")]
+            _keychain: keychain,
             services,
             profile,
             root,

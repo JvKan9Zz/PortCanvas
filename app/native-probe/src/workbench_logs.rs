@@ -649,6 +649,10 @@ fn open_folder(path: PathBuf, create: bool) -> Result<()> {
         path.is_absolute() && path.is_dir(),
         "目录不存在或不是绝对路径。"
     );
+    #[cfg(target_os="macos")]
+    anyhow::ensure!(std::process::Command::new("/usr/bin/open").arg(&path).status()?.success(),"无法打开目录或链接。");
+    #[cfg(windows)]
+    {
     use std::os::windows::ffi::OsStrExt;
     use windows::{
         core::{w, PCWSTR},
@@ -670,5 +674,6 @@ fn open_folder(path: PathBuf, create: bool) -> Result<()> {
         )
     };
     anyhow::ensure!(result.0 as isize > 32, "无法打开目录。");
+    }
     Ok(())
 }

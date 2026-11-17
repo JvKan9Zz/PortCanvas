@@ -4,9 +4,9 @@
 
 简体中文 | [English](README.en.md)
 
-Windows 原生远程设备工作台。[**下载 v0.6.1 正式版**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1)。
+Windows / macOS 原生远程设备工作台。[**下载 v0.6.1 正式版**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1)。
 
-原生工作台使用 Slint、Rust、原生 VT/RFB 和 Windows 系统媒体能力，保留 v0.5.95 的页面结构、图标与主要交互。
+原生工作台使用 Slint、Rust、原生 VT/RFB 和各平台系统媒体能力，保留 v0.5.95 的页面结构、图标与主要交互。
 
 | 功能 | 能力 |
 | --- | --- |
@@ -25,7 +25,7 @@ Windows 原生远程设备工作台。[**下载 v0.6.1 正式版**](https://gith
 
 [Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [使用说明](docs/usage.md) · [定位接口](docs/pose-protocol.md)
 
-当前原生开发仅面向 Windows x64。Mac 继续使用已发布的 v0.5.95 Universal DMG，ad-hoc 签名、未经 Apple 公证，采用手动更新；后续适配按需另行安排。
+macOS 原生测试版面向 macOS 13.0 及以上，Universal 包包含 Apple Silicon 与 Intel。测试包从本 PR 的 **macOS native** Actions 构建产物取得，安装、首次迁移和更新见 [Mac 说明](docs/macos.md)。测试包使用 ad-hoc 签名，未经 Apple 公证；当前正式 Release 的附件不由本构建修改。历史 v0.5.95 Mac 版保留在原 Release。
 
 ## 源码与构建
 

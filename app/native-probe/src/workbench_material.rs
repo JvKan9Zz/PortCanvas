@@ -5,8 +5,10 @@ use crate::{
 use portcanvas_native_probe::{
     effects_policy::{Responsiveness, SystemEffects},
     glass_model::{project, Rect},
-    windows_effects::WindowsEffects,
 };
+#[cfg(windows)] use portcanvas_native_probe::windows_effects::WindowsEffects;
+#[cfg(target_os="macos")] use portcanvas_native_probe::macos_effects::MacEffects as WindowsEffects;
+#[cfg(target_os="macos")] use slint::winit_030::WinitWindowAccessor;
 use slint::{ComponentHandle, Rgba8Pixel, SharedPixelBuffer};
 use std::{
     cell::{Cell, RefCell},
@@ -58,6 +60,9 @@ struct Key {
 }
 pub struct Controller {
     ui: slint::Weak<Workbench>,
+    #[cfg(target_os="macos")] first_draw_acknowledged: Cell<bool>,
+    #[cfg(target_os="macos")] native_background: Cell<Option<(u64,[f32;4])>>,
+    #[cfg(target_os="macos")] chrome: RefCell<Option<portcanvas_native_probe::macos_window::Chrome>>,
     pixels: RefCell<Option<SharedPixelBuffer<Rgba8Pixel>>>,
     revision: Cell<u64>,
     uploaded: Cell<u64>,
@@ -104,6 +109,9 @@ impl Controller {
         let os_report = os.report();
         let c = Rc::new(Self {
             ui: ui.as_weak(),
+            #[cfg(target_os="macos")] first_draw_acknowledged: Cell::new(false),
+            #[cfg(target_os="macos")] native_background: Cell::new(None),
+    #[cfg(target_os="macos")] chrome: RefCell::new(None),
             pixels: RefCell::new(None),
             revision: Cell::new(0),
             uploaded: Cell::new(0),
@@ -191,6 +199,10 @@ impl Controller {
                     render.draw(api);
                 }
                 slint::RenderingState::AfterRendering => {
+                    #[cfg(target_os="macos")]
+                    if !render.first_draw_acknowledged.replace(true) {
+                        if let Err(error)=portcanvas_native_probe::macos_update::acknowledge_launch(){eprintln!("Update launch acknowledgement: {error:#}");}
+                    }
                     if let Some(ui)=render.ui.upgrade() {
                         if ui.get_settings_preparing() {ui.set_settings_preparing(false);ui.window().request_redraw();}
                     }
@@ -274,7 +286,7 @@ impl Controller {
             && !ui.get_terminal_busy()
             && ui.get_glass_loaded()
             && ui.get_glass_quality() > 0
-            && ui.get_material_active()
+            && (ui.get_material_active() || ui.get_native_material())
             && self.policy.get() == SystemEffects::default()
     }
     fn watch(self: &Rc<Self>) {
@@ -357,6 +369,8 @@ impl Controller {
     }
     pub fn clear(&self) {
         self.pixels.borrow_mut().take();
+        self.revision.set(self.revision.get().wrapping_add(1));
+        #[cfg(target_os="macos")] self.native_background.set(None);
         if let Some(ui) = self.ui.upgrade() {
             ui.set_material_active(false);
             ui.set_bg_frame(Default::default());
@@ -387,6 +401,36 @@ impl Controller {
             if self.last_geometry.replace(Some(state))!=Some(state) && self.geometry.borrow().len()<2048 {
                 self.geometry.borrow_mut().push(serde_json::json!({"ms":self.epoch.elapsed().as_millis(),"expanded":state.0,"rect":state.1,"chrome":state.2}));
             }
+        }
+        #[cfg(target_os="macos")]
+        {
+            if self.chrome.borrow().is_none(){
+                let weak=self.ui.clone();
+                let chrome=ui.window().with_winit_window(|window|portcanvas_native_probe::macos_window::Chrome::new(window,move|action|{if let Some(ui)=weak.upgrade(){ui.invoke_native_action(action);}})).flatten();
+                *self.chrome.borrow_mut()=chrome;
+            }
+            let mut panels=vec![];
+            if !ui.get_desktop_expanded(){panels.push(ui.get_desktop_work_rect());panels.push(ui.get_material_nav_rect());}
+            panels.push(ui.get_material_header_rect());
+            if ui.get_terminal_visible()&&!ui.get_desktop_expanded(){panels.push(ui.get_material_terminal_rect());}
+            let ordinary=panels.len();
+            if ui.get_material_settings_visible(){panels.push(ui.get_material_settings_rect());}
+            if ui.get_painted_dialog()!=0{panels.push(ui.get_material_dialog_rect());}
+            let rects=panels.iter().enumerate().map(|(n,r)|[r.x,r.y,r.width,r.height,r.radius,if n>=ordinary{1.0}else{0.0}]).collect::<Vec<_>>();
+            let enabled=!self.policy.get().solid()&&!ui.get_native_hidden();
+            if let Some(chrome)=self.chrome.borrow().as_ref(){
+                let crop=[ui.get_bg_saved_crop_x(),ui.get_bg_saved_crop_y(),ui.get_bg_saved_crop_width(),ui.get_bg_saved_crop_height()];
+                let key=(self.revision.get(),crop);
+                if self.native_background.get()!=Some(key){
+                    let pixels=self.pixels.borrow();
+                    chrome.background(pixels.as_ref().map(|p|(p.as_bytes(),p.width(),p.height())),crop);
+                    self.native_background.set(Some(key));self.uploads.set(self.uploads.get()+u64::from(pixels.is_some()));
+                }
+                chrome.color(if ui.get_bg_custom(){ui.get_bg_color()}else{ui.get_material_tint()});
+            }
+            let active=self.chrome.borrow_mut().as_mut().is_some_and(|chrome|chrome.update(&rects,self.policy.get().effective(ui.get_glass_quality()),ui.get_bg_material()/100.,ui.get_material_tint().red()<128,enabled));
+            if ui.get_native_material()!=active {ui.set_native_material(active);}
+            if active {self.release();ui.set_material_active(false);return;}
         }
         if ui.get_native_hidden() { return; }
         let pixels = self.pixels.borrow();
@@ -552,10 +596,12 @@ impl Controller {
         ui.window().request_redraw();
     }
     pub fn report(&self) -> serde_json::Value {
+        #[cfg(target_os="macos")] let native_material=self.chrome.borrow().as_ref().map(|c|c.report());
+        #[cfg(not(target_os="macos"))] let native_material:Option<serde_json::Value>=None;
         serde_json::json!({"sourceUploads":self.uploads.get(),"materialPasses":self.passes.get(),
             "qualityPasses":self.quality_passes.each_ref().map(Cell::get),"visibility":*self.visibility.borrow(),
             "released":self.released.get(),"driver":*self.driver.borrow(),"error":*self.error.borrow(),
-            "policy":self.policy.get(),"os":self.os_report,"subscriptionsReleased":self.os.borrow().is_none()&&self.unsubscribe_errors.borrow().is_empty(),"unsubscribeErrors":*self.unsubscribe_errors.borrow(),
+            "nativeMaterial":native_material,"policy":self.policy.get(),"os":self.os_report,"subscriptionsReleased":self.os.borrow().is_none()&&self.unsubscribe_errors.borrow().is_empty(),"unsubscribeErrors":*self.unsubscribe_errors.borrow(),
             "synthetic":self.synthetic.get(),"heartbeatTicks":self.ticks.get(),"prompted":self.prompted.get(),"transitions":*self.transitions.borrow(),"backdrop":*self.backdrop_events.borrow(),"selectEvents":*self.select_events.borrow(),"settingsFrames":*self.settings_frames.borrow(),"chromeFields":["navY","drawerWidth","drawerX","settingsY","settingsOpacity","settingsTabY","pagePhase","dialogY","dialogOpacity","advancedHeight","connectionHeight","busyPhase","busyWave","busy","selectPhase","selectY","selectHeight"],"geometry":*self.geometry.borrow()})
     }
     pub fn visibility(&self, hidden: bool) {
@@ -566,6 +612,10 @@ impl Controller {
             self.visibility.borrow_mut().push(serde_json::json!({"hidden":hidden,"desktopExpanded":self.ui.upgrade().is_some_and(|ui|ui.get_desktop_expanded()),"sourceUploads":self.uploads.get(),"materialPasses":self.passes.get(),"heartbeatTicks":self.ticks.get()}));
         }
     }
+    #[cfg(target_os="macos")]
+    pub fn show_window(&self){if let Some(chrome)=self.chrome.borrow().as_ref(){chrome.show();}}
+    #[cfg(target_os="macos")]
+    pub fn hide_window(&self){if let Some(chrome)=self.chrome.borrow().as_ref(){chrome.hide();}}
     pub fn shutdown(&self) {
         self.backdrop(false);
         self.reset_monitor();

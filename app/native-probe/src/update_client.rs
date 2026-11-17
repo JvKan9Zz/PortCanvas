@@ -7,6 +7,11 @@ use serde_json::Value;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
+pub fn platform_key() -> &'static str {
+    #[cfg(all(target_os="macos", target_arch="aarch64"))] { "darwin-aarch64" }
+    #[cfg(all(target_os="macos", target_arch="x86_64"))] { "darwin-x86_64" }
+    #[cfg(not(target_os="macos"))] { "windows-x86_64" }
+}
 pub const BETA_RELEASES: &str = "https://api.github.com/repos/JvKan9Zz/PortCanvas/releases?per_page=20";
 pub const STABLE_MANIFEST: &str = "https://github.com/JvKan9Zz/PortCanvas/releases/latest/download/latest.json";
 
@@ -96,12 +101,15 @@ impl Plan {
         Channel::beta("").plan(value, current)
     }
     fn parse(value: &Value, current: &str) -> Result<Option<Self>> {
+        Self::for_platform(value, current, platform_key())
+    }
+    pub fn for_platform(value: &Value, current: &str, target: &str) -> Result<Option<Self>> {
         let version = value["version"].as_str().context("更新信息缺少版本。")?;
         if Version::parse(version.trim_start_matches('v'))? <= Version::parse(current)? {
             return Ok(None);
         }
-        let platform = &value["platforms"]["windows-x86_64"];
-        let url = platform["url"].as_str().context("更新信息缺少 Windows 安装器。")?;
+        let Some(platform) = value["platforms"].get(target) else { return Ok(None); };
+        let url = platform["url"].as_str().context("更新信息缺少当前平台安装包。")?;
         Ok(Some(Self {
             version: version.trim_start_matches('v').to_owned(),
             notes: value["notes"].as_str().unwrap_or_default().to_owned(),
@@ -150,9 +158,18 @@ mod tests {
     use super::*;
     use serde_json::json;
     #[test]
+    fn missing_darwin_target_is_no_update_and_never_a_windows_installer() {
+        let value=json!({"version":"0.7.0","platforms":{"windows-x86_64":{"url":"https://example.test/setup.exe","signature":"signed"}}});
+        assert!(Plan::for_platform(&value,"0.6.1","darwin-aarch64").unwrap().is_none());
+        assert!(Plan::for_platform(&value,"0.6.1","windows-x86_64").unwrap().is_some());
+        let value=json!({"version":"0.7.0","platforms":{"darwin-aarch64":{"url":"https://example.test/mac.tar.gz","signature":"signed"}}});
+        assert!(Plan::for_platform(&value,"0.6.1","darwin-aarch64").unwrap().is_some());
+        assert!(Plan::for_platform(&value,"0.6.1","darwin-x86_64").unwrap().is_none());
+    }
+    #[test]
     fn stable_channel_accepts_only_newer_stable_manifests() {
         let channel=Channel::stable("");
-        let manifest=|version:&str|json!({"version":version,"platforms":{"windows-x86_64":{"url":"https://example.test/setup.exe","signature":"signed"}}});
+        let manifest=|version:&str|json!({"version":version,"platforms":{(platform_key()):{"url":"https://example.test/setup.exe","signature":"signed"}}});
         assert!(channel.plan(&manifest("0.6.1"),"0.6.0").unwrap().is_some());
         assert!(channel.plan(&manifest("0.6.0"),"0.6.0").unwrap().is_none());
         assert!(channel.plan(&manifest("0.5.95"),"0.6.0").unwrap().is_none());
@@ -160,11 +177,11 @@ mod tests {
     }
     #[test]
     fn manifests_reject_downgrades_and_insecure_packages() {
-        let value = json!({"version":"0.6.0-beta.2","platforms":{"windows-x86_64":{"url":"https://example.test/setup.exe","signature":"signed"}}});
+        let value = json!({"version":"0.6.0-beta.2","platforms":{(platform_key()):{"url":"https://example.test/setup.exe","signature":"signed"}}});
         assert!(Plan::from_manifest(&value, "0.6.0-beta.1").unwrap().is_some());
         assert!(Plan::from_manifest(&value, "0.6.0-beta.2").unwrap().is_none());
         assert!(Plan::from_manifest(&value, "0.6.0").unwrap().is_none());
-        let mut bad=value.clone();bad["platforms"]["windows-x86_64"]["url"]=json!("http://example.test/setup.exe");
+        let mut bad=value.clone();bad["platforms"][platform_key()]["url"]=json!("http://example.test/setup.exe");
         assert!(Plan::from_manifest(&bad,"0.6.0-beta.1").is_err());
     }
     #[test]
@@ -185,7 +202,7 @@ mod tests {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let endpoint = format!("http://{}/manifest", listener.local_addr().unwrap());
         let key = f["publicKey"].as_str().unwrap().to_owned();
-        let manifest = json!({"version":announced,"notes":"native signed updater fixture","platforms":{"windows-x86_64":{"url":endpoint.replace("/manifest","/package"),"signature":f["signature"]}}}).to_string().into_bytes();
+        let manifest = json!({"version":announced,"notes":"native signed updater fixture","platforms":{(platform_key()):{"url":endpoint.replace("/manifest","/package"),"signature":f["signature"]}}}).to_string().into_bytes();
         let payload = if tampered { b"tampered package".to_vec() } else { f["payload"].as_str().unwrap().as_bytes().to_vec() };
         let task = tokio::spawn(async move {
             loop {

@@ -1,3 +1,4 @@
+import {AppColors} from "action_button.slint";
 import {ScrollView,Palette} from "std-widgets.slint";
 export component CommandEditor inherits Rectangle {
     in-out property <string> text;
@@ -32,7 +33,7 @@ export component CommandEditor inherits Rectangle {
             }
             key-pressed(event)=>{
                 if self.preedit-text!=""{return reject;}
-                if root.key(event.text,event.modifiers.control,event.modifiers.shift,event.modifiers.alt){return accept;}
+                if root.key(event.text,AppColors.macos?event.modifiers.meta:event.modifiers.control,event.modifiers.shift,event.modifiers.alt){return accept;}
                 return reject;
             }
         }

@@ -6,7 +6,7 @@ pub mod windows_effects;
 pub mod arena_model;
 pub mod background_model;
 pub mod background_image;
-#[cfg(windows)]
+#[cfg(any(windows,target_os="macos"))]
 pub mod background_playback;
 #[cfg(windows)]
 pub mod media_audio;
@@ -24,4 +24,15 @@ pub mod update;
 pub mod update_client;
 pub mod legacy_cleanup;
 pub mod color_model;
-#[cfg(windows)]pub mod instance;
+pub mod instance;
+pub mod platform_paths;
+
+#[cfg(target_os="macos")] #[path="media_macos.rs"] pub mod media;
+#[cfg(target_os="macos")] #[path="media_audio_macos.rs"] pub mod media_audio;
+
+#[cfg(target_os="macos")] pub mod macos_effects;
+#[cfg(all(target_os="macos",feature="gui"))] pub mod macos_window;
+
+#[cfg(target_os="macos")] pub mod macos_update;
+
+#[cfg(target_os="macos")] pub mod macos_legacy_cleanup;

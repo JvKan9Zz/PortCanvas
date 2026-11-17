@@ -1,5 +1,5 @@
 import {Palette} from "std-widgets.slint";
-export global AppColors {in-out property <color> preferred-accent:#356ce5;
+export global AppColors {in-out property <bool> macos:false;in-out property <bool> native-material:false;in-out property <color> preferred-accent:#356ce5;
     in-out property <bool> high-contrast:false;
     out property <color> accent:high-contrast?Palette.accent-background:preferred-accent;
     in-out property <bool> motion:true;

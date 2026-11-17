@@ -1,8 +1,14 @@
 # Security notes
 
-SSH host keys are checked before authentication. An unknown host requires confirmation; a changed fingerprint is rejected. The current Windows native preview protects saved credentials with the current user's DPAPI. The historical macOS v0.5.95 client uses a Keychain-protected encryption key. Private-key files remain on the user's computer.
+SSH host keys are checked before authentication. An unknown host requires confirmation; a changed fingerprint is rejected. Windows protects saved credentials with the current user's DPAPI. macOS uses a Keychain-protected encryption key and preserves the existing same-account credential identity. Private-key files remain on the user's computer.
 
-Preview updates use the built-in public key, HTTPS and signed-version verification on a separate prerelease channel; the stable latest.json channel is not changed. The Windows validation workflow neither installs an update nor accesses signing keys or real devices.
+Native updates retain the built-in publisher public key, HTTPS transport and the existing Minisign signature with an authenticated application version. Payload tampering, downgrades and manifest version relabeling are rejected. Stable and Beta select their own channels. macOS selects only `darwin-aarch64` or `darwin-x86_64`; a manifest containing only Windows entries is not a Mac update.
+
+Mac updates accept a `.app.tar.gz` with one `PortCanvas.app` root. Extraction rejects traversal, links, special/privileged files, duplicate files and excessive expanded sizes. Before executing a replacement, the updater verifies its bundle ID (`com.portcanvas.desktop`), signed version, native Mach-O architecture and the full macOS code signature. Its signing team must match the installed application; an ad-hoc installation accepts only an ad-hoc replacement. Distribution signing and Apple notarization are separate from the publisher's update signature. The PR test package is ad-hoc signed and is not notarized.
+
+A separate copy of the running executable acts as the update helper in an owner-only directory beside the installed app. It verifies the on-disk signed archive independently, waits for the old PID to exit, and exchanges the complete bundles atomically on the same filesystem. The replacement must acknowledge its first rendered frame; startup failure or timeout stops the new process and swaps the original bundle back before restarting it. Successful launch removes the old code and the private download stage. User configuration, credentials, media and logs are not deleted. Updating requires an ordinary writable application location and a removable original bundle; the helper never requests elevation. A read-only DMG, a linked application path, locked files or an application owned by another account require manual installation.
+
+Debug-only updater tests use disposable keys and isolated application/data trees. Release builds pin the production public key in both the application and helper; no replacement production key or official Mac release is created by the test/build workflow.
 
 ## Cryptographic dependency status
 

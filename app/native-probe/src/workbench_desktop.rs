@@ -181,7 +181,7 @@ impl Controller {
                 {
                     return false;
                 }
-                let key = rfb::keysym(ch);
+                let key = rfb::keysym_for_platform(ch,cfg!(target_os="macos"));
                 if let Some(physical) = c.current_key.get() {
                     c.physical.borrow_mut().insert(physical, key);
                 }
