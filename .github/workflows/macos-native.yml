@@ -26,10 +26,10 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: '1.90.0'
       MACOSX_DEPLOYMENT_TARGET: '13.0'
-      CARGO_TARGET_DIR: ${{ runner.temp }}/portcanvas-target
-      WCS_TEST_ROOT: ${{ runner.temp }}/portcanvas-tests
-      WCS_DATA_DIR: ${{ runner.temp }}/portcanvas-tests/gui-data
-      TMPDIR: ${{ runner.temp }}/portcanvas-temp/
+      CARGO_TARGET_DIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-target
+      WCS_TEST_ROOT: ${{ github.workspace }}/../portcanvas-ci/portcanvas-tests
+      WCS_DATA_DIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-tests/gui-data
+      TMPDIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-temp/
       PORTCANVAS_TEST_KEYCHAIN_SERVICE: io.portcanvas.test.credentials.ci-${{ github.run_id }}-${{ github.run_attempt }}-universal
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
@@ -48,7 +48,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ${{ runner.temp }}/portcanvas-target
+            ${{ env.CARGO_TARGET_DIR }}
           key: macos26-${{ runner.arch }}-universal-rust190-${{ hashFiles('app/core/Cargo.lock', 'app/native-probe/Cargo.lock') }}
       - name: Test shared services and native platform contracts on the runner architecture
         run: |
@@ -80,10 +80,10 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       RUSTUP_TOOLCHAIN: '1.90.0'
       MACOSX_DEPLOYMENT_TARGET: '13.0'
-      CARGO_TARGET_DIR: ${{ runner.temp }}/portcanvas-target
-      WCS_TEST_ROOT: ${{ runner.temp }}/portcanvas-tests
-      WCS_DATA_DIR: ${{ runner.temp }}/portcanvas-tests/gui-data
-      TMPDIR: ${{ runner.temp }}/portcanvas-temp/
+      CARGO_TARGET_DIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-target
+      WCS_TEST_ROOT: ${{ github.workspace }}/../portcanvas-ci/portcanvas-tests
+      WCS_DATA_DIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-tests/gui-data
+      TMPDIR: ${{ github.workspace }}/../portcanvas-ci/portcanvas-temp/
       PORTCANVAS_TEST_KEYCHAIN_SERVICE: io.portcanvas.test.credentials.ci-${{ github.run_id }}-${{ github.run_attempt }}-intel
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
@@ -100,7 +100,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ${{ runner.temp }}/portcanvas-target
+            ${{ env.CARGO_TARGET_DIR }}
           key: macos15-intel-rust190-${{ hashFiles('app/core/Cargo.lock', 'app/native-probe/Cargo.lock') }}
       - name: Test shared and native contracts on Intel macOS 15
         run: |
