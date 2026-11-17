@@ -2,7 +2,8 @@ use crate::{workbench::text, workbench_ui::Workbench};
 use anyhow::{ensure, Context, Result};
 use portcanvas_native_probe::update_client::{Channel, Plan};
 use slint::ComponentHandle;
-use std::{path::PathBuf, rc::Rc, sync::{Arc, Mutex}, time::Instant};
+use std::{rc::Rc, sync::{Arc, Mutex}, time::Instant};
+#[cfg(windows)] use std::path::PathBuf;
 use tokio::{runtime::Runtime, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 
@@ -19,9 +20,18 @@ pub struct Controller {
 }
 impl Controller {
     pub fn install(ui:&Workbench,runtime:Arc<Runtime>,jobs:Arc<Mutex<Vec<JoinHandle<()>>>>)->Result<Rc<Self>>{
-        #[cfg(debug_assertions)] let channel=Channel::from_environment(KEY)?;
-        #[cfg(not(debug_assertions))] let channel=Channel::stable(KEY);
-        let c=Rc::new(Self{ui:ui.as_weak(),runtime,jobs,state:Arc::new(Mutex::new(State::default())),channel});
+        let default_channel=if env!("CARGO_PKG_VERSION").contains("-beta."){Channel::beta(KEY)}else{Channel::stable(KEY)};
+        #[cfg(debug_assertions)] let channel=if std::env::var_os("PORTCANVAS_UPDATE_TEST_ENDPOINT").is_some(){Channel::from_environment(KEY)?}else{default_channel};
+        #[cfg(not(debug_assertions))] let channel=default_channel;
+        #[allow(unused_mut)] let mut initial=State::default();
+        #[cfg(target_os="macos")]
+        if std::env::args_os().nth(1).as_deref()==Some(std::ffi::OsStr::new("--portcanvas-update-failed")) {
+            initial.phase="error".into();
+            initial.message=std::env::args().nth(2).unwrap_or_else(||"更新失败，已恢复原应用。".into());
+            rfd::MessageDialog::new().set_title("PortCanvas").set_description(&initial.message)
+                .set_level(rfd::MessageLevel::Warning).set_buttons(rfd::MessageButtons::Ok).show();
+        }
+        let c=Rc::new(Self{ui:ui.as_weak(),runtime,jobs,state:Arc::new(Mutex::new(initial)),channel});
         ui.on_update_action({let c=c.clone();move|name|c.action(name.as_str())});
         ui.on_update_changed({let c=c.clone();move||c.render()});
         c.render();Ok(c)
@@ -86,15 +96,19 @@ impl Controller {
         let s=self.state.lock().unwrap();ensure!(s.phase=="ready","请先下载并校验更新。");
         let plan=s.plan.as_ref().context("请重新检查更新。")?;let bytes=s.bytes.as_ref().context("请重新下载更新。")?;
         portcanvas_native_probe::update::verify(bytes,&self.channel.public_key,&plan.signature,env!("CARGO_PKG_VERSION"),&plan.version)?;
-        let dir=PathBuf::from(ui.get_data_directory().as_str()).join("updates");std::fs::create_dir_all(&dir)?;
-        let package=dir.join("PortCanvas-update.exe");std::fs::write(&package,bytes)?;
-        let readback=std::fs::read(&package)?;
-        portcanvas_native_probe::update::verify(&readback,&self.channel.public_key,&plan.signature,env!("CARGO_PKG_VERSION"),&plan.version)?;
-        let exe=std::env::current_exe()?;ensure!(exe.file_name().is_some_and(|name|name=="PortCanvas.exe"),"此开发构建请使用正式版安装器进行安装。");let install_dir=exe.parent().context("无法确定安装位置。")?;
-        let mut command=std::process::Command::new(package);
-        command.arg("/S").arg(format!("/PID={}",std::process::id())).arg("/RESTART");
-        #[cfg(windows)] {use std::os::windows::process::CommandExt;command.raw_arg(format!("/D={}",install_dir.display()));}
-        command.spawn().context("无法启动更新安装器。")?;
+        #[cfg(target_os="macos")]
+        portcanvas_native_probe::macos_update::start_update(bytes,&self.channel.public_key,env!("CARGO_PKG_VERSION"),&plan.version,&plan.signature,&s.cancel)?;
+        #[cfg(windows)] {
+            let dir=PathBuf::from(ui.get_data_directory().as_str()).join("updates");std::fs::create_dir_all(&dir)?;
+            let package=dir.join("PortCanvas-update.exe");std::fs::write(&package,bytes)?;
+            let readback=std::fs::read(&package)?;
+            portcanvas_native_probe::update::verify(&readback,&self.channel.public_key,&plan.signature,env!("CARGO_PKG_VERSION"),&plan.version)?;
+            let exe=std::env::current_exe()?;ensure!(exe.file_name().is_some_and(|name|name=="PortCanvas.exe"),"此开发构建请使用正式版安装器进行安装。");let install_dir=exe.parent().context("无法确定安装位置。")?;
+            let mut command=std::process::Command::new(package);
+            command.arg("/S").arg(format!("/PID={}",std::process::id())).arg("/RESTART");
+            #[cfg(windows)] {use std::os::windows::process::CommandExt;command.raw_arg(format!("/D={}",install_dir.display()));}
+            command.spawn().context("无法启动更新安装器。")?;
+        }
         slint::quit_event_loop()?;Ok(())
     }
     pub fn shutdown(&self){self.state.lock().unwrap().cancel.cancel();}

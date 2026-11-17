@@ -682,10 +682,13 @@ impl Controller {
     fn system_position(&self) -> Option<(f32,f32)> {
         let ui=self.ui.upgrade()?;
         ui.window().with_winit_window(|window|{
+            #[cfg(target_os="macos")] {return portcanvas_native_probe::macos_window::cursor(window);}
+            #[cfg(windows)] {
             let mut point=windows::Win32::Foundation::POINT::default();
             unsafe {windows::Win32::UI::WindowsAndMessaging::GetCursorPos(&mut point).ok()?;}
             let origin=window.inner_position().ok()?;let scale=window.scale_factor() as f32;
             Some(((point.x-origin.x) as f32/scale,(point.y-origin.y) as f32/scale))
+            }
         }).flatten()
     }
     fn transfer_drop(self: &Rc<Self>, target: Destination, source: Option<Drag>, paths: Vec<PathBuf>) {

@@ -1,6 +1,6 @@
 # Native probe dependency notes
 
-Direct dependencies retain their upstream licenses. Slint uses the retained royalty-free terms and the AboutSlint widget. The locked Windows normal/build inventory and retained license texts are bundled in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt); font notices are included separately with the installer.
+Direct dependencies retain their upstream licenses. Slint uses the retained royalty-free terms and the AboutSlint widget. The locked Windows normal/build inventory and retained license texts are bundled in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt); font notices are included separately with the installer. Mac packaging generates its own union of the locked Apple Silicon and Intel normal/build dependencies with `app/tools/native_notices.py --target aarch64-apple-darwin --target x86_64-apple-darwin`; it does not reuse the Windows inventory. The app retains dependency inventory, license texts, Slint terms, font notices and icon licenses under `Contents/Resources`. Apple system frameworks are supplied by macOS rather than bundled.
 
 Settings and General icons are from [Microsoft Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons), copyright Microsoft Corporation, used under the [MIT license](src/icons/FLUENT-LICENSE.txt). Their SVGs are embedded; no icon font is required.
 

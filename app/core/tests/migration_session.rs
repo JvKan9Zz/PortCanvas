@@ -1,10 +1,13 @@
+mod support;
 use anyhow::Result;
 use portcanvas_core::{
     logs::Settings,
     migration::{MigrationSession, Plan},
-    profiles::{Profile, ProfileStore},
+    profiles::Profile,
     services::{Paths, Services},
 };
+#[cfg(any(windows, all(target_os = "macos", debug_assertions)))]
+use portcanvas_core::profiles::ProfileStore;
 use serde_json::{json, Value};
 use std::{
     fs,
@@ -13,6 +16,8 @@ use std::{
 };
 
 struct Fixture {
+    #[cfg(all(target_os = "macos", debug_assertions))]
+    _keychain: Arc<support::TestKeychain>,
     root: PathBuf,
     source: PathBuf,
     target: PathBuf,
@@ -20,12 +25,16 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Result<Self> {
+        #[cfg(all(target_os = "macos", debug_assertions))]
+        let keychain = support::keychain()?;
         let root = PathBuf::from(std::env::var_os("WCS_TEST_ROOT").expect("isolated test root"))
             .join(format!("migration-{}", uuid::Uuid::new_v4()));
         let f = Self {
-            source: root.join("old"),
-            target: root.join("data"),
-            logs: root.join("old-logs"),
+            #[cfg(all(target_os = "macos", debug_assertions))]
+            _keychain: keychain,
+            source: if cfg!(target_os = "macos") { root.join("Library/Application Support/io.portcanvas.app") } else { root.join("old") },
+            target: if cfg!(target_os = "macos") { root.join("Library/Application Support/PortCanvas/Stable") } else { root.join("data") },
+            logs: if cfg!(target_os = "macos") { root.join("Library/Application Support/io.portcanvas.app/logs") } else { root.join("old-logs") },
             root,
         };
         for dir in [&f.source, &f.target, &f.logs] {
@@ -97,7 +106,9 @@ fn profile(id: &str) -> Result<Profile> {
     )?)
 }
 
-#[cfg(windows)]
+// Mac credentials use debug-only disposable Keychain hooks. Keep Windows DPAPI
+// coverage in release, and keep all credential-free migration cases enabled on Mac.
+#[cfg(any(windows, all(target_os = "macos", debug_assertions)))]
 #[tokio::test]
 async fn import_preserves_opaque_data_and_usable_credentials_and_restore_is_exact() -> Result<()> {
     let f = Fixture::new()?;
@@ -315,5 +326,82 @@ async fn differently_cased_alias_is_still_the_same_source_directory() -> Result<
     .is_err());
     assert!(!f.target.join("migration-backups").exists());
     services.shutdown().await;
+    Ok(())
+}
+
+/// Old Mac v0.5.95 (527bf82a) used this AES-GCM envelope and exact profile AAD.
+/// All keychain access here is to the explicit disposable test namespace.
+#[cfg(all(target_os = "macos", debug_assertions))]
+fn legacy_mac_cipher(profile: &Profile, secret: &str) -> Result<String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    use ring::{aead, rand::{SecureRandom, SystemRandom}};
+    let service = portcanvas_core::credentials::debug_test_keychain_service()?;
+    anyhow::ensure!(service.starts_with("io.portcanvas.test.credentials."));
+    // Initialize only the isolated namespace; construct the legacy wire format independently.
+    let _ = portcanvas_core::credentials::seal("synthetic-initialization", b"initialization")?;
+    let key = zeroize::Zeroizing::new(security_framework::passwords::get_generic_password(&service, "encryption-key-v1")?);
+    let key = aead::LessSafeKey::new(aead::UnboundKey::new(&aead::AES_256_GCM, &key).map_err(|_| anyhow::anyhow!("invalid fixture key"))?);
+    let context = serde_json::to_vec(&json!(["PortCanvas credential v1", profile.id, profile.host, profile.port, profile.username, "password", ""]))?;
+    let mut nonce = [0; 12];
+    SystemRandom::new().fill(&mut nonce).map_err(|_| anyhow::anyhow!("fixture random failed"))?;
+    let mut encrypted = secret.as_bytes().to_vec();
+    key.seal_in_place_append_tag(aead::Nonce::assume_unique_for_key(nonce), aead::Aad::from(&context), &mut encrypted).map_err(|_| anyhow::anyhow!("fixture encryption failed"))?;
+    Ok(format!("keychain-v1:{}", STANDARD.encode([nonce.as_slice(), encrypted.as_slice()].concat())))
+}
+
+#[cfg(all(target_os = "macos", debug_assertions))]
+#[tokio::test]
+async fn legacy_mac_full_import_cancel_reopen_forget_and_restore_preserve_user_data() -> Result<()> {
+    let f = Fixture::new()?;
+    let files = ["devices.json", "log-settings.json", "settings.json", "terminals.json"];
+    let image = "11111111111111111111111111111111.png";
+    let secret = "synthetic-legacy-mac-password";
+    let terminal_device = profile("imported")?.terminal_name();
+    let mut source = read(&f.source.join(files[0]))?;
+    source["devices"][0]["rememberPassword"] = json!(true);
+    source["devices"][0]["encryptedSecret"] = json!(legacy_mac_cipher(&profile("imported")?, secret)?);
+    source["devices"][0]["futureProfile"] = json!({"保留":true});
+    source["hostKeys"] = json!({"192.0.2.1:22":format!("SHA256:{}", "A".repeat(43))});
+    write(&f.source.join(files[0]), source)?;
+    write(&f.source.join(files[2]), json!({"language":"en", "backgroundImage":image, "futurePreference":{"保留":true}}))?;
+    write(&f.source.join(files[3]), json!({"devices":{(terminal_device.clone()):[{"key":"main","number":1,"futureTab":"保留"}]},"futureCatalog":true}))?;
+    write(&f.target.join(files[2]), json!({"glassQuality":"balanced", "futureTarget":17}))?;
+    fs::create_dir_all(f.source.join("backgrounds"))?;
+    fs::write(f.source.join("backgrounds").join(image), b"synthetic-managed-media")?;
+    let source_before = files.map(|name| optional(&f.source.join(name)).unwrap());
+    let before = files.map(|name| optional(&f.target.join(name)).unwrap());
+    let services = f.services()?;
+    let prepare = || Plan::prepare_native(f.source.clone(), f.target.clone(), services.logs.settings(), f.logs.clone());
+    let cancelled = prepare()?;
+    assert_eq!(cancelled.preview["addedDevices"], 1);
+    assert_eq!(cancelled.preview["backgroundFiles"], 1);
+    assert!(!cancelled.preview.to_string().contains(secret));
+    let guard = MigrationSession::begin(services.clone())?;
+    drop(cancelled);
+    drop(guard);
+    assert_eq!(files.map(|name| optional(&f.target.join(name)).unwrap()), before);
+    assert!(!f.target.join("migration-backups").exists());
+    let result = MigrationSession::begin(services.clone())?.apply(prepare()?).await?;
+    services.shutdown().await;
+    drop(services);
+    let reopened = f.services()?;
+    let store = reopened.profiles.lock().unwrap().clone();
+    let mut imported = store.read()?.devices.into_iter().find(|p| p.id == "imported").unwrap();
+    assert_eq!(store.connection_secret(&imported, zeroize::Zeroizing::new(String::new()))?.as_str(), secret);
+    assert_eq!(read(&f.target.join(files[0]))?["devices"][1]["futureProfile"], json!({"保留":true}));
+    assert_eq!(read(&f.target.join(files[2]))?["futureTarget"], 17);
+    assert_eq!(read(&f.target.join(files[2]))?["futurePreference"], json!({"保留":true}));
+    assert_eq!(read(&f.target.join(files[3]))?["devices"][terminal_device.as_str()][0]["futureTab"], "保留");
+    assert_eq!(fs::read(f.target.join("backgrounds").join(image))?, b"synthetic-managed-media");
+    imported.remember_password = false;
+    assert!(store.save(imported.clone(), "")?.encrypted_secret.is_none());
+    assert!(store.connection_secret(&imported, zeroize::Zeroizing::new(String::new())).is_err());
+    assert_eq!(store.read()?.host_keys.len(), 1);
+    MigrationSession::begin(reopened.clone())?.restore(PathBuf::from(result["backup"].as_str().unwrap())).await?;
+    assert_eq!(files.map(|name| optional(&f.target.join(name)).unwrap()), before);
+    assert_eq!(files.map(|name| optional(&f.source.join(name)).unwrap()), source_before);
+    assert_eq!(fs::read(f.source.join("backgrounds").join(image))?, b"synthetic-managed-media");
+    assert_eq!(fs::read(f.logs.join("keep.log"))?, b"original log");
+    reopened.shutdown().await;
     Ok(())
 }

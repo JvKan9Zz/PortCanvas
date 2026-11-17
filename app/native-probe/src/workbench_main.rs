@@ -14,6 +14,10 @@ mod workbench_files;
 mod workbench_terminal;
 mod workbench_ui;
 fn main() {
+    #[cfg(target_os="macos")]
+    match portcanvas_native_probe::macos_update::dispatch_helper() {
+        Ok(true)=>return,Ok(false)=>{},Err(error)=>{eprintln!("{error:#}");std::process::exit(1);}
+    }
     if std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--cleanup-legacy-install")) {
         let result = (|| -> anyhow::Result<()> {
             let exe=std::env::current_exe()?;

@@ -1,10 +1,19 @@
 //! One native writer per data directory; stable and preview directories remain independent.
-use anyhow::{Context, Result};
-use std::{fs::{File, OpenOptions}, os::windows::fs::OpenOptionsExt, path::Path};
+use anyhow::Result;
+#[cfg(windows)] use anyhow::Context;
+use std::{fs::{File, OpenOptions}, path::Path};
+#[cfg(windows)] use std::os::windows::fs::OpenOptionsExt;
 pub fn acquire(data:&Path)->Result<File>{
-    OpenOptions::new().read(true).write(true).create(true).truncate(false).share_mode(0)
+    #[cfg(windows)]
+    return OpenOptions::new().read(true).write(true).create(true).truncate(false).share_mode(0)
         .open(data.join(".native-instance"))
-        .context("无法独占预览版资料目录，其他预览版可能仍在运行。")
+        .context("无法独占资料目录，其他实例可能仍在运行。");
+    #[cfg(unix)] {
+        use std::os::unix::fs::OpenOptionsExt;
+        let file=OpenOptions::new().read(true).write(true).create(true).truncate(false).mode(0o600).custom_flags(libc::O_NOFOLLOW).open(data.join(".native-instance"))?;
+        file.try_lock().map_err(|e|anyhow::anyhow!("无法独占资料目录，其他实例可能仍在运行：{e}"))?;
+        Ok(file)
+    }
 }
 #[cfg(test)]mod tests{
     use super::*;

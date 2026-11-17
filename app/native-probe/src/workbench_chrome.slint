@@ -9,7 +9,7 @@ export component MaterialPanel inherits Rectangle {
     in property <bool> flat:false;
     border-radius:24px;clip:false;background:transparent;border-width:0px;
     drop-shadow-offset-y:8px;drop-shadow-blur:28px;drop-shadow-color:root.flat?transparent:AppColors.dark?#00000026:#2d436e14;
-    if !root.flat:ContinuousOutline {x:0px;y:0px;width:parent.width;height:parent.height;radius:root.border-radius;fill:root.solid?AppColors.surface:AppColors.surface.with-alpha((AppColors.dark?0.24:0.22)+0.58*root.strength/100);}
+    if !root.flat:ContinuousOutline {x:0px;y:0px;width:parent.width;height:parent.height;radius:root.border-radius;fill:root.solid?AppColors.surface:AppColors.surface.with-alpha(AppColors.native-material?(root.strength>100?0.96:0.12+0.58*root.strength/100):(AppColors.dark?0.24:0.22)+0.58*root.strength/100);}
     if root.active&&!root.flat:Image {x:0px;y:0px;width:parent.width;height:parent.height;source:root.material;image-fit:fill;}
     if !root.flat:ContinuousOutline {x:0px;y:0px;width:parent.width;height:parent.height;radius:root.border-radius;fill:transparent;stroke-width:1px;stroke:AppColors.high-contrast?AppColors.edge:AppColors.dark?#b7cced24:#ffffffeb;}
     @children

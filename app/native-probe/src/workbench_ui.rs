@@ -42,7 +42,10 @@ slint::slint! {
         icon:@image-url("../assets/portcanvas.png");
         preferred-width:1200px;preferred-height:820px;min-width:1000px;min-height:700px;
         default-font-family:"PortCanvas UI";default-font-size:14px;
-        background:Palette.background;
+        in property <bool> native-macos:false;changed native-macos=>{AppColors.macos=root.native-macos;}
+        in property <bool> native-material:false;changed native-material=>{AppColors.native-material=root.native-material;}
+        callback native-action(int);
+        background:root.native-material?transparent:Palette.background;
         no-frame:root.window-is-fullscreen;
         init=>{Palette.color-scheme=ColorScheme.light;}
         pure callback tr(string,bool)->string;
@@ -305,7 +308,7 @@ slint::slint! {
         callback set-language(int);callback set-appearance(int);callback set-environment(int);callback set-desktop-mode(int);callback save-log-limit(string);
         changed appearance=>{Palette.color-scheme=root.appearance==0?ColorScheme.light:root.appearance==1?ColorScheme.dark:ColorScheme.unknown;}
         changed dialog-kind=>{if root.dialog-kind!=0{root.painted-dialog=root.dialog-kind;}root.bg-sync();if root.dialog-kind==14{picker-view.focus-selection();}else if root.dialog-kind==8{crop-view.focus-selection();}else if root.dialog-kind==15{folder-name.focus();}else if root.dialog-kind!=0 {cancel-response.focus();}else if root.settings-open{settings-general.focus();}else{main-focus.focus();}}
-        Rectangle {background:root.bg-custom?root.bg-color:AppColors.dark?#131e30:@linear-gradient(135deg,#edf3fa,#f4f5fa 58%,#e9eff8);
+        Rectangle {opacity:root.native-material?0.12:1;background:root.bg-custom?root.bg-color:AppColors.dark?#131e30:@linear-gradient(135deg,#edf3fa,#f4f5fa 58%,#e9eff8);
             if root.bg-has-frame:Image {source:root.bg-frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.bg-saved-crop-x*root.bg-width);source-clip-y:round(root.bg-saved-crop-y*root.bg-height);source-clip-width:max(1,round(root.bg-saved-crop-width*root.bg-width));source-clip-height:max(1,round(root.bg-saved-crop-height*root.bg-height));}
             if root.material-settings-visible&&root.settings-backdrop-active&&!root.material-solid:Image {source:root.settings-backdrop-frame;width:parent.width;height:parent.height;image-fit:fill;}
         }
@@ -627,7 +630,7 @@ slint::slint! {
                         HorizontalBox {padding:0px;padding-top:root.painted-dialog==16?20px:0px;spacing:8px;
                             Rectangle {background:transparent;horizontal-stretch:1;}
                             cancel-response:=ActionButton {enabled:!root.system-executing&&!root.migration-executing&&!(root.painted-dialog==15&&root.file-mutating);text:root.tr(root.painted-dialog==12?"保持当前":"取消",root.english);primary:false;clicked=>{root.respond(false);}}
-                            confirm-response:=ActionButton {busy:root.painted-dialog==15&&root.file-mutating;enabled:!root.system-executing&&!root.migration-executing&&(root.painted-dialog!=16||(root.terminal-phase=="connected"&&!root.terminal-sending))&&(root.painted-dialog!=15||(!root.file-mutating&&root.file-folder-name!=""));text:root.tr(root.painted-dialog==16?"保存并运行":root.painted-dialog==15?"创建":root.painted-dialog==13?"安装并重启":root.painted-dialog==12?(root.material-suggestion-target==1?"切换到均衡":"切换到轻量"):root.painted-dialog==2?"信任并连接":root.painted-dialog==3?"清理所选":(root.painted-dialog==4||root.painted-dialog==9)?"确认重启":root.painted-dialog==5?"确认关闭":root.painted-dialog==6?"确认覆盖":root.painted-dialog==7?"确认删除":root.painted-dialog==10?"确认导入":root.painted-dialog==11?"确认恢复":"确认移除",root.english);primary:root.painted-dialog==16||root.painted-dialog==15||root.painted-dialog==2||root.painted-dialog==8||root.painted-dialog==10||root.painted-dialog==13;danger:root.painted-dialog==3||root.painted-dialog==4||root.painted-dialog==5||root.painted-dialog==6||root.painted-dialog==7||root.painted-dialog==9||root.painted-dialog==11;clicked=>{root.respond(true);}}
+                            confirm-response:=ActionButton {busy:root.painted-dialog==15&&root.file-mutating;enabled:!root.system-executing&&!root.migration-executing&&(root.painted-dialog!=16||(root.terminal-phase=="connected"&&!root.terminal-sending))&&(root.painted-dialog!=15||(!root.file-mutating&&root.file-folder-name!=""));text:root.tr(root.painted-dialog==17?"退出":root.painted-dialog==16?"保存并运行":root.painted-dialog==15?"创建":root.painted-dialog==13?"安装并重启":root.painted-dialog==12?(root.material-suggestion-target==1?"切换到均衡":"切换到轻量"):root.painted-dialog==2?"信任并连接":root.painted-dialog==3?"清理所选":(root.painted-dialog==4||root.painted-dialog==9)?"确认重启":root.painted-dialog==5?"确认关闭":root.painted-dialog==6?"确认覆盖":root.painted-dialog==7?"确认删除":root.painted-dialog==10?"确认导入":root.painted-dialog==11?"确认恢复":"确认移除",root.english);primary:root.painted-dialog==16||root.painted-dialog==15||root.painted-dialog==2||root.painted-dialog==8||root.painted-dialog==10||root.painted-dialog==13;danger:root.painted-dialog==3||root.painted-dialog==4||root.painted-dialog==5||root.painted-dialog==6||root.painted-dialog==7||root.painted-dialog==9||root.painted-dialog==11;clicked=>{root.respond(true);}}
                             FocusScope {width:0px;height:0px;enabled:root.painted-dialog!=8&&root.painted-dialog!=14;changed has-focus=>{if self.has-focus{cancel-response.focus();}}}
                         }
                     }

@@ -144,7 +144,7 @@ export component TerminalView inherits VerticalBox {
         changed rows=>{root.resize-grid(self.columns,self.rows);}
         for cell in root.cells: Rectangle {
             x:8px+cell.column*9px;y:8px+cell.row*21px;width:cell.wide?18px:9px;height:21px;background:cell.paper;
-            Text {text:cell.text;color:cell.ink;font-family:cell.wide?"PortCanvas UI":"Consolas";font-size:14px;font-weight:cell.bold?700:400;vertical-alignment:center;}
+            Text {text:cell.text;color:cell.ink;font-family:AppColors.macos?"Menlo":cell.wide?"PortCanvas UI":"Consolas";font-size:14px;font-weight:cell.bold?700:400;vertical-alignment:center;}
             if cell.underline:Rectangle {y:19px;height:1px;background:cell.ink;}
         }
         Rectangle {visible:root.cursor-visible&&root.live&&root.cursor-row<grid.rows;
@@ -171,8 +171,8 @@ export component TerminalView inherits VerticalBox {
         input:=TextInput {
             changed has-focus=>{root.reveal-cursor();}
             x:8px+min(root.cursor-column,grid.columns - 1)*9px;y:8px+min(root.cursor-row,grid.rows - 1)*21px;
-            width:max(9px,grid.width - self.x - 8px);height:21px;
-            color:#d8dfeb;font-family:"Consolas";font-size:14px;single-line:true;
+            width:max(9px,min(grid.width - self.x - 8px,terminal-scroll.visible-width - self.x - terminal-scroll.viewport-x - 8px));height:21px;
+            color:#d8dfeb;font-family:AppColors.macos?"Menlo":"Consolas";font-size:14px;single-line:true;
             accessible-label:root.tr("终端远端输入",root.english);
             enabled:root.live;
             edited=>{if self.text!=""{root.committed(self.text);self.text="";}}
@@ -182,10 +182,10 @@ export component TerminalView inherits VerticalBox {
                 if event.modifiers.shift&&event.text==Key.PageDown{root.scroll(-grid.rows);return accept;}
                 if event.modifiers.control&&event.modifiers.shift&&event.text==Key.Home{root.scroll(root.history-lines);return accept;}
                 if event.modifiers.control&&event.modifiers.shift&&event.text==Key.End{root.scroll(-root.history-lines);return accept;}
-                if event.modifiers.control&&event.modifiers.shift&&(event.text=="c"||event.text=="C"){root.copy();return accept;}
+                if event.modifiers.control&&(AppColors.macos||event.modifiers.shift)&&(event.text=="c"||event.text=="C"){root.copy();return accept;}
                 if event.modifiers.control&&(event.text=="v"||event.text=="V"){root.paste();return accept;}
                 if event.text==Key.Tab&&event.modifiers.control {command.focus();return accept;}
-                if root.key(event.text,event.modifiers.control,event.modifiers.alt,event.modifiers.shift){return accept;}
+                if root.key(event.text,AppColors.macos?event.modifiers.meta:event.modifiers.control,event.modifiers.alt&&(!AppColors.macos||event.text==Key.LeftArrow||event.text==Key.RightArrow||event.text==Key.Backspace),event.modifiers.shift){return accept;}
                 return reject;
             }
         }

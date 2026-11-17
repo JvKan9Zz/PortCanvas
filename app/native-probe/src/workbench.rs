@@ -9,7 +9,6 @@ use portcanvas_core::{
 use slint::winit_030::WinitWindowAccessor;
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::{
-    path::PathBuf,
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc, Mutex,
@@ -162,38 +161,18 @@ fn device_state(ui: &Workbench, value: &serde_json::Value, pending: &PendingHost
     }
 }
 fn data_paths() -> Result<Paths> {
-    #[cfg(windows)]
-    fn known_folder(id: &windows::core::GUID) -> Result<PathBuf> {
-        use windows::Win32::{
-            System::Com::CoTaskMemFree,
-            UI::Shell::{SHGetKnownFolderPath, KF_FLAG_DEFAULT},
-        };
-        unsafe {
-            let value = SHGetKnownFolderPath(id, KF_FLAG_DEFAULT, None)?;
-            let text = value.to_string();
-            CoTaskMemFree(Some(value.0 as *const _));
-            Ok(PathBuf::from(text?))
-        }
-    }
-    use windows::Win32::UI::Shell::{FOLDERID_Documents, FOLDERID_LocalAppData};
-    let data = if let Some(data) = std::env::var_os("WCS_DATA_DIR") {
-        PathBuf::from(data)
-    } else {
-        known_folder(&FOLDERID_LocalAppData)?.join("PortCanvas/Stable")
-    };
-    anyhow::ensure!(data.is_absolute(), "应用数据目录须为绝对路径");
-    std::fs::create_dir_all(&data)?;
-    let documents = known_folder(&FOLDERID_Documents)?;
-    Ok(Paths {
-        data,
-        documents: documents.clone(),
-        local_files: std::env::var_os("WCS_TEST_ROOT").map(PathBuf::from).filter(|p|p.is_absolute()).map(|p|p.join("local-files")).unwrap_or(documents),
-        portable: true,
-    })
+    let paths=portcanvas_native_probe::platform_paths::current()?;
+    std::fs::create_dir_all(&paths.data)?;
+    Ok(paths)
 }
 pub fn run() -> Result<()> {
-    slint::BackendSelector::new()
-        .backend_name("winit".into())
+    let backend=slint::BackendSelector::new();
+    #[cfg(target_os="macos")]
+    let backend=backend.with_winit_window_attributes_hook(|attributes|{
+        use slint::winit_030::winit::platform::macos::WindowAttributesExtMacOS;
+        attributes.with_transparent(true).with_titlebar_transparent(true)
+    });
+    backend.backend_name("winit".into())
         .renderer_name("femtovg".into())
         .select()?;
     let runtime = Arc::new(
@@ -203,6 +182,7 @@ pub fn run() -> Result<()> {
             .build()?,
     );
     let ui = Workbench::new()?;
+    ui.set_native_macos(cfg!(target_os="macos"));
     ui.set_app_version(env!("CARGO_PKG_VERSION").into());
     ui.on_tr(|source, english| text(&source, english).into());
     ui.global::<crate::workbench_ui::ActivityPattern>().on_choose(||std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d|((d.subsec_nanos()/100)%4) as i32).unwrap_or(0));
@@ -288,6 +268,37 @@ pub fn run() -> Result<()> {
     if !cfg!(debug_assertions){ui.invoke_update_action("check".into());}
     let glass=crate::workbench_glass::Controller::install(&ui,services.clone());
     let material=crate::workbench_material::Controller::install(&ui,desktop.draw_signal())?;
+    #[cfg(target_os="macos")]
+    {
+        let weak=ui.as_weak();let close_material=material.clone();let desktop=desktop.clone();
+        ui.window().on_close_requested(move||{
+            if let Some(ui)=weak.upgrade(){
+                desktop.visibility(true);close_material.visibility(true);ui.set_native_hidden(true);close_material.hide_window();
+            }
+            slint::CloseRequestResponse::KeepWindowShown
+        });
+        let weak=ui.as_weak();let material=material.clone();
+        ui.on_native_action(move|action|{if let Some(ui)=weak.upgrade(){
+            if (action==1||action==2)&&(ui.get_native_hidden()||!ui.get_native_focused()){material.show_window();ui.set_native_hidden(false);}
+            if action==1&&ui.get_dialog_kind()==0 {ui.set_settings_open(true);}
+            if let Some(key)=match action{3=>Some("c"),4=>Some("v"),5=>Some("x"),6=>Some("a"),_=>None}{
+                use slint::platform::WindowEvent;
+                ui.window().dispatch_event(WindowEvent::KeyPressed{text:"\u{11}".into()});
+                ui.window().dispatch_event(WindowEvent::KeyPressed{text:key.into()});
+                ui.window().dispatch_event(WindowEvent::KeyReleased{text:key.into()});
+                ui.window().dispatch_event(WindowEvent::KeyReleased{text:"\u{11}".into()});
+                return;
+            }
+            if action==2 {
+                if ui.get_connected()||ui.get_busy()||ui.get_file_mutating()||ui.get_update_busy()||ui.get_bg_busy()||ui.get_migration_busy(){
+                    if ui.get_dialog_kind()!=0 {return;}
+                    ui.set_dialog_title(text("退出 PortCanvas",ui.get_english()).into());
+                    ui.set_dialog_message(text("退出将断开本机连接并取消正在进行的操作；远端持久终端会保留。",ui.get_english()).into());
+                    ui.set_dialog_kind(17);
+                }else{let _=slint::quit_event_loop();}
+            }
+        }});
+    }
     let background=crate::workbench_background::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone(),material.clone());
     let arena=crate::workbench_arena::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let logs = crate::workbench_logs::Controller::install(
@@ -529,6 +540,7 @@ pub fn run() -> Result<()> {
         move |accepted| {
             if let Some(ui) = weak.upgrade() {
                 let kind = ui.get_dialog_kind();
+                if kind==17{ui.set_dialog_kind(0);if accepted{let _=slint::quit_event_loop();}return;}
                 if kind==16{ui.invoke_terminal_program_response(accepted);return;}
                 if kind==15{files.respond_folder(accepted);return;}
                 if kind==13{updater.respond(accepted);return;}
@@ -815,7 +827,8 @@ pub fn run() -> Result<()> {
     if ui.get_selected_id().is_empty() {
         if let Ok(data)=services.profiles.lock().unwrap().read(){if let Some(first)=data.devices.first(){fill(&ui,Some(first));}}
     }
-    let result = ui.run();
+    #[cfg(windows)] let result = ui.run();
+    #[cfg(target_os="macos")] let result = {ui.show()?;slint::run_event_loop_until_quit()};
     services.quitting.store(true,Ordering::SeqCst);
     migration.shutdown();
     pending.lock().unwrap().take();

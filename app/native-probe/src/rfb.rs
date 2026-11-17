@@ -35,6 +35,13 @@ pub fn keysym(key: char) -> u32 {
     }
 }
 
+/// Slint swaps physical Command and Control on Apple for local widget shortcuts.
+/// The Linux RFB server must receive the original physical modifiers.
+pub fn keysym_for_platform(key:char,apple:bool)->u32 {
+    if apple {match key {'\u{11}'=>return 0xffeb,'\u{16}'=>return 0xffec,'\u{17}'=>return 0xffe3,'\u{18}'=>return 0xffe4,_=>{}}}
+    keysym(key)
+}
+
 #[derive(Default, Clone)]
 pub struct Frame {
     pub view: u64,
@@ -182,6 +189,15 @@ mod tests {
         io::{AsyncReadExt, AsyncWriteExt},
         net::{TcpListener, TcpStream},
     };
+    #[test]
+    fn apple_slint_modifier_swap_is_undone_for_remote_linux() {
+        assert_eq!(keysym_for_platform('\u{17}',true),0xffe3);
+        assert_eq!(keysym_for_platform('\u{18}',true),0xffe4);
+        assert_eq!(keysym_for_platform('\u{11}',true),0xffeb);
+        assert_eq!(keysym_for_platform('\u{16}',true),0xffec);
+        assert_eq!(keysym_for_platform('中',true),0x01004e2d);
+        assert_eq!(keysym_for_platform('\u{17}',false),0xffeb);
+    }
     #[test]
     fn logical_keys_match_x11_including_modifiers_and_unicode() {
         assert_eq!(keysym('\u{f700}'), 0xff52);

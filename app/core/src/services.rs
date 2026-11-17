@@ -258,8 +258,9 @@ mod tests {
         assert_eq!(services.default_log_root, expected);
         drop(services);
         let p = paths(false);
-        let expected = p.documents.join("Wheel Combat Studio/Logs");
-        std::fs::create_dir_all(&expected)?;
+        let legacy = p.documents.join("Wheel Combat Studio/Logs");
+        std::fs::create_dir_all(&legacy)?;
+        let expected = if cfg!(target_os="macos") {p.data.join("logs")} else {legacy};
         let services = Services::new(p, Arc::new(|_, _| {}), None)?;
         assert_eq!(services.default_log_root, expected);
         Ok(())

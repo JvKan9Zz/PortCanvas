@@ -1,6 +1,6 @@
-# PortCanvas Windows native application
+# PortCanvas native application
 
-The v0.6.1 application uses Slint/winit/FemtoVG, native VT and RFB clients, Windows Media Foundation and shared Rust services. It has no frontend bundle, npm install, Tauri or WebView build step. [v0.6.1 is the Windows native release](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1). Windows x64 is the current target. Historical macOS v0.5.95 builds remain in the tagged release.
+The v0.6.1 application uses Slint/winit/FemtoVG, native VT and RFB clients, platform media playback and shared Rust services. It has no frontend bundle, npm install, Tauri or WebView build step. [v0.6.1 is the Windows native release](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1). Windows x64 remains the released target. The macOS native test build targets macOS 13.0+, with Universal Apple Silicon / Intel packages; see [Mac build and use](../docs/macos.md). Historical macOS v0.5.95 builds remain in their tagged release.
 
 ## Build
 
@@ -41,6 +41,6 @@ Windows CI checks shared services, protocol ownership, native controls/codecs an
 - `vendor/vnc-rs`: the retained native RFB source and patch record.
 - `tools`: current build, installer, notice and signing utilities.
 
-The default application data directory is `%LOCALAPPDATA%/PortCanvas/Stable`; `WCS_DATA_DIR` overrides it for isolated checks. Credentials use Windows DPAPI. Import explicitly reviews four configuration files and referenced managed media, preserves the source and supports exact rollback. Native desktop/camera/background rendering starts no local HTTP or WebSocket presentation bridge. Old browser clients and their build files remain available in version tags and Git history.
+The default application data directory is `%LOCALAPPDATA%/PortCanvas/Stable`; `WCS_DATA_DIR` overrides it for isolated checks. On macOS the default is `~/Library/Application Support/PortCanvas/Stable`; `Beta` is separate. Credentials use Windows DPAPI or a macOS Keychain-protected encryption key. Import explicitly reviews four configuration files and referenced managed media, preserves the source and supports exact rollback. Native desktop/camera/background rendering starts no local HTTP or WebSocket presentation bridge. Old browser clients and their build files remain available in version tags and Git history.
 
 The embedded PortCanvas UI faces are rebuilt from the retained licensed stable sources with `uv run --with "fonttools[woff]" python tools/refresh-native-fonts.py`. The pinned 1.15.1 FemtoVG renderer includes the text-origin alignment backport documented under `vendor/i-slint-renderer-femtovg/PATCHES.md`. This does not install system fonts.
