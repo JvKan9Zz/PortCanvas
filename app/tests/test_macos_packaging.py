@@ -16,6 +16,24 @@ class MacPackagingTests(unittest.TestCase):
         cls.package = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cls.package)
 
+    def test_stable_and_beta_have_distinct_install_and_signed_version_metadata(self):
+        stable = self.package.bundle_metadata('0.6.1')
+        beta = self.package.bundle_metadata('0.6.2-beta.5')
+        self.assertEqual(stable['CFBundleIdentifier'], 'com.portcanvas.desktop')
+        self.assertEqual(beta['CFBundleIdentifier'], 'com.portcanvas.desktop.beta')
+        self.assertEqual(beta['CFBundleDisplayName'], 'PortCanvas Beta')
+        self.assertEqual(beta['CFBundleShortVersionString'], '0.6.2')
+        self.assertEqual(beta['CFBundleVersion'], '0.6.2b5')
+        self.assertEqual(beta['PortCanvasVersion'], '0.6.2-beta.5')
+        self.assertNotEqual(stable['CFBundleName'], beta['CFBundleName'])
+
+    def test_prerelease_versions_follow_the_supported_apple_build_counter(self):
+        self.assertEqual(self.package.bundle_metadata('0.6.2-beta.255')['CFBundleVersion'], '0.6.2b255')
+        for version in ['0.6.2-beta.0', '0.6.2-beta.256', '0.6.2-beta.01', '0.6.2-alpha.1', '0.6.2+local', '0.6２.2', '0.6.2-beta.1２']:
+            with self.subTest(version=version):
+                with self.assertRaises(ValueError):
+                    self.package.bundle_metadata(version)
+
     def test_minimum_os_parser_checks_every_slice(self):
         loads = 'cmd LC_BUILD_VERSION\n platform 1\n minos 13.0\n sdk 26.0\n'
         self.assertEqual(self.package.minimum_versions(loads), ['13.0'])
