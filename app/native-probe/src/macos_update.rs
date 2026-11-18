@@ -245,11 +245,44 @@ fn plist(app: &Path, key: &str) -> Result<String> {
     Ok(String::from_utf8(output.stdout)?.trim().to_owned())
 }
 
+struct BundleVersion {
+    identifier: &'static str,
+    short: String,
+    build: String,
+}
+fn bundle_metadata(version: &str) -> Result<BundleVersion> {
+    let version = semver::Version::parse(version)?;
+    ensure!(version.build.is_empty(), "Mac 更新版本不接受本地构建元数据。");
+    let short = format!("{}.{}.{}", version.major, version.minor, version.patch);
+    let beta = if version.pre.is_empty() {
+        None
+    } else {
+        let counter = version.pre.as_str().strip_prefix("beta.").context("Mac 预览更新仅支持 beta.N。")?.parse::<u8>().context("Mac Beta 构建序号须为 1–255。")?;
+        ensure!(counter > 0, "Mac Beta 构建序号须为 1–255。");
+        Some(counter)
+    };
+    Ok(BundleVersion {
+        identifier: if beta.is_some() { "com.portcanvas.desktop.beta" } else { BUNDLE_ID },
+        build: beta.map(|n| format!("{short}b{n}")).unwrap_or_else(|| short.clone()),
+        short,
+    })
+}
+fn same_channel(current: &str, next: &str) -> Result<()> {
+    ensure!(bundle_metadata(current)?.identifier == bundle_metadata(next)?.identifier,
+        "Stable 与 Beta 使用独立应用，请在相同通道更新。");
+    Ok(())
+}
+fn bundle_version(app: &Path) -> Result<String> {
+    // Stable packages created before this metadata key remain update-compatible.
+    plist(app, "PortCanvasVersion").or_else(|_| plist(app, "CFBundleShortVersionString"))
+}
+
 fn validate_bundle(app: &Path, version: &str, team: Option<&str>) -> Result<String> {
     safe_path(app)?;
     safe_tree(app)?;
+    let expected = bundle_metadata(version)?;
     ensure!(
-        plist(app, "CFBundleIdentifier")? == BUNDLE_ID,
+        plist(app, "CFBundleIdentifier")? == expected.identifier,
         "更新应用标识不匹配。"
     );
     ensure!(
@@ -261,10 +294,12 @@ fn validate_bundle(app: &Path, version: &str, team: Option<&str>) -> Result<Stri
         "更新不是 macOS 应用。"
     );
     ensure!(
-        semver::Version::parse(&plist(app, "CFBundleShortVersionString")?)?
+        semver::Version::parse(&bundle_version(app)?)?
             == semver::Version::parse(version)?,
         "更新应用版本与已签名版本不匹配。"
     );
+    ensure!(plist(app, "CFBundleShortVersionString")? == expected.short
+        && plist(app, "CFBundleVersion")? == expected.build, "Mac 应用显示/构建版本不匹配。");
     let executable = app.join(EXECUTABLE);
     let meta = fs::metadata(&executable)?;
     ensure!(
@@ -305,7 +340,7 @@ fn validate_bundle(app: &Path, version: &str, team: Option<&str>) -> Result<Stri
     ensure!(
         details
             .lines()
-            .any(|line| line.strip_prefix("Identifier=") == Some(BUNDLE_ID)),
+            .any(|line| line.strip_prefix("Identifier=") == Some(expected.identifier)),
         "macOS 代码签名标识与应用标识不匹配。"
     );
     let identity = if details.lines().any(|l| l == "Signature=adhoc") {
@@ -378,6 +413,7 @@ fn remove_stage(stage: &Path) -> Result<()> {
 }
 
 fn replace_and_launch(stage: &Path, job: &Job, timeout: Duration) -> Result<Child> {
+    same_channel(&job.current, &job.version)?;
     let candidate = stage.join("payload/PortCanvas.app");
     let team = validate_bundle(&job.app, &job.current, None)?;
     removable_tree(&job.app)?;
@@ -489,6 +525,7 @@ fn job_from_file(path: &Path) -> Result<(PathBuf, Job)> {
         "更新暂存目录无效。"
     );
     let job: Job = serde_json::from_slice(&read_limited(path, 32 * 1024)?)?;
+    same_channel(&job.current, &job.version)?;
     safe_path(&job.app)?;
     ensure!(
         stage.parent() == job.app.parent(),
@@ -517,6 +554,7 @@ pub fn start_update(
     cancel: &CancellationToken,
 ) -> Result<()> {
     canceled(cancel)?;
+    same_channel(current, version)?;
     ensure!(bytes.len() <= MAX_ARCHIVE_BYTES, "更新包超过大小限制。");
     crate::update::verify(bytes, public_key, signature, current, version)?;
     #[cfg(not(debug_assertions))]
@@ -646,16 +684,19 @@ fn helper(path: &Path) -> Result<()> {
             std::thread::sleep(Duration::from_millis(100));
         }
         replace_and_launch(&stage, &job, Duration::from_secs(45))?;
-        let cleanup = crate::macos_legacy_cleanup::current_user_after_readiness();
-        for failure in cleanup.failures {
-            eprintln!("{failure}");
+        // Beta is independent; it must not retire the historical Stable app's caches.
+        if bundle_metadata(&job.version).is_ok_and(|meta| meta.identifier == BUNDLE_ID) {
+            let cleanup = crate::macos_legacy_cleanup::current_user_after_readiness();
+            for failure in cleanup.failures {
+                eprintln!("{failure}");
+            }
         }
         Ok(())
     })();
     if let Err(error) = &operation {
         // If rollback itself failed, keep its unique old-code recovery location intact.
         if stage.join("payload/PortCanvas.app").exists()
-            && plist(&job.app, "CFBundleShortVersionString")
+            && bundle_version(&job.app)
                 .ok()
                 .as_deref()
                 != Some(job.current.as_str())
@@ -781,6 +822,30 @@ mod tests {
             .success());
         app
     }
+    #[test]
+    fn stable_and_beta_updates_are_rejected_before_staging_across_channels() {
+        for (current, next) in [("0.6.1", "0.6.2-beta.1"), ("0.6.1-beta.1", "0.6.2")] {
+            let error = start_update(&[], "", current, next, "", &CancellationToken::new()).unwrap_err();
+            assert!(error.to_string().contains("Stable 与 Beta"), "{error:#}");
+        }
+        assert!(same_channel("0.6.1-beta.1", "0.6.2-beta.2").is_ok());
+        assert!(bundle_metadata("0.6.2-beta.256").is_err());
+        assert!(bundle_metadata("0.6.2-alpha.1").is_err());
+    }
+
+    #[test]
+    fn beta_bundle_uses_a_distinct_identity_and_full_signed_semantic_version() {
+        let s = Sandbox::new();
+        let app = bundle(&s.0, "0.6.2", "com.portcanvas.desktop.beta", "");
+        for command in ["Add :PortCanvasVersion string 0.6.2-beta.5", "Set :CFBundleVersion 0.6.2b5"] {
+            assert!(Command::new("/usr/libexec/PlistBuddy").args(["-c", command]).arg(app.join("Contents/Info.plist")).status().unwrap().success());
+        }
+        assert!(Command::new("/usr/bin/codesign").args(["--force", "--sign", "-", "--timestamp=none"]).arg(&app).output().unwrap().status.success());
+        assert_eq!(validate_bundle(&app, "0.6.2-beta.5", None).unwrap(), "adhoc");
+        assert!(validate_bundle(&app, "0.6.2", None).is_err());
+        assert!(validate_bundle(&app, "0.6.2-beta.6", None).is_err());
+    }
+
     #[test]
     fn bundle_validation_checks_identity_version_architecture_and_signature() {
         let s = Sandbox::new();

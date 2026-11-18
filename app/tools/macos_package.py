@@ -18,6 +18,19 @@ BUNDLE_ID = 'com.portcanvas.desktop'
 MINIMUM_OS = '13.0'
 
 
+def bundle_metadata(version):
+    match = re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-beta\.([1-9][0-9]*))?', version)
+    if not match or (match[4] and int(match[4]) > 255):
+        raise ValueError('version must be x.y.z or x.y.z-beta.N (Apple beta counter 1–255)')
+    base = '.'.join(match.group(i) for i in (1, 2, 3))
+    beta = match[4]
+    name = 'PortCanvas Beta' if beta else 'PortCanvas'
+    return {'CFBundleName': name, 'CFBundleDisplayName': name,
+            'CFBundleIdentifier': BUNDLE_ID + ('.beta' if beta else ''),
+            'CFBundleShortVersionString': base, 'CFBundleVersion': base + ('b' + beta if beta else ''),
+            'PortCanvasVersion': version}
+
+
 def run(*command):
     return subprocess.check_output([str(value) for value in command], text=True, stderr=subprocess.STDOUT)
 
@@ -113,8 +126,7 @@ def make_icon(resources, scratch):
 def validate_bundle(app, version):
     with (app / 'Contents/Info.plist').open('rb') as stream:
         info = plistlib.load(stream)
-    expected = {'CFBundleIdentifier': BUNDLE_ID, 'CFBundleExecutable': 'PortCanvasNative',
-                'CFBundleShortVersionString': version, 'CFBundleVersion': version,
+    expected = {**bundle_metadata(version), 'CFBundleExecutable': 'PortCanvasNative',
                 'LSMinimumSystemVersion': MINIMUM_OS, 'CFBundleIconFile': 'PortCanvas.icns'}
     for key, value in expected.items():
         if info.get(key) != value:
@@ -127,10 +139,10 @@ def validate_bundle(app, version):
     slices = inspect_binary(app / 'Contents/MacOS/PortCanvasNative', ['arm64', 'x86_64'])
     run('/usr/bin/codesign', '--verify', '--deep', '--strict', '--verbose=2', app)
     signature = run('/usr/bin/codesign', '-d', '--verbose=4', app)
-    if 'Signature=adhoc' not in signature or f'Identifier={BUNDLE_ID}' not in signature:
+    if 'Signature=adhoc' not in signature or f"Identifier={expected['CFBundleIdentifier']}" not in signature.splitlines():
         raise ValueError(f'Expected identified ad-hoc code signature: {signature}')
     return {'architectures': slices, 'signature': 'ad-hoc', 'notarized': False,
-            'bundleIdentifier': BUNDLE_ID, 'version': version}
+            'bundleIdentifier': expected['CFBundleIdentifier'], 'version': version}
 
 
 def main():
@@ -146,8 +158,10 @@ def main():
     parser.add_argument('--source-date-epoch', required=True, type=int)
     parser.add_argument('--no-dmg', action='store_true', help='Archive-only CI/packager checks; not the final delivery')
     args = parser.parse_args()
-    if not re.fullmatch(r'\d+\.\d+\.\d+', args.version):
-        parser.error('version must be a numeric x.y.z bundle version')
+    try:
+        metadata = bundle_metadata(args.version)
+    except ValueError as error:
+        parser.error(str(error))
     output = new_output_path(args.output)
     inspect_binary(args.arm64, ['arm64'])
     inspect_binary(args.x86_64, ['x86_64'])
@@ -162,10 +176,8 @@ def main():
         resources.mkdir()
         run('/usr/bin/lipo', '-create', args.arm64, args.x86_64, '-output', executable)
         executable.chmod(0o755)
-        plist = {'CFBundleName': 'PortCanvas', 'CFBundleDisplayName': 'PortCanvas',
-                 'CFBundleIdentifier': BUNDLE_ID, 'CFBundleExecutable': executable.name,
-                 'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': args.version,
-                 'CFBundleVersion': args.version, 'CFBundleIconFile': 'PortCanvas.icns',
+        plist = {**metadata, 'CFBundleExecutable': executable.name,
+                 'CFBundlePackageType': 'APPL', 'CFBundleIconFile': 'PortCanvas.icns',
                  'LSMinimumSystemVersion': MINIMUM_OS, 'NSHighResolutionCapable': True,
                  'NSPrincipalClass': 'NSApplication',
                  'NSLocalNetworkUsageDescription': 'PortCanvas discovers and connects to your Linux devices on the local network.', 'NSSupportsAutomaticGraphicsSwitching': True,
@@ -183,7 +195,7 @@ def main():
                                     'sdk': run('/usr/bin/xcrun', '--sdk', 'macosx', '--show-sdk-version').strip(),
                                     'rustc': run('rustc', '--version').strip()}}
         (resources / 'BUILD-INFO.json').write_text(json.dumps(build_info, indent=2) + '\n')
-        run('/usr/bin/codesign', '--force', '--sign', '-', '--timestamp=none', '--identifier', BUNDLE_ID, bundle)
+        run('/usr/bin/codesign', '--force', '--sign', '-', '--timestamp=none', '--identifier', metadata['CFBundleIdentifier'], bundle)
         validation = validate_bundle(bundle, args.version)
         stem = f'PortCanvas_{args.version}_universal'
         archive = delivery / f'{stem}.app.tar.gz'
@@ -196,10 +208,10 @@ def main():
         if not args.no_dmg:
             disk_root = scratch / 'disk'
             disk_root.mkdir()
-            shutil.copytree(bundle, disk_root / bundle.name)
+            shutil.copytree(bundle, disk_root / (metadata['CFBundleName'] + '.app'))
             (disk_root / 'Applications').symlink_to('/Applications')
             dmg = delivery / f'{stem}.dmg'
-            run('/usr/bin/hdiutil', 'create', '-volname', 'PortCanvas', '-srcfolder', disk_root,
+            run('/usr/bin/hdiutil', 'create', '-volname', metadata['CFBundleName'], '-srcfolder', disk_root,
                 '-format', 'UDZO', '-ov', dmg)
             run('/usr/bin/hdiutil', 'verify', dmg)
             validation['diskImage'] = 'hdiutil verify passed'
