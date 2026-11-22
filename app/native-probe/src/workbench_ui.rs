@@ -160,6 +160,8 @@ slint::slint! {
         callback material-refresh();callback material-controls();callback material-response(bool);
         changed material-solid=>{AppColors.motion=!root.material-solid&&!root.native-hidden;root.bg-sync();}
         in property <image> material-dialog;
+        out property <bool> material-settings-visible:root.settings-preparing||root.settings-open||root.settings-progress>0;
+        out property <MaterialRect> material-settings-rect:{x:settings-panel.x/1px,y:settings-panel.y/1px,width:settings-panel.width/1px,height:settings-panel.height/1px,radius:24};
         out property <MaterialRect> material-dialog-rect:{x:modal-panel.x/1px,y:modal-panel.y/1px,width:modal-panel.width/1px,height:modal-panel.height/1px,radius:24};
         in property <image> material-nav;in property <image> material-header;in property <image> material-terminal;in property <image> material-work;
         out property <color> material-tint:Palette.background;

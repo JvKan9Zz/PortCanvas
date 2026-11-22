@@ -12,7 +12,7 @@ The Rust/Slint workbench restores v0.5.95's page structure and icons, with nativ
 
 [Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [Usage](docs/usage.md) · [Pose protocol](docs/pose-protocol.md)
 
-The native macOS test build targets macOS 13.0 or newer and bundles Apple Silicon and Intel slices in one Universal app. Download the test artifact from this PR's **macOS native** Actions run; see [Mac installation, migration and build instructions](docs/macos.md). Test builds have ad-hoc signatures and no Apple notarization. This build does not change official Release assets; the historical v0.5.95 Mac release remains available.
+The native macOS test build targets macOS 13.0 or newer and bundles Apple Silicon and Intel slices in one Universal app. The v0.6.1 native Mac test package is available for manual download from [GitHub Releases](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1). See the [Mac guide](docs/macos.md) for v0.6.2 test builds and installation.
 
 See [app](app/README.md) for the current native source, build and installer. The installed Windows application needs no Node.js, Rust or Python runtime. Remote features use SSH and the controller's Python 3, tmux, SFTP, x11vnc and camera tools. Component preparation currently targets the reference Ubuntu 20.04 ARM64 controller and uses an isolated user cache.
 

@@ -25,7 +25,7 @@ Windows / macOS 原生远程设备工作台。[**下载 Windows v0.6.2**](https:
 
 [Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [使用说明](docs/usage.md) · [定位接口](docs/pose-protocol.md)
 
-macOS 原生测试版面向 macOS 13.0 及以上，Universal 包包含 Apple Silicon 与 Intel。测试包从本 PR 的 **macOS native** Actions 构建产物取得，安装、首次迁移和更新见 [Mac 说明](docs/macos.md)。测试包使用 ad-hoc 签名，未经 Apple 公证；当前正式 Release 的附件不由本构建修改。历史 v0.5.95 Mac 版保留在原 Release。
+macOS 原生测试版支持 macOS 13.0 及以上，Universal 包包含 Apple Silicon 与 Intel。可手动下载 [v0.6.1 原生 Mac 测试包](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1)。v0.6.2 的 Mac 测试构建和安装说明见 [Mac 说明](docs/macos.md)。
 
 ## 源码与构建
 

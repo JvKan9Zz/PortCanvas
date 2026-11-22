@@ -4,7 +4,7 @@ The native macOS test build uses shared Rust services, Slint/winit/FemtoVG, AppK
 
 ## Get and install the test build
 
-Open the **macOS native** Actions run and download **PortCanvas-0.6.2-macOS-universal-test** from Artifacts. GitHub may require sign-in. The artifact expires after 14 days and can be recreated by rerunning the workflow.
+For a manual download, use the [v0.6.1 native Mac test package](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1). For the v0.6.2 test build, open the **macOS native** Actions run and download **PortCanvas-0.6.2-macOS-universal-test** from Artifacts. GitHub may require sign-in. The artifact expires after 14 days and can be recreated by rerunning the workflow.
 
 Extract the Actions ZIP, open `PortCanvas_0.6.2_universal.dmg`, and drag `PortCanvas.app` to Applications. Quit any running PortCanvas before replacing an installed copy, then open the copy in Applications and eject the disk image. The `.app.tar.gz` is the update payload and requires a separate publisher-managed signature.
 
