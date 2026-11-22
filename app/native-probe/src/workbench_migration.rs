@@ -6,7 +6,7 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use portcanvas_core::{
-    migration::{MigrationSession, Plan},
+    migration::{bundle, MigrationSession, Plan},
     services::Services,
 };
 use slint::{winit_030::WinitWindowAccessor, ComponentHandle};
@@ -59,7 +59,7 @@ impl Controller {
         });
         ui.on_migration_action({
             let c = c.clone();
-            move |restore| c.choose(restore)
+            move |export| c.choose(export)
         });
         ui.on_migration_confirm({
             let c = c.clone();
@@ -92,12 +92,16 @@ impl Controller {
                     ui.invoke_focus_main();
                 }
                 if !error.is_empty() {
-                    ui.set_migration_error(error);
+                    ui.set_migration_error(text(&error, ui.get_english()).into());
                     return;
                 }
                 let value = serde_json::from_str::<serde_json::Value>(&result).unwrap_or_default();
                 if value["canceled"] == true {
                     ui.set_migration_status(text("已取消资料操作。", ui.get_english()).into());
+                    return;
+                }
+                if value["exported"] == true {
+                    ui.set_migration_status(text("配置已导出。", ui.get_english()).into());
                     return;
                 }
                 c.completed.set(c.completed.get() + 1);
@@ -143,7 +147,7 @@ impl Controller {
         });
         c
     }
-    fn choose(self: &Rc<Self>, restore: bool) {
+    fn choose(self: &Rc<Self>, export: bool) {
         let Some(ui) = self.ui.upgrade() else { return };
         if ui.get_dialog_kind() != 0
             || ui.get_migration_busy()
@@ -173,26 +177,29 @@ impl Controller {
             .unwrap()
             .directory
             .join("migration-backups");
-        let folder = ui
+        let path = ui
             .window()
             .with_winit_window(|window| {
                 let picker = rfd::FileDialog::new().set_parent(window);
-                if restore {
+                if export {
                     picker
-                        .set_title(text("选择迁移备份目录（含report.json）", ui.get_english()))
-                        .set_directory(initial)
-                        .pick_folder()
+                        .set_title(text("导出配置", ui.get_english()))
+                        .add_filter("PortCanvas", &["portcanvas"])
+                        .set_file_name("PortCanvas.portcanvas")
+                        .save_file()
                 } else {
                     picker
                         .set_title(text(
-                            "选择旧版软件的data目录（含devices.json）",
+                            "选择配置文件、旧版 devices.json 或备份 report.json",
                             ui.get_english(),
                         ))
-                        .pick_folder()
+                        .add_filter(text("PortCanvas 配置与旧版资料", ui.get_english()), &["portcanvas", "json"])
+                        .set_directory(initial)
+                        .pick_file()
                 }
             })
             .flatten();
-        let Some(folder) = folder else {
+        let Some(path) = path else {
             ui.set_migration_busy(false);
             ui.set_migration_status(text("已取消资料操作。", ui.get_english()).into());
             ui.invoke_focus_main();
@@ -211,15 +218,33 @@ impl Controller {
             let operation = async {
                 guard.check_idle()?;
                 let target = service.profiles.lock().unwrap().directory.clone();
+                let default_logs = service.default_log_root.clone();
+                if export {
+                    anyhow::ensure!(path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("portcanvas")), "请选择 .portcanvas 文件名。");
+                    tokio::task::spawn_blocking(move || bundle::export(&target, &path, &default_logs)).await??;
+                    return Ok(serde_json::json!({"exported":true}));
+                }
                 let current = service.logs.settings();
+                let is_bundle = path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("portcanvas"));
+                let filename = path.file_name().and_then(|name| name.to_str()).unwrap_or_default();
+                let restore = filename.eq_ignore_ascii_case("report.json");
+                let folder = path.parent().context("无法确定资料目录。")?.to_path_buf();
+                let mut staging = None;
                 let (plan, title, message) = if restore {
                     (None, "恢复导入前资料", format!("恢复所选迁移之前的PortCanvas配置？\n{}\n当前配置会另存备份；日志文件不会删除。", folder.display()))
                 } else {
-                    let source = folder.clone();
-                    let plan = tokio::task::spawn_blocking(move || Plan::prepare_native(source, target, current, legacy)).await??;
+                    let plan = if is_bundle {
+                        let (plan, stage) = tokio::task::spawn_blocking(move || bundle::prepare(path, target, current, default_logs)).await??;
+                        staging = Some(stage);
+                        plan
+                    } else {
+                        anyhow::ensure!(filename.eq_ignore_ascii_case("devices.json"), "选择 .portcanvas、devices.json 或 report.json。");
+                        let source = folder.clone();
+                        tokio::task::spawn_blocking(move || Plan::prepare_native(source, target, current, legacy)).await??
+                    };
                     let p = &plan.preview;
-                    let message = format!("导入旧版资料？\n来源：{}\n目标：{}\n新增设备：{}；受信指纹：{}\n日志位置：{}\n{}\n将备份目标资料；不移动日志，不修改旧版目录。",p["source"].as_str().unwrap_or_default(),p["target"].as_str().unwrap_or_default(),p["addedDevices"],p["addedHostKeys"],p["logRoot"].as_str().unwrap_or_default(),p["warning"].as_str().unwrap_or_default());
-                    (Some(plan), "导入旧版资料", message)
+                    let message = format!("导入资料？\n来源：{}\n目标：{}\n新增设备：{}；受信指纹：{}\n日志位置：{}\n{}\n导入前将备份现有配置。",p["source"].as_str().unwrap_or_default(),p["target"].as_str().unwrap_or_default(),p["addedDevices"],p["addedHostKeys"],p["logRoot"].as_str().unwrap_or_default(),p["warning"].as_str().unwrap_or_default());
+                    (Some(plan), "导入数据", message)
                 };
                 if stop.is_cancelled() {
                     return Ok(serde_json::json!({"canceled":true}));
@@ -237,7 +262,9 @@ impl Controller {
                 if !accepted {
                     return Ok(serde_json::json!({"canceled":true}));
                 }
-                if restore { guard.restore(folder).await } else { guard.apply(plan.unwrap()).await }
+                let result = if restore { guard.restore(folder).await } else { guard.apply(plan.unwrap()).await };
+                drop(staging);
+                result
             }.await;
             let (result, error) = match operation {
                 Ok(value) => (value.to_string(), String::new()),

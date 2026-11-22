@@ -29,8 +29,8 @@ public_key = args.public_key.resolve(strict=True)
 output = args.output.resolve()
 if output.exists():
     raise SystemExit('Preserve the existing manifest; choose a fresh output.')
-if args.version not in ('0.6.0', '0.6.1') and not re.fullmatch(r'0\.6\.0-beta\.[0-9]+', args.version):
-    raise SystemExit('This packaging entry point is scoped to the 0.6.0 and 0.6.1 release families.')
+if args.version not in ('0.6.0', '0.6.1', '0.6.2') and not re.fullmatch(r'0\.6\.0-beta\.[0-9]+', args.version):
+    raise SystemExit('This packaging entry point is scoped to the 0.6.0–0.6.2 release families.')
 
 def checked(arguments, password=b''):
     result = subprocess.run([str(args.minisign.resolve(strict=True)), *map(str, arguments)], input=password,

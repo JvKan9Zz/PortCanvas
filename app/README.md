@@ -1,6 +1,6 @@
 # PortCanvas native application
 
-The v0.6.1 application uses Slint/winit/FemtoVG, native VT and RFB clients, platform media playback and shared Rust services. It has no frontend bundle, npm install, Tauri or WebView build step. [v0.6.1 is the Windows native release](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1). Windows x64 remains the released target. The macOS native test build targets macOS 13.0+, with Universal Apple Silicon / Intel packages; see [Mac build and use](../docs/macos.md). Historical macOS v0.5.95 builds remain in their tagged release.
+The v0.6.2 application uses Slint/winit/FemtoVG, native VT and RFB clients, platform media playback and shared Rust services. It has no frontend bundle, npm install, Tauri or WebView build step. The release package targets Windows x64. The native macOS test build targets macOS 13.0+ on Apple Silicon and Intel. See [Mac build and use](../docs/macos.md).
 
 ## Build
 
@@ -15,7 +15,7 @@ The release binary is `native-probe/target/x86_64-pc-windows-msvc/release/PortCa
 The current-user installer is built separately:
 
 ```bash
-python tools/native_installer.py --binary native-probe/target/x86_64-pc-windows-msvc/release/PortCanvasNative.exe --output target/PortCanvas_0.6.1_x64-setup.exe
+python tools/native_installer.py --binary native-probe/target/x86_64-pc-windows-msvc/release/PortCanvasNative.exe --output target/PortCanvas_0.6.2_x64-setup.exe
 ```
 
 NSIS must be available through `--makensis`, PATH, or its existing local cache. The installer uses PortCanvas installation, shortcut and registry identities. Signing uses `tools/native_sign.py` with the existing protected updater key and password file. Never commit those inputs. `latest.json` carries the version-bound signature for the stable update channel. Building does not publish or install a release.
@@ -41,6 +41,6 @@ Windows CI checks shared services, protocol ownership, native controls/codecs an
 - `vendor/vnc-rs`: the retained native RFB source and patch record.
 - `tools`: current build, installer, notice and signing utilities.
 
-The default application data directory is `%LOCALAPPDATA%/PortCanvas/Stable`; `WCS_DATA_DIR` overrides it for isolated checks. On macOS the default is `~/Library/Application Support/PortCanvas/Stable`; `Beta` is separate. Credentials use Windows DPAPI or a macOS Keychain-protected encryption key. Import explicitly reviews four configuration files and referenced managed media, preserves the source and supports exact rollback. Native desktop/camera/background rendering starts no local HTTP or WebSocket presentation bridge. Old browser clients and their build files remain available in version tags and Git history.
+Fresh Windows installs use `data/` under the installation directory, with default logs in `data/logs/`. In-place Windows upgrades keep existing Stable data in use. On macOS, Stable uses `~/Library/Application Support/PortCanvas/Stable`. The Beta channel has separate storage. For isolated checks, set `WCS_DATA_DIR`. Credentials use Windows DPAPI or a macOS Keychain-protected encryption key and stay on the original computer during `.portcanvas` export. Imports use the configuration and media transaction with preview and rollback. Source for old browser clients remains available in Git history.
 
 The embedded PortCanvas UI faces are rebuilt from the retained licensed stable sources with `uv run --with "fonttools[woff]" python tools/refresh-native-fonts.py`. The pinned 1.15.1 FemtoVG renderer includes the text-origin alignment backport documented under `vendor/i-slint-renderer-femtovg/PATCHES.md`. This does not install system fonts.

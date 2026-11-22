@@ -15,6 +15,21 @@ pub fn macos_paths(home: &Path, data: Option<PathBuf>, channel: Channel) -> Resu
     ensure!(data.is_absolute(), "应用数据目录须为绝对路径。");
     Ok(Paths { data, documents: home.join("Documents"), local_files: home.join("Documents"), portable })
 }
+
+// Existing Stable upgrades keep their settings, logs and rollback history.
+#[cfg(windows)]
+fn windows_data_directory(installed: PathBuf, legacy: PathBuf) -> PathBuf {
+    let legacy_names = ["devices.json", "settings.json", "log-settings.json", "terminals.json",
+        "backgrounds", "logs", "migration-backups"];
+    if !installed.join(".install-local").is_dir()
+        && legacy_names.iter().any(|name| legacy.join(name).exists())
+    {
+        legacy
+    } else {
+        installed
+    }
+}
+
 pub fn current() -> Result<Paths> {
     #[cfg(target_os="macos")]
     let mut paths = {
@@ -31,7 +46,22 @@ pub fn current() -> Result<Paths> {
                 let text = value.to_string(); CoTaskMemFree(Some(value.0 as *const _)); Ok(PathBuf::from(text?))
             }
         }
-        let data = std::env::var_os("WCS_DATA_DIR").map(PathBuf::from).unwrap_or(known_folder(&FOLDERID_LocalAppData)?.join("PortCanvas").join(Channel::current().name()));
+        let data = if let Some(path) = std::env::var_os("WCS_DATA_DIR") {
+            PathBuf::from(path)
+        } else {
+            let legacy = known_folder(&FOLDERID_LocalAppData)?.join("PortCanvas").join(Channel::current().name());
+            if matches!(Channel::current(), Channel::Beta) {
+                legacy
+            } else {
+                let executable = std::env::current_exe()?;
+                let installed = executable.parent().context("无法确定安装目录。")?.join("data");
+                if executable.file_name().is_some_and(|name| name.eq_ignore_ascii_case("PortCanvas.exe")) {
+                    windows_data_directory(installed, legacy)
+                } else {
+                    installed
+                }
+            }
+        };
         ensure!(data.is_absolute(), "应用数据目录须为绝对路径。");
         let documents = known_folder(&FOLDERID_Documents)?;
         Paths { data, documents: documents.clone(), local_files: documents, portable: true }
@@ -45,4 +75,23 @@ pub fn current() -> Result<Paths> {
         }
         Ok(paths)
     }
+}
+
+#[cfg(all(test, windows))]
+#[test]
+fn original_stable_data_wins_on_upgrade_unless_the_installer_selected_local_storage() -> Result<()> {
+    let root = PathBuf::from(std::env::var_os("WCS_TEST_ROOT").context("Isolated test root required")?)
+        .join(uuid::Uuid::new_v4().to_string());
+    let legacy = root.join("Stable");
+    let installed = root.join("install/data");
+    std::fs::create_dir_all(&legacy)?;
+    std::fs::create_dir_all(&installed)?;
+    assert_eq!(windows_data_directory(installed.clone(), legacy.clone()), installed);
+    std::fs::write(legacy.join("devices.json"), br#"{"devices":[]}"#)?;
+    std::fs::write(installed.join("devices.json"), br#"{"devices":[]}"#)?;
+    assert_eq!(windows_data_directory(installed.clone(), legacy.clone()), legacy);
+    std::fs::create_dir(installed.join(".install-local"))?;
+    assert_eq!(windows_data_directory(installed.clone(), legacy), installed);
+    std::fs::remove_dir_all(root)?;
+    Ok(())
 }

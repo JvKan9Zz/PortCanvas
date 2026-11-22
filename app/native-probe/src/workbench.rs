@@ -161,8 +161,9 @@ fn device_state(ui: &Workbench, value: &serde_json::Value, pending: &PendingHost
     }
 }
 fn data_paths() -> Result<Paths> {
-    let paths=portcanvas_native_probe::platform_paths::current()?;
-    std::fs::create_dir_all(&paths.data)?;
+    let paths = portcanvas_native_probe::platform_paths::current()?;
+    std::fs::create_dir_all(&paths.data)
+        .with_context(|| format!("无法创建资料目录：{}", paths.data.display()))?;
     Ok(paths)
 }
 pub fn run() -> Result<()> {

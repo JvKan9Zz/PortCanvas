@@ -30,6 +30,45 @@ impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.ro
 fn raw(path: &Path) -> Value { serde_json::from_slice(&fs::read(path).unwrap()).unwrap() }
 
 #[test]
+fn configuration_bundle_round_trip_keeps_media_settings_and_local_credentials() -> Result<()> {
+    let f = Fixture::new();
+    let mut devices = raw(&f.source.join(FILES[0]));
+    devices["futureCatalog"] = json!({"enabled":true});
+    devices["devices"][0]["futureDeviceOption"] = json!("keep");
+    devices["devices"][0]["encryptedSecret"] = json!("dpapi-v1:AA==");
+    devices["devices"][0]["rememberPassword"] = json!(true);
+    f.save(true, FILES[0], devices.clone());
+    f.save(true, FILES[2], json!({"glassOpacity":36,"backgroundImage":IMAGE}));
+    f.save(true, FILES[3], json!({"devices":{DEVICE:[{"key":"main","number":1}]}}));
+    f.media(true, IMAGE, b"background-content");
+    let archive = f.root.join("saved.portcanvas");
+    bundle::export(&f.source, &archive, &f.logs.root)?;
+    let default_logs = f.target.join("logs");
+    let settings = Settings { max_bytes: Some(16 * 1024 * 1024), ..f.logs.clone() };
+    let (plan, stage) = bundle::prepare(archive.clone(), f.target.clone(), settings.clone(), default_logs.clone())?;
+    assert_eq!(plan.preview["source"], json!(archive));
+    let restored = plan.apply()?;
+    drop(stage);
+    let imported = raw(&f.target.join(FILES[0]));
+    assert!(imported["devices"][0].get("encryptedSecret").is_none());
+    assert_eq!(imported["devices"][0]["rememberPassword"], false);
+    assert_eq!(imported["devices"][0]["futureDeviceOption"], "keep");
+    assert_eq!(imported["futureCatalog"]["enabled"], true);
+    assert_eq!(raw(&f.target.join(FILES[1]))["maxBytes"], Value::Null);
+    assert_eq!(raw(&f.target.join(FILES[1]))["root"], json!(default_logs));
+    assert_eq!(raw(&f.target.join(FILES[2]))["glassOpacity"], 36);
+    assert_eq!(raw(&f.target.join(FILES[3]))["devices"][DEVICE][0]["number"], 1);
+    assert_eq!(fs::read(f.target.join("backgrounds").join(IMAGE))?, b"background-content");
+    rollback(f.target.clone(), restored["backup"].as_str().unwrap().into())?;
+    assert!(!f.target.join(FILES[2]).exists());
+    f.save(false, FILES[0], devices);
+    let (plan, _stage) = bundle::prepare(archive, f.target.clone(), settings, default_logs)?;
+    plan.apply()?;
+    assert_eq!(raw(&f.target.join(FILES[0]))["devices"][0]["encryptedSecret"], "dpapi-v1:AA==");
+    Ok(())
+}
+
+#[test]
 fn full_import_preserves_new_preferences_opaque_tabs_and_exact_rollback() {
     let f = Fixture::new();
     f.save(false, FILES[0], json!({"devices":[],"hostKeys":{}}));
