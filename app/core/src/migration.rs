@@ -10,6 +10,7 @@ use std::{
     path::{Path, PathBuf},
 };
 mod extensions;
+pub mod bundle;
 mod native;
 #[cfg(test)]
 mod native_tests;
@@ -79,6 +80,16 @@ impl Plan {
         current_settings: Settings,
         legacy_log_root: PathBuf,
     ) -> Result<Self> {
+        Self::prepare_input(source, target, current_settings, legacy_log_root, false)
+    }
+
+    fn prepare_input(
+        source: PathBuf,
+        target: PathBuf,
+        current_settings: Settings,
+        legacy_log_root: PathBuf,
+        bundle: bool,
+    ) -> Result<Self> {
         if !source.is_absolute() || !target.is_absolute() || source == target {
             bail!("请选择独立的旧版data目录。");
         }
@@ -90,6 +101,9 @@ impl Plan {
             optional(&source.join(FILES[1]))?,
         ];
         let old = profiles(input[0].as_deref().context("所选目录没有devices.json。")?)?;
+        if bundle && old.devices.iter().any(|device| device.encrypted_secret.is_some() || device.remember_password) {
+            bail!("配置包不能包含本机凭据。");
+        }
         let before = [
             optional(&target.join(FILES[0]))?,
             optional(&target.join(FILES[1]))?,
@@ -105,7 +119,12 @@ impl Plan {
         let mut keys = 0;
         for profile in old.devices {
             if let Some(existing) = merged.devices.iter().find(|p| p.id == profile.id) {
-                if existing != &profile {
+                let mut comparison = existing.clone();
+                if bundle {
+                    comparison.encrypted_secret = None;
+                    comparison.remember_password = false;
+                }
+                if comparison != profile {
                     bail!("设备ID冲突，未覆盖现有资料：{}", profile.name);
                 }
             } else {
@@ -127,7 +146,10 @@ impl Plan {
         let mut warning = String::new();
         if let Some(bytes) = &input[1] {
             let old = settings(bytes)?;
-            if old.root.is_dir() {
+            if bundle {
+                logs.max_bytes = old.max_bytes;
+            }
+            if old.root.is_dir() || (bundle && old.root == legacy_log_root) {
                 logs.root = old.root;
             } else {
                 warning = "旧日志位置不可用，未搬移或删除，可在日志页重新选择。".into();
@@ -135,7 +157,7 @@ impl Plan {
             for (key, name) in old.projects {
                 logs.projects.entry(key).or_insert(name);
             }
-        } else if legacy_log_root.is_dir() {
+        } else if !bundle && legacy_log_root.is_dir() {
             logs.root = legacy_log_root;
         }
         let logs = logs.validate()?;
@@ -156,7 +178,11 @@ impl Plan {
     }
     /// Full native import. The legacy two-file API stays available to old adapters.
     pub fn prepare_native(source: PathBuf, target: PathBuf, current_settings: Settings, legacy_log_root: PathBuf) -> Result<Self> {
-        let mut plan = Self::prepare(source, target, current_settings, legacy_log_root)?;
+        Self::prepare_input(source, target, current_settings, legacy_log_root, false)?.with_native_files()
+    }
+
+    fn with_native_files(mut self) -> Result<Self> {
+        let plan = &mut self;
         for (index, name) in FILES.iter().enumerate().skip(2) {
             let input = optional(&plan.source.join(name))?;
             let before = optional(&plan.target.join(name))?;
@@ -175,7 +201,7 @@ impl Plan {
         plan.preview["preferencesImported"] = json!(plan.input[2].is_some());
         plan.preview["terminalsImported"] = json!(plan.input[3].is_some());
         plan.preview["backgroundFiles"] = json!(plan.input_media.len());
-        Ok(plan)
+        Ok(self)
     }
     fn check_files(&self) -> Result<()> {
         for (index, name) in FILES.iter().take(self.input.len()).enumerate() {
@@ -210,7 +236,7 @@ impl Plan {
         self.check_files()?;
         native::verify_backup(&self.before_media, &backup.join("before"))?;
         native::verify_backup(&self.input_media, &backup.join("input"))?;
-        let report = json!({"schema":"portcanvas.migration/1","id":id,"target":self.target,"source":self.source,"createdAt":crate::log_store::now(),"beforeExists":self.before.iter().map(Option::is_some).collect::<Vec<_>>(),"summary":self.preview});
+        let report = json!({"schema":"portcanvas.migration/1","id":id,"target":self.target,"source":self.preview["source"],"createdAt":crate::log_store::now(),"beforeExists":self.before.iter().map(Option::is_some).collect::<Vec<_>>(),"summary":self.preview});
         atomic_json(&backup.join("report.json"), &report)?;
         let operation: Result<()> = (|| {
             if self.input.len() == 4 {

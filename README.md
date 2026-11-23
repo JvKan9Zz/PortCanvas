@@ -4,7 +4,7 @@
 
 简体中文 | [English](README.en.md)
 
-Windows / macOS 原生远程设备工作台。[**下载 v0.6.1 正式版**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1)。
+Windows / macOS 原生远程设备工作台。[**下载 Windows v0.6.2**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.2)。
 
 原生工作台使用 Slint、Rust、原生 VT/RFB 和各平台系统媒体能力，保留 v0.5.95 的页面结构、图标与主要交互。
 
@@ -21,11 +21,11 @@ Windows / macOS 原生远程设备工作台。[**下载 v0.6.1 正式版**](http
 
 ## 安装与旧版资料
 
-[下载 Windows x64 安装器](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.1/PortCanvas_0.6.1_x64-setup.exe)，安装后从桌面“PortCanvas”打开。正式版资料位于 `%LOCALAPPDATA%/PortCanvas/Stable`，与原生 Beta 分开。首次使用可从设备页导入旧版或 Beta 的资料目录，确认前可预览，原目录保留。旧便携目录 `data/` 请一并保留。软件内更新使用稳定通道。
+[下载 Windows x64 安装器](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.2/PortCanvas_0.6.2_x64-setup.exe)，安装后从桌面“PortCanvas”打开。新装资料保存在安装目录的 `data/`，原地升级沿用已有正式资料。从设备页可预览并导入配置包或旧版资料，导入前自动备份。软件内更新使用稳定通道。
 
 [Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [使用说明](docs/usage.md) · [定位接口](docs/pose-protocol.md)
 
-macOS 原生测试版面向 macOS 13.0 及以上，Universal 包包含 Apple Silicon 与 Intel。测试包从本 PR 的 **macOS native** Actions 构建产物取得，安装、首次迁移和更新见 [Mac 说明](docs/macos.md)。测试包使用 ad-hoc 签名，未经 Apple 公证；当前正式 Release 的附件不由本构建修改。历史 v0.5.95 Mac 版保留在原 Release。
+macOS 原生测试版支持 macOS 13.0 及以上，Universal 包包含 Apple Silicon 与 Intel。可手动下载 [v0.6.1 原生 Mac 测试包](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1)。v0.6.2 的 Mac 测试构建和安装说明见 [Mac 说明](docs/macos.md)。
 
 ## 源码与构建
 

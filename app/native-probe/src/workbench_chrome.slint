@@ -9,7 +9,7 @@ export component MaterialPanel inherits Rectangle {
     in property <bool> flat:false;
     border-radius:24px;clip:false;background:transparent;border-width:0px;
     drop-shadow-offset-y:8px;drop-shadow-blur:28px;drop-shadow-color:root.flat?transparent:AppColors.dark?#00000026:#2d436e14;
-    if !root.flat:ContinuousOutline {x:0px;y:0px;width:parent.width;height:parent.height;radius:root.border-radius;fill:root.solid?AppColors.surface:AppColors.surface.with-alpha(AppColors.native-material?(root.strength>100?0.96:0.12+0.58*root.strength/100):(AppColors.dark?0.24:0.22)+0.58*root.strength/100);}
+    if !root.flat&&(!root.active||root.solid):ContinuousOutline {x:0px;y:0px;width:parent.width;height:parent.height;radius:root.border-radius;fill:root.solid?AppColors.surface:AppColors.surface.with-alpha(AppColors.native-material?(root.strength>100?0.96:0.12+0.58*root.strength/100):(AppColors.dark?0.24:0.22)+(AppColors.dark?0.76:0.78)*clamp(root.strength,0,100)/100);}
     if root.active&&!root.flat:Image {x:0px;y:0px;width:parent.width;height:parent.height;source:root.material;image-fit:fill;}
     if !root.flat:ContinuousOutline {x:0px;y:0px;width:parent.width;height:parent.height;radius:root.border-radius;fill:transparent;stroke-width:1px;stroke:AppColors.high-contrast?AppColors.edge:AppColors.dark?#b7cced24:#ffffffeb;}
     @children
@@ -47,9 +47,8 @@ export component DeviceListItem inherits Rectangle {
     in property <bool> enabled:true;
     callback clicked();
     height:80px;vertical-stretch:0;
-    transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&touch.pressed?0.94:1;animate transform-scale {duration:AppColors.motion?(touch.pressed?90ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
     border-radius:13px;
-    background:root.selected?AppColors.soft:touch.has-hover?AppColors.field:AppColors.field.with-alpha(0.45);
+    background:touch.pressed?AppColors.soft:root.selected?AppColors.soft:touch.has-hover?AppColors.field:AppColors.field.with-alpha(0.45);
     border-width:0px;
     animate background,border-color {duration:AppColors.motion?160ms:0ms;}
     accessible-role:button;accessible-label:root.name+" "+root.address;accessible-enabled:root.enabled;
@@ -59,7 +58,7 @@ export component DeviceListItem inherits Rectangle {
     Rectangle {x:12px;y:12px;width:28px;height:28px;border-radius:9px;background:AppColors.accent.with-alpha(0.08);
         Image {x:6px;y:6px;width:16px;height:16px;source:@image-url("icons/devices.svg");colorize:AppColors.accent;}
     }
-    Text {x:50px;y:12px;width:parent.width - 64px;height:28px;text:root.name;color:root.selected?AppColors.accent-ink:AppColors.ink;font-size:14px;font-weight:600;vertical-alignment:center;overflow:elide;}
+    Text {x:50px;y:12px;width:parent.width - 64px;height:28px;text:root.name;color:root.selected?AppColors.accent-ink:AppColors.ink;font-size:14px;font-weight:500;vertical-alignment:center;overflow:elide;}
     Text {x:12px;y:47px;width:parent.width - 24px;height:20px;text:root.address;color:AppColors.muted;overflow:elide;font-size:12px;vertical-alignment:center;}
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
     touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}

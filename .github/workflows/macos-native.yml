@@ -26,14 +26,18 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: '1.90.0'
       MACOSX_DEPLOYMENT_TARGET: '13.0'
-      CARGO_TARGET_DIR: ${{ runner.temp }}/portcanvas-target
-      WCS_TEST_ROOT: ${{ runner.temp }}/portcanvas-tests
-      WCS_DATA_DIR: ${{ runner.temp }}/portcanvas-tests/gui-data
-      TMPDIR: ${{ runner.temp }}/portcanvas-temp/
       PORTCANVAS_TEST_KEYCHAIN_SERVICE: io.portcanvas.test.credentials.ci-${{ github.run_id }}-${{ github.run_attempt }}-universal
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@v4
+      - name: Configure isolated test paths
+        run: |
+          {
+            echo "CARGO_TARGET_DIR=$RUNNER_TEMP/portcanvas-target"
+            echo "WCS_TEST_ROOT=$RUNNER_TEMP/portcanvas-tests"
+            echo "WCS_DATA_DIR=$RUNNER_TEMP/portcanvas-tests/gui-data"
+            echo "TMPDIR=$RUNNER_TEMP/portcanvas-temp/"
+          } >> "$GITHUB_ENV"
       - name: Record host and install the pinned Rust targets
         run: |
           sw_vers
@@ -63,7 +67,7 @@ jobs:
       - name: Preserve test packages and verification details for this PR
         uses: actions/upload-artifact@v4
         with:
-          name: PortCanvas-0.6.1-macOS-universal-test
+          name: PortCanvas-0.6.2-macOS-universal-test
           path: |
             ${{ runner.temp }}/portcanvas-macos-artifacts/*.dmg
             ${{ runner.temp }}/portcanvas-macos-artifacts/*.app.tar.gz
@@ -80,14 +84,18 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       RUSTUP_TOOLCHAIN: '1.90.0'
       MACOSX_DEPLOYMENT_TARGET: '13.0'
-      CARGO_TARGET_DIR: ${{ runner.temp }}/portcanvas-target
-      WCS_TEST_ROOT: ${{ runner.temp }}/portcanvas-tests
-      WCS_DATA_DIR: ${{ runner.temp }}/portcanvas-tests/gui-data
-      TMPDIR: ${{ runner.temp }}/portcanvas-temp/
       PORTCANVAS_TEST_KEYCHAIN_SERVICE: io.portcanvas.test.credentials.ci-${{ github.run_id }}-${{ github.run_attempt }}-intel
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@v4
+      - name: Configure isolated test paths
+        run: |
+          {
+            echo "CARGO_TARGET_DIR=$RUNNER_TEMP/portcanvas-target"
+            echo "WCS_TEST_ROOT=$RUNNER_TEMP/portcanvas-tests"
+            echo "WCS_DATA_DIR=$RUNNER_TEMP/portcanvas-tests/gui-data"
+            echo "TMPDIR=$RUNNER_TEMP/portcanvas-temp/"
+          } >> "$GITHUB_ENV"
       - name: Record the Intel compatibility host and SDK
         run: |
           sw_vers

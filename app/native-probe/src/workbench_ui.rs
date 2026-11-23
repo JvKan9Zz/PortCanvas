@@ -159,7 +159,7 @@ slint::slint! {
         in property <string> material-status;
         callback material-refresh();callback material-controls();callback material-response(bool);
         changed material-solid=>{AppColors.motion=!root.material-solid&&!root.native-hidden;root.bg-sync();}
-        in property <image> material-settings;in property <image> material-dialog;
+        in property <image> material-dialog;
         out property <bool> material-settings-visible:root.settings-preparing||root.settings-open||root.settings-progress>0;
         out property <MaterialRect> material-settings-rect:{x:settings-panel.x/1px,y:settings-panel.y/1px,width:settings-panel.width/1px,height:settings-panel.height/1px,radius:24};
         out property <MaterialRect> material-dialog-rect:{x:modal-panel.x/1px,y:modal-panel.y/1px,width:modal-panel.width/1px,height:modal-panel.height/1px,radius:24};
@@ -310,7 +310,6 @@ slint::slint! {
         changed dialog-kind=>{if root.dialog-kind!=0{root.painted-dialog=root.dialog-kind;}root.bg-sync();if root.dialog-kind==14{picker-view.focus-selection();}else if root.dialog-kind==8{crop-view.focus-selection();}else if root.dialog-kind==15{folder-name.focus();}else if root.dialog-kind!=0 {cancel-response.focus();}else if root.settings-open{settings-general.focus();}else{main-focus.focus();}}
         Rectangle {opacity:root.native-material?0.12:1;background:root.bg-custom?root.bg-color:AppColors.dark?#131e30:@linear-gradient(135deg,#edf3fa,#f4f5fa 58%,#e9eff8);
             if root.bg-has-frame:Image {source:root.bg-frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.bg-saved-crop-x*root.bg-width);source-clip-y:round(root.bg-saved-crop-y*root.bg-height);source-clip-width:max(1,round(root.bg-saved-crop-width*root.bg-width));source-clip-height:max(1,round(root.bg-saved-crop-height*root.bg-height));}
-            if root.material-settings-visible&&root.settings-backdrop-active&&!root.material-solid:Image {source:root.settings-backdrop-frame;width:parent.width;height:parent.height;image-fit:fill;}
         }
         if root.material-solid:Rectangle {background:Palette.background;}
         // THESIS: A clear work area between the familiar left rail and optional shared terminal.
@@ -381,8 +380,8 @@ slint::slint! {
                 if root.page==3:ActionButton {text:root.tr("刷新",root.english);icon:@image-url("icons/restart.svg");has-icon:true;enabled:root.can-browse;clicked=>{root.refresh-logs();}}
                 if root.page==6:ConnectionBadge {text:root.tr(root.file-remote-loaded&&root.connected?"SFTP 已连接":"SFTP 未连接",root.english);phase:root.file-remote-loaded&&root.connected?2:0;}
                 if root.page==0:HorizontalBox {padding:0px;spacing:8px;
-                    ActionButton {text:root.tr("导入旧版资料",root.english);busy:root.migration-busy;enabled:root.can-edit;clicked=>{root.migration-action(false);}}
-                    ActionButton {text:root.tr("恢复导入前资料",root.english);busy:root.migration-busy;enabled:root.can-edit;clicked=>{root.migration-action(true);}}
+                    ActionButton {text:root.tr("导入数据",root.english);busy:root.migration-busy;enabled:root.can-edit;clicked=>{root.migration-action(false);}}
+                    ActionButton {text:root.tr("导出配置",root.english);enabled:root.can-edit;clicked=>{root.migration-action(true);}}
                     ActionButton {text:root.tr("添加设备",root.english);icon:@image-url("icons/plus.svg");has-icon:true;enabled:root.can-edit;clicked=>{root.new-device();}}
                 }
             }
@@ -476,9 +475,10 @@ slint::slint! {
             }
         }
         Rectangle {visible:root.settings-preparing||root.settings-open||root.settings-progress>0;background:transparent;
+            if root.settings-backdrop-active&&!root.material-solid:Image {source:root.settings-backdrop-frame;width:parent.width;height:parent.height;image-fit:fill;opacity:root.settings-progress;}
             Rectangle {background:#233450.with-alpha(0.19*root.settings-progress);}
             TouchArea {enabled:root.settings-open&&root.can-interact;clicked=>{root.settings-open=false;}}
-            settings-panel:=MaterialPanel {x:(parent.width - self.width)/2;y:(parent.height - self.height)/2+(1-root.settings-progress)*18px;width:min(840px,parent.width - 64px);height:min(640px,parent.height - 64px);material:root.material-settings;active:root.material-active;strength:128;solid:root.material-solid;
+            settings-panel:=MaterialPanel {x:(parent.width - self.width)/2;y:(parent.height - self.height)/2+(1-root.settings-progress)*18px;width:min(840px,parent.width - 64px);height:min(640px,parent.height - 64px);strength:128;solid:root.material-solid||!root.native-material;
                 opacity:root.settings-preparing?0.001:root.settings-progress;
                 TouchArea {}
                 settings-focus:=FocusScope {enabled:root.dialog-kind==0&&root.settings-open;

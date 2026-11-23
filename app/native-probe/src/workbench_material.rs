@@ -98,6 +98,7 @@ pub struct Controller {
     last_geometry: Cell<Option<(bool,[f32;4],[f32;17])>>,
     geometry: RefCell<Vec<serde_json::Value>>,
     backdrop_events: RefCell<Vec<serde_json::Value>>,
+    capture_backdrop: Cell<bool>,
     select_events: RefCell<Vec<serde_json::Value>>,
 }
 impl Controller {
@@ -147,6 +148,7 @@ impl Controller {
             last_geometry: Cell::new(None),
             geometry: RefCell::new(Vec::new()),
             backdrop_events: RefCell::new(Vec::new()),
+            capture_backdrop: Cell::new(false),
             select_events: RefCell::new(Vec::new()),
         });
         ui.set_observe_motion(c.record_geometry);
@@ -202,6 +204,9 @@ impl Controller {
                     #[cfg(target_os="macos")]
                     if !render.first_draw_acknowledged.replace(true) {
                         if let Err(error)=portcanvas_native_probe::macos_update::acknowledge_launch(){eprintln!("Update launch acknowledgement: {error:#}");}
+                    }
+                    if render.capture_backdrop.replace(false) {
+                        render.finish_backdrop();
                     }
                     if let Some(ui)=render.ui.upgrade() {
                         if ui.get_settings_preparing() {ui.set_settings_preparing(false);ui.window().request_redraw();}
@@ -460,10 +465,6 @@ impl Controller {
         if !expanded && ui.get_terminal_visible() {
             panels.push(ui.get_material_terminal_rect());
         }
-        let settings_index=ui.get_material_settings_visible().then_some(panels.len());
-        if settings_index.is_some(){panels.push(ui.get_material_settings_rect());}
-        let backdrop_index=ui.get_material_settings_visible().then_some(panels.len());
-        if backdrop_index.is_some(){let size=ui.window().size().to_logical(ui.window().scale_factor());panels.push(crate::workbench_ui::MaterialRect{x:0.0,y:0.0,width:size.width,height:size.height,radius:0.0});}
         let dialog_index=(ui.get_painted_dialog()!=0).then_some(panels.len());
         if dialog_index.is_some(){panels.push(ui.get_material_dialog_rect());}
         let rects=panels.iter().map(|r|Rect{x:r.x,y:r.y,width:r.width,height:r.height}).collect::<Vec<_>>();
@@ -499,10 +500,10 @@ impl Controller {
             .zip(&key.radii).enumerate()
             .map(|(index,(r,radius))| Surface {
                 // Material carries no text; logical-size targets bound fill cost at high DPI.
-                size: if Some(index)==backdrop_index{let scale=(640.0/r.width).min(480.0/r.height).min(1.0);((r.width*scale).ceil() as u32,(r.height*scale).ceil() as u32)}else{(r.width.ceil() as u32, r.height.ceil() as u32)},
+                size: (r.width.ceil() as u32, r.height.ceil() as u32),
                 crop: project(source, key.crop, key.window, *r),
                 radius:*radius,
-                opacity:if Some(index)==settings_index||Some(index)==dialog_index{128.0}else{key.opacity},
+                opacity:if Some(index)==dialog_index{96.0}else{key.opacity},
             })
             .collect::<Vec<_>>();
         let result = (|| unsafe {
@@ -549,10 +550,7 @@ impl Controller {
                     ui.set_material_header(images[if expanded {0} else {1}].clone());
                     ui.set_material_work(if expanded {Default::default()} else {images[2].clone()});
                     ui.set_material_terminal(terminal_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
-                    ui.set_material_settings(settings_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
                     ui.set_material_dialog(dialog_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
-                    ui.set_settings_backdrop_frame(backdrop_index.and_then(|i|images.get(i)).cloned().unwrap_or_default());
-                    ui.set_settings_backdrop_active(backdrop_index.is_some());
                     *self.bindings.borrow_mut() = Some(binding);
                 }
                 ui.set_material_active(true);
@@ -578,20 +576,37 @@ impl Controller {
     }
     fn backdrop(&self, capture: bool) {
         let Some(ui)=self.ui.upgrade() else{return};
-        ui.set_settings_backdrop_active(false);
-        ui.set_settings_backdrop_frame(Default::default());
-        if !capture || ui.get_material_solid() || ui.get_native_hidden() {
-            if capture {ui.set_settings_presented(true);}
-            if self.record_geometry && self.backdrop_events.borrow().len()<64 {
-                self.backdrop_events.borrow_mut().push(serde_json::json!({"capture":false,"released":true}));
-            }
-            return;
+        if !capture {
+            self.capture_backdrop.set(false);
+            ui.set_settings_backdrop_active(false);
+            ui.set_settings_backdrop_frame(Default::default());
+        } else if ui.get_settings_backdrop_active() || ui.get_native_material()
+            || ui.get_material_solid() || ui.get_native_hidden() {
+            ui.set_settings_presented(true);
+        } else {
+            self.capture_backdrop.set(true);
+            ui.window().request_redraw();
         }
-        if self.record_geometry && self.backdrop_events.borrow().len()<64 {
-            self.backdrop_events.borrow_mut().push(serde_json::json!({"requestedAtMs":self.epoch.elapsed().as_secs_f64()*1000.0,"liveGpu":true}));
+    }
+    fn finish_backdrop(&self) {
+        let Some(ui) = self.ui.upgrade() else { return };
+        if !ui.get_settings_open() { return; }
+        let snapshot = ui.window().take_snapshot().ok().and_then(|frame| {
+            image::RgbaImage::from_raw(frame.width(), frame.height(), frame.as_bytes().to_vec())
+        });
+        if let Some(snapshot) = snapshot {
+            let scale = (480.0 / snapshot.width() as f32).min(320.0 / snapshot.height() as f32).min(1.0);
+            let size = |value: u32| (value as f32 * scale).ceil() as u32;
+            let reduced = image::imageops::resize(&snapshot, size(snapshot.width()), size(snapshot.height()), image::imageops::FilterType::Triangle);
+            let blurred = image::imageops::blur(&reduced, 5.0);
+            ui.set_settings_backdrop_frame(slint::Image::from_rgba8(SharedPixelBuffer::clone_from_slice(
+                blurred.as_raw(), blurred.width(), blurred.height(),
+            )));
+            ui.set_settings_backdrop_active(true);
         }
-        self.bindings.borrow_mut().take();
-        self.key.borrow_mut().take();
+        if self.record_geometry && self.backdrop_events.borrow().len() < 64 {
+            self.backdrop_events.borrow_mut().push(serde_json::json!({"capture":ui.get_settings_backdrop_active()}));
+        }
         ui.set_settings_presented(true);
         ui.window().request_redraw();
     }
