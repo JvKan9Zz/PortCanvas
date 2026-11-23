@@ -1,6 +1,6 @@
 # PortCanvas 使用说明
 
-[下载 Windows x64 v0.6.2](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.2)，安装后从桌面“PortCanvas”打开。应用采用 Rust/Slint、原生 VT/RFB 和 Windows 媒体能力，无需 Node.js、Rust、Python 或 WebView 运行环境。
+[下载 Windows x64 v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3)，安装后从桌面“PortCanvas”打开。应用采用 Rust/Slint、原生 VT/RFB 和 Windows 媒体能力，无需 Node.js、Rust、Python 或 WebView 运行环境。
 
 ## 安装与资料
 
@@ -44,6 +44,8 @@ Demo v0.6.2 新装后，资料放在所选安装目录的 `data`，默认日志�
 ## 外观与组件准备
 
 设置支持中英文、主题、浅色/深色/跟随系统、背景颜色、图片和视频。主题、外观和工作区不透明度实时应用。玻璃质量默认 Full，与不透明度分别保存；卡顿建议由用户决定是否接受。设置和确认弹窗采用较高固定不透明度。
+
+“GPU 玻璃不可用，当前显示基础材质。”表示高级玻璃的渲染初始化或绘制失败，界面已改用基本面板填充。不透明度仍可调整，终端、文件和设备连接功能继续工作。
 
 图片、视频导入支持裁剪预览，不修改原文件。视频静音循环，可调整音量；编解码支持取决于 Windows Media Foundation 或 macOS AVFoundation。最小化会暂停背景播放。
 

@@ -4,15 +4,15 @@
 
 [简体中文](README.md) | English
 
-A native Windows / macOS workspace for remote Linux devices. [**Download Windows v0.6.2**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.2).
+A native Windows / macOS workspace for remote Linux devices. [**Download Windows v0.6.3**](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3).
 
 The Rust/Slint workbench restores v0.5.95's page structure and icons, with native VT/RFB and platform media playback. It provides SSH discovery and authentication, window-contained remote desktop expansion, dual-pane SFTP, persistent tmux terminals, local logs, camera preview and device metrics. Glass quality and opacity are independent; Full is the default, and a lower-quality suggestion requires the user's choice.
 
-[Download the Windows x64 installer](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.2/PortCanvas_0.6.2_x64-setup.exe), then open the PortCanvas desktop shortcut. Fresh installations store data in `data/` under the installation directory. In-place upgrades continue using existing stable data. Preview and import a configuration bundle or legacy data from the Devices page. PortCanvas backs up your configuration before import. In-app updates use the stable channel. Terminals support scrollable tabs, horizontal long-line viewing, vertical history, and per-device program launch presets. File and log panes are resizable, and a single selected regular file can have its full path copied.
+[Download the Windows x64 installer](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.3/PortCanvas_0.6.3_x64-setup.exe), then open the PortCanvas desktop shortcut. Fresh installations store data in `data/` under the installation directory. In-place upgrades continue using existing stable data. Preview and import a configuration bundle or legacy data from the Devices page. PortCanvas backs up your configuration before import. In-app updates use the stable channel. Terminals support scrollable tabs, horizontal long-line viewing, vertical history, and per-device program launch presets. File and log panes are resizable, and a single selected regular file can have its full path copied.
 
 [Windows v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [macOS v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [Usage](docs/usage.md) · [Pose protocol](docs/pose-protocol.md)
 
-The native macOS test build targets macOS 13.0 or newer and bundles Apple Silicon and Intel slices in one Universal app. The v0.6.1 native Mac test package is available for manual download from [GitHub Releases](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1). See the [Mac guide](docs/macos.md) for v0.6.2 test builds and installation.
+The native macOS test build targets macOS 13.0 or newer and bundles Apple Silicon and Intel slices in one Universal app. The v0.6.1 native Mac test package is available for manual download from [GitHub Releases](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1). See the [Mac guide](docs/macos.md) for v0.6.3 test builds and installation.
 
 See [app](app/README.md) for the current native source, build and installer. The installed Windows application needs no Node.js, Rust or Python runtime. Remote features use SSH and the controller's Python 3, tmux, SFTP, x11vnc and camera tools. Component preparation currently targets the reference Ubuntu 20.04 ARM64 controller and uses an isolated user cache.
 

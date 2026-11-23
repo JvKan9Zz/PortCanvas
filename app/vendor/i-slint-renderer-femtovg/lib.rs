@@ -35,6 +35,19 @@ type PhysicalBorderRadius = BorderRadius<f32, PhysicalPx>;
 
 use self::itemrenderer::CanvasRc;
 
+thread_local! {
+    static FIRST_LAYER_BLUR: Cell<f32> = const { Cell::new(0.) };
+    static BACKDROP_REVISION: Pin<Box<i_slint_core::properties::Property<u64>>> =
+        Box::pin(Default::default());
+}
+
+/// From BeforeRendering, blur the first explicitly cached Layer in this frame.
+/// Increment source_revision when an externally owned texture changes in place.
+pub fn blur_first_cached_layer(sigma: f32, source_revision: u64) {
+    FIRST_LAYER_BLUR.set(sigma);
+    BACKDROP_REVISION.with(|revision| revision.as_ref().get_ref().set(source_revision));
+}
+
 mod font_cache;
 mod images;
 mod itemrenderer;

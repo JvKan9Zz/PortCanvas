@@ -195,9 +195,18 @@ impl Controller {
             }else if value.len()>=7{ui.set_bg_picker_error("请选择有效的背景颜色。".into());}
         }}});
         ui.on_bg_picker_response({let c=c.clone();move|accepted|{
-            let Some(ui)=c.ui.upgrade() else{return};if ui.get_dialog_kind()!=14{return;}
-            if accepted {if portcanvas_native_probe::color_model::parse(ui.get_bg_picker_hex().as_str()).is_none(){ui.set_bg_picker_error("请选择有效的背景颜色。".into());return;}ui.set_bg_hex(ui.get_bg_picker_hex());}
-            ui.set_dialog_kind(0);if accepted{c.color(false);}
+            let Some(ui)=c.ui.upgrade() else{return};
+            if ui.get_dialog_kind()!=14{return;}
+            if accepted {
+                if portcanvas_native_probe::color_model::parse(ui.get_bg_picker_hex().as_str()).is_none(){
+                    ui.set_bg_picker_error("请选择有效的背景颜色。".into());
+                    return;
+                }
+                ui.set_bg_hex(ui.get_bg_picker_hex());
+            }
+            ui.set_bg_color_preview(accepted);
+            ui.set_dialog_kind(0);
+            if accepted{c.color(false);}
         }});
         ui.on_bg_controls({
             let c = c.clone();
@@ -424,6 +433,7 @@ impl Controller {
         let Some(ui) = self.ui.upgrade() else { return };
         ui.set_bg_cancellable(false);
         if !error.is_empty() {
+            ui.set_bg_color_preview(false);
             ui.set_bg_error(error.into());
             ui.set_bg_status("".into());
             self.recover_players();
@@ -504,6 +514,7 @@ impl Controller {
             }
             ui.set_bg_has_frame(media.is_some());
             *self.saved.borrow_mut() = media;
+            ui.set_bg_color_preview(false);
         }
         ui.set_bg_busy(false);
         ui.set_bg_status("".into());
@@ -819,6 +830,7 @@ fn picker_hsv(ui:&Workbench,h:f64,s:f64,v:f64){
 fn picker_hsv_input(ui:&Workbench,h:f64,s:f64,v:f64,update_hex:bool){
     use portcanvas_native_probe::color_model::rgb;
     let [r,g,b]=rgb(h,s,v);let [hr,hg,hb]=rgb(h,1.,1.);
+    if ui.get_dialog_kind()==14 {ui.set_bg_color_preview(true);}
     ui.set_bg_picker_hue(h as f32);ui.set_bg_picker_saturation(s.clamp(0.,1.) as f32);ui.set_bg_picker_brightness(v.clamp(0.,1.) as f32);
     ui.set_bg_picker_red(r as i32);ui.set_bg_picker_green(g as i32);ui.set_bg_picker_blue(b as i32);
     ui.set_bg_picker_color(slint::Color::from_rgb_u8(r,g,b));ui.set_bg_picker_hue_color(slint::Color::from_rgb_u8(hr,hg,hb));

@@ -41,6 +41,7 @@ pub enum ItemGraphicsCacheEntry<R: femtovg::Renderer + TextureImporter> {
     Texture(Rc<Texture<R>>),
     TextureWithOrigin {
         texture: Rc<Texture<R>>,
+        filtered: Option<Rc<Texture<R>>>,
         /// Designated point where to draw the texture, relative to the item this cache entry is associated with.
         origin: PhysicalPoint,
     },
@@ -56,9 +57,11 @@ impl<R: femtovg::Renderer + TextureImporter> Clone for ItemGraphicsCacheEntry<R>
     fn clone(&self) -> Self {
         match self {
             Self::Texture(arg0) => Self::Texture(arg0.clone()),
-            Self::TextureWithOrigin { texture, origin } => {
-                Self::TextureWithOrigin { texture: texture.clone(), origin: origin.clone() }
-            }
+            Self::TextureWithOrigin { texture, filtered, origin } => Self::TextureWithOrigin {
+                texture: texture.clone(),
+                filtered: filtered.clone(),
+                origin: *origin,
+            },
             Self::ColorizedImage { _original_image, colorized_image } => Self::ColorizedImage {
                 _original_image: _original_image.clone(),
                 colorized_image: colorized_image.clone(),
@@ -102,6 +105,7 @@ pub struct GLItemRenderer<'a, R: femtovg::Renderer + TextureImporter> {
     textures_to_delete_after_flush: RefCell<Vec<Rc<super::images::Texture<R>>>>,
     window: &'a i_slint_core::api::Window,
     scale_factor: ScaleFactor,
+    first_layer_blur: f32,
     /// track the state manually since femtovg don't have accessor for its state
     state: Vec<State>,
     metrics: RenderingMetrics,
@@ -635,7 +639,7 @@ impl<'a, R: femtovg::Renderer + TextureImporter> ItemRenderer for GLItemRenderer
     ) -> RenderingResult {
         let opacity = opacity_item.opacity();
         if Opacity::need_layer(item_rc, opacity) {
-            self.render_and_blend_layer(opacity, item_rc)
+            self.render_and_blend_layer(opacity, item_rc, 0.)
         } else {
             self.apply_opacity(opacity);
             self.graphics_cache.release(item_rc);
@@ -650,7 +654,8 @@ impl<'a, R: femtovg::Renderer + TextureImporter> ItemRenderer for GLItemRenderer
         _size: LogicalSize,
     ) -> RenderingResult {
         if layer_item.cache_rendering_hint() {
-            self.render_and_blend_layer(1.0, self_rc)
+            let blur = std::mem::take(&mut self.first_layer_blur);
+            self.render_and_blend_layer(1.0, self_rc, blur)
         } else {
             self.graphics_cache.release(self_rc);
             RenderingResult::ContinueRenderingChildren
@@ -681,7 +686,7 @@ impl<'a, R: femtovg::Renderer + TextureImporter> ItemRenderer for GLItemRenderer
 
         if !radius.is_zero() {
             if let Some((layer_origin, layer_image)) =
-                self.render_layer(item_rc, &|| item_rc.geometry())
+                self.render_layer(item_rc, &|| item_rc.geometry(), 0.)
             {
                 let layer_image_paint = layer_image.as_paint();
 
@@ -1041,6 +1046,7 @@ impl<'a, R: femtovg::Renderer + TextureImporter> GLItemRenderer<'a, R> {
             textures_to_delete_after_flush: Default::default(),
             window,
             scale_factor,
+            first_layer_blur: super::FIRST_LAYER_BLUR.replace(0.),
             state: vec![State {
                 scissor: LogicalRect::new(
                     LogicalPoint::default(),
@@ -1078,16 +1084,21 @@ impl<'a, R: femtovg::Renderer + TextureImporter> GLItemRenderer<'a, R> {
         &mut self,
         item_rc: &ItemRc,
         layer_bounding_rect_fn: &dyn Fn() -> LogicalRect,
+        blur: f32,
     ) -> Option<(PhysicalPoint, Rc<Texture<R>>)> {
-        let existing_layer_texture =
+        let (existing_layer_texture, existing_filtered) =
             self.graphics_cache.with_entry(item_rc, |cache_entry| match cache_entry {
-                Some(ItemGraphicsCacheEntry::TextureWithOrigin { texture, .. }) => {
-                    Some(texture.clone())
+                Some(ItemGraphicsCacheEntry::TextureWithOrigin { texture, filtered, .. }) => {
+                    Some((Some(texture.clone()), filtered.clone()))
                 }
                 _ => None,
-            });
+            }).unwrap_or_default();
 
         let cache_entry = self.graphics_cache.get_or_update_cache_entry(item_rc, || {
+            if blur > 0. {
+                // Borrowed GL images can change pixels without changing Slint's bindings.
+                super::BACKDROP_REVISION.with(|revision| revision.as_ref().get());
+            }
             let bounding_rect = layer_bounding_rect_fn();
             let origin = bounding_rect.origin * self.scale_factor;
             let size = (bounding_rect.size * self.scale_factor).ceil().try_cast()?;
@@ -1147,21 +1158,35 @@ impl<'a, R: femtovg::Renderer + TextureImporter> GLItemRenderer<'a, R> {
                 canvas.set_render_target(previous_render_target);
             }
 
-            Some(ItemGraphicsCacheEntry::TextureWithOrigin { texture: layer_image, origin })
+            let filtered = if blur > 0. {
+                existing_filtered
+                    .filter(|image| image.size() == Some(size.to_untyped()))
+                    .or_else(|| Texture::new_empty_on_gpu(&self.canvas, size.width, size.height))
+                    .map(|image| {
+                        let sigma = (blur * self.window.scale_factor()).min(8.);
+                        self.canvas.borrow_mut().filter_image(
+                            image.id, femtovg::ImageFilter::GaussianBlur { sigma }, layer_image.id,
+                        );
+                        image
+                    })
+            } else {
+                None
+            };
+            Some(ItemGraphicsCacheEntry::TextureWithOrigin { texture: layer_image, filtered, origin })
         });
 
         cache_entry.and_then(|item_cache_entry| match item_cache_entry {
-            ItemGraphicsCacheEntry::TextureWithOrigin { texture, origin } => {
-                Some((origin, texture.clone()))
+            ItemGraphicsCacheEntry::TextureWithOrigin { texture, filtered, origin } => {
+                Some((origin, filtered.unwrap_or(texture)))
             }
             _ => None,
         })
     }
 
-    fn render_and_blend_layer(&mut self, alpha_tint: f32, item_rc: &ItemRc) -> RenderingResult {
+    fn render_and_blend_layer(&mut self, alpha_tint: f32, item_rc: &ItemRc, blur: f32) -> RenderingResult {
         let window_adapter = self.window().window_adapter();
         let current_clip = self.get_current_clip();
-        if let Some((layer_origin, layer_image)) = self.render_layer(item_rc, &|| {
+        let layer = self.render_layer(item_rc, &|| {
             // We don't need to include the size of the "layer" item itself, since it has no content.
             // But intersect with the union of the clip with the geometry to make sure we don't
             // render insanely large surface.
@@ -1170,7 +1195,11 @@ impl<'a, R: femtovg::Renderer + TextureImporter> GLItemRenderer<'a, R> {
                     .intersection(&current_clip.union(&item_rc.geometry()))
                     .unwrap_or_default()
             })
-        }) && let Some(layer_size) = layer_image.size()
+        }, blur);
+        if blur > 0. && layer.is_none() {
+            return RenderingResult::ContinueRenderingChildren;
+        }
+        if let Some((layer_origin, layer_image)) = layer && let Some(layer_size) = layer_image.size()
         {
             let mut layer_path = femtovg::Path::new();
             // On the paint for the layer, we don't need anti-aliasing on the fringes,

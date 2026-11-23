@@ -4,9 +4,9 @@ The native macOS test build uses shared Rust services, Slint/winit/FemtoVG, AppK
 
 ## Get and install the test build
 
-For a manual download, use the [v0.6.1 native Mac test package](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1). For the v0.6.2 test build, open the **macOS native** Actions run and download **PortCanvas-0.6.2-macOS-universal-test** from Artifacts. GitHub may require sign-in. The artifact expires after 14 days and can be recreated by rerunning the workflow.
+For a manual download, use the [v0.6.1 native Mac test package](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1). For the v0.6.3 test build, open the **macOS native** Actions run and download **PortCanvas-0.6.3-macOS-universal-test** from Artifacts. GitHub may require sign-in. The artifact expires after 14 days and can be recreated by rerunning the workflow.
 
-Extract the Actions ZIP, open `PortCanvas_0.6.2_universal.dmg`, and drag `PortCanvas.app` to Applications. Quit any running PortCanvas before replacing an installed copy, then open the copy in Applications and eject the disk image. The `.app.tar.gz` is the update payload and requires a separate publisher-managed signature.
+Extract the Actions ZIP, open `PortCanvas_0.6.3_universal.dmg`, and drag `PortCanvas.app` to Applications. Quit any running PortCanvas before replacing an installed copy, then open the copy in Applications and eject the disk image. The `.app.tar.gz` is the update payload and requires a separate publisher-managed signature.
 
 The app is **ad-hoc signed and not Apple notarized**. macOS may block its first launch after download. After verifying the source, use System Settings → Privacy & Security → Open Anyway for this app and complete macOS's confirmation. Do not disable Gatekeeper globally. No Developer ID certificate or notarization credential is used by CI. `SHA256SUMS` checks transfer integrity; it does not establish publisher identity. The archive's app signature can be inspected with:
 
@@ -45,11 +45,11 @@ python3 -B app/tools/macos_test_keychain.py test --manifest-path app/core/Cargo.
 python3 -B app/tools/macos_test_keychain.py test --manifest-path app/native-probe/Cargo.toml --locked
 python3 -B -m unittest discover -s app/tests -p 'test_*.py'
 python3 -B app/tools/macos_test_keychain.py cleanup
-bash app/tools/build-macos.sh --output "$HOME/Library/Caches/PortCanvas/packages/native-0.6.2"
+bash app/tools/build-macos.sh --output "$HOME/Library/Caches/PortCanvas/packages/native-0.6.3"
 ```
 
 The test wrapper records exact executable-specific disposable Keychain services in `WCS_TEST_ROOT/test-keychain-items.tsv`, alongside the unit tests' random service ledger. Run `cleanup` even after a failed test: it validates every ownership record, removes only those exact services for the test key account, and verifies their absence. It does not enumerate Keychain entries or delete by prefix. Keep `WCS_TEST_ROOT` isolated for this run.
 
-The output contains `PortCanvas.app`, `PortCanvas_0.6.2_universal.dmg`, `PortCanvas_0.6.2_universal.app.tar.gz`, `SHA256SUMS` and `validation.json`. `Contents/Resources/BUILD-INFO.json` records source revision, whether the checkout has local modifications, build epoch, version and signing status. The packaging check covers both Mach-O slices, macOS 13.0 load commands, system-only dynamic dependencies, bundle metadata, icon, licenses, ad-hoc signature and DMG integrity.
+The output contains `PortCanvas.app`, `PortCanvas_0.6.3_universal.dmg`, `PortCanvas_0.6.3_universal.app.tar.gz`, `SHA256SUMS` and `validation.json`. `Contents/Resources/BUILD-INFO.json` records source revision, whether the checkout has local modifications, build epoch, version and signing status. The packaging check covers both Mach-O slices, macOS 13.0 load commands, system-only dynamic dependencies, bundle metadata, icon, licenses, ad-hoc signature and DMG integrity.
 
 Cargo lockfiles, Rust version and the deployment target define repeatable build inputs. Tar ownership, timestamps and entry order are normalized from `SOURCE_DATE_EPOCH` (default: source commit time), and archives contain only regular files/directories under one `PortCanvas.app` root. DMG filesystem metadata and host SDK/compiler differences mean the complete output is not claimed to be byte-for-byte reproducible. Mac CI builds the Universal package on the current `macos-26` runner and runs an additional Intel macOS 15 contract/GUI compile check using its installed Xcode 26 SDK. Each run records its actual OS, architecture and SDK. Windows still uses `app/tools/build-native.sh` and its existing installer/CI.

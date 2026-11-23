@@ -95,8 +95,8 @@ export component DevicesView inherits Rectangle {
                     }
 
                 }
+                if root.selected-id!="":ActionButton {text:root.tr("移除配置",root.english);danger:true;enabled:root.editable;clicked=>{root.remove();}}
                 ActionButton {text:root.tr("保存配置",root.english);enabled:root.editable;clicked=>{root.save();}}
-                ActionButton {visible:root.selected-id!="";text:root.tr("移除配置",root.english);danger:true;enabled:root.editable;clicked=>{root.remove();}}
             }
             result-panel:=Rectangle {height:root.error!=""&&!root.busy&&!root.connected?result.preferred-height+20px:0px;vertical-stretch:0;clip:true;border-radius:10px;background:AppColors.danger.with-alpha(0.06);
                 result:=VerticalBox {x:12px;y:10px;width:parent.width - 24px;height:self.preferred-height;padding:0px;spacing:6px;

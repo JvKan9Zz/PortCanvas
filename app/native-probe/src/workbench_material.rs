@@ -97,8 +97,6 @@ pub struct Controller {
     record_geometry: bool,
     last_geometry: Cell<Option<(bool,[f32;4],[f32;17])>>,
     geometry: RefCell<Vec<serde_json::Value>>,
-    backdrop_events: RefCell<Vec<serde_json::Value>>,
-    capture_backdrop: Cell<bool>,
     select_events: RefCell<Vec<serde_json::Value>>,
 }
 impl Controller {
@@ -147,15 +145,12 @@ impl Controller {
             record_geometry: std::env::var_os("PORTCANVAS_WORKBENCH_REPORT").is_some(),
             last_geometry: Cell::new(None),
             geometry: RefCell::new(Vec::new()),
-            backdrop_events: RefCell::new(Vec::new()),
-            capture_backdrop: Cell::new(false),
             select_events: RefCell::new(Vec::new()),
         });
         ui.set_observe_motion(c.record_geometry);
         ui.on_select_popup_state({let c=c.clone();move|open|{
             if c.record_geometry&&c.select_events.borrow().len()<64{c.select_events.borrow_mut().push(serde_json::json!({"open":open,"atMs":c.epoch.elapsed().as_secs_f64()*1000.0}));}
         }});
-        ui.on_settings_backdrop({let c=c.clone();move |capture|c.backdrop(capture)});
         ui.on_material_refresh({
             let c = c.clone();
             move || c.refresh()
@@ -199,14 +194,16 @@ impl Controller {
                 slint::RenderingState::BeforeRendering => {
                     if render.record_geometry {render.frame_started.set(Some(Instant::now()));}
                     render.draw(api);
+                    if render.ui.upgrade().is_some_and(|ui| ui.get_blur_workbench()) {
+                        // The workbench is the first explicit cached Layer. Settings and dialogs
+                        // are siblings, rendered at full sharpness after it.
+                        i_slint_renderer_femtovg::blur_first_cached_layer(3., render.passes.get());
+                    }
                 }
                 slint::RenderingState::AfterRendering => {
                     #[cfg(target_os="macos")]
                     if !render.first_draw_acknowledged.replace(true) {
                         if let Err(error)=portcanvas_native_probe::macos_update::acknowledge_launch(){eprintln!("Update launch acknowledgement: {error:#}");}
-                    }
-                    if render.capture_backdrop.replace(false) {
-                        render.finish_backdrop();
                     }
                     if let Some(ui)=render.ui.upgrade() {
                         if ui.get_settings_preparing() {ui.set_settings_preparing(false);ui.window().request_redraw();}
@@ -574,42 +571,6 @@ impl Controller {
             }
         }
     }
-    fn backdrop(&self, capture: bool) {
-        let Some(ui)=self.ui.upgrade() else{return};
-        if !capture {
-            self.capture_backdrop.set(false);
-            ui.set_settings_backdrop_active(false);
-            ui.set_settings_backdrop_frame(Default::default());
-        } else if ui.get_settings_backdrop_active() || ui.get_native_material()
-            || ui.get_material_solid() || ui.get_native_hidden() {
-            ui.set_settings_presented(true);
-        } else {
-            self.capture_backdrop.set(true);
-            ui.window().request_redraw();
-        }
-    }
-    fn finish_backdrop(&self) {
-        let Some(ui) = self.ui.upgrade() else { return };
-        if !ui.get_settings_open() { return; }
-        let snapshot = ui.window().take_snapshot().ok().and_then(|frame| {
-            image::RgbaImage::from_raw(frame.width(), frame.height(), frame.as_bytes().to_vec())
-        });
-        if let Some(snapshot) = snapshot {
-            let scale = (480.0 / snapshot.width() as f32).min(320.0 / snapshot.height() as f32).min(1.0);
-            let size = |value: u32| (value as f32 * scale).ceil() as u32;
-            let reduced = image::imageops::resize(&snapshot, size(snapshot.width()), size(snapshot.height()), image::imageops::FilterType::Triangle);
-            let blurred = image::imageops::blur(&reduced, 5.0);
-            ui.set_settings_backdrop_frame(slint::Image::from_rgba8(SharedPixelBuffer::clone_from_slice(
-                blurred.as_raw(), blurred.width(), blurred.height(),
-            )));
-            ui.set_settings_backdrop_active(true);
-        }
-        if self.record_geometry && self.backdrop_events.borrow().len() < 64 {
-            self.backdrop_events.borrow_mut().push(serde_json::json!({"capture":ui.get_settings_backdrop_active()}));
-        }
-        ui.set_settings_presented(true);
-        ui.window().request_redraw();
-    }
     pub fn report(&self) -> serde_json::Value {
         #[cfg(target_os="macos")] let native_material=self.chrome.borrow().as_ref().map(|c|c.report());
         #[cfg(not(target_os="macos"))] let native_material:Option<serde_json::Value>=None;
@@ -617,7 +578,7 @@ impl Controller {
             "qualityPasses":self.quality_passes.each_ref().map(Cell::get),"visibility":*self.visibility.borrow(),
             "released":self.released.get(),"driver":*self.driver.borrow(),"error":*self.error.borrow(),
             "nativeMaterial":native_material,"policy":self.policy.get(),"os":self.os_report,"subscriptionsReleased":self.os.borrow().is_none()&&self.unsubscribe_errors.borrow().is_empty(),"unsubscribeErrors":*self.unsubscribe_errors.borrow(),
-            "synthetic":self.synthetic.get(),"heartbeatTicks":self.ticks.get(),"prompted":self.prompted.get(),"transitions":*self.transitions.borrow(),"backdrop":*self.backdrop_events.borrow(),"selectEvents":*self.select_events.borrow(),"settingsFrames":*self.settings_frames.borrow(),"chromeFields":["navY","drawerWidth","drawerX","settingsY","settingsOpacity","settingsTabY","pagePhase","dialogY","dialogOpacity","advancedHeight","connectionHeight","busyPhase","busyWave","busy","selectPhase","selectY","selectHeight"],"geometry":*self.geometry.borrow()})
+            "synthetic":self.synthetic.get(),"heartbeatTicks":self.ticks.get(),"prompted":self.prompted.get(),"transitions":*self.transitions.borrow(),"selectEvents":*self.select_events.borrow(),"settingsFrames":*self.settings_frames.borrow(),"chromeFields":["navY","drawerWidth","drawerX","settingsY","settingsOpacity","settingsTabY","pagePhase","dialogY","dialogOpacity","advancedHeight","connectionHeight","busyPhase","busyWave","busy","selectPhase","selectY","selectHeight"],"geometry":*self.geometry.borrow()})
     }
     pub fn visibility(&self, hidden: bool) {
         if hidden {
@@ -632,7 +593,6 @@ impl Controller {
     #[cfg(target_os="macos")]
     pub fn hide_window(&self){if let Some(chrome)=self.chrome.borrow().as_ref(){chrome.hide();}}
     pub fn shutdown(&self) {
-        self.backdrop(false);
         self.reset_monitor();
         if let Some(mut os) = self.os.borrow_mut().take() {
             *self.unsubscribe_errors.borrow_mut() = os.close();
