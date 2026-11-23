@@ -10,10 +10,10 @@ Unicode true
   !define REGKEY "PortCanvas"
 !endif
 !ifndef VERSION
-  !define VERSION "0.6.2"
+  !define VERSION "0.6.3"
 !endif
 !ifndef VERSION_QUAD
-  !define VERSION_QUAD "0.6.2.0"
+  !define VERSION_QUAD "0.6.3.0"
 !endif
 !ifndef LEGACY_LOCAL_DATA
   !define LEGACY_LOCAL_DATA "$LOCALAPPDATA"

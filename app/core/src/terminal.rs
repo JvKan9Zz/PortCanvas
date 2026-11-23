@@ -292,7 +292,8 @@ impl TerminalService {
         channel
             .exec(
                 true,
-                connection.remote_command(&format!("exec tmux -L wcs-terminal -f /dev/null attach-session -t ={name}")),
+                // PortCanvas' VT parser reads UTF-8 regardless of the SSH login locale.
+                connection.remote_command(&format!("exec tmux -u -L wcs-terminal -f /dev/null attach-session -t ={name}")),
             )
             .await?;
         let deadline = tokio::time::Instant::now() + Duration::from_secs(10);

@@ -86,7 +86,7 @@ impl<R: femtovg::Renderer + TextureImporter> Texture<R> {
                 femtovg::PixelFormat::Rgba8,
                 femtovg::ImageFlags::PREMULTIPLIED | femtovg::ImageFlags::FLIP_Y,
             )
-            .unwrap();
+            .ok()?;
         Some(Self { canvas: canvas.clone(), id: image_id }.into())
     }
 

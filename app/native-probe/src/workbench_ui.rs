@@ -83,24 +83,22 @@ slint::slint! {
         in property <color> bg-picker-color;in property <color> bg-picker-hue-color;
         in-out property <string> bg-picker-hex;in property <string> bg-picker-error;
         callback bg-picker-change(float,float,float);callback bg-picker-rgb(int,int,int);callback bg-picker-hex-edited(string);callback bg-picker-response(bool);
-        callback settings-backdrop(bool);
-        in property <image> settings-backdrop-frame;in property <bool> settings-backdrop-active;
         in-out property <bool> settings-open:false;
-        in-out property <bool> settings-presented:false;
         // Prime the existing sheet's glyph/shadow caches in the first frame.
         // It remains below one opacity level and never opens the settings flow.
         in-out property <bool> settings-preparing:true;
         in-out property <int> settings-section:0;
-        property <float> settings-progress:root.settings-presented?1:0;
+        property <float> settings-progress:root.settings-open?1:0;
+        out property <bool> blur-workbench:!AppColors.macos&&!root.material-solid&&!root.native-hidden&&root.settings-progress>0;
         animate settings-progress {duration:AppColors.motion?(root.settings-open?320ms:220ms):0ms;easing:cubic-bezier(0.22,0.61,0.36,1);}
-        changed settings-progress=>{if root.settings-progress==0&&!root.settings-open{root.settings-backdrop(false);settings-entry.focus();}}
+        changed settings-progress=>{if root.settings-progress==0&&!root.settings-open{settings-entry.focus();}}
         property <bool> settings-entering:false;
         property <float> settings-content-phase:root.settings-entering&&AppColors.motion?0:1;
         animate settings-content-phase {duration:root.settings-entering||!AppColors.motion?0ms:220ms;easing:cubic-bezier(0.16,1,0.3,1);}
         Timer {interval:AppColors.motion?16ms:1ms;running:root.settings-entering;triggered=>{root.settings-entering=false;}}
         changed settings-section=>{root.settings-entering=true;if root.settings-section==1&&root.settings-open{root.refresh-logs();}}
         in property <string> log-usage;in property <bool> log-usage-known:false;
-        changed settings-open=>{if root.settings-open{root.settings-backdrop(true);}else{root.settings-presented=false;}root.bg-sync();root.material-controls();root.terminal-cancel-completion();if root.settings-open&&root.settings-section==1{root.refresh-logs();}if root.settings-open{if root.settings-section==1{settings-storage.focus();}else if root.settings-section==2{settings-about.focus();}else{settings-general.focus();}}else if root.settings-progress==0{settings-entry.focus();}}
+        changed settings-open=>{root.bg-sync();root.material-controls();root.terminal-cancel-completion();if root.settings-open&&root.settings-section==1{root.refresh-logs();}if root.settings-open{if root.settings-section==1{settings-storage.focus();}else if root.settings-section==2{settings-about.focus();}else{settings-general.focus();}}else if root.settings-progress==0{settings-entry.focus();}}
         in-out property <bool> connection-details-open:false;
         changed busy=>{if root.busy{root.connection-details-open=true;}}
         in-out property <string> display:":0";
@@ -186,6 +184,11 @@ slint::slint! {
         in property <float> bg-saved-crop-x;in property <float> bg-saved-crop-y;in property <float> bg-saved-crop-width:1;in property <float> bg-saved-crop-height:1;
         in property <image> bg-preview;in property <int> bg-preview-width:1;in property <int> bg-preview-height:1;
         in property <float> bg-crop-x;in property <float> bg-crop-y;in property <float> bg-crop-width:1;in property <float> bg-crop-height:1;
+        in property <bool> bg-color-preview:false;
+        property <bool> bg-crop-preview:root.dialog-kind==8;
+        // The GPU textures sample the saved media. Drafts use the live wallpaper and basic panel fill.
+        property <bool> bg-draft-preview:root.bg-color-preview||root.bg-crop-preview;
+        property <bool> use-material-frame:root.material-active&&!root.bg-draft-preview;
         callback bg-sync();callback bg-action(string);callback bg-controls();callback bg-progress(string,string,string);callback bg-ready(string,string);
         callback bg-crop-response(bool);callback bg-crop-reset();callback bg-crop-gesture(int,float,float);callback bg-crop-arrow(float,float,bool);
         changed bg-busy=>{root.bg-sync();}
@@ -308,8 +311,20 @@ slint::slint! {
         callback set-language(int);callback set-appearance(int);callback set-environment(int);callback set-desktop-mode(int);callback save-log-limit(string);
         changed appearance=>{Palette.color-scheme=root.appearance==0?ColorScheme.light:root.appearance==1?ColorScheme.dark:ColorScheme.unknown;}
         changed dialog-kind=>{if root.dialog-kind!=0{root.painted-dialog=root.dialog-kind;}root.bg-sync();if root.dialog-kind==14{picker-view.focus-selection();}else if root.dialog-kind==8{crop-view.focus-selection();}else if root.dialog-kind==15{folder-name.focus();}else if root.dialog-kind!=0 {cancel-response.focus();}else if root.settings-open{settings-general.focus();}else{main-focus.focus();}}
-        Rectangle {opacity:root.native-material?0.12:1;background:root.bg-custom?root.bg-color:AppColors.dark?#131e30:@linear-gradient(135deg,#edf3fa,#f4f5fa 58%,#e9eff8);
-            if root.bg-has-frame:Image {source:root.bg-frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.bg-saved-crop-x*root.bg-width);source-clip-y:round(root.bg-saved-crop-y*root.bg-height);source-clip-width:max(1,round(root.bg-saved-crop-width*root.bg-width));source-clip-height:max(1,round(root.bg-saved-crop-height*root.bg-height));}
+        // The cache hint lowers this group to the renderer's first Layer.
+        Rectangle {
+        width:root.width;height:root.height;cache-rendering-hint:root.blur-workbench;
+        Rectangle {
+            opacity:root.native-material&&!root.bg-draft-preview?0.12:1;
+            background:root.bg-color-preview?root.bg-picker-color:root.bg-custom?root.bg-color:AppColors.dark?#131e30:@linear-gradient(135deg,#edf3fa,#f4f5fa 58%,#e9eff8);
+            if root.bg-crop-preview:Image {
+                source:root.bg-preview;width:parent.width;height:parent.height;image-fit:cover;
+                source-clip-x:round(root.bg-crop-x*root.bg-preview-width);
+                source-clip-y:round(root.bg-crop-y*root.bg-preview-height);
+                source-clip-width:max(1,round(root.bg-crop-width*root.bg-preview-width));
+                source-clip-height:max(1,round(root.bg-crop-height*root.bg-preview-height));
+            }
+            if root.bg-has-frame&&!root.bg-draft-preview:Image {source:root.bg-frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.bg-saved-crop-x*root.bg-width);source-clip-y:round(root.bg-saved-crop-y*root.bg-height);source-clip-width:max(1,round(root.bg-saved-crop-width*root.bg-width));source-clip-height:max(1,round(root.bg-saved-crop-height*root.bg-height));}
         }
         if root.material-solid:Rectangle {background:Palette.background;}
         // THESIS: A clear work area between the familiar left rail and optional shared terminal.
@@ -319,7 +334,7 @@ slint::slint! {
         // FORM: Code-led extension of the approved PortCanvas desktop structure; no new identity choice.
         // FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
         main-focus:=FocusScope {enabled:root.painted-dialog==0&&root.settings-progress==0&&root.quick-phase==0&&!root.system-busy&&!root.migration-busy;
-            MaterialPanel {visible:!root.desktop-expanded;x:16px;y:16px;width:84px;height:parent.height - 32px;material:root.material-nav;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
+            MaterialPanel {visible:!root.desktop-expanded;x:16px;y:16px;width:84px;height:parent.height - 32px;material:root.material-nav;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
                 VerticalBox {padding-left:9px;padding-right:9px;padding-top:20px;padding-bottom:12px;spacing:12px;
                     Rectangle {height:58px;vertical-stretch:0;background:transparent;Image {x:(parent.width - 43px)/2;width:43px;height:43px;source:@image-url("../assets/portcanvas.png");image-fit:contain;}}
                     Rectangle {height:352px;vertical-stretch:0;background:transparent;
@@ -336,7 +351,7 @@ slint::slint! {
                     settings-entry:=NavButton {text:root.english?"Settings":"设置";icon:@image-url("icons/settings.svg");selected:root.settings-open;enabled:root.can-interact;clicked=>{root.settings-open=true;}}
                 }
             }
-            MaterialPanel {visible:!root.desktop-expanded;x:116px;y:16px;width:parent.width - 132px;height:48px;border-radius:17px;material:root.material-header;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
+            MaterialPanel {visible:!root.desktop-expanded;x:116px;y:16px;width:parent.width - 132px;height:48px;border-radius:17px;material:root.material-header;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
                 HorizontalBox {padding-left:20px;padding-right:16px;padding-top:0px;padding-bottom:0px;spacing:12px;
                     Rectangle {width:156px;horizontal-stretch:0;background:transparent;
                         Image {y:(parent.height - self.height)/2;source:@image-url("../assets/wordmark.svg");image-fit:contain;width:156px;height:35px;}
@@ -353,7 +368,7 @@ slint::slint! {
                     }
                 }
             }
-            work-area:=MaterialPanel {material:root.material-work;active:root.material-active&&!root.desktop-expanded;strength:root.bg-material;solid:root.material-solid;x:116px;y:76px;width:parent.width - 132px - root.drawer-space;height:parent.height - 92px;
+            work-area:=MaterialPanel {material:root.material-work;active:root.use-material-frame&&!root.desktop-expanded;strength:root.bg-material;solid:root.material-solid;x:116px;y:76px;width:parent.width - 132px - root.drawer-space;height:parent.height - 92px;
                 flat:root.desktop-expanded;border-radius:24px;
                 states [expanded when root.desktop-expanded:{
                     x:12px;y:12px;width:parent.width - 24px;height:parent.height - 24px;border-radius:14px;
@@ -428,7 +443,7 @@ slint::slint! {
             }
             if root.page==5:DesktopView {
                 expanded:root.desktop-expanded;toggle-expanded=>{root.desktop-expand(!root.desktop-expanded);}tools-open-changed(open)=>{root.desktop-tools-open=open;}
-                toolbar-material:root.material-header;material-active:root.material-active;material-solid:root.material-solid;material-strength:root.bg-material;
+                toolbar-material:root.material-header;material-active:root.use-material-frame;material-solid:root.material-solid;material-strength:root.bg-material;
                 english:root.english;enabled:root.can-interact;connected:root.connected;active:root.desktop-active;wanted:root.desktop-wanted;ready:root.desktop-ready;
                 mode:root.desktop-mode;fit<=>root.desktop-fit;read-only<=>root.desktop-readonly;frame:root.desktop-frame;source-width:root.desktop-source-width;source-height:root.desktop-source-height;
                 cursor:root.desktop-cursor;cursor-known:root.desktop-cursor-known;cursor-width:root.desktop-cursor-width;cursor-height:root.desktop-cursor-height;cursor-hot-x:root.desktop-cursor-hot-x;cursor-hot-y:root.desktop-cursor-hot-y;
@@ -449,7 +464,7 @@ slint::slint! {
                 resize-keys:=FocusScope {enabled:root.terminal-visible&&root.can-interact&&!root.settings-open;key-pressed(event)=>{if event.text==Key.LeftArrow{root.drawer-preferred=min(root.drawer-maximum,root.drawer-width+24px);return accept;}if event.text==Key.RightArrow{root.drawer-preferred=max(320px,root.drawer-width - 24px);return accept;}if event.text==Key.Home{root.drawer-preferred=320px;return accept;}if event.text==Key.End{root.drawer-preferred=root.drawer-maximum;return accept;}return reject;}}
                 resize-touch:=TouchArea {mouse-cursor:ew-resize;changed pressed=>{root.drawer-resizing=self.pressed;}pointer-event(event)=>{if event.kind==PointerEventKind.down&&event.button==PointerEventButton.left{resize-keys.focus();resize-handle.origin=self.absolute-position.x+self.mouse-x;resize-handle.original-width=root.drawer-width;}}moved=>{if self.pressed{root.drawer-preferred=min(root.drawer-maximum,max(320px,resize-handle.original-width + resize-handle.origin - self.absolute-position.x - self.mouse-x));}}double-clicked=>{root.drawer-preferred=-1px;}}
             }
-            terminal-panel:=MaterialPanel {visible:root.page!=0&&!root.desktop-expanded&&(root.terminal-open||root.drawer-space>0px);opacity:min(1,root.drawer-space/(root.drawer-width+14px));x:parent.width - root.drawer-space - 2px;y:76px;width:root.drawer-width;height:parent.height - 92px;material:root.material-terminal;active:root.material-active;strength:root.bg-material;solid:root.material-solid;
+            terminal-panel:=MaterialPanel {visible:root.page!=0&&!root.desktop-expanded&&(root.terminal-open||root.drawer-space>0px);opacity:min(1,root.drawer-space/(root.drawer-width+14px));x:parent.width - root.drawer-space - 2px;y:76px;width:root.drawer-width;height:parent.height - 92px;material:root.material-terminal;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
                 VerticalBox {padding:12px;spacing:8px;
                     TerminalView {
                 tabs:root.terminal-tabs;active:root.terminal-active;active-index:root.terminal-active-index;cells:root.terminal-cells;
@@ -474,9 +489,9 @@ slint::slint! {
                 }
             }
         }
+        }
         Rectangle {visible:root.settings-preparing||root.settings-open||root.settings-progress>0;background:transparent;
-            if root.settings-backdrop-active&&!root.material-solid:Image {source:root.settings-backdrop-frame;width:parent.width;height:parent.height;image-fit:fill;opacity:root.settings-progress;}
-            Rectangle {background:#233450.with-alpha(0.19*root.settings-progress);}
+            Rectangle {background:#233450.with-alpha(0.13*root.settings-progress);}
             TouchArea {enabled:root.settings-open&&root.can-interact;clicked=>{root.settings-open=false;}}
             settings-panel:=MaterialPanel {x:(parent.width - self.width)/2;y:(parent.height - self.height)/2+(1-root.settings-progress)*18px;width:min(840px,parent.width - 64px);height:min(640px,parent.height - 64px);strength:128;solid:root.material-solid||!root.native-material;
                 opacity:root.settings-preparing?0.001:root.settings-progress;
@@ -512,7 +527,7 @@ slint::slint! {
                     HorizontalBox {padding:0px;height:42px;vertical-stretch:0;Text {text:root.tr("外观",root.english);color:AppColors.ink;font-size:13px;vertical-alignment:center;}SegmentedChoice {width:260px;model:[root.tr("浅色",root.english),root.tr("深色",root.english),root.tr("跟随系统",root.english)];current-index:root.appearance;enabled:root.can-interact&&root.settings-open;selected(index)=>{root.set-appearance(index);}}}
                     GlassSettings {english:root.english;enabled:root.glass-loaded&&root.can-interact&&!root.bg-busy;quality<=>root.glass-quality;material<=>root.bg-material;error:root.glass-error;notice:root.material-status;tr(s,e)=>{return root.tr(s,e);}update(finished)=>{root.glass-controls(finished);}}
                     background-settings:=BackgroundSettings {focus-ticket:root.color-focus-ticket;compact:true;video:root.bg-video;english:root.english;enabled:root.can-interact&&!root.busy;busy:root.bg-busy;cancellable:root.bg-cancellable;
-                        frame:root.bg-frame;has-frame:root.bg-has-frame;color:root.bg-color;source-width:root.bg-width;source-height:root.bg-height;
+                        frame:root.bg-frame;has-frame:root.bg-has-frame&&!root.bg-color-preview;color:root.bg-color-preview?root.bg-picker-color:root.bg-color;source-width:root.bg-width;source-height:root.bg-height;
                         crop-x:root.bg-saved-crop-x;crop-y:root.bg-saved-crop-y;crop-width:root.bg-saved-crop-width;crop-height:root.bg-saved-crop-height;
                         hex<=>root.bg-hex;volume<=>root.bg-volume;status:root.bg-status;error:root.bg-error;
                         tr(s,e)=>{return root.tr(s,e);}picker-position(x,y)=>{root.color-anchor-x=x*1px;root.color-anchor-y=y*1px;}action(s)=>{root.bg-action(s);}controls=>{root.bg-controls();}
@@ -586,7 +601,7 @@ slint::slint! {
             visible:root.painted-dialog!=0;opacity:root.dialog-phase;
             background:root.painted-dialog==14?transparent:#00000070;
             TouchArea {clicked=>{if root.painted-dialog==14{root.bg-picker-response(false);}}}
-            modal-panel:=MaterialPanel {material:root.material-dialog;active:root.material-active;strength:128;solid:root.material-solid;
+            modal-panel:=MaterialPanel {material:root.material-dialog;active:root.use-material-frame;strength:128;solid:root.material-solid;
                 width:root.painted-dialog==14?286px:root.painted-dialog==8?min(800px,root.width - 64px):min(root.width - 64px,640px);height:root.painted-dialog==8?min(560px,root.height - 64px):root.painted-dialog==14?picker-view.preferred-height:panel.preferred-height;
                 x:root.painted-dialog==14?min(root.width - self.width - 16px,max(16px,root.color-anchor-x)):(root.width - self.width)/2;y:root.painted-dialog==14?min(root.height - self.height - 16px,max(16px,root.color-anchor-y>self.height+16px?root.color-anchor-y - self.height - 8px:root.color-anchor-y+38px)):(root.height - self.height)/2+(1-root.dialog-phase)*6px;
                 background:transparent;border-radius:root.painted-dialog==14?14px:24px;drop-shadow-offset-y:12px;drop-shadow-blur:32px;drop-shadow-color:#223a6624;border-width:1px;border-color:AppColors.edge;

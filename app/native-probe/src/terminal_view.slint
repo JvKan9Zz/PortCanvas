@@ -2,6 +2,7 @@ import {ScrollView,ListView,VerticalBox,HorizontalBox,Palette} from "std-widgets
 import {ActionButton,ActionButton as Button,ActivityIndicator,AppColors} from "action_button.slint";
 import {DesktopTool} from "desktop_tool.slint";
 import {CommandEditor} from "command_editor.slint";
+component TerminalTool inherits DesktopTool { surfaced:true; }
 export struct TerminalCell { column:int,row:int,text:string,ink:color,paper:color,wide:bool,bold:bool,underline:bool }
 export struct TerminalTab {key:string,title:string,online:bool}
 export struct CompletionRow {label:string}
@@ -102,12 +103,12 @@ export component TerminalView inherits VerticalBox {
     animate completion-phase {duration:AppColors.motion?140ms:0ms;}
     HorizontalBox {padding:0px;spacing:6px;height:36px;vertical-stretch:0;
         ActionButton {horizontal-stretch:1;preferred-width:0px;primary:root.phase!="connected";busy:root.phase=="connecting";text:root.tr(!root.connected?(root.width<420px?"连接":"连接设备"):root.phase=="connected"?"断开":root.phase=="connecting"?(root.width<420px?"取消":"取消连接"):(root.width<420px?"连接":"连接终端"),root.english);enabled:root.enabled&&!root.busy&&(!root.connected||root.active!="");clicked=>{if !root.connected{root.connect-device();}else{root.resize-grid(grid.columns,grid.rows);root.action(root.phase=="connected"||root.phase=="connecting"?"stop":"start");}}}
-        DesktopTool {height:36px;show-text:root.width>=420px;text:root.tr("重启",root.english);label:root.tr("重启",root.english);icon:@image-url("icons/restart.svg");enabled:root.connected&&!root.busy&&root.enabled&&root.active!="";clicked=>{root.action("reset");}}
-        DesktopTool {height:36px;show-text:root.width>=420px;text:root.tr("清屏",root.english);label:root.tr("清屏",root.english);icon:@image-url("icons/eraser.svg");enabled:root.enabled&&root.active!="";clicked=>{root.action("clear");}}
-        DesktopTool {width:32px;height:36px;show-text:false;label:root.tr("运行程序",root.english);icon:@image-url("icons/play.svg");enabled:root.live&&!root.sending;clicked=>{root.run-program();}}
-        DesktopTool {width:32px;height:36px;show-text:false;label:root.tr("新建终端",root.english);icon:@image-url("icons/plus.svg");enabled:root.connected&&!root.busy&&root.enabled;clicked=>{root.action("create");}}
+        TerminalTool {height:36px;show-text:root.width>=420px;text:root.tr("重启",root.english);label:root.tr("重启",root.english);icon:@image-url("icons/restart.svg");enabled:root.connected&&!root.busy&&root.enabled&&root.active!="";clicked=>{root.action("reset");}}
+        TerminalTool {height:36px;show-text:root.width>=420px;text:root.tr("清屏",root.english);label:root.tr("清屏",root.english);icon:@image-url("icons/eraser.svg");enabled:root.enabled&&root.active!="";clicked=>{root.action("clear");}}
+        TerminalTool {width:32px;height:36px;show-text:false;label:root.tr("运行程序",root.english);icon:@image-url("icons/play.svg");enabled:root.live&&!root.sending;clicked=>{root.run-program();}}
+        TerminalTool {width:32px;height:36px;show-text:false;label:root.tr("新建终端",root.english);icon:@image-url("icons/plus.svg");enabled:root.connected&&!root.busy&&root.enabled;clicked=>{root.action("create");}}
         Rectangle {width:32px;height:36px;horizontal-stretch:0;
-            DesktopTool {width:parent.width;height:36px;label:root.tr("更多",root.english);show-text:false;text:root.tr("更多",root.english);icon:root.width<420px?@image-url("icons/more.svg"):@image-url("icons/chevron.svg");icon-angle:root.width<420px?0deg:root.actions-open?180deg:0deg;enabled:root.enabled&&root.active!="";clicked=>{root.actions-open=true;actions-popup.show();}}
+            TerminalTool {width:parent.width;height:36px;label:root.tr("更多",root.english);show-text:false;text:root.tr("更多",root.english);icon:root.width<420px?@image-url("icons/more.svg"):@image-url("icons/chevron.svg");icon-angle:root.width<420px?0deg:root.actions-open?180deg:0deg;enabled:root.enabled&&root.active!="";clicked=>{root.actions-open=true;actions-popup.show();}}
             actions-popup:=PopupWindow {x:0px;y:40px;width:180px;height:192px;forward-focus:menu-keys;
                 Rectangle {border-radius:13px;background:AppColors.surface;border-width:1px;border-color:AppColors.edge;drop-shadow-offset-y:6px;drop-shadow-blur:24px;drop-shadow-color:#223a661f;}
                 menu-keys:=FocusScope {focus-changed-event=>{if !self.has-focus{root.actions-open=false;}}key-pressed(event)=>{if event.text==Key.Escape{actions-popup.close();root.actions-open=false;return accept;}return reject;}
@@ -218,7 +219,7 @@ export component TerminalView inherits VerticalBox {
             key(value,ctrl,shift,alt)=>{return root.editor-key(value,ctrl,shift,alt,root.expanded);}
         }
         Rectangle {width:36px;min-height:36px;horizontal-stretch:0;
-            expand-button:=DesktopTool {width:parent.width;height:36px;y:(parent.height - self.height)/2;show-text:false;label:root.tr(root.expanded?"收起命令输入框":"展开命令输入框",root.english);icon:root.expanded?@image-url("icons/collapse.svg"):@image-url("icons/expand.svg");enabled:root.enabled;clicked=>{root.expanded=!root.expanded;}}
+            expand-button:=TerminalTool {width:parent.width;height:36px;y:(parent.height - self.height)/2;show-text:false;label:root.tr(root.expanded?"收起命令输入框":"展开命令输入框",root.english);icon:root.expanded?@image-url("icons/collapse.svg"):@image-url("icons/expand.svg");enabled:root.enabled;clicked=>{root.expanded=!root.expanded;}}
         }
         Rectangle {width:64px;min-height:36px;horizontal-stretch:0;
             ActionButton {width:parent.width;height:36px;y:(parent.height - self.height)/2;text:root.tr("发送",root.english);primary:true;enabled:root.live&&!root.sending;clicked=>{root.send-command();}}
