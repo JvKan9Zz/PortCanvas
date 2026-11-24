@@ -1,12 +1,12 @@
-# macOS native test build
+# macOS native build
 
-The native macOS test build uses shared Rust services, Slint/winit/FemtoVG, AppKit window integration and AVFoundation background playback. It targets macOS 13.0 and newer. One Universal app contains `arm64` and `x86_64` slices. The PR's acceptance record identifies the systems actually exercised.
+The native macOS build uses shared Rust services, Slint/winit/FemtoVG, AppKit window integration and AVFoundation background playback. It targets macOS 13.0 and newer. One Universal app contains `arm64` and `x86_64` slices. The PR's acceptance record identifies the systems actually exercised.
 
-## Get and install the test build
+## Get and install the app
 
-For a manual download, use the [v0.6.1 native Mac test package](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.1). For the v0.6.3 test build, open the **macOS native** Actions run and download **PortCanvas-0.6.3-macOS-universal-test** from Artifacts. GitHub may require sign-in. The artifact expires after 14 days and can be recreated by rerunning the workflow.
+Download the v0.6.3 Universal DMG and its SHA-256 checksum from GitHub Releases. [macOS DMG](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.3/PortCanvas_0.6.3_universal.dmg) · [SHA-256](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.6.3/PortCanvas_0.6.3_universal.dmg.sha256)
 
-Extract the Actions ZIP, open `PortCanvas_0.6.3_universal.dmg`, and drag `PortCanvas.app` to Applications. Quit any running PortCanvas before replacing an installed copy, then open the copy in Applications and eject the disk image. The `.app.tar.gz` is the update payload and requires a separate publisher-managed signature.
+Quit any running PortCanvas before replacing an installed copy. Open the DMG, drag `PortCanvas.app` to Applications, then open the copy in Applications and eject the disk image.
 
 The app is **ad-hoc signed and not Apple notarized**. macOS may block its first launch after download. After verifying the source, use System Settings → Privacy & Security → Open Anyway for this app and complete macOS's confirmation. Do not disable Gatekeeper globally. No Developer ID certificate or notarization credential is used by CI. `SHA256SUMS` checks transfer integrity; it does not establish publisher identity. The archive's app signature can be inspected with:
 
@@ -19,7 +19,7 @@ codesign -d --verbose=4 /Applications/PortCanvas.app
 
 Stable data lives in `~/Library/Application Support/PortCanvas/Stable`; Beta uses `Beta` separately. `WCS_DATA_DIR` selects an absolute isolated data directory for testing. Quit the application before making a backup of its data directory. Removing the application does not remove your data.
 
-The historical v0.5.95 Mac app uses a different implementation and manual updates. Install the native app manually, then use Devices → Import legacy data to choose the old directory containing `devices.json`. Review the preview before confirming; source files remain available and migration has a restore operation. Keep original managed background files until import and reopening have been checked. Windows DPAPI credentials require password re-entry on Mac. Same-account Mac credentials rely on the existing Keychain identity; macOS may request permission for access. An owner must complete system Keychain prompts.
+The historical v0.5.95 Mac app uses a different implementation and manual updates. After installing the native app, use Devices → Import Data and select the legacy `devices.json` or an exported `.portcanvas` file. Review the preview before confirming. PortCanvas preserves source files and can restore the pre-import state. Keep original managed background files until import and reopening have been checked. Windows DPAPI credentials require password re-entry on Mac. Same-account Mac credentials rely on the existing Keychain identity. Complete any system Keychain prompts in macOS.
 
 The native updater selects `darwin-aarch64` or `darwin-x86_64`, verifies the complete downloaded archive against the signed version, and replaces the full installed application before relaunch. A separate helper waits for the old application to exit, exchanges the bundles atomically, and waits for the replacement to render before removing old code. Failed startup stops the new process, restores the old bundle and restarts it. User data is retained. Updates require a writable installed location and an original bundle this account can remove; locked, read-only, linked or differently owned installations require a manual app replacement. The incoming bundle must match the installed signing team (including ad-hoc status). A channel with only Windows entries means no applicable Mac update. The public Windows `latest.json` is unchanged by Mac test builds. Publisher update keys are not generated or replaced by this build. If installation or replacement fails, keep your data directory, quit the application, and reinstall a verified complete app from a trusted DMG; do not delete data to repair the executable.
 
