@@ -20,7 +20,7 @@ slint::slint! {
     import {ArenaView,MetricRow} from "arena_view.slint";
     import {FilesView,FileRow,FileArea} from "files_view.slint";
     import {ActionButton,ActionButton as Button,AppColors} from "action_button.slint";
-    import {MaterialPanel,NavButton,DeviceListItem,ConnectionBadge} from "workbench_chrome.slint";
+    import {MaterialPanel,NavButton,DeviceListItem,ConnectionBadge,WindowControls,WindowDragRegion} from "workbench_chrome.slint";
     export struct ChromeLayout {nav:float,drawer:float,drawer-x:float,settings-y:float,settings-opacity:float,settings-tab:float,page:float,dialog-y:float,dialog-opacity:float,advanced:float,connection-height:float,busy-phase:float,busy-wave:float,busy:float,select-phase:float,select-y:float,select-height:float}
     export struct MaterialRect {x:float,y:float,width:float,height:float,radius:float}
     import {LogsView,LogRow,LogFact} from "logs_view.slint";
@@ -116,6 +116,29 @@ slint::slint! {
         in-out property <int> appearance:0;
         in-out property <int> theme:0;
         in property <bool> window-is-fullscreen:false;
+        in property <bool> custom-caption:false;
+        in property <bool> window-is-maximized:false;
+        callback window-minimize();
+        callback window-toggle-maximize();
+        callback window-close();
+        property <WindowDragRegion> desktop-drag-region;
+        property <length> body-top:header-panel.y+header-panel.height+12px;
+        property <bool> window-drag-enabled:root.custom-caption&&root.can-interact&&!root.settings-open&&root.settings-progress==0&&root.quick-phase==0&&!root.desktop-tools-open;
+        out property <WindowDragRegion> window-drag-region:
+            !root.window-drag-enabled
+                ? {x:0,y:0,width:0,height:0}
+                : root.desktop-expanded ? root.desktop-drag-region : {
+                    x:header-drag.absolute-position.x/1px,y:header-drag.absolute-position.y/1px,
+                    width:header-drag.width/1px,height:header-drag.height/1px
+                };
+        out property <WindowDragRegion> brand-drag-region:
+            !root.window-drag-enabled||root.desktop-expanded
+                ? {x:0,y:0,width:0,height:0}
+                : {
+                    x:header-panel.absolute-position.x/1px,y:header-brand.absolute-position.y/1px,
+                    width:((root.update-phase=="available"?header-brand.absolute-position.x+header-brand.width:header-drag.absolute-position.x)-header-panel.absolute-position.x)/1px,
+                    height:header-brand.height/1px
+                };
         in property <bool> native-hidden:false;
         in property <bool> native-focused:true;
         changed native-focused=>{root.material-controls();}
@@ -163,10 +186,10 @@ slint::slint! {
         out property <MaterialRect> material-dialog-rect:{x:modal-panel.x/1px,y:modal-panel.y/1px,width:modal-panel.width/1px,height:modal-panel.height/1px,radius:24};
         in property <image> material-nav;in property <image> material-header;in property <image> material-terminal;in property <image> material-work;
         out property <color> material-tint:Palette.background;
-        out property <MaterialRect> material-nav-rect:{x:16,y:16,width:84,height:(root.height - 32px)/1px,radius:24};
-        out property <MaterialRect> material-header-rect:root.desktop-expanded?{x:(work-area.x+work-layout.padding-left)/1px,y:(work-area.y+work-layout.padding-top)/1px,width:(work-area.width - work-layout.padding-left - work-layout.padding-right)/1px,height:46,radius:14}:{x:116,y:16,width:(root.width - 132px)/1px,height:48,radius:17};
+        out property <MaterialRect> material-nav-rect:{x:nav-panel.x/1px,y:nav-panel.y/1px,width:nav-panel.width/1px,height:nav-panel.height/1px,radius:nav-panel.border-radius/1px};
+        out property <MaterialRect> material-header-rect:root.desktop-expanded?{x:(work-area.x+work-layout.padding-left)/1px,y:(work-area.y+work-layout.padding-top)/1px,width:(work-area.width - work-layout.padding-left - work-layout.padding-right)/1px,height:46,radius:14}:{x:header-panel.x/1px,y:header-panel.y/1px,width:header-panel.width/1px,height:header-panel.height/1px,radius:header-panel.border-radius/1px};
         out property <MaterialRect> desktop-work-rect:{x:work-area.x/1px,y:work-area.y/1px,width:work-area.width/1px,height:work-area.height/1px,radius:work-area.border-radius/1px};
-        out property <MaterialRect> material-terminal-rect:{x:terminal-panel.x/1px,y:76,width:terminal-panel.width/1px,height:(root.height - 92px)/1px,radius:terminal-panel.border-radius/1px};
+        out property <MaterialRect> material-terminal-rect:{x:terminal-panel.x/1px,y:terminal-panel.y/1px,width:terminal-panel.width/1px,height:terminal-panel.height/1px,radius:terminal-panel.border-radius/1px};
         out property <ChromeLayout> chrome-layout:{nav:nav-pill.y/1px,drawer:root.drawer-space/1px,drawer-x:terminal-panel.x/1px,settings-y:settings-panel.y/1px,settings-opacity:root.settings-progress,settings-tab:settings-pill.y/1px,page:root.page-phase,dialog-y:modal-panel.y/1px,dialog-opacity:root.dialog-phase,advanced:root.observed-advanced,connection-height:root.observed-connection,busy-phase:root.observed-busy-phase,busy-wave:root.observed-busy-wave,busy:root.observed-busy?1:0,select-phase:select-host.phase,select-y:select-host.menu-top/1px,select-height:select-host.revealed-height/1px};
         property <int> nav-index:root.page==5?1:root.page==6?2:root.page==3?3:root.page==7?4:0;
         property <bool> compact-content:root.terminal-visible&&root.width<1360px;
@@ -330,13 +353,11 @@ slint::slint! {
         // THESIS: A clear work area between the familiar left rail and optional shared terminal.
         // OWN-WORLD: User-pinned Liquid Glass; bounded background-only GPU surfaces and native controls.
         // STORY: Select a workspace, work in place, open the same terminal without leaving that page.
-        // FIRST VIEWPORT: 88px left rail, 64px header, clear body; terminal 420-540px at the right.
         // FORM: Code-led extension of the approved PortCanvas desktop structure; no new identity choice.
         // FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
         main-focus:=FocusScope {enabled:root.painted-dialog==0&&root.settings-progress==0&&root.quick-phase==0&&!root.system-busy&&!root.migration-busy;
-            MaterialPanel {visible:!root.desktop-expanded;x:16px;y:16px;width:84px;height:parent.height - 32px;material:root.material-nav;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
-                VerticalBox {padding-left:9px;padding-right:9px;padding-top:20px;padding-bottom:12px;spacing:12px;
-                    Rectangle {height:58px;vertical-stretch:0;background:transparent;Image {x:(parent.width - 43px)/2;width:43px;height:43px;source:@image-url("../assets/portcanvas.png");image-fit:contain;}}
+            nav-panel:=MaterialPanel {visible:!root.desktop-expanded;x:16px;y:root.body-top;width:84px;height:parent.height - root.body-top - 16px;material:root.material-nav;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
+                VerticalBox {padding-left:9px;padding-right:9px;padding-top:10px;padding-bottom:10px;spacing:12px;
                     Rectangle {height:352px;vertical-stretch:0;background:transparent;
                         nav-pill:=Rectangle {transform-origin:{x:self.width/2,y:self.height/2};transform-scale:root.nav-index==0?nav-devices.press-scale:root.nav-index==1?nav-desktop.press-scale:root.nav-index==2?nav-files.press-scale:root.nav-index==3?nav-logs.press-scale:nav-arena.press-scale;y:root.nav-index*72px;width:parent.width;height:64px;border-radius:17px;background:AppColors.soft;animate y {duration:AppColors.motion?320ms:0ms;easing:cubic-bezier(0.22,0.61,0.36,1);}}
                         VerticalBox {padding:0px;spacing:8px;
@@ -351,24 +372,31 @@ slint::slint! {
                     settings-entry:=NavButton {text:root.english?"Settings":"设置";icon:@image-url("icons/settings.svg");selected:root.settings-open;enabled:root.can-interact;clicked=>{root.settings-open=true;}}
                 }
             }
-            MaterialPanel {visible:!root.desktop-expanded;x:116px;y:16px;width:parent.width - 132px;height:48px;border-radius:17px;material:root.material-header;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
-                HorizontalBox {padding-left:20px;padding-right:16px;padding-top:0px;padding-bottom:0px;spacing:12px;
-                    Rectangle {width:156px;horizontal-stretch:0;background:transparent;
-                        Image {y:(parent.height - self.height)/2;source:@image-url("../assets/wordmark.svg");image-fit:contain;width:156px;height:35px;}
+            header-panel:=MaterialPanel {visible:!root.desktop-expanded;x:16px;y:12px;width:parent.width - 32px;height:46px;border-radius:16px;material:root.material-header;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
+                HorizontalBox {padding-left:14px;padding-right:root.custom-caption?8px:10px;padding-top:0px;padding-bottom:0px;spacing:10px;
+                    header-brand:=Rectangle {width:174px;horizontal-stretch:0;background:transparent;
+                        Image {x:0px;y:(parent.height - self.height)/2;source:@image-url("../assets/portcanvas.png");image-fit:contain;width:28px;height:28px;}
+                        Image {x:36px;y:(parent.height - self.height)/2;source:@image-url("../assets/wordmark.svg");image-fit:contain;width:138px;height:30px;}
                     }
                     if root.update-phase=="available":Rectangle {width:update-button.preferred-width;horizontal-stretch:0;background:transparent;
-                        update-button:=ActionButton {y:(parent.height - self.height)/2;text:"v"+root.update-version;enabled:root.can-interact;clicked=>{root.settings-section=2;root.settings-open=true;}}
+                        update-button:=ActionButton {y:(parent.height - self.height)/2;height:30px;border-radius:9px;text:"v"+root.update-version;enabled:root.can-interact;clicked=>{root.settings-section=2;root.settings-open=true;}}
                     }
-                    Rectangle {background:transparent;horizontal-stretch:1;}
+                    header-drag:=Rectangle {background:transparent;horizontal-stretch:1;}
+                    if root.page!=0:Rectangle {width:96px;horizontal-stretch:0;background:transparent;
+                        ActionButton {y:(parent.height - self.height)/2;height:30px;border-radius:9px;text:root.english?"Terminal":"终端";icon:@image-url("icons/terminal.svg");has-icon:true;primary:root.terminal-open;width:parent.width;enabled:root.can-interact;accessible-checkable:true;accessible-checked:root.terminal-open;clicked=>{root.terminal-open=!root.terminal-open;}}
+                    }
                     Rectangle {width:header-status.preferred-width;horizontal-stretch:0;background:transparent;
                         header-status:=ConnectionBadge {y:(parent.height - self.height)/2;text:root.tr(root.connection-status,root.english);phase:root.connected?2:root.busy?1:root.error!=""?3:0;}
                     }
-                    if root.page!=0:Rectangle {width:96px;horizontal-stretch:0;background:transparent;
-                        ActionButton {y:(parent.height - self.height)/2;text:root.english?"Terminal":"终端";icon:@image-url("icons/terminal.svg");has-icon:true;primary:root.terminal-open;width:parent.width;enabled:root.can-interact;accessible-checkable:true;accessible-checked:root.terminal-open;clicked=>{root.terminal-open=!root.terminal-open;}}
+                    if root.custom-caption&&!root.native-macos:WindowControls {
+                        english:root.english;restore:root.window-is-maximized||root.window-is-fullscreen;
+                        minimize=>{root.window-minimize();}
+                        toggle-maximize=>{root.window-toggle-maximize();}
+                        close=>{root.window-close();}
                     }
                 }
             }
-            work-area:=MaterialPanel {material:root.material-work;active:root.use-material-frame&&!root.desktop-expanded;strength:root.bg-material;solid:root.material-solid;x:116px;y:76px;width:parent.width - 132px - root.drawer-space;height:parent.height - 92px;
+            work-area:=MaterialPanel {material:root.material-work;active:root.use-material-frame&&!root.desktop-expanded;strength:root.bg-material;solid:root.material-solid;x:116px;y:root.body-top;width:parent.width - 132px - root.drawer-space;height:parent.height - root.body-top - 16px;
                 flat:root.desktop-expanded;border-radius:24px;
                 states [expanded when root.desktop-expanded:{
                     x:12px;y:12px;width:parent.width - 24px;height:parent.height - 24px;border-radius:14px;
@@ -443,6 +471,11 @@ slint::slint! {
             }
             if root.page==5:DesktopView {
                 expanded:root.desktop-expanded;toggle-expanded=>{root.desktop-expand(!root.desktop-expanded);}tools-open-changed(open)=>{root.desktop-tools-open=open;}
+                custom-caption:root.custom-caption&&!root.native-macos;window-restore:root.window-is-maximized||root.window-is-fullscreen;
+                window-minimize=>{root.window-minimize();}
+                window-toggle-maximize=>{root.window-toggle-maximize();}
+                window-close=>{root.window-close();}
+                window-drag-changed(region)=>{root.desktop-drag-region=region;}
                 toolbar-material:root.material-header;material-active:root.use-material-frame;material-solid:root.material-solid;material-strength:root.bg-material;
                 english:root.english;enabled:root.can-interact;connected:root.connected;active:root.desktop-active;wanted:root.desktop-wanted;ready:root.desktop-ready;
                 mode:root.desktop-mode;fit<=>root.desktop-fit;read-only<=>root.desktop-readonly;frame:root.desktop-frame;source-width:root.desktop-source-width;source-height:root.desktop-source-height;
@@ -455,7 +488,7 @@ slint::slint! {
 
                 }
             }
-            resize-handle:=Rectangle {visible:root.terminal-visible;x:terminal-panel.x - 12px;y:76px;width:12px;height:parent.height - 92px;background:transparent;
+            resize-handle:=Rectangle {visible:root.terminal-visible;x:terminal-panel.x - 12px;y:terminal-panel.y;width:12px;height:terminal-panel.height;background:transparent;
                 property <length> origin;property <length> original-width;
                 accessible-role:slider;accessible-label:root.tr("调整终端侧栏宽度",root.english);accessible-value:round(root.drawer-width/1px);accessible-value-minimum:320;accessible-value-maximum:root.drawer-maximum/1px;
                 accessible-action-increment=>{root.drawer-preferred=min(root.drawer-maximum,root.drawer-width+24px);}accessible-action-decrement=>{root.drawer-preferred=max(320px,root.drawer-width - 24px);}
@@ -464,7 +497,7 @@ slint::slint! {
                 resize-keys:=FocusScope {enabled:root.terminal-visible&&root.can-interact&&!root.settings-open;key-pressed(event)=>{if event.text==Key.LeftArrow{root.drawer-preferred=min(root.drawer-maximum,root.drawer-width+24px);return accept;}if event.text==Key.RightArrow{root.drawer-preferred=max(320px,root.drawer-width - 24px);return accept;}if event.text==Key.Home{root.drawer-preferred=320px;return accept;}if event.text==Key.End{root.drawer-preferred=root.drawer-maximum;return accept;}return reject;}}
                 resize-touch:=TouchArea {mouse-cursor:ew-resize;changed pressed=>{root.drawer-resizing=self.pressed;}pointer-event(event)=>{if event.kind==PointerEventKind.down&&event.button==PointerEventButton.left{resize-keys.focus();resize-handle.origin=self.absolute-position.x+self.mouse-x;resize-handle.original-width=root.drawer-width;}}moved=>{if self.pressed{root.drawer-preferred=min(root.drawer-maximum,max(320px,resize-handle.original-width + resize-handle.origin - self.absolute-position.x - self.mouse-x));}}double-clicked=>{root.drawer-preferred=-1px;}}
             }
-            terminal-panel:=MaterialPanel {visible:root.page!=0&&!root.desktop-expanded&&(root.terminal-open||root.drawer-space>0px);opacity:min(1,root.drawer-space/(root.drawer-width+14px));x:parent.width - root.drawer-space - 2px;y:76px;width:root.drawer-width;height:parent.height - 92px;material:root.material-terminal;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
+            terminal-panel:=MaterialPanel {visible:root.page!=0&&!root.desktop-expanded&&(root.terminal-open||root.drawer-space>0px);opacity:min(1,root.drawer-space/(root.drawer-width+14px));x:parent.width - root.drawer-space - 2px;y:root.body-top;width:root.drawer-width;height:parent.height - root.body-top - 16px;material:root.material-terminal;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
                 VerticalBox {padding:12px;spacing:8px;
                     TerminalView {
                 tabs:root.terminal-tabs;active:root.terminal-active;active-index:root.terminal-active-index;cells:root.terminal-cells;
@@ -585,7 +618,7 @@ slint::slint! {
                             }
                         }
                     }
-                    settings-close:=DesktopTool {x:parent.width - 68px;y:16px;width:44px;height:44px;show-text:false;label:root.tr("关闭设置",root.english);icon:@image-url("icons/close.svg");enabled:root.can-interact;clicked=>{root.settings-open=false;}}
+                    settings-close:=DesktopTool {x:parent.width - 68px;y:16px;width:44px;height:44px;show-text:false;label:root.settings-open?root.tr("关闭设置",root.english):"";icon:@image-url("icons/close.svg");enabled:root.settings-open&&root.can-interact;clicked=>{root.settings-open=false;}}
                     FocusScope {width:0px;height:0px;changed has-focus=>{if self.has-focus{settings-general.focus();}}}
                 }
             }

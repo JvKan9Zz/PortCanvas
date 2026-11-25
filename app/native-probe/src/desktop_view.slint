@@ -2,9 +2,20 @@ import {ScrollView,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
 import {SelectBox} from "select_box.slint";
 import {ActionButton,ActivityIndicator,AppColors} from "action_button.slint";
 import {DesktopTool} from "desktop_tool.slint";
-import {MaterialPanel} from "workbench_chrome.slint";
+import {MaterialPanel,WindowControls,WindowDragRegion} from "workbench_chrome.slint";
 export component DesktopView inherits Rectangle {
     in property <bool> expanded;
+    in property <bool> custom-caption;
+    in property <bool> window-restore;
+    callback window-minimize();
+    callback window-toggle-maximize();
+    callback window-close();
+    callback window-drag-changed(WindowDragRegion);
+    property <WindowDragRegion> window-drag-region:{
+        x:drag-spacer.absolute-position.x/1px,y:drag-spacer.absolute-position.y/1px,
+        width:drag-spacer.width/1px,height:drag-spacer.height/1px
+    };
+    changed window-drag-region=>{root.window-drag-changed(root.window-drag-region);}
     in property <image> toolbar-material;
     in property <bool> material-active;
     in property <bool> material-solid;
@@ -54,11 +65,17 @@ export component DesktopView inherits Rectangle {
             quality-tool:=SelectBox {compact:true;width:root.english?112px:96px;horizontal-stretch:0;accessible-label:root.tr("桌面画质",root.english);model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.mode;enabled:root.enabled;selected(i)=>{root.quality(i);}popup-state(open)=>{root.quality-open=open;}}
             DesktopTool {text:root.tr("适配",root.english);label:root.tr("适应窗口",root.english);icon:@image-url("icons/fit.svg");show-text:!root.compact;checkable:true;checked:root.fit;enabled:root.enabled;clicked=>{root.fit=true;}}
             DesktopTool {text:"1:1";label:root.tr("原始尺寸",root.english);has-icon:false;checkable:true;checked:!root.fit;enabled:root.enabled;clicked=>{root.fit=false;}}
-            Rectangle {horizontal-stretch:1;background:transparent;}
+            drag-spacer:=Rectangle {horizontal-stretch:1;background:transparent;}
             DesktopTool {text:root.tr("只读",root.english);label:root.tr("仅查看",root.english);icon:@image-url("icons/eye.svg");show-text:!root.compact;checkable:true;checked:root.read-only;enabled:root.enabled;clicked=>{root.read-only=!root.read-only;}}
             DesktopTool {text:root.tr("重启设备",root.english);icon:@image-url("icons/restart.svg");show-text:!root.compact;danger:true;enabled:root.enabled&&root.connected;clicked=>{root.reboot();}}
             more-tool:=DesktopTool {label:root.tr("桌面操作",root.english);icon:@image-url("icons/more.svg");show-text:false;enabled:root.enabled;clicked=>{root.menu-kind=root.menu-kind==2?0:2;}}
             expand-tool:=DesktopTool {label:root.tr(root.expanded?"收起远程桌面":"展开远程桌面",root.english);icon:root.expanded?@image-url("icons/collapse.svg"):@image-url("icons/expand.svg");show-text:false;enabled:root.enabled&&(root.ready||root.expanded);clicked=>{root.toggle-expanded();}}
+            if root.expanded&&root.custom-caption:WindowControls {
+                english:root.english;restore:root.window-restore;
+                minimize=>{root.window-minimize();}
+                toggle-maximize=>{root.window-toggle-maximize();}
+                close=>{root.window-close();}
+            }
         }
     }
     canvas:=Rectangle {x:0px;y:54px;width:parent.width;height:parent.height - 54px - (root.expanded?0px:22px) - (live-error.visible?live-error.height + 8px:0px);

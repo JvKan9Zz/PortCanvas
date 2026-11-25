@@ -1,6 +1,38 @@
-import {Palette,VerticalBox} from "std-widgets.slint";
+import {Palette,VerticalBox,HorizontalBox} from "std-widgets.slint";
 import {AppColors} from "action_button.slint";
+import {DesktopTool} from "desktop_tool.slint";
 import {ContinuousOutline} from "continuous_outline.slint";
+export struct WindowDragRegion {x:float,y:float,width:float,height:float}
+export component WindowControls inherits Rectangle {
+    in property <bool> english;
+    in property <bool> restore;
+    callback minimize();
+    callback toggle-maximize();
+    callback close();
+    background:transparent;
+    preferred-width:buttons.preferred-width;preferred-height:30px;horizontal-stretch:0;
+    buttons:=HorizontalBox {x:0px;y:(parent.height - self.height)/2;width:parent.width;height:30px;padding:0px;spacing:3px;
+        Rectangle {width:6px;background:transparent;
+            Rectangle {x:0px;y:(parent.height - 18px)/2;width:1px;height:18px;background:AppColors.edge;}
+        }
+        DesktopTool {
+            width:34px;caption-button:true;show-text:false;elastic:false;
+            label:root.english?"Minimize window":"最小化窗口";icon:@image-url("icons/window-minimize.svg");
+            clicked=>{root.minimize();}
+        }
+        DesktopTool {
+            width:34px;caption-button:true;show-text:false;elastic:false;
+            label:root.restore?(root.english?"Restore window":"还原窗口"):(root.english?"Maximize window":"最大化窗口");
+            icon:root.restore?@image-url("icons/window-restore.svg"):@image-url("icons/window-maximize.svg");
+            clicked=>{root.toggle-maximize();}
+        }
+        DesktopTool {
+            width:34px;caption-button:true;show-text:false;elastic:false;danger:true;
+            label:root.english?"Close window":"关闭窗口";icon:@image-url("icons/close.svg");
+            clicked=>{root.close();}
+        }
+    }
+}
 export component MaterialPanel inherits Rectangle {
     in property <image> material;
     in property <bool> active;
