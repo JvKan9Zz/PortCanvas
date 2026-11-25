@@ -1,6 +1,6 @@
 # PortCanvas 使用说明
 
-[下载 Windows x64 v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3)，安装后从桌面“PortCanvas”打开。应用采用 Rust/Slint、原生 VT/RFB 和 Windows 媒体能力，无需 Node.js、Rust、Python 或 WebView 运行环境。
+[下载 Windows x64 v0.6.4](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.4)，安装后从桌面“PortCanvas”打开。应用采用 Rust/Slint、原生 VT/RFB 和 Windows 媒体能力，无需 Node.js、Rust、Python 或 WebView 运行环境。
 
 ## 安装与资料
 

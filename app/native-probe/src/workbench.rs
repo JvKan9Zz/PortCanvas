@@ -183,6 +183,8 @@ pub fn run() -> Result<()> {
             .build()?,
     );
     let ui = Workbench::new()?;
+    #[cfg(windows)]
+    crate::windows_chrome::install(&ui)?;
     ui.set_native_macos(cfg!(target_os="macos"));
     ui.set_app_version(env!("CARGO_PKG_VERSION").into());
     ui.on_tr(|source, english| text(&source, english).into());
@@ -714,6 +716,8 @@ pub fn run() -> Result<()> {
                         material.visibility(hidden);
                     }
                     ui.set_window_is_fullscreen(window.is_fullscreen());
+                    #[cfg(windows)]
+                    crate::windows_chrome::sync_maximized(&ui);
                 }
             }
             EventResult::Propagate

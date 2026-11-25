@@ -13,6 +13,8 @@ mod workbench_migration;
 mod workbench_files;
 mod workbench_terminal;
 mod workbench_ui;
+#[cfg(windows)]
+mod windows_chrome;
 fn main() {
     #[cfg(target_os="macos")]
     match portcanvas_native_probe::macos_update::dispatch_helper() {
