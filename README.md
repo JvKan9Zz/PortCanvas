@@ -12,8 +12,8 @@
 </p>
 
 <p>
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0"><img src="https://img.shields.io/badge/Windows-v0.7.0-2563eb?style=flat-square" alt="Windows v0.7.0"></a>
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0"><img src="https://img.shields.io/badge/macOS_13+-v0.7.0_Universal-0f172a?style=flat-square" alt="macOS v0.7.0 Universal"></a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.1"><img src="https://img.shields.io/badge/Windows-v0.7.1-2563eb?style=flat-square" alt="Windows v0.7.1"></a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.1"><img src="https://img.shields.io/badge/macOS_13+-v0.7.1_Universal-0f172a?style=flat-square" alt="macOS v0.7.1 Universal"></a>
   <img src="https://img.shields.io/badge/Built_with-Rust_%2B_Slint-ea580c?style=flat-square" alt="Rust + Slint">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-16a34a?style=flat-square" alt="MIT License"></a>
 </p>
@@ -21,15 +21,15 @@
 <p>
   <strong>简体中文</strong> · <a href="README.en.md">English</a>
   &nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/PortCanvas_0.7.0_x64-setup.exe"><strong>下载 Windows v0.7.0</strong></a>
-  · <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/PortCanvas_0.7.0_universal.dmg">macOS v0.7.0 DMG</a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_x64-setup.exe"><strong>下载 Windows v0.7.1</strong></a>
+  · <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_universal.dmg">macOS v0.7.1 DMG</a>
   · <a href="docs/usage.md">使用说明</a>
   · <a href="https://github.com/JvKan9Zz/PortCanvas/releases">更新日志</a>
 </p>
 
 <br>
 
-<img src="assets/preview/workbench-light.png" width="100%" alt="PortCanvas v0.7.0 无边框液态玻璃工作台">
+<img src="assets/preview/workbench-light.png" width="100%" alt="PortCanvas v0.7.1 无边框液态玻璃工作台">
 
 </div>
 
@@ -101,16 +101,16 @@
 
 | 平台 | 最新版本 | 安装包 | 说明 |
 | --- | --- | --- | --- |
-| **Windows x64** | **v0.7.0** | [**PortCanvas_0.7.0_x64-setup.exe**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/PortCanvas_0.7.0_x64-setup.exe) | 稳定通道，内置签名自动更新；新装资料保存在安装目录 `data/`，插件默认保存在安装目录 `plugins/`，原地升级沿用既有资料 |
-| **macOS 13.0+** | **v0.7.0** | [**PortCanvas_0.7.0_universal.dmg**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/PortCanvas_0.7.0_universal.dmg) | Apple Silicon & Intel 通用包，采用 ad-hoc 签名手动安装（[SHA-256](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/PortCanvas_0.7.0_universal.dmg.sha256)），详见 [Mac 安装说明](docs/macos.md) |
+| **Windows x64** | **v0.7.1** | [**PortCanvas_0.7.1_x64-setup.exe**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_x64-setup.exe) | 稳定通道，内置签名自动更新；新装资料保存在安装目录 `data/`，插件位于 `plugins/`，静默运行日志位于 `debuglogs/`（上限 10 MiB），原地升级沿用既有资料 |
+| **macOS 13.0+** | **v0.7.1** | [**PortCanvas_0.7.1_universal.dmg**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_universal.dmg) | Apple Silicon & Intel 通用包，采用 ad-hoc 签名手动安装（[SHA-256](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_universal.dmg.sha256)），详见 [Mac 安装说明](docs/macos.md) |
 
 <details>
 <summary><strong>资料迁移、软件内更新与历史版本说明</strong></summary>
 
 - **配置迁移与备份**：在「设备」页点击「导入数据」，可预览并导入 `.portcanvas` 配置包或旧版资料，导入前自动创建备份。本机加密凭据采用 Windows DPAPI / macOS Keychain 保护，导出配置包时不会携带密码和私钥。
-- **自动更新与插件校验**：Windows 正式版可在「设置 → 关于」检查并完成经 Minisign 签名校验的稳定通道更新；正式版插件目录仅允许 HTTPS 与 Minisign 签名校验。
+- **自动更新与问题反馈**：Windows 正式版可在「设置 → 关于」检查并完成经 Minisign 签名校验的稳定通道更新，也可点击「反馈问题」导出最新运行日志协助排查；正式版插件目录仅允许 HTTPS 与 Minisign 签名校验。
 - **远端 Linux 依赖**：板端按需复用已有的 SSH、Python 3、`tmux`、SFTP、`x11vnc`、FFmpeg / OpenCV；缺失组件可由电脑下载并通过 SSH 放入用户隔离缓存（当前自动准备面向 Ubuntu 20.04 ARM64 控制器），不替换系统 SDK 或已有程序。
-- **历史归档**：[v0.6.4](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.4) · [v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3) · [v0.6.2](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.2) · [v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [全部 Releases](https://github.com/JvKan9Zz/PortCanvas/releases)
+- **历史归档**：[v0.7.0](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0) · [v0.6.4](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.4) · [v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3) · [v0.6.2](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.2) · [全部 Releases](https://github.com/JvKan9Zz/PortCanvas/releases)
 
 </details>
 

@@ -12,8 +12,8 @@
 </p>
 
 <p>
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0"><img src="https://img.shields.io/badge/Windows-v0.7.0-2563eb?style=flat-square" alt="Windows v0.7.0"></a>
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0"><img src="https://img.shields.io/badge/macOS_13+-v0.7.0_Universal-0f172a?style=flat-square" alt="macOS v0.7.0 Universal"></a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.1"><img src="https://img.shields.io/badge/Windows-v0.7.1-2563eb?style=flat-square" alt="Windows v0.7.1"></a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.1"><img src="https://img.shields.io/badge/macOS_13+-v0.7.1_Universal-0f172a?style=flat-square" alt="macOS v0.7.1 Universal"></a>
   <img src="https://img.shields.io/badge/Built_with-Rust_%2B_Slint-ea580c?style=flat-square" alt="Rust + Slint">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-16a34a?style=flat-square" alt="MIT License"></a>
 </p>
@@ -21,15 +21,15 @@
 <p>
   <a href="README.md">简体中文</a> · <strong>English</strong>
   &nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/PortCanvas_0.7.0_x64-setup.exe"><strong>Download Windows v0.7.0</strong></a>
-  · <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/PortCanvas_0.7.0_universal.dmg">macOS v0.7.0 DMG</a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_x64-setup.exe"><strong>Download Windows v0.7.1</strong></a>
+  · <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_universal.dmg">macOS v0.7.1 DMG</a>
   · <a href="docs/usage.md">Usage Guide</a>
   · <a href="https://github.com/JvKan9Zz/PortCanvas/releases">Releases</a>
 </p>
 
 <br>
 
-<img src="assets/preview/workbench-light.png" width="100%" alt="PortCanvas v0.7.0 Frameless Liquid Glass Workbench">
+<img src="assets/preview/workbench-light.png" width="100%" alt="PortCanvas v0.7.1 Frameless Liquid Glass Workbench">
 
 </div>
 
@@ -101,16 +101,16 @@ Open **Plugins → Available** inside PortCanvas to download signed official plu
 
 | Platform | Latest | Package | Notes |
 | --- | --- | --- | --- |
-| **Windows x64** | **v0.7.0** | [**PortCanvas_0.7.0_x64-setup.exe**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/PortCanvas_0.7.0_x64-setup.exe) | Stable channel with signed in-app updates; fresh installs store data in `<install>/data/` and plugins in `<install>/plugins/`; upgrades keep existing data |
-| **macOS 13.0+** | **v0.7.0** | [**PortCanvas_0.7.0_universal.dmg**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/PortCanvas_0.7.0_universal.dmg) | Apple Silicon &amp; Intel Universal build, ad-hoc signed for manual install ([SHA-256](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/PortCanvas_0.7.0_universal.dmg.sha256)); see [Mac guide](docs/macos.md) |
+| **Windows x64** | **v0.7.1** | [**PortCanvas_0.7.1_x64-setup.exe**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_x64-setup.exe) | Stable channel with signed in-app updates; fresh installs store data in `<install>/data/`, plugins in `<install>/plugins/`, and silent 10 MiB diagnostic logs in `<install>/debuglogs/`; upgrades keep existing data |
+| **macOS 13.0+** | **v0.7.1** | [**PortCanvas_0.7.1_universal.dmg**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_universal.dmg) | Apple Silicon &amp; Intel Universal build, ad-hoc signed for manual install ([SHA-256](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_universal.dmg.sha256)); see [Mac guide](docs/macos.md) |
 
 <details>
 <summary><strong>Data migration, remote dependencies &amp; archive links</strong></summary>
 
 - **Credentials & Migration**: Saved credentials stay encrypted on the local machine via Windows DPAPI or macOS Keychain and are never exported inside `.portcanvas` bundles. Legacy data and `.portcanvas` bundles can be previewed and imported from the Devices page with automatic backup.
-- **Updates & Plugin Trust**: Windows stable builds support Minisign-verified in-app updates via Settings → About. Production builds enforce HTTPS and Minisign verification for the plugin catalog.
+- **Updates, Diagnostics & Plugin Trust**: Windows stable builds support Minisign-verified in-app updates and one-click debug log export ("Report Issue") via Settings → About. Production builds enforce HTTPS and Minisign verification for the plugin catalog.
 - **Remote Linux Tools**: Reuses existing SSH, Python 3, `tmux`, SFTP, `x11vnc`, and FFmpeg/OpenCV on the target device. Optional component preparation targets Ubuntu 20.04 ARM64 controllers inside an isolated user cache without modifying system SDKs.
-- **Previous Releases**: [v0.6.4](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.4) · [v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3) · [v0.6.2](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.2) · [v0.5.95](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.5.95) · [All Releases](https://github.com/JvKan9Zz/PortCanvas/releases)
+- **Previous Releases**: [v0.7.0](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0) · [v0.6.4](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.4) · [v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3) · [v0.6.2](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.2) · [All Releases](https://github.com/JvKan9Zz/PortCanvas/releases)
 
 </details>
 
