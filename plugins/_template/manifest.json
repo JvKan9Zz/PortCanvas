@@ -1,0 +1,26 @@
+{
+  "schema": "portcanvas.plugin/1",
+  "id": "hello-toolbox",
+  "name": "示例工具插件",
+  "nameEn": "Hello Toolbox",
+  "version": "0.1.0",
+  "summary": "PortCanvas declarative-v1 本地 Worker 插件最小模板",
+  "summaryEn": "Minimal declarative-v1 local-worker plugin template for PortCanvas",
+  "category": "tools",
+  "author": "Community",
+  "official": false,
+  "minAppVersion": "0.7.2",
+  "hostSurface": "declarative-v1",
+  "platform": "any",
+  "requiresDevice": false,
+  "lifecycle": "foreground",
+  "icon": "plugins",
+  "ui": "ui.json",
+  "runtime": {
+    "kind": "local-worker",
+    "entry": "bin/worker.py",
+    "args": [],
+    "frameChannel": false
+  },
+  "permissions": ["local.exec"]
+}

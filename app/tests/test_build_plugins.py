@@ -35,6 +35,9 @@ class PluginPackagerTests(unittest.TestCase):
                         self.assertTrue(all(member.isfile() for member in archive.getmembers()))
                         manifest = json.load(archive.extractfile('manifest.json'))
                         self.assertEqual(manifest['id'], entry['id'])
-                        for name in [*manifest.get('assets', {}).values(), *manifest['scripts'].values()]:
+                        expected_files = [*manifest.get('assets', {}).values(), *manifest.get('scripts', {}).values()]
+                        if manifest.get('ui'):
+                            expected_files.append(manifest['ui'])
+                        for name in expected_files:
                             with archive.extractfile(name) as content:
                                 self.assertEqual(content.read(), (ROOT / 'plugins' / entry['id'] / name).read_bytes())

@@ -1,0 +1,27 @@
+{
+  "schema": "portcanvas.plugin/1",
+  "id": "fast-downloader",
+  "name": "128线程下载器",
+  "nameEn": "128-Thread Downloader",
+  "version": "0.1.0",
+  "summary": "最高 128 线程并发分片下载器，支持多任务队列、断点续传与后台运行；安装后自动接管软件内置 32 线程下载器",
+  "summaryEn": "Up to 128-thread concurrent downloader with multi-task queue, resume persistence, and background mode; replaces built-in 32-thread downloader while installed",
+  "category": "tools",
+  "author": "PortCanvas",
+  "official": true,
+  "minAppVersion": "0.7.2",
+  "hostSurface": "declarative-v1",
+  "platform": "windows-x86_64",
+  "requiresDevice": false,
+  "lifecycle": "background",
+  "icon": "download",
+  "ui": "ui.json",
+  "provides": ["downloader"],
+  "runtime": {
+    "kind": "local-worker",
+    "entry": "bin/pc-downloader-worker.exe",
+    "args": ["--worker"],
+    "frameChannel": false
+  },
+  "permissions": ["local.exec", "local.network", "local.fs"]
+}

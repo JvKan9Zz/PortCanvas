@@ -1,0 +1,26 @@
+{
+  "schema": "portcanvas.plugin/1",
+  "id": "video-capture",
+  "name": "视频采集",
+  "nameEn": "Video Capture",
+  "version": "0.1.0",
+  "summary": "通过 USB/HDMI 采集卡或本机摄像头低延迟预览控制器画面，支持分辨率/帧率切换、比例适配与旋转翻转",
+  "summaryEn": "Low-latency local USB/HDMI capture card & camera preview with resolution/FPS switching, aspect fit, and rotate/flip",
+  "category": "tools",
+  "author": "PortCanvas",
+  "official": true,
+  "minAppVersion": "0.7.2",
+  "hostSurface": "declarative-v1",
+  "platform": "windows-x86_64",
+  "requiresDevice": false,
+  "lifecycle": "foreground",
+  "icon": "camera",
+  "ui": "ui.json",
+  "runtime": {
+    "kind": "local-worker",
+    "entry": "bin/pc-capture-worker.exe",
+    "args": ["--worker"],
+    "frameChannel": true
+  },
+  "permissions": ["local.exec", "local.capture"]
+}

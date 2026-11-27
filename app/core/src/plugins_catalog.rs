@@ -16,15 +16,62 @@ pub struct Catalog {
     pub plugins: Vec<CatalogEntry>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogPackage {
+    pub download_url: String,
+    pub size_bytes: u64,
+    pub sha256: String,
+    #[serde(default)]
+    pub signature: Option<String>,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CatalogEntry {
     #[serde(flatten)]
     pub manifest: Manifest,
+    #[serde(default)]
     pub download_url: String,
+    #[serde(default)]
     pub size_bytes: u64,
+    #[serde(default)]
     pub sha256: String,
+    #[serde(default)]
     pub signature: Option<String>,
+    #[serde(default)]
+    pub packages: BTreeMap<String, CatalogPackage>,
+}
+
+impl CatalogEntry {
+    pub fn package_for_platform(&self, platform: &str) -> Option<CatalogPackage> {
+        if !self.packages.is_empty() {
+            if let Some(pkg) = self.packages.get(platform) {
+                return Some(pkg.clone());
+            }
+            if let Some(pkg) = self.packages.get("any") {
+                return Some(pkg.clone());
+            }
+            return None;
+        }
+        if !self.download_url.is_empty()
+            && (self.manifest.platform.is_empty()
+                || self.manifest.platform == "any"
+                || self.manifest.platform == platform)
+        {
+            return Some(CatalogPackage {
+                download_url: self.download_url.clone(),
+                size_bytes: self.size_bytes,
+                sha256: self.sha256.clone(),
+                signature: self.signature.clone(),
+            });
+        }
+        None
+    }
+
+    pub fn current_package(&self) -> Option<CatalogPackage> {
+        self.package_for_platform(current_platform())
+    }
 }
 
 pub struct CatalogClient {
@@ -96,17 +143,41 @@ impl CatalogClient {
         }
     }
 
-    fn validate_entry(&self, entry: &CatalogEntry) -> Result<Url> {
-        entry.manifest.validate()?;
+    fn validate_package(&self, pkg: &CatalogPackage) -> Result<Url> {
         ensure!(
-            (1..=MAX_PACKAGE_BYTES).contains(&entry.size_bytes),
+            (1..=MAX_PACKAGE_BYTES).contains(&pkg.size_bytes),
             "插件包大小无效。"
         );
         ensure!(
-            entry.sha256.len() == 64 && entry.sha256.bytes().all(|b| b.is_ascii_hexdigit()),
+            pkg.sha256.len() == 64 && pkg.sha256.bytes().all(|b| b.is_ascii_hexdigit()),
             "插件包 SHA-256 无效。"
         );
-        checked_url(&entry.download_url, self.loopback)
+        checked_url(&pkg.download_url, self.loopback)
+    }
+
+    fn validate_entry(&self, entry: &CatalogEntry) -> Result<()> {
+        entry.manifest.validate()?;
+        if entry.packages.is_empty() {
+            let pkg = CatalogPackage {
+                download_url: entry.download_url.clone(),
+                size_bytes: entry.size_bytes,
+                sha256: entry.sha256.clone(),
+                signature: entry.signature.clone(),
+            };
+            self.validate_package(&pkg)?;
+        } else {
+            for (platform, pkg) in &entry.packages {
+                ensure!(
+                    matches!(
+                        platform.as_str(),
+                        "any" | "windows-x86_64" | "darwin-universal"
+                    ),
+                    "不支持的目录平台标识：{platform}"
+                );
+                self.validate_package(pkg)?;
+            }
+        }
+        Ok(())
     }
 
     pub async fn download_install(
@@ -116,7 +187,11 @@ impl CatalogClient {
         cancel: &CancellationToken,
         progress: impl Fn(usize, Option<u64>, usize) + Send + Sync,
     ) -> Result<InstalledPlugin> {
-        let url = self.validate_entry(entry)?;
+        self.validate_entry(entry)?;
+        let pkg = entry
+            .current_package()
+            .context("此插件暂未提供当前操作系统的安装包。")?;
+        let url = self.validate_package(&pkg)?;
         ensure!(
             entry.manifest.compatible(),
             "此插件需要更高版本的 PortCanvas。"
@@ -132,7 +207,7 @@ impl CatalogClient {
         let public_key = self.public_key.clone();
         tokio::task::spawn_blocking(move || {
             check_cancel(&cancel)?;
-            verify_package(&bytes, &entry, &public_key)?;
+            verify_package(&bytes, &pkg, &public_key)?;
             store.install(&bytes, Some(&entry.manifest), &cancel)
         })
         .await?
@@ -164,13 +239,13 @@ fn minisign_text(value: &str) -> Result<String> {
     }
 }
 
-fn verify_package(bytes: &[u8], entry: &CatalogEntry, public_key: &str) -> Result<()> {
-    ensure!(bytes.len() as u64 == entry.size_bytes, "插件包下载不完整。");
+fn verify_package(bytes: &[u8], pkg: &CatalogPackage, public_key: &str) -> Result<()> {
+    ensure!(bytes.len() as u64 == pkg.size_bytes, "插件包下载不完整。");
     ensure!(
-        format!("{:x}", Sha256::digest(bytes)).eq_ignore_ascii_case(&entry.sha256),
+        format!("{:x}", Sha256::digest(bytes)).eq_ignore_ascii_case(&pkg.sha256),
         "插件包 SHA-256 校验失败。"
     );
-    if let Some(signature) = &entry.signature {
+    if let Some(signature) = &pkg.signature {
         let key = PublicKey::decode(&minisign_text(public_key)?)?;
         let signature = Signature::decode(&minisign_text(signature)?)?;
         key.verify(bytes, &signature, true)

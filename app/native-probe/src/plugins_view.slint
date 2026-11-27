@@ -10,6 +10,7 @@ export struct PluginCard {
     summary: string,
     author: string,
     official: bool,
+    local-badge: bool,
     installed: bool,
     enabled: bool,
     update-available: bool,
@@ -20,6 +21,9 @@ export struct PluginCard {
     size-text: string,
     permissions: string,
     icon-kind: int,
+    background-running: bool,
+    background-summary: string,
+    downloader-active: bool,
 }
 
 component BadgePill inherits Rectangle {
@@ -77,7 +81,11 @@ component PluginCardTile inherits Rectangle {
                     y: 11px;
                     width: 22px;
                     height: 22px;
-                    source: root.item.icon-kind == 1 ? @image-url("icons/arena.svg") : root.item.icon-kind == 2 ? @image-url("icons/vision.svg") : @image-url("icons/plugins.svg");
+                    source: root.item.icon-kind == 1 ? @image-url("icons/arena.svg")
+                        : root.item.icon-kind == 2 ? @image-url("icons/vision.svg")
+                        : root.item.icon-kind == 3 ? @image-url("icons/camera.svg")
+                        : root.item.icon-kind == 4 ? @image-url("icons/download.svg")
+                        : @image-url("icons/plugins.svg");
                     colorize: AppColors.accent;
                 }
             }
@@ -103,6 +111,18 @@ component PluginCardTile inherits Rectangle {
                     }
                     if root.item.official: BadgePill {
                         text: root.tr("官方", root.english);
+                        tone: AppColors.accent-ink;
+                    }
+                    if !root.item.official && root.item.local-badge: BadgePill {
+                        text: root.tr("本地", root.english);
+                        tone: AppColors.muted;
+                    }
+                    if root.item.background-running: BadgePill {
+                        text: root.tr("运行中", root.english);
+                        tone: root.ok-tone;
+                    }
+                    if root.item.downloader-active: BadgePill {
+                        text: root.tr("已接管内置下载", root.english);
                         tone: AppColors.accent-ink;
                     }
                     if root.item.installed && !root.item.enabled: BadgePill {
@@ -144,6 +164,28 @@ component PluginCardTile inherits Rectangle {
                 tone: AppColors.muted;
             }
             Rectangle { background: transparent; horizontal-stretch: 1; }
+        }
+
+        if root.item.background-running && root.item.background-summary != "" && !root.item.busy: HorizontalBox {
+            padding: 0px;
+            spacing: 8px;
+            vertical-stretch: 0;
+            Rectangle {
+                width: 8px;
+                height: 8px;
+                y: 5px;
+                border-radius: 4px;
+                background: root.ok-tone;
+                horizontal-stretch: 0;
+            }
+            Text {
+                text: root.item.background-summary;
+                font-size: 11px;
+                color: root.ok-tone;
+                overflow: elide;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
         }
 
         if root.item.busy || root.item.status-text != "": VerticalBox {

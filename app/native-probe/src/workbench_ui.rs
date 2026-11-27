@@ -17,8 +17,7 @@ slint::slint! {
     import {DesktopView} from "desktop_view.slint";
     import {GlassSettings} from "glass_view.slint";
     import {BackgroundSettings,BackgroundCropView} from "background_view.slint";
-    import {ArenaView} from "arena_view.slint";
-    import {VisionView,VisionFact,VisionHolder} from "vision_view.slint";
+    import {DeclarativeView,DeclBlock,DeclControl,DeclButton,DeclKpi,DeclTask,DeclTaskAction} from "declarative_view.slint";
     import {MonitorView,MonitorKpi,CoreRow,StorageRow,NetRow,FactRow} from "monitor_view.slint";
     import {PluginsView,PluginCard} from "plugins_view.slint";
     import {FilesView,FileRow,FileArea} from "files_view.slint";
@@ -163,16 +162,6 @@ slint::slint! {
         callback files-sync();callback files-state-changed();callback files-action(int,string);
         callback files-choose(int,int,bool,bool);callback files-all(int,bool);callback files-open(int,int);
         callback files-load-result(int,string,string,string);callback files-confirm(string,string,bool,string);callback files-finished(string,string);
-        in property <[string]> arena-cameras;in-out property <int> arena-camera-index:0;in-out property <int> arena-rate:2;
-        in property <bool> arena-camera-active;in property <bool> arena-camera-loading;in property <bool> arena-has-frame;in property <image> arena-frame;
-        in property <string> arena-camera-status;
-        in property <image> arena-platform-image;in property <bool> arena-has-platform-image:false;
-        in property <bool> arena-pose-live;in property <float> arena-world-x;in property <float> arena-world-y;in property <float> arena-heading;in property <bool> arena-has-heading;
-        in property <string> arena-pose-status;in property <string> arena-coordinates;
-        in property <string> arena-heading-text:"—";in property <string> arena-confidence-text:"—";in property <string> arena-pose-age-text:"—";
-        callback arena-sync();callback arena-toggle-camera();callback arena-refresh-cameras();callback arena-environment(string);
-        callback arena-cameras-result(string,string,string);callback arena-camera-finished(string,string);
-        callback arena-pose-started(string,string);callback arena-pose-packet(string);
         in property <string> monitor-status;in property <int> monitor-status-phase;in property <string> monitor-host-summary;
         in property <[MonitorKpi]> monitor-kpis;in property <[CoreRow]> monitor-cores;in property <[StorageRow]> monitor-storage;
         in property <[NetRow]> monitor-networks;in property <[FactRow]> monitor-facts;
@@ -183,35 +172,17 @@ slint::slint! {
         in property <string> plugin-status;in property <string> plugin-error;
         in property <[PluginCard]> plugin-items;
         in property <string> plugin-active-id;in property <string> plugin-active-title;in property <string> plugin-active-version;
-        changed plugin-active-id=>{root.page-entering=true;root.arena-sync();root.vision-sync();}
-        callback plugin-refresh();callback plugin-import();callback plugin-filter-changed(int);
+        changed plugin-active-id=>{root.page-entering=true;root.decl-sync();}
+        callback plugin-refresh();callback plugin-import();callback plugin-upload-choice(int);callback plugin-filter-changed(int);
         callback plugin-action(string,string);callback plugin-close-active();callback plugin-state-changed();
-        in property <[string]> vision-cameras;in-out property <int> vision-camera-index:0;
-        in property <[string]> vision-windows;in-out property <int> vision-window-index:0;
-        in-out property <int> vision-source-mode:0;in-out property <int> vision-rate:1;
-        in property <bool> vision-active:false;in property <bool> vision-loading:false;
-        in property <image> vision-frame;in property <bool> vision-has-frame:false;
-        in property <string> vision-status;in property <string> vision-source-badge;in property <int> vision-status-phase:0;
-        in property <string> vision-error;
-        in property <bool> vision-board-busy:false;in property <string> vision-board-summary;in property <[VisionHolder]> vision-holders;
-        in property <bool> vision-shared-available:false;in property <string> vision-capabilities;
-        in-out property <int> vision-algo:0;in-out property <bool> vision-apply-on-watch:false;
-        in-out property <bool> vision-flip-h:false;in-out property <bool> vision-flip-v:false;in-out property <bool> vision-crosshair:true;
-        in-out property <int> vision-binary-mode:2;in-out property <int> vision-thresh:127;in-out property <int> vision-blur:5;
-        in-out property <int> vision-feature-mode:0;in-out property <int> vision-canny-low:30;in-out property <int> vision-canny-high:100;
-        in-out property <int> vision-hsv-preset:0;in-out property <int> vision-hsv-view:0;
-        in-out property <int> vision-h-low:0;in-out property <int> vision-h-high:10;
-        in-out property <int> vision-s-low:50;in-out property <int> vision-s-high:255;
-        in-out property <int> vision-v-low:50;in-out property <int> vision-v-high:255;
-        in-out property <bool> vision-morph:true;in-out property <bool> vision-line-roi:false;
-        in-out property <int> vision-hough-param2:35;in-out property <int> vision-min-radius:12;in-out property <bool> vision-draw-contours:true;
-        in-out property <int> vision-tag-family:0;in-out property <bool> vision-tag-guide:true;
-        in-out property <int> vision-face-neighbors:4;in-out property <int> vision-face-min-size:36;
-        in property <string> vision-telemetry-summary;in property <[VisionFact]> vision-facts;
-        callback vision-sync();callback vision-toggle();callback vision-refresh();
-        callback vision-config-changed();callback vision-preset-changed(int);
-        callback vision-copy-snippet();callback vision-snapshot();callback vision-environment(string);
-        callback vision-inspect-result(string,string,string);callback vision-stream-finished(string,string);
+        in property <bool> decl-requires-device:false;in property <bool> decl-layout-stack:false;in property <float> decl-primary-ratio:0.62;
+        in property <string> decl-error;in property <string> decl-header-status;in property <int> decl-header-phase:0;
+        in property <image> decl-video-frame;in property <bool> decl-has-video-frame:false;
+        in property <image> decl-arena-platform-image;in property <bool> decl-has-arena-platform-image:false;
+        in property <[DeclBlock]> decl-primary-blocks;in property <[DeclBlock]> decl-secondary-blocks;
+        callback decl-sync();callback decl-set-int(string,int);callback decl-set-float(string,float);callback decl-set-bool(string,bool);callback decl-set-string(string,string);
+        callback decl-trigger-action(string,string,string);callback decl-pick-directory(string,string);callback decl-copy-text(string);
+        callback decl-ssh-event(string,string,string);callback decl-core-event(string,string);
         in-out property <bool> terminal-open:false;
         out property <bool> terminal-visible:root.page!=0&&root.terminal-open&&!root.desktop-expanded;
         changed terminal-visible=>{root.terminal-cancel-completion();if root.terminal-visible{root.terminal-reload();}else if !root.desktop-expanded{main-focus.focus();}}
@@ -284,7 +255,7 @@ slint::slint! {
         callback desktop-key(string,bool,bool,bool)->bool;callback desktop-text(string);callback desktop-focused(bool);
         callback desktop-notice(string,string,string,string,bool);callback desktop-finished(string,string);callback desktop-drawn(string);callback desktop-environment(string);
         changed connected=>{if root.connected{root.connection-details-open=true;if root.quick-candidate{root.quick-finished();}}root.desktop-view-changed();}
-        changed english=>{root.monitor-sync();root.arena-sync();root.files-sync();root.desktop-view-changed();root.plugin-state-changed();}
+        changed english=>{root.monitor-sync();root.decl-sync();root.files-sync();root.desktop-view-changed();root.plugin-state-changed();}
         in property <[TerminalTab]> terminal-tabs;
         in property <[TerminalCell]> terminal-cells;
         in property <string> terminal-active;
@@ -347,8 +318,8 @@ slint::slint! {
         callback select-log(string);callback toggle-log(string,bool);callback select-all-logs(bool);callback remove-logs();
         callback choose-log-directory();callback open-log-directory(bool);callback fullscreen();callback set-theme(int);
         changed theme=>{AppColors.preferred-accent=root.theme==1?#2b8169:root.theme==2?#53657f:#356ce5;}
-        changed page=>{root.page-entering=true;if root.page!=5{root.desktop-expand(false);}root.bg-sync();root.monitor-sync();root.arena-sync();root.vision-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==9&&root.plugin-active-id==""&&root.plugin-filter==1{root.plugin-refresh();}if root.terminal-visible{root.terminal-reload();}}
-        changed native-hidden=>{AppColors.motion=!root.material-solid&&!root.native-hidden;root.bg-sync();root.monitor-sync();root.arena-sync();root.vision-sync();root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.terminal-visible{root.terminal-reload();}}
+        changed page=>{root.page-entering=true;if root.page!=5{root.desktop-expand(false);}root.bg-sync();root.monitor-sync();root.decl-sync();root.files-sync();root.desktop-view-changed();root.terminal-cancel-completion();if root.page==3{root.refresh-logs();}if root.page==9&&root.plugin-active-id==""&&root.plugin-filter==1{root.plugin-refresh();}if root.terminal-visible{root.terminal-reload();}}
+        changed native-hidden=>{AppColors.motion=!root.material-solid&&!root.native-hidden;root.bg-sync();root.monitor-sync();root.decl-sync();root.files-sync();root.desktop-view-changed();if root.native-hidden{root.terminal-cancel-completion();}if !root.native-hidden&&root.page==3{root.refresh-logs();}if !root.native-hidden&&root.terminal-visible{root.terminal-reload();}}
         Timer {interval:1200ms;running:root.page==3&&root.log-live&&!root.native-hidden&&root.can-interact;triggered=>{root.poll-logs();}}
 
         in-out property <int> environment-source:0;
@@ -460,12 +431,11 @@ slint::slint! {
                     active-ver:=Text {x:7px;width:parent.width - 14px;height:parent.height;text:"v"+root.plugin-active-version;font-size:11px;font-weight:500;color:AppColors.muted;vertical-alignment:center;}
                 }}
                 Rectangle {background:transparent;horizontal-stretch:1;}
-                if root.plugin-active-id=="arena-monitor":VerticalLayout {alignment:center;horizontal-stretch:0;ConnectionBadge {text:root.tr(root.arena-pose-status,root.english);phase:root.arena-pose-live?2:0;}}
-                if root.plugin-active-id=="vision-studio":VerticalLayout {alignment:center;horizontal-stretch:0;ConnectionBadge {text:root.tr(root.vision-status!=""?root.vision-status:"就绪",root.english);phase:root.vision-status-phase;}}
+                if root.decl-header-status!="":VerticalLayout {alignment:center;horizontal-stretch:0;ConnectionBadge {text:root.tr(root.decl-header-status,root.english);phase:root.decl-header-phase;}}
             }
             if !root.desktop-expanded&&!(root.page==9&&root.plugin-active-id!=""):HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;height:(root.page==5||(root.page==8&&root.connected&&root.monitor-host-summary!=""))?60px:42px;
                 VerticalBox {padding:0px;spacing:4px;vertical-stretch:0;alignment:center;
-                    Text {text:root.tr(root.page==0?"设备连接与管理":root.page==5?"远程桌面":root.page==6?"文件管理与传输":root.page==3?"本地运行日志":root.page==8?"设备性能":"插件",root.english);font-size:25px;font-weight:600;color:AppColors.ink;vertical-stretch:0;}
+                    Text {text:root.tr(root.page==0?"设备连接与管理":root.page==5?"远程桌面":root.page==6?"文件管理与传输":root.page==3?"本地运行日志":root.page==8?"设备性能":"百宝工具箱",root.english);font-size:25px;font-weight:600;color:AppColors.ink;vertical-stretch:0;}
                     if root.page==5:Text {text:root.device-name+" · "+root.display;font-size:11px;color:AppColors.muted;vertical-stretch:0;}
                     if root.page==8&&root.connected&&root.monitor-host-summary!="":Text {text:root.device-name+" · "+root.monitor-host-summary;font-size:11px;color:AppColors.muted;vertical-stretch:0;}
                 }
@@ -480,7 +450,7 @@ slint::slint! {
                     VerticalLayout {alignment:center;horizontal-stretch:0;ActionButton {text:root.tr("刷新",root.english);icon:@image-url("icons/restart.svg");has-icon:true;enabled:root.can-interact&&root.connected;clicked=>{root.monitor-refresh();}}}
                 }
                 if root.page==9:HorizontalBox {padding:0px;spacing:8px;
-                    VerticalLayout {alignment:center;horizontal-stretch:0;ActionButton {text:root.tr("导入插件包",root.english);icon:@image-url("icons/upload.svg");has-icon:true;enabled:root.can-interact;clicked=>{root.plugin-import();}}}
+                    VerticalLayout {alignment:center;horizontal-stretch:0;ActionButton {text:root.tr("上传插件",root.english);icon:@image-url("icons/upload.svg");has-icon:true;enabled:root.can-interact;clicked=>{root.plugin-import();}}}
                     VerticalLayout {alignment:center;horizontal-stretch:0;ActionButton {text:root.tr("刷新目录",root.english);icon:@image-url("icons/restart.svg");has-icon:true;busy:root.plugin-loading;enabled:root.can-interact&&!root.plugin-loading;clicked=>{root.plugin-refresh();}}}
                 }
                 if root.page==0:HorizontalBox {padding:0px;spacing:8px;
@@ -519,41 +489,22 @@ slint::slint! {
                 filter<=>root.plugin-filter;status:root.plugin-status;error:root.plugin-error;items:root.plugin-items;
                 tr(s,e)=>{return root.tr(s,e);}filter-changed(index)=>{root.plugin-filter-changed(index);}plugin-action(id,action)=>{root.plugin-action(id,action);}
             }
-            if root.page==9&&root.plugin-active-id=="arena-monitor":ScrollView {viewport-width:self.visible-width;viewport-height:max(self.visible-height,arena-content.natural-height);vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
-            arena-content:=ArenaView {x:0px;y:0px;width:parent.width;height:max(parent.height,self.natural-height);
-                english:root.english;enabled:root.can-interact;connected:root.connected;
-                cameras:root.arena-cameras;camera-index<=>root.arena-camera-index;rate<=>root.arena-rate;
-                camera-active:root.arena-camera-active;camera-loading:root.arena-camera-loading;frame:root.arena-frame;has-frame:root.arena-has-frame;
-                camera-status:root.arena-camera-status;
-                platform-image:root.arena-platform-image;has-platform-image:root.arena-has-platform-image;
-                live:root.arena-pose-live;world-x:root.arena-world-x;world-y:root.arena-world-y;heading:root.arena-heading;has-heading:root.arena-has-heading;pose-status:root.arena-pose-status;coordinates:root.arena-coordinates;
-                heading-text:root.arena-heading-text;confidence-text:root.arena-confidence-text;pose-age-text:root.arena-pose-age-text;
-                tr(s,e)=>{return root.tr(s,e);}toggle-camera=>{root.arena-toggle-camera();}refresh-cameras=>{root.arena-refresh-cameras();}
-            }
-            }
-            if root.page==9&&root.plugin-active-id=="vision-studio":VisionView {
+            if root.page==9&&root.plugin-active-id!="":DeclarativeView {
                 english:root.english;compact:root.compact-content;enabled:root.can-interact;connected:root.connected;
-                cameras:root.vision-cameras;camera-index<=>root.vision-camera-index;
-                windows:root.vision-windows;window-index<=>root.vision-window-index;
-                source-mode<=>root.vision-source-mode;rate<=>root.vision-rate;
-                active:root.vision-active;loading:root.vision-loading;frame:root.vision-frame;has-frame:root.vision-has-frame;
-                status:root.vision-status;source-badge:root.vision-source-badge;status-phase:root.vision-status-phase;error:root.vision-error;
-                board-busy:root.vision-board-busy;board-summary:root.vision-board-summary;holders:root.vision-holders;
-                shared-available:root.vision-shared-available;capabilities:root.vision-capabilities;
-                algo<=>root.vision-algo;apply-on-watch<=>root.vision-apply-on-watch;
-                flip-h<=>root.vision-flip-h;flip-v<=>root.vision-flip-v;crosshair<=>root.vision-crosshair;
-                binary-mode<=>root.vision-binary-mode;thresh<=>root.vision-thresh;blur<=>root.vision-blur;
-                feature-mode<=>root.vision-feature-mode;canny-low<=>root.vision-canny-low;canny-high<=>root.vision-canny-high;
-                hsv-preset<=>root.vision-hsv-preset;hsv-view<=>root.vision-hsv-view;
-                h-low<=>root.vision-h-low;h-high<=>root.vision-h-high;s-low<=>root.vision-s-low;s-high<=>root.vision-s-high;v-low<=>root.vision-v-low;v-high<=>root.vision-v-high;
-                morph<=>root.vision-morph;line-roi<=>root.vision-line-roi;
-                hough-param2<=>root.vision-hough-param2;min-radius<=>root.vision-min-radius;draw-contours<=>root.vision-draw-contours;
-                tag-family<=>root.vision-tag-family;tag-guide<=>root.vision-tag-guide;
-                face-neighbors<=>root.vision-face-neighbors;face-min-size<=>root.vision-face-min-size;
-                telemetry-summary:root.vision-telemetry-summary;facts:root.vision-facts;
-                tr(s,e)=>{return root.tr(s,e);}toggle-stream=>{root.vision-toggle();}refresh-board=>{root.vision-refresh();}
-                config-changed=>{root.vision-config-changed();}preset-changed(i)=>{root.vision-preset-changed(i);}
-                copy-snippet=>{root.vision-copy-snippet();}snapshot=>{root.vision-snapshot();}connect-device=>{root.page=0;}
+                requires-device:root.decl-requires-device;layout-stack:root.decl-layout-stack;primary-ratio:root.decl-primary-ratio;
+                error:root.decl-error;
+                video-frame:root.decl-video-frame;has-video-frame:root.decl-has-video-frame;
+                arena-platform-image:root.decl-arena-platform-image;has-arena-platform-image:root.decl-has-arena-platform-image;
+                primary-blocks:root.decl-primary-blocks;secondary-blocks:root.decl-secondary-blocks;
+                tr(s,e)=>{return root.tr(s,e);}
+                set-int(k,v)=>{root.decl-set-int(k,v);}
+                set-float(k,v)=>{root.decl-set-float(k,v);}
+                set-bool(k,v)=>{root.decl-set-bool(k,v);}
+                set-string(k,v)=>{root.decl-set-string(k,v);}
+                trigger-action(a,i,p)=>{root.decl-trigger-action(a,i,p);}
+                pick-directory(k,a)=>{root.decl-pick-directory(k,a);}
+                copy-text(t)=>{root.decl-copy-text(t);}
+                connect-device=>{root.page=0;}
             }
             if root.page==6:FilesView {compact:root.compact-content;
                 english:root.english;enabled:root.can-interact;connected:root.connected;busy:root.file-mutating;
@@ -776,11 +727,45 @@ slint::slint! {
                                 if root.program-error!="":Text {text:root.tr(root.program-error,root.english);color:AppColors.danger;wrap:word-wrap;vertical-stretch:0;}
                             }
                         }
+                        if root.painted-dialog==19:VerticalBox {padding:0px;spacing:10px;vertical-stretch:0;
+                            Rectangle {
+                                height:64px;border-radius:12px;border-width:1px;border-color:AppColors.accent.with-alpha(0.35);background:upload-opt-1.has-hover?AppColors.soft:AppColors.field;
+                                animate background {duration:AppColors.motion?140ms:0ms;}
+                                HorizontalBox {padding-left:14px;padding-right:14px;spacing:12px;
+                                    Rectangle {width:36px;height:36px;y:(parent.height - 36px)/2;horizontal-stretch:0;border-radius:10px;background:AppColors.accent.with-alpha(0.14);
+                                        Image {x:9px;y:9px;width:18px;height:18px;source:@image-url("icons/upload.svg");colorize:AppColors.accent;}
+                                    }
+                                    VerticalBox {padding:0px;spacing:2px;alignment:center;horizontal-stretch:1;
+                                        Text {text:root.tr("导入本地插件",root.english);font-size:13px;font-weight:600;color:AppColors.ink;}
+                                        Text {text:root.tr("选择本地 .pcplugin 安装包并核对权限后安装",root.english);font-size:11px;color:AppColors.muted;overflow:elide;}
+                                    }
+                                    Image {width:16px;height:16px;y:(parent.height - 16px)/2;horizontal-stretch:0;source:@image-url("icons/chevron-right.svg");colorize:AppColors.muted;}
+                                }
+                                upload-opt-1:=TouchArea {accessible-role:button;accessible-label:root.tr("导入本地插件",root.english);clicked=>{root.plugin-upload-choice(0);}}
+                            }
+                            Rectangle {
+                                height:64px;border-radius:12px;border-width:1px;border-color:AppColors.edge;background:upload-opt-2.has-hover?AppColors.soft:AppColors.field;
+                                animate background {duration:AppColors.motion?140ms:0ms;}
+                                HorizontalBox {padding-left:14px;padding-right:14px;spacing:12px;
+                                    Rectangle {width:36px;height:36px;y:(parent.height - 36px)/2;horizontal-stretch:0;border-radius:10px;background:AppColors.soft;
+                                        Image {x:9px;y:9px;width:18px;height:18px;source:@image-url("icons/download.svg");colorize:AppColors.accent;}
+                                    }
+                                    VerticalBox {padding:0px;spacing:2px;alignment:center;horizontal-stretch:1;
+                                        Text {text:root.tr("下载插件开发规范文档",root.english);font-size:13px;font-weight:600;color:AppColors.ink;}
+                                        Text {text:root.tr("保存 declarative-v1 与 pc-worker-v1 开发规范（Markdown）",root.english);font-size:11px;color:AppColors.muted;overflow:elide;}
+                                    }
+                                    Image {width:16px;height:16px;y:(parent.height - 16px)/2;horizontal-stretch:0;source:@image-url("icons/chevron-right.svg");colorize:AppColors.muted;}
+                                }
+                                upload-opt-2:=TouchArea {accessible-role:button;accessible-label:root.tr("下载插件开发规范文档",root.english);clicked=>{root.plugin-upload-choice(1);}}
+                            }
+                        }
                         if root.painted-dialog==15&&root.file-error!="":Text {text:root.file-error;color:AppColors.danger;wrap:word-wrap;}
-                        HorizontalBox {padding:0px;padding-top:root.painted-dialog==16?20px:0px;spacing:8px;
+                        HorizontalBox {padding:0px;padding-top:root.painted-dialog==16?20px:0px;spacing:root.painted-dialog==19?0px:8px;
                             Rectangle {background:transparent;horizontal-stretch:1;}
                             cancel-response:=ActionButton {enabled:!root.system-executing&&!root.migration-executing&&!(root.painted-dialog==15&&root.file-mutating);text:root.tr(root.painted-dialog==12?"保持当前":"取消",root.english);primary:false;clicked=>{root.respond(false);}}
-                            confirm-response:=ActionButton {busy:root.painted-dialog==15&&root.file-mutating;enabled:!root.system-executing&&!root.migration-executing&&(root.painted-dialog!=16||(root.terminal-phase=="connected"&&!root.terminal-sending))&&(root.painted-dialog!=15||(!root.file-mutating&&root.file-folder-name!=""));text:root.tr(root.painted-dialog==18?"确认卸载":root.painted-dialog==17?"退出":root.painted-dialog==16?"保存并运行":root.painted-dialog==15?"创建":root.painted-dialog==13?"安装并重启":root.painted-dialog==12?(root.material-suggestion-target==1?"切换到均衡":"切换到轻量"):root.painted-dialog==2?"信任并连接":root.painted-dialog==3?"清理所选":(root.painted-dialog==4||root.painted-dialog==9)?"确认重启":root.painted-dialog==5?"确认关闭":root.painted-dialog==6?"确认覆盖":root.painted-dialog==7?"确认删除":root.painted-dialog==10?"确认导入":root.painted-dialog==11?"确认恢复":"确认移除",root.english);primary:root.painted-dialog==16||root.painted-dialog==15||root.painted-dialog==2||root.painted-dialog==8||root.painted-dialog==10||root.painted-dialog==13;danger:root.painted-dialog==3||root.painted-dialog==4||root.painted-dialog==5||root.painted-dialog==6||root.painted-dialog==7||root.painted-dialog==9||root.painted-dialog==11||root.painted-dialog==18;clicked=>{root.respond(true);}}
+                            Rectangle {visible:root.painted-dialog!=19;width:root.painted-dialog==19?0px:confirm-response.preferred-width;height:confirm-response.height;horizontal-stretch:0;clip:true;background:transparent;
+                                confirm-response:=ActionButton {busy:root.painted-dialog==15&&root.file-mutating;enabled:!root.system-executing&&!root.migration-executing&&(root.painted-dialog!=16||(root.terminal-phase=="connected"&&!root.terminal-sending))&&(root.painted-dialog!=15||(!root.file-mutating&&root.file-folder-name!=""));text:root.tr(root.painted-dialog==20?"确认安装":root.painted-dialog==18?"确认卸载":root.painted-dialog==17?"退出":root.painted-dialog==16?"保存并运行":root.painted-dialog==15?"创建":root.painted-dialog==13?"安装并重启":root.painted-dialog==12?(root.material-suggestion-target==1?"切换到均衡":"切换到轻量"):root.painted-dialog==2?"信任并连接":root.painted-dialog==3?"清理所选":(root.painted-dialog==4||root.painted-dialog==9)?"确认重启":root.painted-dialog==5?"确认关闭":root.painted-dialog==6?"确认覆盖":root.painted-dialog==7?"确认删除":root.painted-dialog==10?"确认导入":root.painted-dialog==11?"确认恢复":"确认移除",root.english);primary:root.painted-dialog==20||root.painted-dialog==16||root.painted-dialog==15||root.painted-dialog==2||root.painted-dialog==8||root.painted-dialog==10||root.painted-dialog==13;danger:root.painted-dialog==3||root.painted-dialog==4||root.painted-dialog==5||root.painted-dialog==6||root.painted-dialog==7||root.painted-dialog==9||root.painted-dialog==11||root.painted-dialog==18;clicked=>{root.respond(true);}}
+                            }
                             FocusScope {width:0px;height:0px;enabled:root.painted-dialog!=8&&root.painted-dialog!=14;changed has-focus=>{if self.has-focus{cancel-response.focus();}}}
                         }
                     }

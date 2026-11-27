@@ -22,6 +22,7 @@ pub mod logs;
 pub mod migration;
 pub mod services;
 pub mod plugins;
+pub mod plugin_runtime;
 mod device_actions;
 mod config_json;
 pub mod application;

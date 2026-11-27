@@ -1,0 +1,367 @@
+{
+  "layout": "split",
+  "primaryWidthRatio": 0.62,
+  "headerBadge": {
+    "statusKey": "status",
+    "phaseKey": "statusPhase",
+    "defaultText": "就绪",
+    "defaultTextEn": "Ready"
+  },
+  "initialState": {
+    "status": "就绪",
+    "statusPhase": 0,
+    "sourceMode": 0,
+    "cameraIndex": 0,
+    "windowIndex": 0,
+    "rate": 1,
+    "active": false,
+    "loading": false,
+    "sourceBadge": "",
+    "capabilities": "",
+    "boardBusy": false,
+    "boardSummary": "",
+    "cameraOptions": [],
+    "windowOptions": [],
+    "holders": [],
+    "facts": [],
+    "algo": 0,
+    "applyOnWatch": false,
+    "flipH": false,
+    "flipV": false,
+    "crosshair": true,
+    "binaryMode": 2,
+    "thresh": 127,
+    "blur": 5,
+    "featureMode": 0,
+    "cannyLow": 30,
+    "cannyHigh": 100,
+    "hsvPreset": 0,
+    "hsvView": 0,
+    "hLow": 0,
+    "hHigh": 10,
+    "sLow": 50,
+    "sHigh": 255,
+    "vLow": 50,
+    "vHigh": 255,
+    "morph": true,
+    "lineRoi": false,
+    "houghParam2": 35,
+    "minRadius": 12,
+    "drawContours": true,
+    "tagFamily": 0,
+    "tagGuide": true,
+    "faceNeighbors": 4,
+    "faceMinSize": 36
+  },
+  "presets": {
+    "hsvPreset": {
+      "0": { "hLow": 0, "hHigh": 10, "sLow": 50, "sHigh": 255, "vLow": 50, "vHigh": 255 },
+      "1": { "hLow": 100, "hHigh": 124, "sLow": 80, "sHigh": 255, "vLow": 50, "vHigh": 255 },
+      "2": { "hLow": 35, "hHigh": 85, "sLow": 60, "sHigh": 255, "vLow": 50, "vHigh": 255 },
+      "3": { "hLow": 18, "hHigh": 34, "sLow": 80, "sHigh": 255, "vLow": 80, "vHigh": 255 }
+    }
+  },
+  "primary": [
+    {
+      "type": "video-stage",
+      "id": "vision-stage",
+      "title": "视觉画面",
+      "titleEn": "Vision Preview",
+      "badgeKey": "sourceBadge",
+      "capabilitiesKey": "capabilities",
+      "activeKey": "active",
+      "loadingKey": "loading",
+      "showSnapshot": true,
+      "snapshotAction": "snapshot",
+      "emptyText": "选择画面来源与算法后点击开启画面",
+      "emptyTextEn": "Select source and algorithm, then start stream",
+      "controls": [
+        {
+          "type": "button",
+          "id": "refresh-board",
+          "label": "巡检",
+          "labelEn": "Inspect",
+          "action": "refresh_board",
+          "icon": "restart"
+        },
+        {
+          "type": "button",
+          "id": "toggle-stream",
+          "label": "开启画面",
+          "labelEn": "Start Stream",
+          "activeLabel": "停止画面",
+          "activeLabelEn": "Stop Stream",
+          "activeKey": "active",
+          "busyKey": "loading",
+          "action": "toggle_stream",
+          "primary": true
+        }
+      ]
+    },
+    {
+      "type": "kpi-grid",
+      "id": "vision-telemetry",
+      "title": "实时遥测",
+      "titleEn": "Live Telemetry",
+      "columns": 2,
+      "dynamicItemsKey": "facts"
+    },
+    {
+      "type": "task-list",
+      "id": "vision-holders",
+      "title": "板端摄像头占用监视",
+      "titleEn": "Board Camera Process Watch",
+      "summaryKey": "boardSummary",
+      "itemsKey": "holders",
+      "emptyText": "当前没有板端进程占用摄像头",
+      "emptyTextEn": "No board process is currently holding a camera"
+    }
+  ],
+  "secondary": [
+    {
+      "type": "control-card",
+      "id": "source-card",
+      "title": "画面来源",
+      "titleEn": "Video Source",
+      "controls": [
+        {
+          "type": "segmented",
+          "id": "source-mode",
+          "stateKey": "sourceMode",
+          "options": [
+            { "label": "直连相机", "labelEn": "Direct Cam", "value": 0 },
+            { "label": "窗口伴随", "labelEn": "Window Watch", "value": 1 },
+            { "label": "共享帧", "labelEn": "Shared Frame", "value": 2 }
+          ],
+          "disabledWhen": { "key": "active", "truthy": true }
+        },
+        {
+          "type": "select",
+          "id": "cam-select",
+          "label": "摄像头设备",
+          "labelEn": "Camera Device",
+          "stateKey": "cameraIndex",
+          "optionsKey": "cameraOptions",
+          "visibleWhen": { "key": "sourceMode", "equals": 0 },
+          "disabledWhen": { "key": "active", "truthy": true }
+        },
+        {
+          "type": "select",
+          "id": "win-select",
+          "label": "板端窗口",
+          "labelEn": "Board Window",
+          "stateKey": "windowIndex",
+          "optionsKey": "windowOptions",
+          "visibleWhen": { "key": "sourceMode", "equals": 1 },
+          "disabledWhen": { "key": "active", "truthy": true }
+        },
+        {
+          "type": "select",
+          "id": "rate-select",
+          "label": "目标帧率",
+          "labelEn": "Target FPS",
+          "stateKey": "rate",
+          "options": [
+            { "label": "8 FPS", "value": 0 },
+            { "label": "15 FPS", "value": 1 },
+            { "label": "20 FPS", "value": 2 },
+            { "label": "30 FPS", "value": 3 }
+          ],
+          "disabledWhen": { "key": "active", "truthy": true }
+        },
+        {
+          "type": "checkbox",
+          "id": "apply-on-watch",
+          "label": "在伴随监视画面上叠加算法",
+          "labelEn": "Apply algorithm on watched stream",
+          "stateKey": "applyOnWatch",
+          "visibleWhen": { "key": "sourceMode", "in": [1, 2] }
+        }
+      ]
+    },
+    {
+      "type": "control-card",
+      "id": "algo-card",
+      "title": "OpenCV 实时算法",
+      "titleEn": "OpenCV Live Algorithm",
+      "controls": [
+        {
+          "type": "select",
+          "id": "algo-select",
+          "label": "算法模式",
+          "labelEn": "Algorithm Mode",
+          "stateKey": "algo",
+          "options": [
+            { "label": "原始画面", "labelEn": "Raw", "value": 0 },
+            { "label": "滤波与二值化", "labelEn": "Filter & Binary", "value": 1 },
+            { "label": "边缘与轮廓", "labelEn": "Edges & Contours", "value": 2 },
+            { "label": "HSV 色彩与巡线", "labelEn": "HSV & Line", "value": 3 },
+            { "label": "几何形状", "labelEn": "Shapes", "value": 4 },
+            { "label": "AprilTag 识别", "labelEn": "AprilTag", "value": 5 },
+            { "label": "人脸检测", "labelEn": "Face Detect", "value": 6 }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "id": "flip-h",
+          "label": "水平镜像",
+          "labelEn": "Flip Horizontal",
+          "stateKey": "flipH"
+        },
+        {
+          "type": "checkbox",
+          "id": "flip-v",
+          "label": "垂直翻转",
+          "labelEn": "Flip Vertical",
+          "stateKey": "flipV"
+        },
+        {
+          "type": "checkbox",
+          "id": "crosshair",
+          "label": "中心十字准星",
+          "labelEn": "Center Crosshair",
+          "stateKey": "crosshair"
+        },
+        {
+          "type": "segmented",
+          "id": "binary-mode",
+          "label": "二值化方式",
+          "labelEn": "Threshold Mode",
+          "stateKey": "binaryMode",
+          "options": [
+            { "label": "灰度", "labelEn": "Gray", "value": 0 },
+            { "label": "固定阈值", "labelEn": "Fixed", "value": 1 },
+            { "label": "Otsu 自适应", "labelEn": "Otsu", "value": 2 }
+          ],
+          "visibleWhen": { "key": "algo", "equals": 1 }
+        },
+        {
+          "type": "slider",
+          "id": "thresh",
+          "label": "阈值",
+          "labelEn": "Threshold",
+          "stateKey": "thresh",
+          "min": 0,
+          "max": 255,
+          "step": 1,
+          "visibleWhen": { "key": "algo", "equals": 1 }
+        },
+        {
+          "type": "slider",
+          "id": "blur",
+          "label": "高斯滤波核",
+          "labelEn": "Gaussian Blur",
+          "stateKey": "blur",
+          "min": 1,
+          "max": 21,
+          "step": 2,
+          "visibleWhen": { "key": "algo", "equals": 1 }
+        },
+        {
+          "type": "segmented",
+          "id": "feature-mode",
+          "label": "边缘检测模式",
+          "labelEn": "Edge Mode",
+          "stateKey": "featureMode",
+          "options": [
+            { "label": "Canny 边缘", "labelEn": "Canny", "value": 0 },
+            { "label": "叠加轮廓", "labelEn": "Contours", "value": 1 }
+          ],
+          "visibleWhen": { "key": "algo", "equals": 2 }
+        },
+        {
+          "type": "slider",
+          "id": "canny-low",
+          "label": "Canny 低阈值",
+          "labelEn": "Canny Low",
+          "stateKey": "cannyLow",
+          "min": 0,
+          "max": 255,
+          "step": 1,
+          "visibleWhen": { "key": "algo", "equals": 2 }
+        },
+        {
+          "type": "slider",
+          "id": "canny-high",
+          "label": "Canny 高阈值",
+          "labelEn": "Canny High",
+          "stateKey": "cannyHigh",
+          "min": 0,
+          "max": 255,
+          "step": 1,
+          "visibleWhen": { "key": "algo", "equals": 2 }
+        },
+        {
+          "type": "segmented",
+          "id": "hsv-preset",
+          "label": "颜色预设",
+          "labelEn": "Color Preset",
+          "stateKey": "hsvPreset",
+          "options": [
+            { "label": "红", "labelEn": "Red", "value": 0 },
+            { "label": "蓝", "labelEn": "Blue", "value": 1 },
+            { "label": "绿", "labelEn": "Green", "value": 2 },
+            { "label": "黄", "labelEn": "Yellow", "value": 3 }
+          ],
+          "visibleWhen": { "key": "algo", "equals": 3 }
+        },
+        {
+          "type": "segmented",
+          "id": "hsv-view",
+          "label": "显示视图",
+          "labelEn": "View Mode",
+          "stateKey": "hsvView",
+          "options": [
+            { "label": "叠加标注", "labelEn": "Overlay", "value": 0 },
+            { "label": "二值掩膜", "labelEn": "Mask", "value": 1 }
+          ],
+          "visibleWhen": { "key": "algo", "equals": 3 }
+        },
+        { "type": "slider", "id": "h-low", "label": "H 下限", "labelEn": "H Low", "stateKey": "hLow", "min": 0, "max": 180, "step": 1, "visibleWhen": { "key": "algo", "equals": 3 } },
+        { "type": "slider", "id": "h-high", "label": "H 上限", "labelEn": "H High", "stateKey": "hHigh", "min": 0, "max": 180, "step": 1, "visibleWhen": { "key": "algo", "equals": 3 } },
+        { "type": "slider", "id": "s-low", "label": "S 下限", "labelEn": "S Low", "stateKey": "sLow", "min": 0, "max": 255, "step": 1, "visibleWhen": { "key": "algo", "equals": 3 } },
+        { "type": "slider", "id": "s-high", "label": "S 上限", "labelEn": "S High", "stateKey": "sHigh", "min": 0, "max": 255, "step": 1, "visibleWhen": { "key": "algo", "equals": 3 } },
+        { "type": "slider", "id": "v-low", "label": "V 下限", "labelEn": "V Low", "stateKey": "vLow", "min": 0, "max": 255, "step": 1, "visibleWhen": { "key": "algo", "equals": 3 } },
+        { "type": "slider", "id": "v-high", "label": "V 上限", "labelEn": "V High", "stateKey": "vHigh", "min": 0, "max": 255, "step": 1, "visibleWhen": { "key": "algo", "equals": 3 } },
+        { "type": "checkbox", "id": "morph", "label": "形态学降噪", "labelEn": "Morphology", "stateKey": "morph", "visibleWhen": { "key": "algo", "equals": 3 } },
+        { "type": "checkbox", "id": "line-roi", "label": "巡线 ROI 引导", "labelEn": "Line ROI", "stateKey": "lineRoi", "visibleWhen": { "key": "algo", "equals": 3 } },
+        { "type": "slider", "id": "hough-p2", "label": "霍夫圆灵敏度", "labelEn": "Hough Param2", "stateKey": "houghParam2", "min": 10, "max": 80, "step": 1, "visibleWhen": { "key": "algo", "equals": 4 } },
+        { "type": "slider", "id": "min-radius", "label": "最小圆半径", "labelEn": "Min Radius", "stateKey": "minRadius", "min": 4, "max": 120, "step": 2, "visibleWhen": { "key": "algo", "equals": 4 } },
+        { "type": "checkbox", "id": "draw-contours", "label": "绘制多边形轮廓", "labelEn": "Draw Polygons", "stateKey": "drawContours", "visibleWhen": { "key": "algo", "equals": 4 } },
+        {
+          "type": "select",
+          "id": "tag-family",
+          "label": "AprilTag 家族",
+          "labelEn": "Tag Family",
+          "stateKey": "tagFamily",
+          "options": [
+            { "label": "tag36h11", "value": 0 },
+            { "label": "tag25h9", "value": 1 },
+            { "label": "tag16h5", "value": 2 }
+          ],
+          "visibleWhen": { "key": "algo", "equals": 5 }
+        },
+        { "type": "checkbox", "id": "tag-guide", "label": "绘制角点与中心引导", "labelEn": "Draw Tag Guide", "stateKey": "tagGuide", "visibleWhen": { "key": "algo", "equals": 5 } },
+        { "type": "slider", "id": "face-neighbors", "label": "邻域校验次数", "labelEn": "Min Neighbors", "stateKey": "faceNeighbors", "min": 1, "max": 12, "step": 1, "visibleWhen": { "key": "algo", "equals": 6 } },
+        { "type": "slider", "id": "face-min-size", "label": "最小人脸尺寸", "labelEn": "Min Face Size", "stateKey": "faceMinSize", "min": 20, "max": 160, "step": 4, "unit": "px", "visibleWhen": { "key": "algo", "equals": 6 } }
+      ]
+    },
+    {
+      "type": "control-card",
+      "id": "snippet-card",
+      "title": "无头程序共享帧接入",
+      "titleEn": "Headless Shared Frame Snippet",
+      "controls": [
+        {
+          "type": "code-snippet",
+          "id": "shm-snippet",
+          "label": "在板端视觉脚本主循环写入 /dev/shm/portcanvas_cam.jpg",
+          "labelEn": "Write frames to /dev/shm/portcanvas_cam.jpg in your script",
+          "text": "import cv2, os\nif cv2.imwrite('/dev/shm/.portcanvas_cam-%d.jpg' % os.getpid(), frame): os.replace('/dev/shm/.portcanvas_cam-%d.jpg' % os.getpid(), '/dev/shm/portcanvas_cam.jpg')",
+          "copyLabel": "复制代码",
+          "copyLabelEn": "Copy Snippet"
+        }
+      ]
+    }
+  ]
+}

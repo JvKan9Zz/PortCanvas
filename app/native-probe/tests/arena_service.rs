@@ -19,7 +19,7 @@ fn install_arena(services: &Services) -> Result<()> {
         Vec::new(), flate2::Compression::fast(),
     ));
     let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../plugins/arena-monitor");
-    for name in ["manifest.json", "assets/arena-platform.png", "config/arena.json",
+    for name in ["manifest.json", "ui.json", "assets/arena-platform.png", "config/arena.json",
                  "scripts/camera_list.py", "scripts/camera_stream.py", "scripts/pose_stream.py"] {
         archive.append_path_with_name(source.join(name), name)?;
     }
@@ -293,7 +293,7 @@ async fn vision_package_stream_hot_updates_and_stops_when_disabled() -> Result<(
             Vec::new(), flate2::Compression::fast(),
         ));
         let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../plugins/vision-studio");
-        for name in ["manifest.json", "scripts/vision_inspect.py", "scripts/vision_stream.py"] {
+        for name in ["manifest.json", "ui.json", "scripts/vision_inspect.py", "scripts/vision_stream.py"] {
             archive.append_path_with_name(source.join(name), name)?;
         }
         let bytes = archive.into_inner()?.finish()?;
