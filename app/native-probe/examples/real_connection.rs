@@ -180,6 +180,7 @@ async fn main() -> Result<()> {
     );
     let s = Services::new(
         Paths {
+            plugins: None,
             data: root.join("data"),
             documents: root.clone(),
             local_files: root.join("local-files"),

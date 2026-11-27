@@ -687,7 +687,7 @@ impl Controller {
                     },
                 );
             }
-        } else {
+        } else if self.timer.running() {
             self.timer.stop();
         }
     }

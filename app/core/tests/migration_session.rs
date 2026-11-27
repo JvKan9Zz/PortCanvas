@@ -58,6 +58,7 @@ impl Fixture {
     fn services(&self) -> Result<Arc<Services>> {
         Services::new(
             Paths {
+                plugins: None,
                 data: self.target.clone(),
                 documents: self.root.join("documents"),
                 local_files: self.root.join("files"),

@@ -212,7 +212,9 @@ pub fn run() -> Result<()> {
                     ui.invoke_terminal_reload();
                     ui.invoke_desktop_view_changed();
                     ui.invoke_files_sync();
+                    ui.invoke_monitor_sync();
                     ui.invoke_arena_sync();
+                    ui.invoke_vision_sync();
                 }
             });
         } else if topic == "arena-pose" {
@@ -229,7 +231,7 @@ pub fn run() -> Result<()> {
                 }
             });
         } else if topic == "environment-progress" {
-            let _=weak.upgrade_in_event_loop(move|ui|{ui.invoke_desktop_environment(value.to_string().into());ui.invoke_arena_environment(value.to_string().into());});
+            let _=weak.upgrade_in_event_loop(move|ui|{ui.invoke_desktop_environment(value.to_string().into());ui.invoke_arena_environment(value.to_string().into());ui.invoke_vision_environment(value.to_string().into());});
         } else if topic == "discovery-state" {
             let _ = weak.upgrade_in_event_loop(move |ui| {
                 ui.set_discovering(value["status"] == "searching");
@@ -268,7 +270,7 @@ pub fn run() -> Result<()> {
     let files=crate::workbench_files::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let system=crate::workbench_system::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let updater=crate::workbench_update::Controller::install(&ui,runtime.clone(),jobs.clone())?;
-    if !cfg!(debug_assertions){ui.invoke_update_action("check".into());}
+    if !cfg!(any(debug_assertions, feature = "loopback-plugin-catalog")){ui.invoke_update_action("check".into());}
     let glass=crate::workbench_glass::Controller::install(&ui,services.clone());
     let material=crate::workbench_material::Controller::install(&ui,desktop.draw_signal())?;
     #[cfg(target_os="macos")]
@@ -303,6 +305,9 @@ pub fn run() -> Result<()> {
         }});
     }
     let background=crate::workbench_background::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone(),material.clone());
+    let monitor=crate::workbench_monitor::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
+    let plugins=crate::workbench_plugins::Controller::install(&ui,services.plugins.clone(),runtime.clone(),jobs.clone());
+    let vision=crate::workbench_vision::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let arena=crate::workbench_arena::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let logs = crate::workbench_logs::Controller::install(
         &ui,
@@ -540,9 +545,11 @@ pub fn run() -> Result<()> {
         let system=system.clone();
         let migration=migration.clone();
         let updater=updater.clone();
+        let plugins=plugins.clone();
         move |accepted| {
             if let Some(ui) = weak.upgrade() {
                 let kind = ui.get_dialog_kind();
+                if kind==18{plugins.respond(accepted);return;}
                 if kind==17{ui.set_dialog_kind(0);if accepted{let _=slint::quit_event_loop();}return;}
                 if kind==16{ui.invoke_terminal_program_response(accepted);return;}
                 if kind==15{files.respond_folder(accepted);return;}
@@ -840,7 +847,10 @@ pub fn run() -> Result<()> {
     let desktop_done=desktop.shutdown();
     terminal.shutdown();
     files.shutdown();
+    monitor.shutdown();
+    plugins.shutdown();
     arena.shutdown();
+    vision.shutdown();
     system.shutdown();
     updater.shutdown();
     glass.shutdown();
@@ -856,7 +866,7 @@ pub fn run() -> Result<()> {
         std::fs::write(
             path,
             serde_json::to_vec_pretty(
-                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"arena":arena.report(),"background":background.report(),"glass":glass.report(),"material":material.report(),"terminalVisible":ui.get_terminal_visible(),"system":system.report(),"migration":migration.report(),"ssh":services.devices.snapshot()["ssh"]}),
+                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"arena":arena.report(),"vision":vision.report(),"monitor":monitor.report(),"plugins":plugins.report(),"background":background.report(),"glass":glass.report(),"material":material.report(),"terminalVisible":ui.get_terminal_visible(),"system":system.report(),"migration":migration.report(),"ssh":services.devices.snapshot()["ssh"]}),
             )?,
         )?;
     }

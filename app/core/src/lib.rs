@@ -1,6 +1,7 @@
 pub mod arena;
 pub mod program;
 pub mod arena_pose;
+pub mod vision;
 pub mod preferences;
 pub mod discovery;
 pub mod i18n;
@@ -20,6 +21,7 @@ pub mod log_store;
 pub mod logs;
 pub mod migration;
 pub mod services;
+pub mod plugins;
 mod device_actions;
 mod config_json;
 pub mod application;

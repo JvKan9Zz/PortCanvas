@@ -92,7 +92,7 @@ export component LogsView inherits VerticalBox {
                     }
                     if root.warning!="":Text {text:root.warning;color:AppColors.danger;font-size:11px;wrap:word-wrap;vertical-stretch:0;}
                     Rectangle {background:AppColors.terminal;border-radius:10px;clip:true;height:max(220px,details-panel.height - 150px);vertical-stretch:0;
-                        output-scroll:=ScrollView {x:12px;y:12px;width:parent.width - 24px;height:parent.height - 24px;viewport-width:max(self.visible-width,raw.preferred-width);viewport-height:max(self.visible-height,raw.preferred-height);
+                        output-scroll:=ScrollView {x:12px;y:12px;width:parent.width - 24px;height:parent.height - 24px;viewport-width:max(self.visible-width,raw.preferred-width);viewport-height:max(self.visible-height,raw.preferred-height);vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
                             raw:=TextInput {width:output-scroll.viewport-width;height:output-scroll.viewport-height;text:root.output;read-only:true;single-line:false;wrap:no-wrap;color:#e0e7f3;font-family:"Consolas";font-size:12px;accessible-label:root.tr("日志原文",root.english);}
                         }
                     }

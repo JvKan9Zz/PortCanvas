@@ -82,6 +82,7 @@ async fn main() -> Result<()> {
     ensure!(root.is_absolute() && root.join("data/devices.json").is_file());
     let s = Services::new(
         Paths {
+            plugins: None,
             data: root.join("data"),
             documents: root.clone(),
             local_files: root.clone(),

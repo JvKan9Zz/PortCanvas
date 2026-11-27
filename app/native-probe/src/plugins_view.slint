@@ -1,0 +1,388 @@
+import {ScrollView,VerticalBox,HorizontalBox} from "std-widgets.slint";
+import {ActionButton,ActivityIndicator,AppColors} from "action_button.slint";
+import {SegmentedChoice} from "settings_controls.slint";
+
+export struct PluginCard {
+    id: string,
+    name: string,
+    version: string,
+    installed-version: string,
+    summary: string,
+    author: string,
+    official: bool,
+    installed: bool,
+    enabled: bool,
+    update-available: bool,
+    can-open: bool,
+    busy: bool,
+    progress: float,
+    status-text: string,
+    size-text: string,
+    permissions: string,
+    icon-kind: int,
+}
+
+component BadgePill inherits Rectangle {
+    in property <string> text;
+    in property <color> tone: AppColors.muted;
+    preferred-width: label.preferred-width + 14px;
+    height: 22px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    border-radius: 7px;
+    background: root.tone.with-alpha(0.11);
+    label:= Text {
+        x: 7px;
+        width: parent.width - 14px;
+        height: parent.height;
+        text: root.text;
+        font-size: 11px;
+        font-weight: 500;
+        color: root.tone;
+        vertical-alignment: center;
+    }
+}
+
+component PluginCardTile inherits Rectangle {
+    in property <PluginCard> item;
+    in property <bool> english;
+    in property <bool> interactive;
+    pure callback tr(string, bool) -> string;
+    callback act(string, string);
+
+    property <color> ok-tone: AppColors.dark ? #a9dcc3 : #235d42;
+    background: AppColors.card;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: root.item.installed && root.item.enabled ? AppColors.accent.with-alpha(0.28) : AppColors.edge;
+
+    VerticalBox {
+        padding: 18px;
+        spacing: 12px;
+
+        HorizontalBox {
+            padding: 0px;
+            spacing: 12px;
+            vertical-stretch: 0;
+            Rectangle {
+                width: 44px;
+                height: 44px;
+                horizontal-stretch: 0;
+                border-radius: 13px;
+                background: AppColors.soft;
+                border-width: 1px;
+                border-color: AppColors.edge;
+                Image {
+                    x: 11px;
+                    y: 11px;
+                    width: 22px;
+                    height: 22px;
+                    source: root.item.icon-kind == 1 ? @image-url("icons/arena.svg") : root.item.icon-kind == 2 ? @image-url("icons/vision.svg") : @image-url("icons/plugins.svg");
+                    colorize: AppColors.accent;
+                }
+            }
+            VerticalBox {
+                padding: 0px;
+                spacing: 4px;
+                horizontal-stretch: 1;
+                HorizontalBox {
+                    padding: 0px;
+                    spacing: 8px;
+                    vertical-stretch: 0;
+                    Text {
+                        text: root.item.name;
+                        font-size: 15px;
+                        font-weight: 600;
+                        color: AppColors.ink;
+                        overflow: elide;
+                        vertical-alignment: center;
+                    }
+                    BadgePill {
+                        text: "v" + (root.item.installed && root.item.installed-version != "" ? root.item.installed-version : root.item.version);
+                        tone: AppColors.muted;
+                    }
+                    if root.item.official: BadgePill {
+                        text: root.tr("官方", root.english);
+                        tone: AppColors.accent-ink;
+                    }
+                    if root.item.installed && !root.item.enabled: BadgePill {
+                        text: root.tr("已停用", root.english);
+                        tone: AppColors.muted;
+                    }
+                    Rectangle { background: transparent; horizontal-stretch: 1; }
+                }
+                Text {
+                    text: root.item.author + (root.item.size-text != "" ? " · " + root.item.size-text : "");
+                    font-size: 11px;
+                    color: AppColors.muted;
+                    overflow: elide;
+                }
+            }
+        }
+
+        Text {
+            text: root.item.summary;
+            font-size: 12px;
+            color: AppColors.ink;
+            wrap: word-wrap;
+            vertical-stretch: 0;
+        }
+
+        if root.item.permissions != "": HorizontalBox {
+            padding: 0px;
+            spacing: 6px;
+            vertical-stretch: 0;
+            Text {
+                text: root.tr("权限", root.english);
+                font-size: 11px;
+                color: AppColors.muted;
+                vertical-alignment: center;
+                horizontal-stretch: 0;
+            }
+            BadgePill {
+                text: root.item.permissions;
+                tone: AppColors.muted;
+            }
+            Rectangle { background: transparent; horizontal-stretch: 1; }
+        }
+
+        if root.item.busy || root.item.status-text != "": VerticalBox {
+            padding: 0px;
+            spacing: 6px;
+            vertical-stretch: 0;
+            HorizontalBox {
+                padding: 0px;
+                spacing: 8px;
+                vertical-stretch: 0;
+                ActivityIndicator { active: root.item.busy; }
+                Text {
+                    text: root.item.status-text;
+                    font-size: 11px;
+                    color: AppColors.muted;
+                    overflow: elide;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+            }
+            if root.item.busy: Rectangle {
+                height: 4px;
+                vertical-stretch: 0;
+                border-radius: 2px;
+                background: AppColors.edge;
+                clip: true;
+                Rectangle {
+                    x: 0px;
+                    y: 0px;
+                    height: parent.height;
+                    width: parent.width * clamp(root.item.progress, 0, 1);
+                    border-radius: 2px;
+                    background: AppColors.accent;
+                    animate width { duration: AppColors.motion ? 140ms : 0ms; }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; vertical-stretch: 0; background: AppColors.dark ? #ffffff14 : #536d8b16; }
+
+        HorizontalBox {
+            padding: 0px;
+            spacing: 8px;
+            vertical-stretch: 0;
+
+            if root.item.busy: ActionButton {
+                text: root.tr("取消", root.english);
+                enabled: root.interactive;
+                clicked => { root.act(root.item.id, "cancel"); }
+            }
+
+            if !root.item.busy && !root.item.installed: ActionButton {
+                text: root.tr("下载安装", root.english);
+                icon: @image-url("icons/download.svg");
+                has-icon: true;
+                primary: true;
+                enabled: root.interactive;
+                clicked => { root.act(root.item.id, "install"); }
+            }
+
+            if !root.item.busy && root.item.installed && root.item.enabled && root.item.can-open: ActionButton {
+                text: root.tr("打开", root.english);
+                icon: @image-url("icons/go.svg");
+                has-icon: true;
+                primary: true;
+                enabled: root.interactive;
+                clicked => { root.act(root.item.id, "open"); }
+            }
+
+            if !root.item.busy && root.item.installed && root.item.update-available: ActionButton {
+                text: root.tr("更新至", root.english) + " v" + root.item.version;
+                icon: @image-url("icons/download.svg");
+                has-icon: true;
+                enabled: root.interactive;
+                clicked => { root.act(root.item.id, "update"); }
+            }
+
+            Rectangle { background: transparent; horizontal-stretch: 1; }
+
+            if !root.item.busy && root.item.installed && !root.item.enabled: ActionButton {
+                text: root.tr("启用", root.english);
+                enabled: root.interactive;
+                clicked => { root.act(root.item.id, "enable"); }
+            }
+
+            if !root.item.busy && root.item.installed: ActionButton {
+                text: root.tr("卸载", root.english);
+                danger: true;
+                enabled: root.interactive;
+                clicked => { root.act(root.item.id, "uninstall"); }
+            }
+        }
+    }
+}
+
+export component PluginsView inherits VerticalBox {
+    in property <bool> english;
+    in property <bool> compact;
+    in property <bool> enabled;
+    in property <bool> loading;
+    in-out property <int> filter: 0;
+    in property <string> status;
+    in property <string> error;
+    in property <[PluginCard]> items;
+    pure callback tr(string, bool) -> string;
+    callback filter-changed(int);
+    callback plugin-action(string, string);
+
+    padding: 0px;
+    spacing: 14px;
+    min-width: 0px;
+
+    HorizontalBox {
+        padding: 0px;
+        spacing: 12px;
+        vertical-stretch: 0;
+        SegmentedChoice {
+            width: 196px;
+            model: [
+                root.tr("已安装", root.english),
+                root.tr("可下载", root.english)
+            ];
+            current-index: root.filter;
+            enabled: root.enabled;
+            selected(index) => {
+                root.filter = index;
+                root.filter-changed(index);
+            }
+        }
+        Rectangle { background: transparent; horizontal-stretch: 1; }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 0;
+            ActivityIndicator { active: root.loading; }
+        }
+    }
+
+    if root.error != "": Rectangle {
+        vertical-stretch: 0;
+        border-radius: 12px;
+        background: AppColors.danger.with-alpha(0.08);
+        border-width: 1px;
+        border-color: AppColors.danger.with-alpha(0.22);
+        HorizontalBox {
+            padding: 12px;
+            Text {
+                text: root.error;
+                font-size: 12px;
+                color: AppColors.danger;
+                wrap: word-wrap;
+            }
+        }
+    }
+
+    if root.items.length == 0 && root.loading: Rectangle {
+        background: AppColors.card;
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: AppColors.edge;
+        VerticalBox {
+            alignment: center;
+            spacing: 12px;
+            padding: 36px;
+            HorizontalBox {
+                padding: 0px;
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+                ActivityIndicator { active: true; }
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+            }
+            Text {
+                text: root.tr("正在加载插件目录…", root.english);
+                font-size: 13px;
+                color: AppColors.muted;
+                horizontal-alignment: center;
+            }
+        }
+    }
+
+    if root.items.length == 0 && !root.loading: Rectangle {
+        background: AppColors.card;
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: AppColors.edge;
+        VerticalBox {
+            alignment: center;
+            spacing: 10px;
+            padding: 36px;
+            HorizontalBox {
+                padding: 0px;
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+                Rectangle {
+                    width: 48px;
+                    height: 48px;
+                    horizontal-stretch: 0;
+                    border-radius: 14px;
+                    background: AppColors.soft;
+                    Image {
+                        x: 12px;
+                        y: 12px;
+                        width: 24px;
+                        height: 24px;
+                        source: @image-url("icons/plugins.svg");
+                        colorize: AppColors.accent;
+                    }
+                }
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+            }
+            Text {
+                text: root.tr(root.filter == 0 ? "尚未安装任何插件" : "暂无可下载的新插件", root.english);
+                font-size: 14px;
+                font-weight: 500;
+                color: AppColors.muted;
+                horizontal-alignment: center;
+            }
+        }
+    }
+
+    if root.items.length > 0: ScrollView {
+        viewport-width: self.visible-width;
+        viewport-height: max(self.visible-height, grid-host.preferred-height);
+        vertical-scrollbar-policy: always-off;
+        horizontal-scrollbar-policy: always-off;
+        min-height: 0px;
+
+        grid-host:= VerticalBox {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: self.preferred-height;
+            padding: 0px;
+            spacing: 14px;
+
+            for item in root.items: PluginCardTile {
+                item: item;
+                english: root.english;
+                interactive: root.enabled;
+                tr(s, e) => { return root.tr(s, e); }
+                act(id, action) => { root.plugin-action(id, action); }
+            }
+        }
+    }
+}

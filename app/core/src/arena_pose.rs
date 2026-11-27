@@ -1,4 +1,4 @@
-use crate::{desktop::python,session::{DeviceManager,EventSink}};
+use crate::{desktop::python,plugins::{stop_with_plugin,PluginStore,ARENA_ID},session::{DeviceManager,EventSink}};
 use anyhow::Result;
 use serde_json::{json,Value};
 use std::sync::{Arc,Mutex};
@@ -21,9 +21,9 @@ pub fn interpret_pose(packet:&Value)->Value{
 struct Running{id:u64,cancel:CancellationToken,done:CancellationToken}
 struct State{id:u64,generation:u64,value:Value,viewer:Instant,running:Option<Running>}
 #[derive(Clone)]
-pub struct PoseService{devices:DeviceManager,events:EventSink,state:Arc<Mutex<State>>,gate:Arc<tokio::sync::Mutex<()>>}
+pub struct PoseService{devices:DeviceManager,events:EventSink,plugins:PluginStore,state:Arc<Mutex<State>>,gate:Arc<tokio::sync::Mutex<()>>}
 impl PoseService{
-    pub fn new(devices:DeviceManager,events:EventSink)->Self{Self{devices,events,state:Arc::new(Mutex::new(State{id:0,generation:0,value:json!({"phase":"unavailable"}),viewer:Instant::now(),running:None})),gate:Arc::new(tokio::sync::Mutex::new(()))}}
+    pub fn new(devices:DeviceManager,events:EventSink,plugins:PluginStore)->Self{Self{devices,events,plugins,state:Arc::new(Mutex::new(State{id:0,generation:0,value:json!({"phase":"unavailable"}),viewer:Instant::now(),running:None})),gate:Arc::new(tokio::sync::Mutex::new(()))}}
     pub fn touch(&self){self.state.lock().unwrap().viewer=Instant::now();}
     pub fn snapshot(&self)->Value{
         let state=self.state.lock().unwrap();let mut value=if state.generation==self.devices.generation(){state.value.clone()}else{json!({"phase":"unavailable"})};value["id"]=json!(state.id);value["generation"]=json!(state.generation);value
@@ -43,17 +43,18 @@ impl PoseService{
         let _guard=tokio::select!{biased;_=request.cancelled()=>anyhow::bail!("定位连接已取消。"),g=self.gate.lock()=>g};
         anyhow::ensure!(!request.is_cancelled()&&expected.is_none_or(|g|g==self.devices.generation()),"设备连接已变化。");
         self.stop_inner(None).await;
+        let (script, plugin) = self.plugins.plugin_script(ARENA_ID, "poseStream")?;
         let(generation,connection)=self.devices.connection_with_generation()?;
         anyhow::ensure!(!request.is_cancelled()&&expected.is_none_or(|g|g==generation),"设备连接已变化。");
         let path=std::env::var("PORTCANVAS_POSE_PATH").unwrap_or_else(|_|"/dev/shm/portcanvas-pose.json".into());
         anyhow::ensure!(path.starts_with('/')&&path.len()<=1024&&!path.contains('\0'),"定位数据路径无效。");
-        let cancel=connection.cancel.child_token();let done=CancellationToken::new();
+        let cancel=stop_with_plugin(plugin,&connection.cancel);let done=CancellationToken::new();
         let id={let mut state=self.state.lock().unwrap();state.id+=1;let id=state.id;state.generation=generation;state.viewer=Instant::now();state.value=json!({"phase":"unavailable"});state.running=Some(Running{id,cancel:cancel.clone(),done:done.clone()});id};
         let service=self.clone();tokio::spawn(async move{
             let operation=async{
                 let mut channel=tokio::select!{_ = cancel.cancelled()=>return Ok::<(),anyhow::Error>(()),result=connection.channel()=>result?};
                 let result=async{
-                    let command=python(include_str!("../resources/pose_stream.py"),json!(["pose",json!({"path":path}).to_string()]))?;
+                    let command=python(&script,json!(["pose",json!({"path":path}).to_string()]))?;
                     tokio::select!{_ = cancel.cancelled()=>return Ok(()),result=channel.exec(true,command)=>result?};
                     let mut pending=Vec::new();let mut heartbeat=tokio::time::interval(Duration::from_secs(1));let deadline=tokio::time::sleep(Duration::from_secs(3));tokio::pin!(deadline);
                     loop{
@@ -72,6 +73,7 @@ impl PoseService{
             }.await;
             service.publish(id,json!({"phase":"unavailable","message":if cancel.is_cancelled(){String::new()}else{operation.err().map(|e|e.to_string()).unwrap_or_default()}}));
             {let mut state=service.state.lock().unwrap();if state.running.as_ref().map(|r|r.id)==Some(id){state.running=None;}}
+            cancel.cancel();
             done.cancel();
         });Ok(self.snapshot())
     }

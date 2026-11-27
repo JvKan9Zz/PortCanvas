@@ -1,4 +1,4 @@
-use crate::{desktop::python,session::DeviceManager};
+use crate::{desktop::python,plugins::{stop_with_plugin,PluginStore,ARENA_ID},session::DeviceManager};
 use anyhow::{Context,Result};
 use serde_json::{json,Value};
 use std::{sync::{Arc,Mutex},time::{Duration,Instant}};
@@ -6,9 +6,9 @@ use tokio_util::sync::CancellationToken;
 
 const MAX_FRAME:usize=1024*1024;
 #[derive(Default)]
-struct JpegFrames {pending:Vec<u8>}
+pub(crate) struct JpegFrames {pending:Vec<u8>}
 impl JpegFrames {
-    fn push(&mut self,data:&[u8])->Result<Vec<Vec<u8>>>{
+    pub(crate) fn push(&mut self,data:&[u8])->Result<Vec<Vec<u8>>>{
         self.pending.extend_from_slice(data);let mut frames=Vec::new();let mut at=0;
         while self.pending.len()-at>=4 {
             let size=u32::from_be_bytes(self.pending[at..at+4].try_into().unwrap())as usize;
@@ -25,22 +25,34 @@ pub struct NativeCameraFrame {pub sequence:u64,pub generation:u64,pub jpeg:Arc<V
 struct Running {id:u64,cancel:CancellationToken,done:CancellationToken}
 struct Camera {id:u64,generation:u64,phase:&'static str,message:String,path:String,backend:String,fps:u32,sent:u64,sent_bytes:u64,meter:Instant,meter_count:u64,stream_fps:Option<f64>,sequence:u64,latest:Option<Arc<Vec<u8>>>,viewer:Instant,native:bool,running:Option<Running>}
 #[derive(Clone)]
-pub struct ArenaService {devices:DeviceManager,camera:Arc<Mutex<Camera>>,gate:Arc<tokio::sync::Mutex<()>>}
+pub struct ArenaService {devices:DeviceManager,plugins:PluginStore,camera:Arc<Mutex<Camera>>,gate:Arc<tokio::sync::Mutex<()>>}
 impl ArenaService {
-    pub fn new(devices:DeviceManager)->Self{Self {devices,camera:Arc::new(Mutex::new(Camera{id:0,generation:0,phase:"idle",message:String::new(),path:String::new(),backend:String::new(),fps:20,sent:0,sent_bytes:0,meter:Instant::now(),meter_count:0,stream_fps:None,sequence:0,latest:None,viewer:Instant::now(),native:false,running:None})),gate:Arc::new(tokio::sync::Mutex::new(()))}}
+    pub fn new(devices:DeviceManager,plugins:PluginStore)->Self{Self {devices,plugins,camera:Arc::new(Mutex::new(Camera{id:0,generation:0,phase:"idle",message:String::new(),path:String::new(),backend:String::new(),fps:20,sent:0,sent_bytes:0,meter:Instant::now(),meter_count:0,stream_fps:None,sequence:0,latest:None,viewer:Instant::now(),native:false,running:None})),gate:Arc::new(tokio::sync::Mutex::new(()))}}
     pub async fn metrics(&self)->Result<Value>{
+        self.metrics_for_generation(self.devices.generation(), &CancellationToken::new()).await
+    }
+    pub async fn metrics_for_generation(&self, expected: u64, request: &CancellationToken) -> Result<Value> {
         let(generation,connection)=self.devices.connection_with_generation()?;let started=Instant::now();
+        anyhow::ensure!(expected == generation,"设备连接已变化。");
         let command=python(include_str!("../resources/device_metrics.py"),json!(["metrics"]))?;
-        let(output,_)=connection.exec(&command,32000,Duration::from_secs(6)).await?;
+        let(output,_)=connection.exec_cancellable(&command,256_000,Duration::from_secs(6),request).await?;
         anyhow::ensure!(generation==self.devices.generation(),"设备连接已变化。");
         let mut data:Value=serde_json::from_str(output.trim()).context("设备性能数据无效。")?;
         data["generation"]=json!(generation);data["roundTripMs"]=json!(started.elapsed().as_secs_f64()*1000.0);Ok(data)
     }
     pub async fn cameras(&self)->Result<Value>{
+        self.cameras_for_generation(self.devices.generation(), &CancellationToken::new()).await
+    }
+    pub async fn cameras_for_generation(&self, expected: u64, request: &CancellationToken) -> Result<Value> {
+        let (script, plugin) = self.plugins.plugin_script(ARENA_ID, "cameraList")?;
         let(generation,connection)=self.devices.connection_with_generation()?;
-        let command=python(include_str!("../resources/camera_list.py"),json!(["cameras"]))?;
-        let(output,_)=connection.exec(&command,32000,Duration::from_secs(6)).await?;
+        anyhow::ensure!(expected == generation,"设备连接已变化。");
+        let command=python(&script,json!(["cameras"]))?;
+        let cancel = stop_with_plugin(plugin.clone(), request);
+        let _guard = cancel.clone().drop_guard();
+        let(output,_)=connection.exec_cancellable(&command,32000,Duration::from_secs(6),&cancel).await?;
         anyhow::ensure!(generation==self.devices.generation(),"设备连接已变化。");
+        anyhow::ensure!(!plugin.is_cancelled(),"赛台插件已关闭。");
         serde_json::from_str(output.trim()).context("摄像头列表无效。")
     }
     fn metadata(&self,camera:&Camera)->Value{
@@ -71,9 +83,10 @@ impl ArenaService {
         let _guard=tokio::select!{biased;_=request.cancelled()=>anyhow::bail!("摄像头连接已取消。"),g=self.gate.lock()=>g};
         anyhow::ensure!(!request.is_cancelled()&&expected==self.devices.generation(),"摄像头连接已变化。");
         self.stop_inner(None).await;
+        let (script, plugin) = self.plugins.plugin_script(ARENA_ID, "cameraStream")?;
         let(generation,connection)=self.devices.connection_with_generation()?;
         anyhow::ensure!(!request.is_cancelled()&&expected==generation,"摄像头连接已变化。");
-        let cancel=connection.cancel.child_token();let done=CancellationToken::new();
+        let cancel=stop_with_plugin(plugin,&connection.cancel);let done=CancellationToken::new();
         let id={let mut camera=self.camera.lock().unwrap();camera.id+=1;let id=camera.id;camera.generation=generation;camera.native=true;camera.phase="connecting";camera.message.clear();camera.path=path.clone();camera.backend.clear();camera.fps=fps;camera.sent=0;camera.sent_bytes=0;camera.meter=Instant::now();camera.meter_count=0;camera.stream_fps=None;camera.sequence=0;camera.latest=None;camera.viewer=Instant::now();camera.running=Some(Running{id,cancel:cancel.clone(),done:done.clone()});id};
         let service=self.clone();tokio::spawn(async move{
             let operation=async {
@@ -81,7 +94,7 @@ impl ArenaService {
                 {let mut camera=service.camera.lock().unwrap();if camera.id==id{camera.viewer=Instant::now();}}
                 let mut process=tokio::select!{_ = cancel.cancelled()=>return Ok::<(),anyhow::Error>(()),result=connection.channel()=>result?};
                 let result=async {
-                    let command=python(include_str!("../resources/camera_stream.py"),json!(["camera",json!({"path":path,"fps":fps,"pull":true}).to_string()]))?;
+                    let command=python(&script,json!(["camera",json!({"path":path,"fps":fps,"pull":true}).to_string()]))?;
                     tokio::select!{_ = cancel.cancelled()=>return Ok(()),result=process.exec(true,connection.remote_command(&command))=>result?};
                     let mut parser=JpegFrames::default();let mut diagnostic=Vec::new();let mut heartbeat=tokio::time::interval(Duration::from_secs(1));
                     let deadline=tokio::time::sleep(Duration::from_secs(12));tokio::pin!(deadline);

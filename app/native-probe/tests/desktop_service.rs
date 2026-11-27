@@ -32,6 +32,7 @@ async fn connect(fixture: &support::Fixture) -> Result<(Arc<Services>, PathBuf)>
     std::fs::create_dir_all(&root)?;
     let services = Services::new(
         Paths {
+            plugins: None,
             data: root.join("data"),
             documents: root.clone(),
             local_files: root.clone(),

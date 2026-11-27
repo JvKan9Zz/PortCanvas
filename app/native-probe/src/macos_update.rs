@@ -20,6 +20,7 @@ use std::{
 use tokio_util::sync::CancellationToken;
 
 const BUNDLE_ID: &str = "com.portcanvas.desktop";
+const BETA_BUNDLE_ID: &str = "com.portcanvas.desktop.beta";
 const EXECUTABLE: &str = "Contents/MacOS/PortCanvasNative";
 const PREFIX: &str = ".PortCanvas-update-";
 #[cfg(not(debug_assertions))]
@@ -245,11 +246,21 @@ fn plist(app: &Path, key: &str) -> Result<String> {
     Ok(String::from_utf8(output.stdout)?.trim().to_owned())
 }
 
+fn bundle_identity(version: &semver::Version) -> (&'static str, &'static str) {
+    if version.pre.as_str().starts_with("beta.") {
+        (BETA_BUNDLE_ID, "PortCanvasVersion")
+    } else {
+        (BUNDLE_ID, "CFBundleShortVersionString")
+    }
+}
+
 fn validate_bundle(app: &Path, version: &str, team: Option<&str>) -> Result<String> {
     safe_path(app)?;
     safe_tree(app)?;
+    let expected = semver::Version::parse(version)?;
+    let (bundle_id, version_key) = bundle_identity(&expected);
     ensure!(
-        plist(app, "CFBundleIdentifier")? == BUNDLE_ID,
+        plist(app, "CFBundleIdentifier")? == bundle_id,
         "更新应用标识不匹配。"
     );
     ensure!(
@@ -261,8 +272,7 @@ fn validate_bundle(app: &Path, version: &str, team: Option<&str>) -> Result<Stri
         "更新不是 macOS 应用。"
     );
     ensure!(
-        semver::Version::parse(&plist(app, "CFBundleShortVersionString")?)?
-            == semver::Version::parse(version)?,
+        semver::Version::parse(&plist(app, version_key)?)? == expected,
         "更新应用版本与已签名版本不匹配。"
     );
     let executable = app.join(EXECUTABLE);
@@ -305,7 +315,7 @@ fn validate_bundle(app: &Path, version: &str, team: Option<&str>) -> Result<Stri
     ensure!(
         details
             .lines()
-            .any(|line| line.strip_prefix("Identifier=") == Some(BUNDLE_ID)),
+            .any(|line| line.strip_prefix("Identifier=") == Some(bundle_id)),
         "macOS 代码签名标识与应用标识不匹配。"
     );
     let identity = if details.lines().any(|l| l == "Signature=adhoc") {
@@ -655,10 +665,9 @@ fn helper(path: &Path) -> Result<()> {
     if let Err(error) = &operation {
         // If rollback itself failed, keep its unique old-code recovery location intact.
         if stage.join("payload/PortCanvas.app").exists()
-            && plist(&job.app, "CFBundleShortVersionString")
-                .ok()
-                .as_deref()
-                != Some(job.current.as_str())
+            && semver::Version::parse(&job.current).ok()
+                .and_then(|expected| plist(&job.app, bundle_identity(&expected).1).ok())
+                .as_deref() != Some(job.current.as_str())
         {
             return operation;
         }

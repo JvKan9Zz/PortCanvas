@@ -276,10 +276,18 @@ impl Controller {
         jobs.push(self.runtime.spawn(future));
     }
     pub fn sync(self: &Rc<Self>) {
-        if !self.visible() { self.clear_drag(); }
+        let visible = self.visible();
         let generation = self.services.devices.generation();
-        if self.generation.replace(generation) != generation {
+        let device_changed = self.generation.replace(generation) != generation;
+        let clear_drag = (!visible || device_changed) && (
+            self.drag.borrow().is_some() || self.destination.borrow().is_some()
+                || !self.dropped.borrow().is_empty()
+                || self.hover_timer.running() || self.drop_timer.running()
+        );
+        if clear_drag {
             self.clear_drag();
+        }
+        if device_changed {
             self.panels.borrow_mut()[1].reset();
             self.respond(false);
             if let Some(ui) = self.ui.upgrade() {
@@ -292,8 +300,10 @@ impl Controller {
                 }
             }
         }
-        self.render();
-        if !self.visible() {
+        if visible || device_changed || clear_drag {
+            self.render();
+        }
+        if !visible {
             return;
         }
         for index in 0..2 {

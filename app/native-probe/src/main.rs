@@ -63,6 +63,7 @@ fn main() -> Result<()> {
             .build()?;
         let services = portcanvas_core::services::Services::new(
             portcanvas_core::services::Paths {
+                plugins: None,
                 data: root.join("data"),
                 documents: root.join("documents"),
                 local_files: root.clone(),

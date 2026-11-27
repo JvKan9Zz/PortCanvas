@@ -48,6 +48,7 @@ async fn native_vt_over_shared_ssh_preserves_tabs_modes_resize_and_reconnect() -
     std::fs::create_dir_all(&root)?;
     let services = Services::new(
         Paths {
+            plugins: None,
             data: root.join("data"),
             documents: root.clone(),
             local_files: root.clone(),

@@ -19,6 +19,7 @@ export component CommandEditor inherits Rectangle {
     scroll:=ScrollView {
         x:6px;y:6px;width:parent.width - 12px;height:parent.height - 12px;
         viewport-width:self.visible-width;viewport-height:max(self.visible-height,input.preferred-height);
+        vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
         input:=TextInput {
             text<=>root.text;enabled:root.enabled;single-line:false;wrap:word-wrap;
             color:Palette.foreground;selection-background-color:Palette.accent-background;

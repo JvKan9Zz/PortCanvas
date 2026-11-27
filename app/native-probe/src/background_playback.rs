@@ -198,8 +198,12 @@ impl Playback {
         }
     }
     pub fn paused(&self, value: bool) {
-        self.shared.controls.lock().unwrap().paused = value;
-        self.shared.wake.notify_all();
+        let mut controls = self.shared.controls.lock().unwrap();
+        if controls.paused != value {
+            controls.paused = value;
+            drop(controls);
+            self.shared.wake.notify_all();
+        }
     }
     pub fn volume(&self, value: u8) {
         self.shared.controls.lock().unwrap().volume = value.min(100);

@@ -162,9 +162,19 @@ impl SshConnection {
         limit: usize,
         timeout: Duration,
     ) -> Result<(String, i32)> {
+        self.exec_cancellable(command, limit, timeout, &CancellationToken::new()).await
+    }
+    pub(crate) async fn exec_cancellable(
+        &self,
+        command: &str,
+        limit: usize,
+        timeout: Duration,
+        request: &CancellationToken,
+    ) -> Result<(String, i32)> {
+        anyhow::ensure!(!request.is_cancelled(), "操作已取消。");
         let mut channel = self.channel().await?;
-        channel.exec(true, self.remote_command(command)).await?;
         let operation = async {
+            channel.exec(true, self.remote_command(command)).await?;
             let mut output = Vec::new();
             let mut diagnostic = Vec::new();
             let mut status = None;
@@ -196,7 +206,13 @@ impl SshConnection {
                 status,
             ))
         };
-        let result = tokio::select! {_ = self.cancel.cancelled()=>Err(anyhow::anyhow!("设备连接已断开。")),result=tokio::time::timeout(timeout,operation)=>result.context("远端命令超时。").and_then(|result| result)};
+        let result = tokio::select! {
+            biased;
+            _ = request.cancelled() => Err(anyhow::anyhow!("操作已取消。")),
+            _ = self.cancel.cancelled() => Err(anyhow::anyhow!("设备连接已断开。")),
+            result = tokio::time::timeout(timeout, operation) =>
+                result.context("远端命令超时。").and_then(|result| result),
+        };
         let _ = channel.close().await;
         result
     }

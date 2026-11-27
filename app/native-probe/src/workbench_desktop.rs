@@ -442,6 +442,12 @@ impl Controller {
     pub fn sync(self: &Rc<Self>) {
         let allowed = self.allowed_now();
         let previous = self.allowed.replace(allowed);
+        if !allowed && !previous && self.running.borrow().is_none() && !self.wanted.get() {
+            if self.weak.upgrade().is_some_and(|ui| ui.get_page() == 5 && !ui.get_native_hidden()) {
+                self.status();
+            }
+            return;
+        }
         if allowed && !previous {
             self.failed.set(false);
         }
@@ -454,8 +460,8 @@ impl Controller {
         if self.running.borrow().is_none() && self.wanted.get() && allowed && !self.failed.get() {
             self.start();
         }
-        if self.services.devices.snapshot()["desktop"] != "connected" {
-            if let Some(ui) = self.weak.upgrade() {
+        if let Some(ui) = self.weak.upgrade() {
+            if ui.get_desktop_ready() && self.services.devices.snapshot()["desktop"] != "connected" {
                 ui.set_desktop_ready(false);
             }
         }
@@ -749,7 +755,6 @@ impl Controller {
         let Some(ui) = self.weak.upgrade() else {
             return;
         };
-        let snapshot = self.services.devices.snapshot();
         let active = self.running.borrow().is_some();
         ui.set_desktop_active(active);
         ui.set_desktop_wanted(self.wanted.get());
@@ -758,7 +763,7 @@ impl Controller {
         } else if self.wanted.get() && !self.allowed_now() {
             "桌面已暂停。"
         } else if active && !ui.get_desktop_ready() {
-            match snapshot["desktopStage"].as_str().unwrap_or_default() {
+            match self.services.devices.snapshot()["desktopStage"].as_str().unwrap_or_default() {
                 "prepare" => "正在准备远端运行环境…",
                 "service" => "正在启动远端桌面服务…",
                 "tunnel" => "正在进行RFB握手…",

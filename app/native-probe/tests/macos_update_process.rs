@@ -52,10 +52,16 @@ mod macos {
             std::env::current_exe()?,
             contents.join("MacOS/PortCanvasNative"),
         )?;
+        let base = version.split('-').next().unwrap();
+        let (id, extra) = if version.contains("-beta.") {
+            ("com.portcanvas.desktop.beta", format!("<key>PortCanvasVersion</key><string>{version}</string>"))
+        } else {
+            ("com.portcanvas.desktop", String::new())
+        };
         fs::write(
             contents.join("Info.plist"),
             format!(
-                r#"<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.portcanvas.desktop</string><key>CFBundleExecutable</key><string>PortCanvasNative</string><key>CFBundleShortVersionString</key><string>{version}</string><key>CFBundleVersion</key><string>{version}</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>"#
+                r#"<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>{id}</string><key>CFBundleExecutable</key><string>PortCanvasNative</string><key>CFBundleShortVersionString</key><string>{base}</string><key>CFBundleVersion</key><string>{base}</string>{extra}<key>CFBundlePackageType</key><string>APPL</string></dict></plist>"#
             ),
         )?;
         if fail {

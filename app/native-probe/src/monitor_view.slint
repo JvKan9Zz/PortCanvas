@@ -1,0 +1,803 @@
+import {ScrollView,VerticalBox,HorizontalBox} from "std-widgets.slint";
+import {ActionButton,ActivityIndicator,AppColors} from "action_button.slint";
+
+export struct MonitorKpi {
+    label: string,
+    value: string,
+    detail: string,
+    usage: float,
+    tone: int,
+}
+
+export struct CoreRow {
+    label: string,
+    usage: float,
+}
+
+export struct StorageRow {
+    mount: string,
+    fs: string,
+    summary: string,
+    free: string,
+    percent: string,
+    usage: float,
+    tone: int,
+}
+
+export struct NetRow {
+    name: string,
+    rx: string,
+    tx: string,
+    total: string,
+}
+
+export struct FactRow {
+    label: string,
+    value: string,
+}
+
+component ToneBar inherits Rectangle {
+    in property <float> usage: 0;
+    in property <int> tone: 0;
+    in property <length> bar-height: 4px;
+    property <color> fill-color:
+        root.tone == 1 ? (AppColors.dark ? #b3a4d6 : #8d80ac) :
+        root.tone == 2 ? (AppColors.dark ? #f0c97d : #b87a14) :
+        root.tone == 3 ? AppColors.danger :
+        root.tone == 4 ? (AppColors.dark ? #8fd6b4 : #2a7b58) :
+        AppColors.accent;
+    height: root.bar-height;
+    vertical-stretch: 0;
+    border-radius: root.bar-height / 2;
+    background: AppColors.edge;
+    clip: true;
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        height: parent.height;
+        border-radius: parent.border-radius;
+        width: parent.width * clamp(root.usage, 0, 100) / 100;
+        background: root.fill-color;
+        animate width { duration: AppColors.motion ? 180ms : 0ms; easing: linear; }
+    }
+}
+
+component KpiCard inherits Rectangle {
+    in property <MonitorKpi> item;
+    property <color> value-color:
+        root.item.tone == 3 ? AppColors.danger :
+        root.item.tone == 2 ? (AppColors.dark ? #f0c97d : #9c660e) :
+        AppColors.ink;
+    background: AppColors.card;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: AppColors.edge;
+    min-height: 94px;
+    VerticalBox {
+        padding: 14px;
+        spacing: 6px;
+        Text {
+            text: root.item.label;
+            font-size: 11px;
+            font-weight: 500;
+            color: AppColors.muted;
+            vertical-stretch: 0;
+            overflow: elide;
+        }
+        Text {
+            text: root.item.value;
+            font-size: 23px;
+            font-weight: 600;
+            color: root.value-color;
+            vertical-stretch: 0;
+            overflow: elide;
+        }
+        Text {
+            text: root.item.detail;
+            font-size: 11px;
+            color: AppColors.muted;
+            vertical-stretch: 0;
+            overflow: elide;
+        }
+        if root.item.usage >= 0: ToneBar {
+            usage: root.item.usage;
+            tone: root.item.tone;
+            bar-height: 4px;
+        }
+    }
+}
+
+component TrendCard inherits Rectangle {
+    in property <bool> english;
+    in property <bool> compact-layout;
+    in property <string> cpu-path;
+    in property <string> memory-path;
+    in property <[CoreRow]> cores;
+    pure callback tr(string, bool) -> string;
+    callback plot-resized(float);
+    property <color> mem-color: AppColors.dark ? #b3a4d6 : #8d80ac;
+    property <color> cpu-line-color: AppColors.dark ? #6ba0ff : AppColors.accent;
+    property <color> hairline: AppColors.dark ? #ffffff14 : #536d8b18;
+    background: AppColors.card;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: AppColors.edge;
+    VerticalBox {
+        padding: 16px;
+        spacing: 12px;
+        HorizontalBox {
+            padding: 0px;
+            spacing: 10px;
+            vertical-stretch: 0;
+            Text {
+                text: root.tr("实时趋势", root.english);
+                font-size: 14px;
+                font-weight: 600;
+                color: AppColors.ink;
+                vertical-alignment: center;
+                horizontal-stretch: 0;
+            }
+            Rectangle { background: transparent; horizontal-stretch: 1; }
+            HorizontalBox {
+                padding: 0px;
+                spacing: 6px;
+                horizontal-stretch: 0;
+                Rectangle {
+                    width: 12px;
+                    height: 16px;
+                    horizontal-stretch: 0;
+                    vertical-stretch: 0;
+                    background: transparent;
+                    Rectangle {
+                        x: 0px;
+                        y: 7px;
+                        width: 12px;
+                        height: 2px;
+                        border-radius: 1px;
+                        background: root.cpu-line-color;
+                    }
+                }
+                Text {
+                    text: "CPU";
+                    font-size: 11px;
+                    color: AppColors.muted;
+                    vertical-alignment: center;
+                }
+            }
+            HorizontalBox {
+                padding: 0px;
+                spacing: 6px;
+                horizontal-stretch: 0;
+                Rectangle {
+                    width: 14px;
+                    height: 16px;
+                    horizontal-stretch: 0;
+                    vertical-stretch: 0;
+                    background: transparent;
+                    for i in 3: Rectangle {
+                        x: i * 5px;
+                        y: 7px;
+                        width: 3px;
+                        height: 2px;
+                        border-radius: 1px;
+                        background: root.mem-color;
+                    }
+                }
+                Text {
+                    text: root.tr("内存", root.english);
+                    font-size: 11px;
+                    color: AppColors.muted;
+                    vertical-alignment: center;
+                }
+            }
+            Text {
+                text: root.tr("最近60秒", root.english) + " · 0–100%";
+                font-size: 11px;
+                color: AppColors.muted;
+                vertical-alignment: center;
+                horizontal-stretch: 0;
+            }
+        }
+        HorizontalBox {
+            padding: 0px;
+            spacing: 8px;
+            vertical-stretch: 0;
+            height: 144px;
+            Rectangle {
+                width: 32px;
+                horizontal-stretch: 0;
+                background: transparent;
+                Text { x: 0px; y: 0px; width: parent.width; text: "100%"; font-size: 10px; color: AppColors.muted; horizontal-alignment: right; }
+                Text { x: 0px; y: (parent.height - 14px) / 2; width: parent.width; text: "50%"; font-size: 10px; color: AppColors.muted; horizontal-alignment: right; }
+                Text { x: 0px; y: parent.height - 14px; width: parent.width; text: "0%"; font-size: 10px; color: AppColors.muted; horizontal-alignment: right; }
+            }
+            history-plot:= Rectangle {
+                horizontal-stretch: 1;
+                min-width: 0px;
+                background: AppColors.inset;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: root.hairline;
+                clip: true;
+                property <float> aspect: max(1px, self.width - 1px) / max(1px, self.height - 1px);
+                changed width => { if self.width > 1px { root.plot-resized(self.aspect); } }
+                changed height => { if self.width > 1px { root.plot-resized(self.aspect); } }
+                for level in [25, 50, 75]: Rectangle {
+                    x: 0px;
+                    y: parent.height * level / 100;
+                    width: parent.width;
+                    height: 1px;
+                    background: root.hairline;
+                }
+                Path {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    commands: root.cpu-path;
+                    viewbox-width: history-plot.aspect * 10;
+                    viewbox-height: 10;
+                    stroke: root.cpu-line-color;
+                    stroke-width: 1.6px;
+                    fill: transparent;
+                }
+                Path {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    commands: root.memory-path;
+                    viewbox-width: history-plot.aspect * 10;
+                    viewbox-height: 10;
+                    stroke: root.mem-color;
+                    stroke-width: 1.4px;
+                    fill: transparent;
+                }
+            }
+        }
+        if root.cores.length > 0: VerticalBox {
+            padding: 0px;
+            spacing: 8px;
+            vertical-stretch: 0;
+            HorizontalBox {
+                padding: 0px;
+                vertical-stretch: 0;
+                Text {
+                    text: root.tr("单核负载", root.english);
+                    font-size: 11px;
+                    font-weight: 500;
+                    color: AppColors.muted;
+                }
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+                Text {
+                    text: root.cores.length + " " + root.tr("核", root.english);
+                    font-size: 11px;
+                    color: AppColors.muted;
+                }
+            }
+            GridLayout {
+                padding: 0px;
+                spacing: 8px;
+                for core[index] in root.cores: Rectangle {
+                    col: root.compact-layout ? mod(index, 2) : mod(index, 4);
+                    row: root.compact-layout ? floor(index / 2) : floor(index / 4);
+                    height: 36px;
+                    background: AppColors.inset;
+                    border-radius: 9px;
+                    border-width: 1px;
+                    border-color: root.hairline;
+                    VerticalBox {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        padding-top: 6px;
+                        padding-bottom: 6px;
+                        spacing: 4px;
+                        HorizontalBox {
+                            padding: 0px;
+                            vertical-stretch: 0;
+                            Text {
+                                text: core.label;
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: AppColors.muted;
+                            }
+                            Rectangle { background: transparent; horizontal-stretch: 1; }
+                            Text {
+                                text: core.usage >= 0 ? Math.round(core.usage) + "%" : "—";
+                                font-size: 10px;
+                                color: core.usage >= 0 ? AppColors.ink : AppColors.muted;
+                            }
+                        }
+                        if core.usage >= 0: ToneBar {
+                            usage: core.usage;
+                            tone: core.usage >= 90 ? 3 : core.usage >= 75 ? 2 : 0;
+                            bar-height: 3px;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component StorageCard inherits Rectangle {
+    in property <bool> english;
+    in property <[StorageRow]> storage;
+    pure callback tr(string, bool) -> string;
+    property <color> hairline: AppColors.dark ? #ffffff14 : #536d8b18;
+    background: AppColors.card;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: AppColors.edge;
+    VerticalBox {
+        padding: 16px;
+        spacing: 10px;
+        HorizontalBox {
+            padding: 0px;
+            vertical-stretch: 0;
+            Text {
+                text: root.tr("板端存储空间", root.english);
+                font-size: 14px;
+                font-weight: 600;
+                color: AppColors.ink;
+                vertical-alignment: center;
+            }
+            Rectangle { background: transparent; horizontal-stretch: 1; }
+            if root.storage.length > 0: Text {
+                text: root.storage.length + " " + root.tr("个分区", root.english);
+                font-size: 11px;
+                color: AppColors.muted;
+                vertical-alignment: center;
+            }
+        }
+        if root.storage.length == 0: Rectangle {
+            min-height: 110px;
+            background: AppColors.inset;
+            border-radius: 12px;
+            Text {
+                text: root.tr("暂无存储分区信息", root.english);
+                font-size: 12px;
+                color: AppColors.muted;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        for disk in root.storage: Rectangle {
+            vertical-stretch: 0;
+            background: AppColors.inset;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: root.hairline;
+            VerticalBox {
+                padding: 10px;
+                spacing: 6px;
+                HorizontalBox {
+                    padding: 0px;
+                    spacing: 8px;
+                    vertical-stretch: 0;
+                    Text {
+                        text: disk.mount;
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: AppColors.ink;
+                        overflow: elide;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                    if disk.fs != "": Rectangle {
+                        preferred-width: fs-label.preferred-width + 12px;
+                        height: 20px;
+                        horizontal-stretch: 0;
+                        border-radius: 6px;
+                        background: AppColors.soft;
+                        fs-label:= Text {
+                            x: 6px;
+                            width: parent.width - 12px;
+                            height: parent.height;
+                            text: disk.fs;
+                            font-size: 10px;
+                            font-weight: 500;
+                            color: AppColors.accent-ink;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Text {
+                        text: disk.percent;
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: disk.tone == 3 ? AppColors.danger : disk.tone == 2 ? (AppColors.dark ? #f0c97d : #9c660e) : AppColors.ink;
+                        vertical-alignment: center;
+                        horizontal-stretch: 0;
+                    }
+                }
+                ToneBar {
+                    usage: disk.usage;
+                    tone: disk.tone;
+                    bar-height: 5px;
+                }
+                HorizontalBox {
+                    padding: 0px;
+                    spacing: 8px;
+                    vertical-stretch: 0;
+                    Text {
+                        text: disk.summary;
+                        font-size: 11px;
+                        color: AppColors.muted;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                    }
+                    Text {
+                        text: disk.free;
+                        font-size: 11px;
+                        color: AppColors.muted;
+                        horizontal-alignment: right;
+                        horizontal-stretch: 0;
+                    }
+                }
+            }
+        }
+        Rectangle { background: transparent; vertical-stretch: 1; }
+    }
+}
+
+component NetworkCard inherits Rectangle {
+    in property <bool> english;
+    in property <string> rx-rate;
+    in property <string> tx-rate;
+    in property <string> rtt;
+    in property <[NetRow]> networks;
+    pure callback tr(string, bool) -> string;
+    background: AppColors.card;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: AppColors.edge;
+    VerticalBox {
+        padding: 16px;
+        spacing: 10px;
+        Text {
+            text: root.tr("网络与通信", root.english);
+            font-size: 14px;
+            font-weight: 600;
+            color: AppColors.ink;
+            vertical-stretch: 0;
+        }
+        HorizontalBox {
+            padding: 0px;
+            spacing: 10px;
+            vertical-stretch: 0;
+            Rectangle {
+                preferred-width: 0px;
+                horizontal-stretch: 1;
+                background: AppColors.inset;
+                border-radius: 11px;
+                VerticalBox {
+                    padding: 10px;
+                    spacing: 3px;
+                    Text { text: root.tr("接收", root.english); font-size: 11px; color: AppColors.muted; }
+                    Text { text: root.rx-rate; font-size: 14px; font-weight: 600; color: AppColors.ink; overflow: elide; }
+                }
+            }
+            Rectangle {
+                preferred-width: 0px;
+                horizontal-stretch: 1;
+                background: AppColors.inset;
+                border-radius: 11px;
+                VerticalBox {
+                    padding: 10px;
+                    spacing: 3px;
+                    Text { text: root.tr("发送", root.english); font-size: 11px; color: AppColors.muted; }
+                    Text { text: root.tx-rate; font-size: 14px; font-weight: 600; color: AppColors.ink; overflow: elide; }
+                }
+            }
+            Rectangle {
+                preferred-width: 0px;
+                horizontal-stretch: 1;
+                background: AppColors.inset;
+                border-radius: 11px;
+                VerticalBox {
+                    padding: 10px;
+                    spacing: 3px;
+                    Text { text: root.tr("往返时间", root.english); font-size: 11px; color: AppColors.muted; }
+                    Text { text: root.rtt; font-size: 14px; font-weight: 600; color: AppColors.ink; overflow: elide; }
+                }
+            }
+        }
+        for iface in root.networks: Rectangle {
+            height: 36px;
+            vertical-stretch: 0;
+            background: AppColors.inset.with-alpha(0.75);
+            border-radius: 9px;
+            HorizontalBox {
+                padding-left: 12px;
+                padding-right: 12px;
+                spacing: 10px;
+                Text {
+                    text: iface.name;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: AppColors.ink;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                    overflow: elide;
+                }
+                Text {
+                    text: "↓ " + iface.rx + "  ↑ " + iface.tx;
+                    font-size: 11px;
+                    color: AppColors.ink;
+                    vertical-alignment: center;
+                    horizontal-stretch: 0;
+                }
+                if iface.total != "": Text {
+                    text: iface.total;
+                    font-size: 11px;
+                    color: AppColors.muted;
+                    vertical-alignment: center;
+                    horizontal-stretch: 0;
+                }
+            }
+        }
+        Rectangle { background: transparent; vertical-stretch: 1; }
+    }
+}
+
+component SystemCard inherits Rectangle {
+    in property <bool> english;
+    in property <[FactRow]> facts;
+    pure callback tr(string, bool) -> string;
+    background: AppColors.card;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: AppColors.edge;
+    VerticalBox {
+        padding: 16px;
+        spacing: 10px;
+        Text {
+            text: root.tr("系统概览", root.english);
+            font-size: 14px;
+            font-weight: 600;
+            color: AppColors.ink;
+            vertical-stretch: 0;
+        }
+        GridLayout {
+            padding: 0px;
+            spacing: 8px;
+            for fact[index] in root.facts: Rectangle {
+                col: mod(index, 2);
+                row: floor(index / 2);
+                preferred-width: 0px;
+                horizontal-stretch: 1;
+                background: AppColors.inset.with-alpha(0.75);
+                border-radius: 10px;
+                VerticalBox {
+                    padding: 10px;
+                    spacing: 3px;
+                    Text {
+                        text: fact.label;
+                        font-size: 11px;
+                        color: AppColors.muted;
+                        overflow: elide;
+                    }
+                    Text {
+                        text: fact.value;
+                        font-size: 12px;
+                        font-weight: 500;
+                        color: AppColors.ink;
+                        overflow: elide;
+                    }
+                }
+            }
+        }
+        Rectangle { background: transparent; vertical-stretch: 1; }
+    }
+}
+
+export component MonitorView inherits Rectangle {
+    in property <bool> english;
+    in property <bool> compact;
+    in property <bool> enabled;
+    in property <bool> connected;
+    in property <string> status;
+    in property <int> status-phase;
+    in property <[MonitorKpi]> kpis;
+    in property <[CoreRow]> cores;
+    in property <[StorageRow]> storage;
+    in property <[NetRow]> networks;
+    in property <[FactRow]> facts;
+    in property <string> rx-rate: "—";
+    in property <string> tx-rate: "—";
+    in property <string> rtt: "—";
+    in property <string> cpu-path;
+    in property <string> memory-path;
+    pure callback tr(string, bool) -> string;
+    callback plot-resized(float);
+    callback connect-device();
+
+    property <bool> compact-layout: root.compact || root.width < 820px;
+    background: transparent;
+
+    if !root.connected: Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: AppColors.edge;
+        background: AppColors.card;
+        VerticalBox {
+            alignment: center;
+            spacing: 14px;
+            padding: 32px;
+            HorizontalBox {
+                padding: 0px;
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+                Rectangle {
+                    width: 56px;
+                    height: 56px;
+                    horizontal-stretch: 0;
+                    border-radius: 16px;
+                    background: AppColors.soft;
+                    border-width: 1px;
+                    border-color: AppColors.edge;
+                    Image {
+                        x: 15px;
+                        y: 15px;
+                        width: 26px;
+                        height: 26px;
+                        source: @image-url("icons/monitor.svg");
+                        colorize: AppColors.accent;
+                    }
+                }
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+            }
+            Text {
+                text: root.tr("连接设备后查看实时性能", root.english);
+                font-size: 16px;
+                font-weight: 600;
+                color: AppColors.ink;
+                horizontal-alignment: center;
+            }
+            HorizontalBox {
+                padding: 0px;
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+                ActionButton {
+                    text: root.tr("前往连接设备", root.english);
+                    primary: true;
+                    enabled: root.enabled;
+                    clicked => { root.connect-device(); }
+                }
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+            }
+        }
+    }
+
+    if root.connected: ScrollView {
+        width: parent.width;
+        height: parent.height;
+        viewport-width: self.visible-width;
+        viewport-height: max(self.visible-height, content.preferred-height + 8px);
+        vertical-scrollbar-policy: always-off;
+        horizontal-scrollbar-policy: always-off;
+
+        content:= VerticalBox {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: self.preferred-height;
+            padding: 0px;
+            spacing: 12px;
+
+            if root.status-phase == 3 && root.status != "": Rectangle {
+                vertical-stretch: 0;
+                border-radius: 12px;
+                background: AppColors.danger.with-alpha(0.08);
+                border-width: 1px;
+                border-color: AppColors.danger.with-alpha(0.22);
+                HorizontalBox {
+                    padding: 12px;
+                    Text {
+                        text: root.status;
+                        font-size: 12px;
+                        color: AppColors.danger;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+
+            GridLayout {
+                padding: 0px;
+                spacing: 12px;
+                vertical-stretch: 0;
+                for item[index] in root.kpis: KpiCard {
+                    col: root.compact-layout ? mod(index, 2) : index;
+                    row: root.compact-layout ? floor(index / 2) : 0;
+                    item: item;
+                }
+            }
+
+            if !root.compact-layout: HorizontalBox {
+                padding: 0px;
+                spacing: 14px;
+                vertical-stretch: 0;
+                TrendCard {
+                    preferred-width: 0px;
+                    horizontal-stretch: 62;
+                    english: root.english;
+                    compact-layout: false;
+                    cpu-path: root.cpu-path;
+                    memory-path: root.memory-path;
+                    cores: root.cores;
+                    tr(s, e) => { return root.tr(s, e); }
+                    plot-resized(r) => { root.plot-resized(r); }
+                }
+                StorageCard {
+                    preferred-width: 0px;
+                    horizontal-stretch: 38;
+                    english: root.english;
+                    storage: root.storage;
+                    tr(s, e) => { return root.tr(s, e); }
+                }
+            }
+
+            if root.compact-layout: VerticalBox {
+                padding: 0px;
+                spacing: 14px;
+                vertical-stretch: 0;
+                TrendCard {
+                    english: root.english;
+                    compact-layout: true;
+                    cpu-path: root.cpu-path;
+                    memory-path: root.memory-path;
+                    cores: root.cores;
+                    tr(s, e) => { return root.tr(s, e); }
+                    plot-resized(r) => { root.plot-resized(r); }
+                }
+                StorageCard {
+                    english: root.english;
+                    storage: root.storage;
+                    tr(s, e) => { return root.tr(s, e); }
+                }
+            }
+
+            if !root.compact-layout: HorizontalBox {
+                padding: 0px;
+                spacing: 14px;
+                vertical-stretch: 0;
+                NetworkCard {
+                    preferred-width: 0px;
+                    horizontal-stretch: 1;
+                    english: root.english;
+                    rx-rate: root.rx-rate;
+                    tx-rate: root.tx-rate;
+                    rtt: root.rtt;
+                    networks: root.networks;
+                    tr(s, e) => { return root.tr(s, e); }
+                }
+                SystemCard {
+                    preferred-width: 0px;
+                    horizontal-stretch: 1;
+                    english: root.english;
+                    facts: root.facts;
+                    tr(s, e) => { return root.tr(s, e); }
+                }
+            }
+
+            if root.compact-layout: VerticalBox {
+                padding: 0px;
+                spacing: 14px;
+                vertical-stretch: 0;
+                NetworkCard {
+                    english: root.english;
+                    rx-rate: root.rx-rate;
+                    tx-rate: root.tx-rate;
+                    rtt: root.rtt;
+                    networks: root.networks;
+                    tr(s, e) => { return root.tr(s, e); }
+                }
+                SystemCard {
+                    english: root.english;
+                    facts: root.facts;
+                    tr(s, e) => { return root.tr(s, e); }
+                }
+            }
+        }
+    }
+}

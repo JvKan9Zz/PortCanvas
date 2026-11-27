@@ -1,6 +1,6 @@
 [package]
 name = "portcanvas-native-probe"
-version = "0.6.4"
+version = "0.7.0"
 edition = "2021"
 rust-version = "1.90"
 license = "MIT"
@@ -8,6 +8,7 @@ default-run = "PortCanvasNative"
 
 [features]
 default = []
+loopback-plugin-catalog = ["portcanvas-core/loopback-plugin-catalog"]
 gui = ["dep:slint", "dep:arboard", "dep:rfd", "dep:glow", "dep:femtovg", "dep:i-slint-renderer-femtovg"]
 
 [[bin]]

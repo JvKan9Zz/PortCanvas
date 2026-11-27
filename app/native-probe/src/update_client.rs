@@ -66,8 +66,11 @@ impl Channel {
     }
     fn plan(&self, value: &Value, current: &str) -> Result<Option<Plan>> {
         let Some(plan) = Plan::parse(value, current)? else { return Ok(None) };
+        let version = Version::parse(&plan.version)?;
         if self.endpoint == STABLE_MANIFEST {
-            ensure!(Version::parse(&plan.version)?.pre.is_empty(), "稳定更新通道不接受预览版本。");
+            ensure!(version.pre.is_empty(), "稳定更新通道不接受预览版本。");
+        } else if self.endpoint == BETA_RELEASES {
+            ensure!(version.pre.as_str().starts_with("beta."), "Beta 更新通道只接受 Beta 版本。");
         }
         self.url(&plan.url)?;
         Ok(Some(plan))
@@ -190,6 +193,13 @@ mod tests {
         let releases=json!([release("v0.7.0",false,false),release("v0.6.0-beta.5",true,true),release("v0.6.0-beta.2",true,false),release("v0.6.0-beta.3",true,false)]);
         assert_eq!(beta_manifest(&releases,"0.6.0-beta.1").unwrap().as_deref(),Some("https://example.test/v0.6.0-beta.3/beta.json"));
         assert!(beta_manifest(&releases,"0.6.0-beta.3").unwrap().is_none());
+    }
+    #[test]
+    fn beta_manifest_response_cannot_switch_the_installed_release_channel() {
+        let channel = Channel::beta("");
+        let manifest = |version| json!({"version":version,"platforms":{(platform_key()):{"url":"https://example.test/setup.exe","signature":"signed"}}});
+        assert!(channel.plan(&manifest("0.7.0"), "0.7.0-beta.1").is_err());
+        assert!(channel.plan(&manifest("0.7.0-beta.2"), "0.7.0-beta.1").unwrap().is_some());
     }
     #[tokio::test]
     async fn cancelled_check_has_no_network_dependency() {

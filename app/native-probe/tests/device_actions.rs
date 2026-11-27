@@ -28,6 +28,7 @@ async fn confirmed_reboot_rejects_stale_busy_and_duplicate_requests_and_recovers
         .join(format!("reboot-{}", uuid::Uuid::new_v4()));
     let s = Services::new(
         Paths {
+            plugins: None,
             data: root.join("data"),
             documents: root.join("docs"),
             local_files: root.clone(),

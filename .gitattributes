@@ -1,4 +1,6 @@
 app/core/resources/*.bash text eol=lf
 app/core/resources/*.py text eol=lf
+plugins/**/*.py text eol=lf
+plugins/**/*.json text eol=lf
 app/tools/build-native.sh text eol=lf
 app/core/tests/fixtures/**/*.log -text
