@@ -422,7 +422,7 @@ slint::slint! {
                         Image {x:36px;y:(parent.height - self.height)/2;source:@image-url("../assets/wordmark.svg");image-fit:contain;width:138px;height:30px;}
                     }
                     if root.update-phase=="available":Rectangle {width:update-button.preferred-width;horizontal-stretch:0;background:transparent;
-                        update-button:=ActionButton {y:(parent.height - self.height)/2;height:30px;border-radius:9px;text:"v"+root.update-version;enabled:root.can-interact;clicked=>{root.settings-section=2;root.settings-open=true;}}
+                        update-button:=ActionButton {y:(parent.height - self.height)/2;height:30px;border-radius:9px;icon:@image-url("icons/download.svg");has-icon:true;text:root.tr("发现新版本",root.english)+" v"+root.update-version;enabled:root.can-interact;clicked=>{root.settings-section=2;root.settings-open=true;}}
                     }
                     header-drag:=Rectangle {background:transparent;horizontal-stretch:1;}
                     if root.page!=0:Rectangle {width:96px;horizontal-stretch:0;background:transparent;
@@ -450,7 +450,6 @@ slint::slint! {
                 work-layout:=VerticalBox {y:(1-root.page-phase)*5px;padding-left:root.width<1120px?22px:30px;padding-right:root.width<1120px?22px:30px;padding-top:26px;padding-bottom:24px;spacing:20px;
             if !root.desktop-expanded&&root.system-error!="":Text {text:root.tr(root.system-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             if !root.desktop-expanded&&root.page!=1&&root.bg-error!="":Text {text:root.tr(root.bg-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
-            if !root.desktop-expanded&&root.migration-status!="":Text {text:root.tr(root.migration-status,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
             if !root.desktop-expanded&&root.migration-error!="":Text {text:root.tr(root.migration-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             // DEVICE PATH: flat selectable list, scrollable credentials, always-reachable actions.
             // Preserve the existing profile, trust, cancellation and migration callbacks.
@@ -707,9 +706,10 @@ slint::slint! {
                             ActionButton {text:root.tr("打开仓库",root.english);enabled:root.can-interact;clicked=>{root.system-action("repository");}}
                             ActionButton {text:root.tr(root.update-busy?"取消更新":root.update-phase=="available"?"下载更新":root.update-phase=="ready"?"安装并重启":"检查更新",root.english);primary:root.update-phase=="available"||root.update-phase=="ready";busy:root.update-busy;enabled:root.can-interact&&(root.update-phase!="ready"||!root.file-mutating);clicked=>{root.update-action(root.update-busy?"cancel":root.update-phase=="available"?"download":root.update-phase=="ready"?"install":"check");}}
                             ActionButton {text:root.tr("打开安装目录",root.english);enabled:root.can-interact;clicked=>{root.system-action("directory");}}
+                            ActionButton {text:root.tr("反馈问题",root.english);enabled:root.can-interact;clicked=>{root.system-action("export-logs");}}
                             Rectangle {background:transparent;horizontal-stretch:1;}
                         }
-                        Text {text:root.update-version!=""?"v"+root.update-version:root.tr(root.update-phase=="current"?"当前已是最新版本":root.update-phase=="checking"?"正在检查更新…":root.update-phase=="downloading"?"正在下载更新…":root.update-phase=="ready"?"更新已校验，可安装":root.update-phase=="canceled"?"更新已取消。":"",root.english);color:AppColors.muted;font-size:12px;wrap:word-wrap;}
+                        Text {text:root.update-version!=""?root.tr("发现新版本",root.english)+" v"+root.update-version:root.tr(root.update-phase=="current"?"当前已是最新版本":root.update-phase=="checking"?"正在检查更新…":root.update-phase=="downloading"?"正在下载更新…":root.update-phase=="ready"?"更新已校验，可安装":root.update-phase=="canceled"?"更新已取消。":"",root.english);color:AppColors.muted;font-size:12px;wrap:word-wrap;}
                         if root.update-message!="":Text {text:root.update-message;color:AppColors.danger;wrap:word-wrap;}
                         if root.update-notes!="":Text {text:root.update-notes;color:AppColors.ink;wrap:word-wrap;}
                         if root.update-phase=="downloading":Rectangle {height:4px;vertical-stretch:0;background:AppColors.edge;Rectangle {x:0px;y:0px;width:parent.width*root.update-progress;background:AppColors.accent;animate width {duration:AppColors.motion?160ms:0ms;}}}
@@ -787,7 +787,8 @@ slint::slint! {
                 }
             }
         }
-        Rectangle {visible:root.toast-open||root.toast-phase>0;x:root.width - self.width - 30px;y:root.height - self.height - 28px+(1-root.toast-phase)*12px;width:min(440px,root.width - 160px);height:toast-text.preferred-height+28px;opacity:root.toast-phase;background:#22324bf0;border-radius:15px;border-width:1px;border-color:#ffffff33;drop-shadow-offset-y:8px;drop-shadow-blur:26px;drop-shadow-color:#1b2d4b30;
+        toast-measure:=Text {visible:false;text:root.toast-message;font-size:13px;}
+        Rectangle {visible:root.toast-open||root.toast-phase>0;x:root.width - self.width - 30px;y:root.height - self.height - 28px+(1-root.toast-phase)*12px;width:clamp(toast-measure.preferred-width + 36px, 132px, min(440px, root.width - 160px));height:toast-text.preferred-height+28px;opacity:root.toast-phase;background:#22324bf0;border-radius:15px;border-width:1px;border-color:#ffffff33;drop-shadow-offset-y:8px;drop-shadow-blur:26px;drop-shadow-color:#1b2d4b30;
             toast-text:=Text {x:18px;y:14px;width:parent.width - 36px;text:root.toast-message;color:#f2f6fc;font-size:13px;wrap:word-wrap;}
             TouchArea {}
         }

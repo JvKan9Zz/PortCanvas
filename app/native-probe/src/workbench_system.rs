@@ -1,7 +1,8 @@
 use crate::{workbench::text, workbench_ui::Workbench};
 use anyhow::{ensure, Context, Result};
 use portcanvas_core::services::Services;
-use slint::ComponentHandle;
+use portcanvas_native_probe::debug_log;
+use slint::{winit_030::WinitWindowAccessor, ComponentHandle};
 use std::{
     cell::Cell,
     rc::Rc,
@@ -68,16 +69,68 @@ impl Controller {
     }
     fn action(self: &Rc<Self>, action: &str) {
         let Some(ui) = self.ui.upgrade() else { return };
-        if ui.get_system_busy() || ui.get_busy() || ui.get_dialog_kind() != 0 {
+        if ui.get_system_busy() || ui.get_dialog_kind() != 0 {
             return;
         }
-        if !matches!(action, "repository" | "directory" | "reboot") {
+        if action != "export-logs" && ui.get_busy() {
+            return;
+        }
+        if !matches!(action, "repository" | "directory" | "reboot" | "export-logs") {
             return;
         }
         if action == "reboot" && (!ui.get_connected() || ui.get_file_mutating()) {
             return;
         }
         ui.set_system_error("".into());
+        if action == "export-logs" {
+            let default_name = debug_log::default_export_filename();
+            let path = ui
+                .window()
+                .with_winit_window(|window| {
+                    rfd::FileDialog::new()
+                        .set_parent(window)
+                        .set_title(text("导出运行日志", ui.get_english()))
+                        .add_filter(text("日志文件", ui.get_english()), &["log", "txt"])
+                        .set_file_name(&default_name)
+                        .save_file()
+                })
+                .flatten();
+            let Some(path) = path else {
+                ui.invoke_focus_main();
+                return;
+            };
+            ui.set_system_busy(true);
+            let ticket = self.serial.get() + 1;
+            self.serial.set(ticket);
+            let weak = self.ui.clone();
+            let mut jobs = self.jobs.lock().unwrap();
+            jobs.retain(|j| !j.is_finished());
+            jobs.push(self.runtime.spawn(async move {
+                let target = path.clone();
+                let result = tokio::task::spawn_blocking(move || debug_log::export_latest(&target))
+                    .await
+                    .map_err(anyhow::Error::from)
+                    .and_then(|v| v);
+                let error = match result {
+                    Ok(bytes) => {
+                        debug_log::info("feedback", &format!("exported debug log ({bytes} bytes) to {}", path.display()));
+                        String::new()
+                    }
+                    Err(e) => {
+                        debug_log::error("feedback", &format!("export debug log failed: {e:#}"));
+                        format!("{e:#}")
+                    }
+                };
+                let ok = error.is_empty();
+                let _ = weak.upgrade_in_event_loop(move |ui| {
+                    ui.invoke_system_finished(ticket.to_string().into(), error.into());
+                    if ok {
+                        ui.invoke_notify("日志已导出".into());
+                    }
+                });
+            }));
+            return;
+        }
         ui.set_system_busy(true);
         let ticket = self.serial.get() + 1;
         self.serial.set(ticket);
@@ -89,6 +142,7 @@ impl Controller {
         if action != "reboot" {
             self.opens.set(self.opens.get() + 1);
         }
+        debug_log::info("system", &format!("action={action}"));
         let mut jobs = self.jobs.lock().unwrap();
         jobs.retain(|j| !j.is_finished());
         jobs.push(self.runtime.spawn(async move {
@@ -115,7 +169,10 @@ impl Controller {
                     .map_err(anyhow::Error::from)
                     .and_then(|v| v)
             };
-            let error = result.err().map(|e| format!("{e:#}")).unwrap_or_default();
+            let error = result.err().map(|e| {
+                debug_log::error("system", &format!("action failed: {e:#}"));
+                format!("{e:#}")
+            }).unwrap_or_default();
             let _ = weak.upgrade_in_event_loop(move |ui| {
                 ui.invoke_system_finished(ticket.to_string().into(), error.into())
             });

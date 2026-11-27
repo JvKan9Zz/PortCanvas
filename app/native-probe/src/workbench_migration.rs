@@ -9,6 +9,7 @@ use portcanvas_core::{
     migration::{bundle, MigrationSession, Plan},
     services::Services,
 };
+use portcanvas_native_probe::debug_log;
 use slint::{winit_030::WinitWindowAccessor, ComponentHandle};
 use std::{
     cell::Cell,
@@ -92,31 +93,30 @@ impl Controller {
                     ui.invoke_focus_main();
                 }
                 if !error.is_empty() {
+                    debug_log::error("migration", &error);
                     ui.set_migration_error(text(&error, ui.get_english()).into());
                     return;
                 }
                 let value = serde_json::from_str::<serde_json::Value>(&result).unwrap_or_default();
                 if value["canceled"] == true {
-                    ui.set_migration_status(text("已取消资料操作。", ui.get_english()).into());
+                    debug_log::info("migration", "canceled");
                     return;
                 }
                 if value["exported"] == true {
-                    ui.set_migration_status(text("配置已导出。", ui.get_english()).into());
+                    debug_log::info("migration", "export succeeded");
+                    ui.invoke_notify("导出成功".into());
                     return;
                 }
                 c.completed.set(c.completed.get() + 1);
-                let status = if value["restored"] == true {
-                            format!(
-                                "已恢复导入前资料，日志文件保留。\n当前资料备份：{}",
-                                value["backup"].as_str().unwrap_or_default()
-                            )
-                        } else {
-                            format!(
-                                "资料导入完成，新增 {} 台设备。备份：{}",
-                                value["addedDevices"].as_u64().unwrap_or(0),
-                                value["backup"].as_str().unwrap_or_default()
-                            )
-                        };
+                let restored = value["restored"] == true;
+                debug_log::info(
+                    "migration",
+                    &format!(
+                        "import completed (restored={restored}, addedDevices={}, backup={})",
+                        value["addedDevices"].as_u64().unwrap_or(0),
+                        value["backup"].as_str().unwrap_or_default()
+                    ),
+                );
                 let refresh = (|| -> Result<()> {
                     profiles(&ui, &c.services)?;
                     let data = c.services.profiles.lock().unwrap().read()?;
@@ -140,9 +140,11 @@ impl Controller {
                     Ok(())
                 })();
                 if let Err(e) = refresh {
+                    debug_log::error("migration", &format!("post-import refresh failed: {e:#}"));
                     ui.set_migration_error(e.to_string().into());
+                } else {
+                    ui.invoke_notify("导入成功".into());
                 }
-                ui.set_migration_status(text(&status, ui.get_english()).into());
             }
         });
         c
@@ -201,7 +203,6 @@ impl Controller {
             .flatten();
         let Some(path) = path else {
             ui.set_migration_busy(false);
-            ui.set_migration_status(text("已取消资料操作。", ui.get_english()).into());
             ui.invoke_focus_main();
             return;
         };

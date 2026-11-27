@@ -1,6 +1,6 @@
 use crate::{workbench::text, workbench_ui::Workbench};
 use anyhow::{ensure, Context, Result};
-use portcanvas_native_probe::update_client::{Channel, Plan};
+use portcanvas_native_probe::{debug_log, update_client::{Channel, Plan}};
 use slint::ComponentHandle;
 use std::{rc::Rc, sync::{Arc, Mutex}, time::Instant};
 #[cfg(windows)] use std::path::PathBuf;
@@ -78,10 +78,16 @@ impl Controller {
                     let mut s=state.lock().unwrap();s.bytes=Some(bytes);s.phase="ready".into();
                 }else{
                     let plan=channel.check(env!("CARGO_PKG_VERSION"),&cancel).await?;
+                    debug_log::info("update", &format!("check result available={}", plan.as_ref().map(|p| p.version.as_str()).unwrap_or("none")));
                     let mut s=state.lock().unwrap();s.phase=if plan.is_some(){"available"}else{"current"}.into();s.plan=plan;
                 }Ok(())
             }.await;
-            if let Err(error)=result{let mut s=state.lock().unwrap();s.phase=if cancel.is_cancelled(){"canceled"}else{"error"}.into();s.message=error.to_string();}
+            if let Err(error)=result{
+                if !cancel.is_cancelled() {
+                    debug_log::warn("update", &format!("update error: {error:#}"));
+                }
+                let mut s=state.lock().unwrap();s.phase=if cancel.is_cancelled(){"canceled"}else{"error"}.into();s.message=error.to_string();
+            }
             let _=weak.upgrade_in_event_loop(|ui|ui.invoke_update_changed());
         }));
     }
