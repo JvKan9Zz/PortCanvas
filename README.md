@@ -12,8 +12,8 @@
 </p>
 
 <p>
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.1"><img src="https://img.shields.io/badge/Windows-v0.7.1-2563eb?style=flat-square" alt="Windows v0.7.1"></a>
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.1"><img src="https://img.shields.io/badge/macOS_13+-v0.7.1_Universal-0f172a?style=flat-square" alt="macOS v0.7.1 Universal"></a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.2"><img src="https://img.shields.io/badge/Windows-v0.7.2-2563eb?style=flat-square" alt="Windows v0.7.2"></a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.2"><img src="https://img.shields.io/badge/macOS_13+-v0.7.2_Universal-0f172a?style=flat-square" alt="macOS v0.7.2 Universal"></a>
   <img src="https://img.shields.io/badge/Built_with-Rust_%2B_Slint-ea580c?style=flat-square" alt="Rust + Slint">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-16a34a?style=flat-square" alt="MIT License"></a>
 </p>
@@ -21,15 +21,16 @@
 <p>
   <strong>简体中文</strong> · <a href="README.en.md">English</a>
   &nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_x64-setup.exe"><strong>下载 Windows v0.7.1</strong></a>
-  · <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_universal.dmg">macOS v0.7.1 DMG</a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_x64-setup.exe"><strong>下载 Windows v0.7.2</strong></a>
+  · <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_universal.dmg">macOS v0.7.2 DMG</a>
   · <a href="docs/usage.md">使用说明</a>
+  · <a href="docs/plugin-development.md">插件开发规范</a>
   · <a href="https://github.com/JvKan9Zz/PortCanvas/releases">更新日志</a>
 </p>
 
 <br>
 
-<img src="assets/preview/workbench-light.png" width="100%" alt="PortCanvas v0.7.1 无边框液态玻璃工作台">
+<img src="assets/preview/workbench-light.png" width="100%" alt="PortCanvas v0.7.2 无边框液态玻璃工作台">
 
 </div>
 
@@ -40,8 +41,8 @@
 - **全链路原生架构**：基于 Rust、Slint（FemtoVG）、原生 VT 终端、原生 RFB 远程桌面与系统级媒体解码构建，彻底告别浏览器壳与高内存占用，安装后无需 Node.js、Rust 或 Python 环境。
 - **无边框液态玻璃体验**：Windows 采用自绘贯通浮岛顶栏与原生 Win32 交互（支持拖动、四边缩放、贴边分屏与自动隐藏任务栏唤出）；macOS 适配系统原生材质；支持独立调节玻璃质量（默认 Full）与工作区不透明度，并支持纯色、裁剪图片与动态视频背景。
 - **独立设备性能监控**：从原赛台视图独立为常驻「性能」页，实时展示 60 秒 CPU/内存趋势、分核负载与主频、板端各挂载点存储空间、多网卡收发速率与 RTT、多热区温度及系统概览。
-- **签名可下载插件体系**：内置「插件」功能区，支持通过 HTTPS + Minisign 签名目录在线下载更新或离线导入 `.pcplugin` 插件包；Windows 默认落盘至安装目录 `plugins/`，macOS 存放于应用数据目录 `plugins/`，按需扩展专业视觉与机器人工作台。
-- **一处连接，处处协同**：左侧导航浮岛配合右侧可拖拽共享终端抽屉，在查看远程桌面、传输文件、排查性能或运行视觉插件时，随时拉出同一组持久化 `tmux` 终端，不打断当前工作流。
+- **百宝工具箱与声明式原生插件引擎**：基于纯 Rust + Slint `declarative-v1` 通用声明式界面与 `pc-worker-v1` 本地工作进程协议构建，全新类型的工具插件无需更新主程序即可通过 HTTPS + Minisign 签名目录独立上架，也可在「上传插件」二级菜单中离线导入 `.pcplugin` 或导出离线开发规范文档；Windows 默认落盘至安装目录 `plugins/`，macOS 存放于应用数据目录 `plugins/`。
+- **一处连接，处处协同**：左侧导航浮岛配合右侧可拖拽共享终端抽屉，在查看远程桌面、传输文件、排查性能或运行工具插件时，随时拉出同一组持久化 `tmux` 终端，不打断当前工作流。
 
 ---
 
@@ -54,19 +55,21 @@
 | **文件管理** | 可调双栏 SFTP，支持多选与拖拽传输、递归目录上传/下载、覆盖确认、限速、随时取消、远端删除，以及单文件完整路径一键复制 |
 | **终端与日志** | 多标签可滚动终端、持久 `tmux` 会话、中文输入法与命令草稿/历史/补全、按设备配置一键启动程序；本机运行日志支持项目/日期筛选、详情面板调节与自动上限清理 |
 | **设备性能** | 2 秒实时采样（离页、隐藏与断连自动停止），涵盖 4 格 KPI、60 秒双曲线趋势、分核 CPU 与频率、板端磁盘空间、多网卡吞吐与往返延迟、板端多路温度及系统信息 |
-| **插件系统** | 支持在线刷新签名目录、下载/更新/取消、离线 `.pcplugin` 导入与二次确认卸载；官方已提供 **赛台监控 (`v0.7.0`)** 与 **视觉实验台 (`v0.1.0`)** 两款插件 |
+| **百宝工具箱（插件）** | 纯原生声明式插件引擎，支持在线签名目录多插件并发下载、上传插件二级菜单（本地导入 + 离线开发文档下载）、后台常驻任务与权限确认；官方提供 **赛台监控 (`v0.8.0`)**、**视觉实验台 (`v0.2.0`)**、**视频采集 (`v0.1.0`)** 与 **128线程下载器 (`v0.1.0`)** |
 | **个性与外观** | 中英文实时切换、浅色 / 深色 / 跟随系统、多套主题强调色、纯色 / 图片裁剪 / 视频背景与音量调节，以及实时预览的玻璃材质参数 |
 
 ---
 
-## 官方插件生态
+## 官方插件生态（百宝工具箱）
 
-在工作台左侧进入 **插件 → 可下载** 即可直接在线拉取经 Minisign 签名校验的官方插件，也可下载 `.pcplugin` 包离线导入：
+在工作台左侧进入 **百宝工具箱（插件）→ 可下载** 即可直接在线拉取经 Minisign 签名校验的官方插件，也可点击 **上传插件** 离线导入 `.pcplugin` 包或下载离线插件开发规范文档：
 
-| 插件 | 版本 | 能力说明 |
-| --- | --- | --- |
-| **赛台监控** (`arena-monitor`) | `v0.7.0` | 3.8m 轮式格斗赛台坐标系底图、实时机器人定位遥测（坐标、航向、置信度、延迟，详见 [定位协议](docs/pose-protocol.md)）与远端摄像头实时预览 |
-| **视觉实验台** (`vision-studio`) | `v0.1.0` | 支持 7 种 OpenCV 实时算法实验（原图/翻转、灰度与 Otsu 二值化、Canny/Sobel/Shi-Tomasi 边缘角点、HSV 颜色分割与底部巡线 ROI、霍夫圆与多边形形状、AprilTag 定位、Haar 人脸检测），参数热更新不中断画面；并支持 **板端摄像头代码伴随监视**（自动检测占用 `/dev/video*` 的进程与 X11 窗口 / `/dev/shm/portcanvas_cam.jpg` 共享帧，实现免停代码实时观测） |
+| 插件 | 版本 | 平台 | 能力说明 |
+| --- | --- | --- | --- |
+| **赛台监控** (`arena-monitor`) | `v0.8.0` | 跨平台 | 3.8m 轮式格斗赛台坐标系底图、实时机器人定位遥测（坐标、航向、置信度、延迟，详见 [定位协议](docs/pose-protocol.md)）与远端摄像头实时预览 |
+| **视觉实验台** (`vision-studio`) | `v0.2.0` | 跨平台 | 支持 7 种 OpenCV 实时算法实验与参数热更新，以及 **板端摄像头代码伴随监视**（自动检测占用 `/dev/video*` 的进程、X11 窗口与 `/dev/shm/portcanvas_cam.jpg` 共享帧） |
+| **视频采集** (`video-capture`) | `v0.1.0` | Windows x64 | 本机 USB / HDMI 采集卡与摄像头零延迟原生直采（MediaFoundation），支持分辨率与帧率切换、适配/填充/`1:1`、0°/90°/180°/270° 旋转、镜像翻转与 PNG 截图，免连接远端设备即可使用 |
+| **128线程下载器** (`fast-downloader`) | `v0.1.0` | Windows x64 · macOS Universal | 后台多任务并发下载与断点续传，支持 8/32/64/128 线程调节（默认 128 线程，不支持 Range 时自动回退单线程）、系统代理继承与默认保存目录设置；**安装启用后自动接管软件内置 32 线程下载器，卸载或停用自动恢复** |
 
 ---
 
@@ -101,8 +104,8 @@
 
 | 平台 | 最新版本 | 安装包 | 说明 |
 | --- | --- | --- | --- |
-| **Windows x64** | **v0.7.1** | [**PortCanvas_0.7.1_x64-setup.exe**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_x64-setup.exe) | 稳定通道，内置签名自动更新；新装资料保存在安装目录 `data/`，插件位于 `plugins/`，静默运行日志位于 `debuglogs/`（上限 10 MiB），原地升级沿用既有资料 |
-| **macOS 13.0+** | **v0.7.1** | [**PortCanvas_0.7.1_universal.dmg**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_universal.dmg) | Apple Silicon & Intel 通用包，采用 ad-hoc 签名手动安装（[SHA-256](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.1/PortCanvas_0.7.1_universal.dmg.sha256)），详见 [Mac 安装说明](docs/macos.md) |
+| **Windows x64** | **v0.7.2** | [**PortCanvas_0.7.2_x64-setup.exe**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_x64-setup.exe) | 稳定通道，内置签名自动更新；新装资料保存在安装目录 `data/`，插件位于 `plugins/`，静默运行日志位于 `debuglogs/`（上限 10 MiB），原地升级沿用既有资料 |
+| **macOS 13.0+** | **v0.7.2** | [**PortCanvas_0.7.2_universal.dmg**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_universal.dmg) | Apple Silicon & Intel 通用包，采用 ad-hoc 签名手动安装（[SHA-256](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_universal.dmg.sha256)），详见 [Mac 安装说明](docs/macos.md) |
 
 <details>
 <summary><strong>资料迁移、软件内更新与历史版本说明</strong></summary>
@@ -110,7 +113,7 @@
 - **配置迁移与备份**：在「设备」页点击「导入数据」，可预览并导入 `.portcanvas` 配置包或旧版资料，导入前自动创建备份。本机加密凭据采用 Windows DPAPI / macOS Keychain 保护，导出配置包时不会携带密码和私钥。
 - **自动更新与问题反馈**：Windows 正式版可在「设置 → 关于」检查并完成经 Minisign 签名校验的稳定通道更新，也可点击「反馈问题」导出最新运行日志协助排查；正式版插件目录仅允许 HTTPS 与 Minisign 签名校验。
 - **远端 Linux 依赖**：板端按需复用已有的 SSH、Python 3、`tmux`、SFTP、`x11vnc`、FFmpeg / OpenCV；缺失组件可由电脑下载并通过 SSH 放入用户隔离缓存（当前自动准备面向 Ubuntu 20.04 ARM64 控制器），不替换系统 SDK 或已有程序。
-- **历史归档**：[v0.7.0](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0) · [v0.6.4](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.4) · [v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3) · [v0.6.2](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.2) · [全部 Releases](https://github.com/JvKan9Zz/PortCanvas/releases)
+- **历史归档**：[v0.7.1](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.1) · [v0.7.0](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0) · [v0.6.4](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.4) · [v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3) · [v0.6.2](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.2) · [全部 Releases](https://github.com/JvKan9Zz/PortCanvas/releases)
 
 </details>
 
@@ -128,9 +131,10 @@ cd app && bash tools/build-native.sh
 | 路径 | 说明 |
 | --- | --- |
 | [app/](app/README.md) | Rust / Slint 原生工程（`core` 共享服务 + `native-probe` 工作台）、测试与打包脚本 |
-| [plugins/](plugins) | 官方插件源码（`arena-monitor`、`vision-studio`）与签名目录清单 `catalog.json` |
+| [plugins/](plugins) | 官方插件源码（`arena-monitor`、`vision-studio`、`video-capture`、`fast-downloader`）、最小模板 `_template` 与签名目录清单 `catalog.json` |
 | [assets/](assets) | 品牌图标与界面预览图 |
 | [docs/usage.md](docs/usage.md) | 完整功能与日常使用指南 |
+| [docs/plugin-development.md](docs/plugin-development.md) | 声明式原生插件开发规范文档（`declarative-v1` & `pc-worker-v1`） |
 | [docs/macos.md](docs/macos.md) | macOS Universal 构建与安装指南 |
 | [docs/pose-protocol.md](docs/pose-protocol.md) | 赛台外部定位输入协议 |
 | [docs/security.md](docs/security.md) | 认证、凭据加密、签名更新与数据边界说明 |
