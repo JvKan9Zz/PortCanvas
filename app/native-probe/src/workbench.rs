@@ -6,9 +6,11 @@ use portcanvas_core::{
     profiles::{AuthMethod, Profile},
     services::{Paths, Services},
 };
+use portcanvas_native_probe::debug_log;
 use slint::winit_030::WinitWindowAccessor;
-use slint::{ComponentHandle, ModelRc, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::{
+    rc::Rc,
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc, Mutex,
@@ -200,9 +202,21 @@ pub fn run() -> Result<()> {
     let host_pending = pending.clone();
     let latest = generation.clone();
     let file_wake=Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let found_model = Rc::new(VecModel::<DeviceRow>::default());
+    ui.set_found(ModelRc::from(found_model.clone()));
+    let found_scan_id = Arc::new(AtomicU64::new(0));
+    let discovery_scan_id = found_scan_id.clone();
     let events: portcanvas_core::session::EventSink = Arc::new(move |topic, value| {
         if topic == "device-state" {
             let number = value["generation"].as_u64().unwrap_or(0);
+            let ssh = value["ssh"].as_str().unwrap_or("disconnected").to_owned();
+            let stage = value["connectionStage"].as_str().unwrap_or("").to_owned();
+            let message = value["message"].as_str().unwrap_or("").to_owned();
+            if ssh == "error" {
+                debug_log::warn("ssh", &format!("state={ssh} stage={stage} msg={message}"));
+            } else if matches!(ssh.as_str(), "connected" | "disconnected") {
+                debug_log::info("ssh", &format!("state={ssh} stage={stage}"));
+            }
             latest.fetch_max(number, Ordering::SeqCst);
             let latest = latest.clone();
             let pending = host_pending.clone();
@@ -233,13 +247,26 @@ pub fn run() -> Result<()> {
         } else if topic == "environment-progress" {
             let _=weak.upgrade_in_event_loop(move|ui|{ui.invoke_desktop_environment(value.to_string().into());ui.invoke_arena_environment(value.to_string().into());ui.invoke_vision_environment(value.to_string().into());});
         } else if topic == "discovery-state" {
+            let status = value["status"].as_str().unwrap_or("");
+            if matches!(status, "complete" | "canceled" | "error") {
+                let count = value["devices"].as_array().map(|a| a.len()).unwrap_or(0);
+                debug_log::info("discovery", &format!("status={status} devices={count} msg={}", value["message"].as_str().unwrap_or("")));
+            }
+            let scan_tracker = discovery_scan_id.clone();
             let _ = weak.upgrade_in_event_loop(move |ui| {
-                ui.set_discovering(value["status"] == "searching");
-                ui.set_discovery_progress(if value["status"] == "searching" {
+                let searching = value["status"] == "searching";
+                if ui.get_discovering() != searching {
+                    ui.set_discovering(searching);
+                }
+                let progress: slint::SharedString = if searching {
                     format!("{} / {}", value["checked"], value["total"]).into()
                 } else {
                     text(value["message"].as_str().unwrap_or(""), ui.get_english()).into()
-                });
+                };
+                if ui.get_discovery_progress() != progress {
+                    ui.set_discovery_progress(progress);
+                }
+                let scan_id = value["scanId"].as_u64().unwrap_or(0);
                 let rows = value["devices"]
                     .as_array()
                     .into_iter()
@@ -253,11 +280,38 @@ pub fn run() -> Result<()> {
                         })
                     })
                     .collect::<Vec<_>>();
-                ui.set_found(ModelRc::new(VecModel::from(rows)));
+                // Keep one persistent VecModel during an active scan so clicking a
+                // discovered device never destroys its repeater item mid-interaction.
+                let model = ui.get_found();
+                if let Some(vec_model) = model.as_any().downcast_ref::<VecModel<DeviceRow>>() {
+                    if scan_tracker.swap(scan_id, Ordering::SeqCst) != scan_id {
+                        vec_model.set_vec(rows);
+                    } else {
+                        for row in rows {
+                            let exists = (0..vec_model.row_count())
+                                .any(|i| vec_model.row_data(i).is_some_and(|r| r.id == row.id));
+                            if !exists {
+                                vec_model.push(row);
+                            }
+                        }
+                    }
+                } else {
+                    scan_tracker.store(scan_id, Ordering::SeqCst);
+                    ui.set_found(ModelRc::new(VecModel::from(rows)));
+                }
             });
         }
     });
     let paths = data_paths()?;
+    debug_log::init(Some(&paths.data));
+    debug_log::info(
+        "paths",
+        &format!(
+            "data={} plugins={:?}",
+            paths.data.display(),
+            paths.plugins.as_ref().map(|p| p.display().to_string())
+        ),
+    );
     let _instance=portcanvas_native_probe::instance::acquire(&paths.data)?;
     // Before UI input can start another update; never race a newly staged package.
     portcanvas_native_probe::legacy_cleanup::finish_update(&paths.data);
@@ -345,12 +399,13 @@ pub fn run() -> Result<()> {
         let weak=ui.as_weak();let services=services.clone();let previous=quick_previous.clone();
         move|host|{if let Some(ui)=weak.upgrade(){
             if ui.get_busy()||ui.get_connected()||ui.get_quick_open(){return;}
+            debug_log::info("discovery", &format!("select_found host={host} discovering={}", ui.get_discovering()));
             let data_result={services.profiles.lock().unwrap().read()};
             match data_result{
                 Ok(data)=>{*previous.borrow_mut()=Some(DeviceDraft::capture(&ui));let saved=data.devices.iter().find(|p|p.host==host.as_str()&&p.port==22);let direct=saved.is_some_and(|p|p.encrypted_secret.is_some()||p.auth_method==AuthMethod::Key);fill(&ui,saved);if saved.is_none(){ui.set_host(host);}ui.set_quick_candidate(true);
                     if direct{ui.invoke_connect_device();if !ui.get_busy()&&!ui.get_error().is_empty(){ui.set_quick_open(true);}}else{ui.set_quick_open(true);}
                 }
-                Err(e)=>ui.set_error(e.to_string().into()),
+                Err(e)=>{debug_log::error("discovery", &format!("read profiles failed: {e:#}"));ui.set_error(e.to_string().into());}
             }
         }}
     });
@@ -593,13 +648,17 @@ pub fn run() -> Result<()> {
         let services = services.clone();
         let runtime = runtime.clone();
         move || {
+            debug_log::info("discovery", "start LAN scan");
             let _entered = runtime.enter();
             services.discovery.start();
         }
     });
     ui.on_cancel_discovery({
         let services = services.clone();
-        move || services.discovery.cancel()
+        move || {
+            debug_log::info("discovery", "cancel LAN scan");
+            services.discovery.cancel()
+        }
     });
     ui.on_set_language({
         let weak = ui.as_weak();

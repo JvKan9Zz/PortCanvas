@@ -27,6 +27,7 @@ pub mod legacy_cleanup;
 pub mod color_model;
 pub mod instance;
 pub mod platform_paths;
+pub mod debug_log;
 
 #[cfg(target_os="macos")] #[path="media_macos.rs"] pub mod media;
 #[cfg(target_os="macos")] #[path="media_audio_macos.rs"] pub mod media_audio;

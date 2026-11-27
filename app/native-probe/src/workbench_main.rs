@@ -32,7 +32,9 @@ fn main() {
         if let Err(error)=result {eprintln!("{error:#}");std::process::exit(1);}
         return;
     }
+    portcanvas_native_probe::debug_log::init(None);
     if let Err(error) = workbench::run() {
+        portcanvas_native_probe::debug_log::error("startup", &format!("fatal error: {error:#}"));
         eprintln!("{error:#}");
         rfd::MessageDialog::new()
             .set_title("PortCanvas")
@@ -42,4 +44,5 @@ fn main() {
             .show();
         std::process::exit(1);
     }
+    portcanvas_native_probe::debug_log::info("shutdown", "PortCanvas exited cleanly");
 }
