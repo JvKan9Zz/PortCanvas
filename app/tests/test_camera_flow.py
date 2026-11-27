@@ -9,7 +9,7 @@ import time
 import types
 import unittest
 
-SOURCE=Path(__file__).resolve().parents[1]/'core/resources/camera_stream.py'
+SOURCE=Path(__file__).resolve().parents[2]/'plugins/arena-monitor/scripts/camera_stream.py'
 class FlowTests(unittest.TestCase):
     def exercise(self,pull,slow):
         read_fd,write_fd=os.pipe()

@@ -4209,16 +4209,18 @@ dependencies = [
 
 [[package]]
 name = "portcanvas-core"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
  "chrono",
  "core-foundation 0.10.1",
  "dunce",
+ "flate2",
  "futures-util",
  "if-addrs",
  "libc",
+ "minisign-verify",
  "regex",
  "reqwest",
  "ring",
@@ -4241,7 +4243,7 @@ dependencies = [
 
 [[package]]
 name = "portcanvas-native-probe"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "alacritty_terminal",
  "anyhow",
@@ -5085,6 +5087,10 @@ name = "semver"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
+dependencies = [
+ "serde",
+ "serde_core",
+]
 
 [[package]]
 name = "serde"

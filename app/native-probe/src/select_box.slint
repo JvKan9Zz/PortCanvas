@@ -14,12 +14,11 @@ export component SelectBox inherits Rectangle {
         root.popup-state(root.opened);
         if !root.opened&&root.ticket==SelectPopup.serial&&root.enabled{keys.focus();}
     }
-    changed delivery=>{if root.ticket==SelectPopup.committed{root.selected(SelectPopup.result);}}
+    changed delivery=>{if root.ticket==SelectPopup.committed{root.current-index=SelectPopup.result;root.selected(SelectPopup.result);}}
     changed enabled=>{if !root.enabled&&root.ticket==SelectPopup.serial{SelectPopup.opened=false;}}
     public function close-popup(){if root.opened{SelectPopup.opened=false;}}
     callback selected(int);
-    selected(index)=>{root.current-index=index;}
-    function choose(index:int){if index>=0&&index<root.model.length{root.selected(index);}keys.focus();}
+    function choose(index:int){if index>=0&&index<root.model.length{root.current-index=index;root.selected(index);}keys.focus();}
     function show(){if root.enabled&&root.model.length>0{
         SelectPopup.model=root.model;SelectPopup.current=root.current-index;SelectPopup.highlighted=max(0,root.current-index);
         SelectPopup.anchor-x=self.absolute-position.x;SelectPopup.anchor-y=self.absolute-position.y;

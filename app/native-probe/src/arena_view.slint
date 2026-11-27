@@ -1,115 +1,385 @@
 import {DesktopTool} from "desktop_tool.slint";
 import {SelectBox as ComboBox} from "select_box.slint";
-import {ScrollView,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
-import {ActionButton,ActionButton as Button,ActivityIndicator,AppColors} from "action_button.slint";
-export struct MetricRow {label:string,value:string,usage:float,wide:bool}
+import {VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {ActionButton,ActivityIndicator,AppColors} from "action_button.slint";
+
 export component ArenaView inherits Rectangle {
-    in property <bool> english;in property <bool> enabled;in property <bool> connected;
-    in property <bool> camera-active;in property <bool> camera-loading;in property <image> frame;
-    in property <bool> has-frame;in property <[string]> cameras;
-    in-out property <int> camera-index;in-out property <int> rate:2;
-    in property <string> camera-status;in property <string> metrics-status;
-    in property <[MetricRow]> metric-rows;
-    in property <string> cpu-path;in property <string> memory-path;
-    in property <bool> live;in property <float> world-x;in property <float> world-y;in property <float> heading;
-    in property <bool> has-heading;in property <string> pose-status;in property <string> coordinates;
-    pure callback tr(string,bool)->string;
-    callback toggle-camera();callback refresh-cameras();callback plot-resized(float);
-    property <bool> narrow:root.width<760px;
-    property <length> side-width:root.narrow?root.width:(root.width - 18px)/3;
-    property <length> camera-height:root.side-width*0.625+122px;
-    property <length> narrow-metrics-height:max(410px,metrics.preferred-height+4px);
-    property <length> metrics-height:root.narrow?root.narrow-metrics-height:min(root.narrow-metrics-height,root.height - camera-card.height - 16px);
-    // The narrow stack must not depend on the viewport's own height.
-    property <length> stage-y:root.narrow?root.camera-height+root.narrow-metrics-height+32px:0px;
-    out property <length> natural-height:root.narrow?root.stage-y+420px:root.camera-height+436px;
-    background:transparent;
-    camera-card:=Rectangle {x:0px;y:0px;width:root.side-width;height:root.camera-height;border-radius:16px;border-width:1px;border-color:AppColors.edge;background:AppColors.card;clip:true;
-        VerticalBox {padding:0px;spacing:0px;
-            HorizontalBox {height:52px;vertical-stretch:0;padding:14px;spacing:8px;
-                Text {text:root.tr("摄像头",root.english);font-size:13px;font-weight:600;color:AppColors.ink;horizontal-stretch:1;vertical-alignment:center;}
-                ActionButton {text:root.tr(root.camera-active?"关闭摄像头":"开启摄像头",root.english);busy:root.camera-loading;primary:!root.camera-active;enabled:root.enabled&&(root.camera-active||(root.connected&&!root.camera-loading&&root.cameras.length>0));clicked=>{root.toggle-camera();}}
+    in property <bool> english;
+    in property <bool> enabled;
+    in property <bool> connected;
+    in property <bool> camera-active;
+    in property <bool> camera-loading;
+    in property <image> frame;
+    in property <bool> has-frame;
+    in property <[string]> cameras;
+    in-out property <int> camera-index;
+    in-out property <int> rate: 2;
+    in property <string> camera-status;
+    in property <image> platform-image;
+    in property <bool> has-platform-image: false;
+    in property <bool> live;
+    in property <float> world-x;
+    in property <float> world-y;
+    in property <float> heading;
+    in property <bool> has-heading;
+    in property <string> pose-status;
+    in property <string> coordinates;
+    in property <string> heading-text: "—";
+    in property <string> confidence-text: "—";
+    in property <string> pose-age-text: "—";
+    pure callback tr(string, bool) -> string;
+    callback toggle-camera();
+    callback refresh-cameras();
+
+    property <bool> narrow: root.width < 760px;
+    property <length> side-width: root.narrow ? root.width : (root.width - 18px) * 0.35;
+    property <length> camera-height: root.side-width * 0.5625 + 130px;
+    property <length> telemetry-height: 204px;
+    property <length> stage-y: root.narrow ? root.camera-height + root.telemetry-height + 32px : 0px;
+    out property <length> natural-height: root.narrow ? root.stage-y + 440px : max(520px, root.camera-height + root.telemetry-height + 16px);
+    property <color> pose-tone: root.live ? (AppColors.dark ? #a9dcc3 : #235d42) : AppColors.muted;
+
+    background: transparent;
+
+    camera-card:= Rectangle {
+        x: 0px;
+        y: 0px;
+        width: root.side-width;
+        height: root.camera-height;
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: AppColors.edge;
+        background: AppColors.card;
+        clip: true;
+        VerticalBox {
+            padding: 0px;
+            spacing: 0px;
+            HorizontalBox {
+                height: 52px;
+                vertical-stretch: 0;
+                padding: 14px;
+                spacing: 8px;
+                Text {
+                    text: root.tr("摄像头", root.english);
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: AppColors.ink;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+                ActionButton {
+                    text: root.tr(root.camera-active ? "关闭摄像头" : "开启摄像头", root.english);
+                    busy: root.camera-loading;
+                    primary: !root.camera-active;
+                    enabled: root.enabled && (root.camera-active || (root.connected && !root.camera-loading && root.cameras.length > 0));
+                    clicked => { root.toggle-camera(); }
+                }
             }
-            HorizontalBox {height:40px;vertical-stretch:0;padding-left:12px;padding-right:12px;spacing:6px;
-                ComboBox {accessible-label:root.tr("视频设备",root.english);model:root.cameras;current-index<=>root.camera-index;enabled:root.enabled&&root.connected&&!root.camera-active&&!root.camera-loading;horizontal-stretch:1;preferred-width:0px;}
-                ComboBox {width:106px;horizontal-stretch:0;accessible-label:root.tr("目标帧率",root.english);model:["8 FPS","15 FPS","20 FPS","30 FPS"];current-index<=>root.rate;enabled:root.enabled&&!root.camera-active;}
-                DesktopTool {width:30px;height:30px;show-text:false;label:root.tr("刷新",root.english);icon:@image-url("icons/restart.svg");enabled:root.enabled&&root.connected&&!root.camera-active&&!root.camera-loading;clicked=>{root.refresh-cameras();}}
+            HorizontalBox {
+                height: 40px;
+                vertical-stretch: 0;
+                padding-left: 12px;
+                padding-right: 12px;
+                spacing: 6px;
+                ComboBox {
+                    accessible-label: root.tr("视频设备", root.english);
+                    model: root.cameras;
+                    current-index <=> root.camera-index;
+                    enabled: root.enabled && root.connected && !root.camera-active && !root.camera-loading;
+                    horizontal-stretch: 1;
+                    preferred-width: 0px;
+                }
+                ComboBox {
+                    width: 86px;
+                    horizontal-stretch: 0;
+                    accessible-label: root.tr("目标帧率", root.english);
+                    model: ["8 FPS", "15 FPS", "20 FPS", "30 FPS"];
+                    current-index <=> root.rate;
+                    enabled: root.enabled && !root.camera-active;
+                }
+                DesktopTool {
+                    width: 30px;
+                    height: 30px;
+                    show-text: false;
+                    label: root.tr("刷新", root.english);
+                    icon: @image-url("icons/restart.svg");
+                    enabled: root.enabled && root.connected && !root.camera-active && !root.camera-loading;
+                    clicked => { root.refresh-cameras(); }
+                }
             }
-            Rectangle {background:#172331;min-height:130px;
-                if root.has-frame:Image {width:parent.width;height:parent.height;source:root.frame;image-fit:contain;}
-                if !root.has-frame&&!root.camera-active&&!root.camera-loading:Image {x:(parent.width - 38px)/2;y:(parent.height - 38px)/2;width:38px;height:38px;source:@image-url("icons/camera.svg");colorize:#a9bad2;}
-                ActivityIndicator {x:(parent.width - 18px)/2;y:(parent.height - 18px)/2;active:root.camera-active&&!root.has-frame&&!root.camera-loading;}
+            Rectangle {
+                background: #172331;
+                min-height: 130px;
+                if root.has-frame: Image {
+                    width: parent.width;
+                    height: parent.height;
+                    source: root.frame;
+                    image-fit: contain;
+                }
+                if !root.has-frame && !root.camera-active && !root.camera-loading: Image {
+                    x: (parent.width - 38px) / 2;
+                    y: (parent.height - 38px) / 2;
+                    width: 38px;
+                    height: 38px;
+                    source: @image-url("icons/camera.svg");
+                    colorize: #a9bad2;
+                }
+                ActivityIndicator {
+                    x: (parent.width - 18px) / 2;
+                    y: (parent.height - 18px) / 2;
+                    active: root.camera-active && !root.has-frame && !root.camera-loading;
+                }
             }
-            Rectangle {height:38px;vertical-stretch:0;background:transparent;
-                Text {x:14px;width:parent.width - 28px;height:parent.height;text:root.tr(root.camera-status,root.english);font-size:12px;color:AppColors.ink;vertical-alignment:center;overflow:elide;}
+            Rectangle {
+                height: 38px;
+                vertical-stretch: 0;
+                background: transparent;
+                Text {
+                    x: 14px;
+                    width: parent.width - 28px;
+                    height: parent.height;
+                    text: root.tr(root.camera-status, root.english);
+                    font-size: 12px;
+                    color: AppColors.ink;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
             }
         }
     }
-    Rectangle {x:0px;y:camera-card.height+16px;width:root.side-width;height:root.metrics-height;background:AppColors.card;border-radius:16px;border-width:1px;border-color:AppColors.edge;clip:true;
-        ScrollView {viewport-width:self.visible-width;viewport-height:max(self.visible-height,metrics.preferred-height);vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
-            metrics:=VerticalBox {x:0px;y:0px;width:parent.width;height:self.preferred-height;padding:16px;spacing:14px;
-                HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
-                    Text {text:root.tr("设备性能",root.english);font-size:13px;font-weight:600;color:AppColors.ink;horizontal-stretch:1;}
-                    ActivityIndicator {active:root.connected&&root.metrics-status==root.tr("正在读取…",root.english);}
-                    Text {text:root.tr(root.metrics-status,root.english);font-size:11px;color:AppColors.muted;horizontal-alignment:right;}
+
+    telemetry-card:= Rectangle {
+        x: 0px;
+        y: camera-card.height + 16px;
+        width: root.side-width;
+        height: root.narrow ? root.telemetry-height : max(root.telemetry-height, root.height - camera-card.height - 16px);
+        background: AppColors.card;
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: AppColors.edge;
+        clip: true;
+        VerticalBox {
+            padding: 16px;
+            spacing: 12px;
+            HorizontalBox {
+                padding: 0px;
+                spacing: 8px;
+                vertical-stretch: 0;
+                Text {
+                    text: root.tr("定位遥测", root.english);
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: AppColors.ink;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
                 }
-GridLayout {padding:0px;spacing:12px;vertical-stretch:0;
-            for metric[index] in root.metric-rows:VerticalBox {col:metric.wide?0:mod(index,2);row:index<6?floor(index/2):index - 3;colspan:metric.wide?2:1;padding:0px;spacing:4px;min-width:0px;
-                Text {text:metric.label;color:AppColors.muted;font-size:11px;}
-                Text {text:metric.value;color:AppColors.ink;font-size:14px;wrap:word-wrap;}
-                if metric.usage>=0:Rectangle {height:3px;vertical-stretch:0;background:AppColors.edge;Rectangle {x:0px;y:0px;width:parent.width*max(0,min(100,metric.usage))/100;background:AppColors.accent;animate width {duration:AppColors.motion?160ms:0ms;easing:linear;}}}
-            }
-        }
-                HorizontalBox {padding:0px;spacing:6px;vertical-stretch:0;
-                    Rectangle {width:12px;height:1px;horizontal-stretch:0;vertical-stretch:0;background:AppColors.accent;}Text {text:"CPU";font-size:10px;color:AppColors.muted;horizontal-stretch:0;}
-                    Rectangle {width:12px;height:2px;horizontal-stretch:0;vertical-stretch:0;background:transparent;for i in 3:Rectangle {x:i*5px;y:0px;width:3px;height:1px;background:#8d80ac;}}
-                    Text {text:root.tr("内存",root.english);font-size:10px;color:AppColors.muted;horizontal-stretch:0;}
-                    Rectangle {background:transparent;horizontal-stretch:1;}
-                    Text {text:root.tr("最近60秒",root.english)+" · 0–100%";font-size:10px;color:AppColors.muted;}
+                Rectangle {
+                    preferred-width: pose-pill-text.preferred-width + 16px;
+                    height: 22px;
+                    horizontal-stretch: 0;
+                    border-radius: 11px;
+                    background: root.pose-tone.with-alpha(0.1);
+                    pose-pill-text:= Text {
+                        x: 8px;
+                        width: parent.width - 16px;
+                        height: parent.height;
+                        text: root.tr(root.pose-status, root.english);
+                        font-size: 11px;
+                        font-weight: 500;
+                        color: root.pose-tone;
+                        vertical-alignment: center;
+                    }
                 }
-history-plot:=Rectangle {height:80px;vertical-stretch:0;min-width:0px;background:AppColors.inset;border-radius:10px;clip:true;
-            property <float> aspect:max(1px,self.width - 1px)/max(1px,self.height - 1px);
-            changed width=>{if self.width>1px{root.plot-resized(self.aspect);}}
-            changed height=>{if self.width>1px{root.plot-resized(self.aspect);}}
-            for level in [0,25,50,75,100]:Rectangle {x:0px;y:parent.height*level/100;width:parent.width;height:1px;background:AppColors.edge.with-alpha(0.6);}
-            Path {x:0px;y:0px;width:parent.width;height:parent.height;commands:root.cpu-path;viewbox-width:history-plot.aspect*10;viewbox-height:10;stroke:AppColors.accent;stroke-width:1px;fill:transparent;}
-            Path {x:0px;y:0px;width:parent.width;height:parent.height;commands:root.memory-path;viewbox-width:history-plot.aspect*10;viewbox-height:10;stroke:#8d80ac;stroke-width:1px;fill:transparent;}
-        }
             }
+            Rectangle {
+                height: 54px;
+                vertical-stretch: 0;
+                background: AppColors.inset;
+                border-radius: 11px;
+                VerticalBox {
+                    padding: 10px;
+                    spacing: 3px;
+                    Text {
+                        text: root.tr("己方坐标", root.english);
+                        font-size: 11px;
+                        color: AppColors.muted;
+                    }
+                    Text {
+                        text: root.coordinates;
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: AppColors.ink;
+                        overflow: elide;
+                        accessible-label: root.tr("己方坐标", root.english);
+                    }
+                }
+            }
+            HorizontalBox {
+                padding: 0px;
+                spacing: 8px;
+                vertical-stretch: 0;
+                Rectangle {
+                    preferred-width: 0px;
+                    horizontal-stretch: 1;
+                    height: 54px;
+                    background: AppColors.inset;
+                    border-radius: 11px;
+                    VerticalBox {
+                        padding: 10px;
+                        spacing: 3px;
+                        Text { text: root.tr("航向", root.english); font-size: 11px; color: AppColors.muted; }
+                        Text { text: root.heading-text; font-size: 13px; font-weight: 600; color: AppColors.ink; overflow: elide; }
+                    }
+                }
+                Rectangle {
+                    preferred-width: 0px;
+                    horizontal-stretch: 1;
+                    height: 54px;
+                    background: AppColors.inset;
+                    border-radius: 11px;
+                    VerticalBox {
+                        padding: 10px;
+                        spacing: 3px;
+                        Text { text: root.tr("置信度", root.english); font-size: 11px; color: AppColors.muted; }
+                        Text { text: root.confidence-text; font-size: 13px; font-weight: 600; color: AppColors.ink; overflow: elide; }
+                    }
+                }
+                Rectangle {
+                    preferred-width: 0px;
+                    horizontal-stretch: 1;
+                    height: 54px;
+                    background: AppColors.inset;
+                    border-radius: 11px;
+                    VerticalBox {
+                        padding: 10px;
+                        spacing: 3px;
+                        Text { text: root.tr("数据延迟", root.english); font-size: 11px; color: AppColors.muted; }
+                        Text { text: root.pose-age-text; font-size: 13px; font-weight: 600; color: AppColors.ink; overflow: elide; }
+                    }
+                }
+            }
+            Rectangle { background: transparent; vertical-stretch: 1; }
         }
     }
-    Rectangle {x:root.narrow?0px:root.side-width+18px;y:root.stage-y;width:root.narrow?root.width:root.width - root.side-width - 18px;height:root.narrow?root.height - root.stage-y:root.height;background:AppColors.card;border-radius:16px;border-width:1px;border-color:AppColors.edge;clip:true;
-        VerticalBox {padding:12px;spacing:8px;
-            HorizontalBox {padding:6px;height:44px;vertical-stretch:0;spacing:10px;
-                Text {text:root.tr("赛台",root.english);font-size:21px;font-weight:600;color:AppColors.ink;horizontal-stretch:1;}
-                Text {text:root.tr(root.pose-status,root.english);font-size:11px;color:AppColors.muted;}
-                Text {text:root.coordinates;font-size:12px;color:AppColors.ink;accessible-label:root.tr("己方坐标",root.english);}
-            }
-stage:=Rectangle {background:transparent;
-            property <length> side:max(0px,min(self.width - 72px,self.height - 72px));
-            property <length> axis-font:min(20px,max(14px,self.side/48));
-            map-floor:=Rectangle {x:(parent.width - self.width)/2 + 12px;y:24px;width:stage.side;height:stage.side;background:#30363a;border-color:#c3423f;border-width:2px;
-                accessible-role:image;accessible-label:root.tr("赛台坐标系，左下角为原点，X向右，Y向上，单位米",root.english);
-                Image {x:parent.width*700/3800;y:parent.height*700/3800;width:parent.width*2400/3800;height:parent.height*2400/3800;source:@image-url("../assets/arena-platform.png");}
-                Rectangle {x:parent.width*700/3800;y:parent.height*700/3800;width:parent.width*2400/3800;height:parent.height*2400/3800;border-width:1px;border-color:#ecf0f3;background:transparent;}
-                Rectangle {x:0px;y:parent.height*700/3800;width:parent.width*500/3800;height:parent.height*400/3800;background:#f6d627;}
-                Rectangle {x:parent.width*3300/3800;y:parent.height*2700/3800;width:parent.width*500/3800;height:parent.height*400/3800;background:#2458ee;}
-                if root.live:Text {x:parent.width*root.world-x/3.8+10px;y:parent.height*(1-root.world-y/3.8) - 18px;text:root.tr("己方",root.english);color:AppColors.accent;font-size:11px;}
-                if root.live:Rectangle {x:parent.width*root.world-x/3.8 - 7px;y:parent.height*(1-root.world-y/3.8)-7px;width:14px;height:14px;border-radius:7px;background:Palette.accent-background;border-width:1px;border-color:white;
-                    if root.has-heading:Path {x:2px;y:2px;width:10px;height:10px;commands:"M1,2 L9,5 L1,8 Z";fill:white;transform-rotation:-root.heading*1deg;transform-origin:{x:self.width/2,y:self.height/2};}
+
+    Rectangle {
+        x: root.narrow ? 0px : root.side-width + 18px;
+        y: root.stage-y;
+        width: root.narrow ? root.width : root.width - root.side-width - 18px;
+        height: root.narrow ? root.height - root.stage-y : root.height;
+        background: AppColors.card;
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: AppColors.edge;
+        clip: true;
+        VerticalBox {
+            padding: 12px;
+            spacing: 8px;
+            HorizontalBox {
+                padding: 6px;
+                height: 36px;
+                vertical-stretch: 0;
+                spacing: 10px;
+                Text {
+                    text: root.tr("台面 · 2.4 × 2.4 m", root.english);
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: AppColors.muted;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: root.coordinates;
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: AppColors.ink;
+                    vertical-alignment: center;
                 }
             }
-            Path {x:map-floor.x;y:map-floor.y+map-floor.height+2px;width:map-floor.width+18px;height:8px;viewbox-width:self.width/1px;viewbox-height:8;commands:"M0,4 L"+(self.width/1px)+",4 M"+(self.width/1px - 4)+",0 L"+(self.width/1px)+",4 L"+(self.width/1px - 4)+",8";stroke:AppColors.muted;stroke-width:1px;fill:transparent;}
-            Path {x:map-floor.x - 8px;y:map-floor.y - 18px;width:8px;height:map-floor.height+18px;viewbox-width:8;viewbox-height:self.height/1px;commands:"M4,"+(self.height/1px)+" L4,0 M0,4 L4,0 L8,4";stroke:AppColors.muted;stroke-width:1px;fill:transparent;}
-            Rectangle {x:map-floor.x - 3px;y:map-floor.y+map-floor.height - 3px;width:6px;height:6px;border-radius:3px;background:AppColors.accent;}
-            for value in [1,2,3,3.8]:Rectangle {x:map-floor.x+map-floor.width*value/3.8;y:map-floor.y+map-floor.height+2px;width:1px;height:7px;background:AppColors.muted;}
-            for value in [1,2,3,3.8]:Rectangle {x:map-floor.x - 7px;y:map-floor.y+map-floor.height*(1-value/3.8);width:7px;height:1px;background:AppColors.muted;}
-            for value in [1,2,3,3.8]:Text {x:map-floor.x+map-floor.width*value/3.8 - 16px;y:map-floor.y+map-floor.height+5px;width:40px;text:value;color:AppColors.muted;font-size:stage.axis-font;}
-            for value in [1,2,3,3.8]:Text {x:map-floor.x - 38px;y:map-floor.y+map-floor.height*(1-value/3.8)-7px;width:34px;text:value;color:AppColors.muted;font-size:stage.axis-font;}
-            Text {x:map-floor.x;y:map-floor.y+map-floor.height+23px;text:"(0, 0)";color:AppColors.muted;font-size:stage.axis-font;}
-            Text {x:map-floor.x+map-floor.width - 52px;y:map-floor.y+map-floor.height+23px;text:"X (m)";color:AppColors.muted;font-size:stage.axis-font;}
-            Text {x:map-floor.x;y:3px;text:"Y (m)";color:AppColors.muted;font-size:stage.axis-font;}
-        }
+            stage:= Rectangle {
+                background: transparent;
+                property <length> side: max(0px, min(self.width - 72px, self.height - 72px));
+                property <length> axis-font: min(20px, max(14px, self.side / 48));
+                map-floor:= Rectangle {
+                    x: (parent.width - self.width) / 2 + 12px;
+                    y: 24px;
+                    width: stage.side;
+                    height: stage.side;
+                    background: #30363a;
+                    border-color: #c3423f;
+                    border-width: 2px;
+                    accessible-role: image;
+                    accessible-label: root.tr("赛台坐标系，左下角为原点，X向右，Y向上，单位米", root.english);
+                    if root.has-platform-image: Image {
+                        x: parent.width * 700 / 3800;
+                        y: parent.height * 700 / 3800;
+                        width: parent.width * 2400 / 3800;
+                        height: parent.height * 2400 / 3800;
+                        source: root.platform-image;
+                    }
+                    Rectangle {
+                        x: parent.width * 700 / 3800;
+                        y: parent.height * 700 / 3800;
+                        width: parent.width * 2400 / 3800;
+                        height: parent.height * 2400 / 3800;
+                        border-width: 1px;
+                        border-color: #ecf0f3;
+                        background: transparent;
+                    }
+                    Rectangle { x: 2px; y: parent.height * 700 / 3800; width: parent.width * 500 / 3800 - 2px; height: parent.height * 400 / 3800; background: #f6d627; }
+                    Rectangle { x: parent.width * 3300 / 3800; y: parent.height * 2700 / 3800; width: parent.width * 500 / 3800 - 2px; height: parent.height * 400 / 3800; background: #2458ee; }
+                    if root.live: Rectangle {
+                        x: parent.width * root.world-x / 3.8 + 11px;
+                        y: parent.height * (1 - root.world-y / 3.8) - 22px;
+                        width: own-label.preferred-width + 12px;
+                        height: 20px;
+                        border-radius: 6px;
+                        background: #141c28d8;
+                        border-width: 1px;
+                        border-color: #ffffff30;
+                        own-label:= Text {
+                            x: 6px;
+                            width: parent.width - 12px;
+                            height: parent.height;
+                            text: root.tr("己方", root.english);
+                            color: #f8fafc;
+                            font-size: 11px;
+                            font-weight: 500;
+                            vertical-alignment: center;
+                        }
+                    }
+                    if root.live: Rectangle {
+                        x: parent.width * root.world-x / 3.8 - 7px;
+                        y: parent.height * (1 - root.world-y / 3.8) - 7px;
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 7px;
+                        background: Palette.accent-background;
+                        border-width: 1px;
+                        border-color: white;
+                        if root.has-heading: Path {
+                            x: 2px;
+                            y: 2px;
+                            width: 10px;
+                            height: 10px;
+                            commands: "M1,2 L9,5 L1,8 Z";
+                            fill: white;
+                            transform-rotation: -root.heading * 1deg;
+                            transform-origin: { x: self.width / 2, y: self.height / 2 };
+                        }
+                    }
+                }
+                Path { x: map-floor.x; y: map-floor.y + map-floor.height + 2px; width: map-floor.width + 18px; height: 8px; viewbox-width: self.width / 1px; viewbox-height: 8; commands: "M0,4 L" + (self.width / 1px) + ",4 M" + (self.width / 1px - 4) + ",0 L" + (self.width / 1px) + ",4 L" + (self.width / 1px - 4) + ",8"; stroke: AppColors.muted; stroke-width: 1px; fill: transparent; }
+                Path { x: map-floor.x - 8px; y: map-floor.y - 18px; width: 8px; height: map-floor.height + 18px; viewbox-width: 8; viewbox-height: self.height / 1px; commands: "M4," + (self.height / 1px) + " L4,0 M0,4 L4,0 L8,4"; stroke: AppColors.muted; stroke-width: 1px; fill: transparent; }
+                Rectangle { x: map-floor.x - 3px; y: map-floor.y + map-floor.height - 3px; width: 6px; height: 6px; border-radius: 3px; background: AppColors.accent; }
+                for value in [1, 2, 3, 3.8]: Rectangle { x: map-floor.x + map-floor.width * value / 3.8; y: map-floor.y + map-floor.height + 2px; width: 1px; height: 7px; background: AppColors.muted; }
+                for value in [1, 2, 3, 3.8]: Rectangle { x: map-floor.x - 7px; y: map-floor.y + map-floor.height * (1 - value / 3.8); width: 7px; height: 1px; background: AppColors.muted; }
+                for value in [1, 2, 3, 3.8]: Text { x: map-floor.x + map-floor.width * value / 3.8 - 20px; y: map-floor.y + map-floor.height + 7px; width: 40px; text: value; color: AppColors.muted; font-size: stage.axis-font; horizontal-alignment: center; }
+                for value in [1, 2, 3, 3.8]: Text { x: map-floor.x - 42px; y: map-floor.y + map-floor.height * (1 - value / 3.8) - 8px; width: 32px; text: value; color: AppColors.muted; font-size: stage.axis-font; horizontal-alignment: right; }
+                Text { x: map-floor.x; y: map-floor.y + map-floor.height + 24px; text: "(0, 0)"; color: AppColors.muted; font-size: stage.axis-font; }
+                Text { x: map-floor.x + map-floor.width - 52px; y: map-floor.y + map-floor.height + 24px; text: "X (m)"; color: AppColors.muted; font-size: stage.axis-font; horizontal-alignment: right; }
+                Text { x: map-floor.x; y: 3px; text: "Y (m)"; color: AppColors.muted; font-size: stage.axis-font; }
+            }
         }
     }
 }

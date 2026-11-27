@@ -57,6 +57,7 @@ impl Fixture {
                 .join(format!("application-{}", uuid::Uuid::new_v4()));
         let services = Services::new(
             Paths {
+                plugins: None,
                 data: root.join("data"),
                 documents: root.join("documents"),
                 local_files: root.clone(),

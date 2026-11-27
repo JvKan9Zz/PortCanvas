@@ -1,0 +1,64 @@
+{
+  "schema": "portcanvas.plugin/1",
+  "plugins": [
+    {
+      "schema": "portcanvas.plugin/1",
+      "id": "arena-monitor",
+      "name": "赛台监控",
+      "nameEn": "Arena Monitor",
+      "version": "0.7.0",
+      "summary": "轮式格斗 3.8m 赛台坐标系、实时定位接入与远端摄像头画面",
+      "summaryEn": "3.8m combat arena map, live robot pose telemetry and remote camera feed",
+      "category": "robotics",
+      "author": "PortCanvas",
+      "official": true,
+      "minAppVersion": "0.7.0",
+      "hostSurface": "arena-v1",
+      "permissions": [
+        "ssh.exec",
+        "camera.stream",
+        "pose.stream"
+      ],
+      "assets": {
+        "platformImage": "assets/arena-platform.png",
+        "arenaConfig": "config/arena.json"
+      },
+      "scripts": {
+        "cameraList": "scripts/camera_list.py",
+        "cameraStream": "scripts/camera_stream.py",
+        "poseStream": "scripts/pose_stream.py"
+      },
+      "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/arena-monitor-0.7.0.pcplugin",
+      "sizeBytes": 191710,
+      "sha256": "fe55972d2d2e150c4776cd3b4e17d9d02889204c6463d9f8d3cf1fe136d49224",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0crREJyalpCdEJGS3Nmd1NmNW9jcjNTc1F2c3c5cHBFejh5YUE0QVkxSFN2V1VjZmFuNWZKRHhQeTdEbGE5a2tlOUIydStXZXRWamcxdml2UXloTW93dz0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU3OTM1MjEJZmlsZTphcmVuYS1tb25pdG9yLTAuNy4wLnBjcGx1Z2luCWhhc2hlZA0KTkJVMTJDa0o5enA0Qnp1cWRFTDFKZEdCNVlnenFTR0M0djdLTkp3OTdZbkRjcVhLR21wY09LQzhqRk1yblVndzlPMGtuQ3I1eTRBcWFVTGc3bGtCQlE9PQ0K"
+    },
+    {
+      "schema": "portcanvas.plugin/1",
+      "id": "vision-studio",
+      "name": "视觉实验台",
+      "nameEn": "Vision Studio",
+      "version": "0.1.0",
+      "summary": "摄像头 OpenCV 实时算法实验（滤波、边缘、HSV 巡线、形状、AprilTag、人脸）与板端视觉代码伴随监视",
+      "summaryEn": "Live OpenCV camera lab (filters, edges, HSV line-following, shapes, AprilTag, face) and board camera process watch",
+      "category": "vision",
+      "author": "PortCanvas",
+      "official": true,
+      "minAppVersion": "0.7.0",
+      "hostSurface": "vision-v1",
+      "permissions": [
+        "ssh.exec",
+        "camera.stream",
+        "vision.watch"
+      ],
+      "scripts": {
+        "visionInspect": "scripts/vision_inspect.py",
+        "visionStream": "scripts/vision_stream.py"
+      },
+      "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.0/vision-studio-0.1.0.pcplugin",
+      "sizeBytes": 11340,
+      "sha256": "95e33dc18b59cd80fc71ccde528f98495d949bfce1915bb05863e8fc69c79f09",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0crNHlHNzFyWXZEdmh6UWI0TmZ6emJwWFEvdllZZ3ZDdFhSaDJaczY5RmxWOUFJcExJZDYzQ0d6NWxVTW9va2lOd2xwZUMvM2JpN1JBT3FQZUlCQXRBQT0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU3OTM1MjEJZmlsZTp2aXNpb24tc3R1ZGlvLTAuMS4wLnBjcGx1Z2luCWhhc2hlZA0KTVozSVh0eWhnNEk4bmliTkVZcHFFbnU2WTR2T1ZKT2J1SkgzL1NEU3hQaVNBVjVBaXVxYktTTDBFR3IyditCNmlyMzMxbHU0M1BnMFJCblIwbHNvRFE9PQ0K"
+    }
+  ]
+}

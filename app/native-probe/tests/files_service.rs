@@ -28,6 +28,7 @@ async fn fixture() -> Result<(support::Fixture, Arc<Services>, PathBuf)> {
     let f = support::Fixture::with_files(root.join("remote")).await?;
     let s = Services::new(
         Paths {
+            plugins: None,
             data: root.join("data"),
             documents: root.clone(),
             local_files: root.join("local"),

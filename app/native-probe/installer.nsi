@@ -10,10 +10,10 @@ Unicode true
   !define REGKEY "PortCanvas"
 !endif
 !ifndef VERSION
-  !define VERSION "0.6.4"
+  !define VERSION "0.7.0"
 !endif
 !ifndef VERSION_QUAD
-  !define VERSION_QUAD "0.6.4.0"
+  !define VERSION_QUAD "0.7.0.0"
 !endif
 !ifndef LEGACY_LOCAL_DATA
   !define LEGACY_LOCAL_DATA "$LOCALAPPDATA"
@@ -120,6 +120,7 @@ Section "PortCanvas" Main
     SetErrorLevel 1
     Abort "The previous version was preserved."
   ${EndIf}
+!ifndef PORTCANVAS_BETA
   ; Run the new native helper only after replacing the old executable. Keep the
   ; old binary available until the retired caches/resources are removed.
   StrCpy $2 0
@@ -148,6 +149,7 @@ Section "PortCanvas" Main
   ; A fresh install opts into install-local storage even if legacy data exists elsewhere.
   IfFileExists "$INSTDIR\PortCanvas.previous.exe" +2 0
   CreateDirectory "$INSTDIR\data\.install-local"
+!endif
   Delete "$INSTDIR\PortCanvas.previous.exe"
   File "assets\portcanvas.ico"
   File /oname=FONT-NOTICES.txt "assets\NOTICE.txt"

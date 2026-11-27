@@ -1,0 +1,19 @@
+{
+  "schema": "portcanvas.plugin/1",
+  "id": "vision-studio",
+  "name": "视觉实验台",
+  "nameEn": "Vision Studio",
+  "version": "0.1.0",
+  "summary": "摄像头 OpenCV 实时算法实验（滤波、边缘、HSV 巡线、形状、AprilTag、人脸）与板端视觉代码伴随监视",
+  "summaryEn": "Live OpenCV camera lab (filters, edges, HSV line-following, shapes, AprilTag, face) and board camera process watch",
+  "category": "vision",
+  "author": "PortCanvas",
+  "official": true,
+  "minAppVersion": "0.7.0",
+  "hostSurface": "vision-v1",
+  "permissions": ["ssh.exec", "camera.stream", "vision.watch"],
+  "scripts": {
+    "visionInspect": "scripts/vision_inspect.py",
+    "visionStream": "scripts/vision_stream.py"
+  }
+}

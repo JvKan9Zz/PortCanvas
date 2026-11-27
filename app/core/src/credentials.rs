@@ -62,7 +62,12 @@ fn keychain_service() -> Result<String> {
         }
         anyhow::ensure!(std::env::var_os("WCS_TEST_ROOT").is_none(), "隔离测试必须指定测试钥匙串命名空间，未访问正式凭据。");
     }
-    Ok("io.portcanvas.app.credentials".into())
+    let service = if env!("CARGO_PKG_VERSION").contains("-beta.") {
+        "io.portcanvas.app.credentials.beta"
+    } else {
+        "io.portcanvas.app.credentials"
+    };
+    Ok(service.into())
 }
 #[cfg(all(target_os="macos", any(test, debug_assertions)))]
 fn validate_test_keychain_service(service: &str, root: Option<&std::path::Path>) -> Result<()> {

@@ -16,6 +16,14 @@ class MacPackagingTests(unittest.TestCase):
         cls.package = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cls.package)
 
+    def test_beta_uses_a_separate_bundle_identity_and_preserves_the_semver(self):
+        stable = self.package.release_identity('0.6.4')
+        beta = self.package.release_identity('0.7.0-beta.1')
+        self.assertNotEqual(stable['CFBundleIdentifier'], beta['CFBundleIdentifier'])
+        self.assertEqual(beta['CFBundleShortVersionString'], '0.7.0')
+        self.assertEqual(beta['CFBundleVersion'], '0.7.0b1')
+        self.assertEqual(beta['PortCanvasVersion'], '0.7.0-beta.1')
+
     def test_minimum_os_parser_checks_every_slice(self):
         loads = 'cmd LC_BUILD_VERSION\n platform 1\n minos 13.0\n sdk 26.0\n'
         self.assertEqual(self.package.minimum_versions(loads), ['13.0'])

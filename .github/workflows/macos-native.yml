@@ -3,10 +3,10 @@ name: macOS native
 on:
   pull_request:
     branches: [main]
-    paths: ['app/**', 'assets/brand/**', '.github/workflows/macos-native.yml']
+    paths: ['plugins/**', 'app/**', 'assets/brand/**', '.github/workflows/macos-native.yml']
   push:
     branches: [main]
-    paths: ['app/**', 'assets/brand/**', '.github/workflows/macos-native.yml']
+    paths: ['plugins/**', 'app/**', 'assets/brand/**', '.github/workflows/macos-native.yml']
   workflow_dispatch:
 
 permissions:
@@ -67,7 +67,7 @@ jobs:
       - name: Preserve test packages and verification details for this PR
         uses: actions/upload-artifact@v4
         with:
-          name: PortCanvas-0.6.4-macOS-universal-test
+          name: PortCanvas-macOS-universal-test
           path: |
             ${{ runner.temp }}/portcanvas-macos-artifacts/*.dmg
             ${{ runner.temp }}/portcanvas-macos-artifacts/*.app.tar.gz

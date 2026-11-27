@@ -4,6 +4,7 @@ pub mod effects_policy;
 #[cfg(windows)]
 pub mod windows_effects;
 pub mod arena_model;
+pub mod monitor_model;
 pub mod background_model;
 pub mod background_image;
 #[cfg(any(windows,target_os="macos"))]

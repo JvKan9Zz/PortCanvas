@@ -16,6 +16,7 @@ use tokio_util::sync::CancellationToken;
 
 pub struct Paths {
     pub data: PathBuf,
+    pub plugins: Option<PathBuf>,
     pub documents: PathBuf,
     pub local_files: PathBuf,
     pub portable: bool,
@@ -27,6 +28,8 @@ pub struct Services {
     pub desktop: DesktopService,
     pub arena: crate::arena::ArenaService,
     pub pose: crate::arena_pose::PoseService,
+    pub plugins: crate::plugins::PluginStore,
+    pub vision: crate::vision::VisionService,
     pub quitting: AtomicBool,
     pub files: FileService,
     pub terminal: TerminalPool,
@@ -47,6 +50,10 @@ impl Services {
             )
             .into());
         }
+        anyhow::ensure!(
+            paths.plugins.as_ref().is_none_or(|directory| directory.is_absolute()),
+            "插件目录须为绝对路径。"
+        );
         let preferences = crate::preferences::PreferenceStore {
             file: paths.data.join("settings.json"),
         };
@@ -79,8 +86,13 @@ impl Services {
             DeviceManager::new(events.clone()).with_runtime_cache(paths.data.join("runtime-cache"));
         devices.set_environment_source(source);
         let desktop = DesktopService::new(devices.clone());
-        let arena = crate::arena::ArenaService::new(devices.clone());
-        let pose = crate::arena_pose::PoseService::new(devices.clone(), events);
+        let plugins = match paths.plugins {
+            Some(root) => crate::plugins::PluginStore::from_root(root),
+            None => crate::plugins::PluginStore::new(&paths.data),
+        };
+        let arena = crate::arena::ArenaService::new(devices.clone(), plugins.clone());
+        let vision = crate::vision::VisionService::new(devices.clone(), plugins.clone());
+        let pose = crate::arena_pose::PoseService::new(devices.clone(), events, plugins.clone());
         let files = FileService::new(devices.clone(), paths.local_files);
         let legacy = paths.documents.join("Wheel Combat Studio/Logs");
         let default_log_root = if paths.portable || cfg!(target_os = "macos") {
@@ -110,6 +122,8 @@ impl Services {
             desktop,
             arena,
             pose,
+            plugins,
+            vision,
             quitting: AtomicBool::new(false),
             files,
             terminal,
@@ -129,7 +143,7 @@ impl Services {
         self.background_import.lock().unwrap().cancel();
         self.terminal.stop_all();
         self.files.cancel();
-        tokio::join!(self.arena.stop(None), self.pose.stop(None));
+        tokio::join!(self.arena.stop(None), self.pose.stop(None), self.vision.stop(None));
         self.desktop.stop(None).await;
         self.devices.disconnect().await;
         let _ = self.logs.close().await;
@@ -155,10 +169,41 @@ mod tests {
             .join(format!("services-{}", uuid::Uuid::new_v4()));
         Paths {
             data: root.join("data"),
+            plugins: None,
             documents: root.join("documents"),
             local_files: root.join("files"),
             portable,
         }
+    }
+    #[test]
+    fn plugin_store_uses_the_supplied_absolute_root_or_the_data_default() -> Result<()> {
+        use crate::plugins::{InstalledPlugin, ARENA_ID};
+        let mut input = paths(true);
+        let sandbox = tempfile::tempdir_in(std::env::var_os("WCS_TEST_ROOT").expect("isolated test root"))?;
+        input.data = sandbox.path().join("data");
+        let explicit = sandbox.path().join("install/plugins");
+        let manifest = serde_json::from_str(include_str!("../../../plugins/arena-monitor/manifest.json"))?;
+        let mut installed = InstalledPlugin { manifest, enabled: true, from_catalog: false };
+        crate::profiles::atomic_json(&explicit.join("installed.json"), &[installed.clone()])?;
+        installed.enabled = false;
+        crate::profiles::atomic_json(&input.data.join("plugins/installed.json"), &[installed])?;
+
+        input.plugins = Some("relative-plugins".into());
+        assert!(Services::new(input, Arc::new(|_, _| {}), None).is_err());
+        for (plugins, enabled) in [(Some(explicit), true), (None, false)] {
+            let services = Services::new(Paths {
+                data: sandbox.path().join("data"),
+                plugins,
+                documents: sandbox.path().to_path_buf(),
+                local_files: sandbox.path().to_path_buf(),
+                portable: true,
+            }, Arc::new(|_, _| {}), None)?;
+            let installed = services.plugins.installed()?;
+            assert_eq!(installed.len(), 1);
+            assert_eq!(installed[0].manifest.id, ARENA_ID);
+            assert_eq!(installed[0].enabled, enabled);
+        }
+        Ok(())
     }
     #[tokio::test]
     async fn both_callers_share_data_and_credentials_without_a_window() -> Result<()> {
@@ -194,6 +239,7 @@ mod tests {
         let reopened = Services::new(
             Paths {
                 data: data.clone(),
+                plugins: None,
                 documents: docs.clone(),
                 local_files: docs,
                 portable: true,

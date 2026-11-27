@@ -1,0 +1,24 @@
+{
+  "schema": "portcanvas.plugin/1",
+  "id": "arena-monitor",
+  "name": "赛台监控",
+  "nameEn": "Arena Monitor",
+  "version": "0.7.0",
+  "summary": "轮式格斗 3.8m 赛台坐标系、实时定位接入与远端摄像头画面",
+  "summaryEn": "3.8m combat arena map, live robot pose telemetry and remote camera feed",
+  "category": "robotics",
+  "author": "PortCanvas",
+  "official": true,
+  "minAppVersion": "0.7.0",
+  "hostSurface": "arena-v1",
+  "permissions": ["ssh.exec", "camera.stream", "pose.stream"],
+  "assets": {
+    "platformImage": "assets/arena-platform.png",
+    "arenaConfig": "config/arena.json"
+  },
+  "scripts": {
+    "cameraList": "scripts/camera_list.py",
+    "cameraStream": "scripts/camera_stream.py",
+    "poseStream": "scripts/pose_stream.py"
+  }
+}

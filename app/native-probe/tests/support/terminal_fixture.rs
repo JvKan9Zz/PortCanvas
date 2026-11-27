@@ -153,7 +153,7 @@ impl server::Handler for Handler {
             let status=self.counts.reboot_status.load(Ordering::SeqCst)as u32;
             session.data(id,if status==0{b"PORTCANVAS_REBOOT_SCHEDULED\n".to_vec()}else{b"synthetic permission failure\n".to_vec()})?;session.exit_status_request(id,status)?;session.close(id)?;
         }else if let Some((kind, value)) = options(&command) {
-            if matches!(kind.as_str(),"camera"|"pose") {
+            if matches!(kind.as_str(),"camera"|"pose"|"vision-stream") {
                 if let Some(token)=arena_protocol::start(vec![serde_json::json!(kind),value],id,session,self.counts.arena.clone())?{self.arena_channels.insert(id,token);}return Ok(());
             }
             if kind == "desktop" {
@@ -257,6 +257,13 @@ impl server::Handler for Handler {
         bytes: &[u8],
         session: &mut server::Session,
     ) -> Result<(), Self::Error> {
+        if self.arena_channels.contains_key(&id) {
+            if let Ok(value) = serde_json::from_slice::<serde_json::Value>(bytes) {
+                if value["cmd"] == "config" {
+                    self.counts.arena.vision_configs.lock().unwrap().push(value["config"].clone());
+                }
+            }
+        }
         if let Some(name) = self.terminals.get(&id) {
             self.counts
                 .input

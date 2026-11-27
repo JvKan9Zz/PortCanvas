@@ -86,6 +86,7 @@ export component DesktopView inherits Rectangle {
             x:parent.edge;y:parent.edge;width:parent.width - 2*parent.edge;height:parent.height - 2*parent.edge;
             viewport-width:root.fit?self.visible-width:max(self.visible-width,root.source-width*1px);
             viewport-height:root.fit?self.visible-height:max(self.visible-height,root.source-height*1px);
+            vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
             picture:=Rectangle {
                 width:root.fit?min(scroll.visible-width,scroll.visible-height*max(1,root.source-width)/max(1,root.source-height)):root.source-width*1px;
                 height:self.width*max(1,root.source-height)/max(1,root.source-width);

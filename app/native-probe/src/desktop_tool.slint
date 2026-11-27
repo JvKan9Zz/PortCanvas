@@ -26,8 +26,8 @@ export component DesktopTool inherits Rectangle {
     preferred-width:(root.has-icon?20px:0px)+(root.show-text?caption.preferred-width:0px)+(root.has-icon&&root.show-text?6px:0px)+20px;
     property <bool> caption-close-active:root.caption-button&&root.danger&&(touch.has-hover||touch.pressed);
     property <length> icon-size:root.caption-button?14px:20px;
-    border-radius:9px;border-width:root.surfaced||(root.caption-button&&keys.has-focus)?1px:0px;
-    border-color:root.caption-button&&keys.has-focus?AppColors.accent:AppColors.edge;
+    border-radius:9px;border-width:root.surfaced?1px:0px;
+    border-color:AppColors.edge;
     background:root.caption-close-active?(AppColors.high-contrast?Palette.accent-background:touch.pressed?#a62f37:#bd3e48):root.checked||(root.enabled&&touch.pressed)?AppColors.soft:root.surfaced?(root.enabled&&touch.has-hover?AppColors.soft:AppColors.surface):root.enabled&&touch.has-hover?AppColors.field:transparent;
     animate background,border-color {duration:AppColors.motion?150ms:0ms;}
     transform-origin:{x:self.width/2,y:self.height/2};transform-scale:AppColors.motion&&root.elastic&&root.enabled&&touch.pressed?0.94:1;animate transform-scale {duration:AppColors.motion&&root.elastic?(touch.pressed?90ms:280ms):0ms;easing:touch.pressed?cubic-bezier(0.16,1,0.3,1):cubic-bezier(0.2,2.4,0.4,1);}
@@ -41,7 +41,7 @@ export component DesktopTool inherits Rectangle {
     touch:=TouchArea {enabled:root.enabled||!root.show-text;
         changed has-hover=>{if !self.has-hover{root.hide-hint();}}
         changed pressed=>{if self.pressed{root.hide-hint();}}
-        clicked=>{root.hide-hint();if root.enabled{keys.focus();root.clicked();}}
+        clicked=>{root.hide-hint();if root.enabled{if !root.caption-button{keys.focus();}root.clicked();}}
     }
     Timer {interval:650ms;running:touch.has-hover&&!touch.pressed&&!root.show-text&&root.label!=""&&!root.hint-shown;
         triggered=>{
