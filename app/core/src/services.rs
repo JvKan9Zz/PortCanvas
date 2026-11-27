@@ -89,7 +89,10 @@ impl Services {
         let plugins = match paths.plugins {
             Some(root) => crate::plugins::PluginStore::from_root(root),
             None => crate::plugins::PluginStore::new(&paths.data),
-        };
+        }
+        .with_data_root(paths.data.join("plugin-data"))
+        .with_global_downloader_sync(true);
+        plugins.sync_downloader_provider();
         let arena = crate::arena::ArenaService::new(devices.clone(), plugins.clone());
         let vision = crate::vision::VisionService::new(devices.clone(), plugins.clone());
         let pose = crate::arena_pose::PoseService::new(devices.clone(), events, plugins.clone());

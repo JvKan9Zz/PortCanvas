@@ -10,7 +10,11 @@ pub(super) fn manifest() -> Manifest {
 
 pub(super) fn package(manifest: &Manifest, payload: &str) -> Vec<u8> {
     let data = serde_json::to_vec(manifest).unwrap();
+    let ui_json = include_str!("../../../../plugins/arena-monitor/ui.json");
     let mut files = vec![("manifest.json", tar::EntryType::Regular, data.as_slice())];
+    if let Some(ui) = &manifest.ui {
+        files.push((ui.as_str(), tar::EntryType::Regular, ui_json.as_bytes()));
+    }
     for path in manifest.assets.values().chain(manifest.scripts.values()) {
         files.push((path, tar::EntryType::Regular, payload.as_bytes()));
     }
@@ -168,5 +172,86 @@ fn failure_persisting_state_restores_the_previous_directory() -> Result<()> {
         .is_err()
     );
     assert_eq!(fs::read_to_string(target.join("resource"))?, "previous");
+    Ok(())
+}
+
+#[test]
+fn declarative_local_worker_inspect_install_and_downloader_provider_toggle() -> Result<()> {
+    let dir = temp();
+    let store = PluginStore::new(dir.path()).with_data_root(dir.path().join("plugin-data"));
+    let ui_json = r#"{"layout":"stack","primary":[{"type":"task-list","title":"Queue","itemsKey":"tasks"}]}"#;
+    let manifest: Manifest = serde_json::from_value(serde_json::json!({
+        "schema": SCHEMA,
+        "id": "demo-downloader",
+        "name": "测试下载器",
+        "nameEn": "Demo Downloader",
+        "version": "0.1.0",
+        "summary": "Demo",
+        "category": "tools",
+        "author": "Community",
+        "official": false,
+        "minAppVersion": "0.7.0",
+        "hostSurface": SURFACE_DECLARATIVE_V1,
+        "platform": current_platform(),
+        "requiresDevice": false,
+        "lifecycle": "background",
+        "ui": "ui.json",
+        "provides": ["downloader"],
+        "runtime": {
+            "kind": "local-worker",
+            "entry": "bin/worker.bin",
+            "args": ["--worker"],
+            "frameChannel": false
+        },
+        "permissions": ["local.exec", "local.network", "local.fs"]
+    }))?;
+    let manifest_bytes = serde_json::to_vec(&manifest)?;
+    let pkg_bytes = archive(&[
+        ("manifest.json", tar::EntryType::Regular, manifest_bytes.as_slice()),
+        ("ui.json", tar::EntryType::Regular, ui_json.as_bytes()),
+        ("bin/worker.bin", tar::EntryType::Regular, b"fake-bin"),
+    ]);
+    let pkg_path = dir.path().join("demo.pcplugin");
+    fs::write(&pkg_path, &pkg_bytes)?;
+
+    // Inspect does not install anything
+    let preview = store.inspect_import(&pkg_path)?;
+    assert_eq!(preview.manifest.id, "demo-downloader");
+    assert_eq!(preview.runtime_kind, "local-worker");
+    assert!(preview.is_local_unsigned);
+    assert!(preview.previous_version.is_none());
+    assert!(store.installed()?.is_empty());
+    assert!(store.active_downloader_plugin_id().is_none());
+
+    // Install activates downloader provider & isolates plugin data dir
+    let cancel = CancellationToken::new();
+    let installed = store.import(&pkg_path, &cancel)?;
+    assert!(!installed.official());
+    assert!(installed.manifest.is_background());
+    assert!(!installed.manifest.requires_device());
+    assert_eq!(
+        store.active_downloader_plugin_id().as_deref(),
+        Some("demo-downloader")
+    );
+    let data_dir = store.data_dir("demo-downloader")?;
+    fs::write(data_dir.join("prefs.json"), b"{}")?;
+    let (exe, args, frame_ch, _) = store.worker_executable("demo-downloader")?;
+    assert!(exe.is_file());
+    assert_eq!(args, vec!["--worker"]);
+    assert!(!frame_ch);
+
+    // Disable reverts downloader provider
+    store.set_enabled("demo-downloader", false)?;
+    assert!(store.active_downloader_plugin_id().is_none());
+    store.set_enabled("demo-downloader", true)?;
+    assert_eq!(
+        store.active_downloader_plugin_id().as_deref(),
+        Some("demo-downloader")
+    );
+
+    // Uninstall reverts downloader provider while keeping data_dir intact
+    store.uninstall("demo-downloader")?;
+    assert!(store.active_downloader_plugin_id().is_none());
+    assert!(data_dir.join("prefs.json").is_file());
     Ok(())
 }

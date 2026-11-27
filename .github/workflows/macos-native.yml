@@ -63,7 +63,19 @@ jobs:
         if: always()
         run: python3 -B app/tools/macos_test_keychain.py cleanup
       - name: Build, inspect and ad-hoc sign the universal test app and DMG
-        run: bash app/tools/build-macos.sh --output "$RUNNER_TEMP/portcanvas-macos-artifacts"
+        run: |
+          bash app/tools/build-macos.sh --output "$RUNNER_TEMP/portcanvas-macos-artifacts"
+          for target in aarch64-apple-darwin x86_64-apple-darwin; do
+            cargo --config 'profile.release.build-override.strip="none"' build \
+              --manifest-path plugins/fast-downloader/worker/Cargo.toml \
+              --release --target "$target"
+          done
+          lipo -create \
+            "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/pc-downloader-worker" \
+            "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/pc-downloader-worker" \
+            -output "$RUNNER_TEMP/portcanvas-macos-artifacts/pc-downloader-worker"
+          chmod +x "$RUNNER_TEMP/portcanvas-macos-artifacts/pc-downloader-worker"
+          lipo -info "$RUNNER_TEMP/portcanvas-macos-artifacts/pc-downloader-worker"
       - name: Preserve test packages and verification details for this PR
         uses: actions/upload-artifact@v4
         with:
@@ -73,6 +85,7 @@ jobs:
             ${{ runner.temp }}/portcanvas-macos-artifacts/*.app.tar.gz
             ${{ runner.temp }}/portcanvas-macos-artifacts/SHA256SUMS
             ${{ runner.temp }}/portcanvas-macos-artifacts/validation.json
+            ${{ runner.temp }}/portcanvas-macos-artifacts/pc-downloader-worker
           if-no-files-found: error
           retention-days: 14
 

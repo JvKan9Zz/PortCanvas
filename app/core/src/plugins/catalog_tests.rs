@@ -120,11 +120,45 @@ fn optional_minisign_signature_is_verified_with_the_configured_key() -> Result<(
     let mut entry: CatalogEntry = serde_json::from_value(entry(bytes, "https://example.test"))?;
     entry.signature = Some(signed["signature"].as_str().unwrap().into());
     let key = signed["publicKey"].as_str().unwrap();
-    verify_package(bytes, &entry, key)?;
-    assert!(verify_package(bytes, &entry, "invalid").is_err());
+    let pkg = entry.current_package().unwrap();
+    verify_package(bytes, &pkg, key)?;
+    assert!(verify_package(bytes, &pkg, "invalid").is_err());
     let other = b"other";
-    entry.size_bytes = other.len() as u64;
-    entry.sha256 = format!("{:x}", Sha256::digest(other));
-    assert!(verify_package(other, &entry, key).is_err());
+    let mut bad_pkg = pkg;
+    bad_pkg.size_bytes = other.len() as u64;
+    bad_pkg.sha256 = format!("{:x}", Sha256::digest(other));
+    assert!(verify_package(other, &bad_pkg, key).is_err());
+    Ok(())
+}
+
+#[test]
+fn multi_platform_catalog_selects_matching_package_only() -> Result<()> {
+    let win_pkg = CatalogPackage {
+        download_url: "https://example.test/win.pcplugin".into(),
+        size_bytes: 123,
+        sha256: "a".repeat(64),
+        signature: None,
+    };
+    let mac_pkg = CatalogPackage {
+        download_url: "https://example.test/mac.pcplugin".into(),
+        size_bytes: 456,
+        sha256: "b".repeat(64),
+        signature: None,
+    };
+    let mut item = serde_json::to_value(manifest())?;
+    item["packages"] = json!({
+        "windows-x86_64": win_pkg,
+        "darwin-universal": mac_pkg,
+    });
+    let entry: CatalogEntry = serde_json::from_value(item)?;
+    assert_eq!(
+        entry.package_for_platform("windows-x86_64").unwrap().size_bytes,
+        123
+    );
+    assert_eq!(
+        entry.package_for_platform("darwin-universal").unwrap().size_bytes,
+        456
+    );
+    assert!(entry.package_for_platform("linux-x86_64").is_none());
     Ok(())
 }

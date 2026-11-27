@@ -227,12 +227,11 @@ pub fn run() -> Result<()> {
                     ui.invoke_desktop_view_changed();
                     ui.invoke_files_sync();
                     ui.invoke_monitor_sync();
-                    ui.invoke_arena_sync();
-                    ui.invoke_vision_sync();
+                    ui.invoke_decl_sync();
                 }
             });
         } else if topic == "arena-pose" {
-            let _=weak.upgrade_in_event_loop(move|ui|ui.invoke_arena_pose_packet(value.to_string().into()));
+            let _=weak.upgrade_in_event_loop(move|ui|ui.invoke_decl_core_event("arena-pose".into(), value.to_string().into()));
         } else if topic == "file-state" {
             if !file_wake.swap(true,Ordering::SeqCst){let pending=file_wake.clone();let _=weak.upgrade_in_event_loop(move|ui|{pending.store(false,Ordering::SeqCst);ui.invoke_files_state_changed();});}
         } else if topic == "terminal-state" {
@@ -245,7 +244,7 @@ pub fn run() -> Result<()> {
                 }
             });
         } else if topic == "environment-progress" {
-            let _=weak.upgrade_in_event_loop(move|ui|{ui.invoke_desktop_environment(value.to_string().into());ui.invoke_arena_environment(value.to_string().into());ui.invoke_vision_environment(value.to_string().into());});
+            let _=weak.upgrade_in_event_loop(move|ui|{ui.invoke_desktop_environment(value.to_string().into());ui.invoke_decl_core_event("environment-progress".into(), value.to_string().into());});
         } else if topic == "discovery-state" {
             let status = value["status"].as_str().unwrap_or("");
             if matches!(status, "complete" | "canceled" | "error") {
@@ -361,8 +360,28 @@ pub fn run() -> Result<()> {
     let background=crate::workbench_background::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone(),material.clone());
     let monitor=crate::workbench_monitor::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
     let plugins=crate::workbench_plugins::Controller::install(&ui,services.plugins.clone(),runtime.clone(),jobs.clone());
-    let vision=crate::workbench_vision::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
-    let arena=crate::workbench_arena::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
+    let declarative=crate::workbench_declarative::Controller::install(&ui,services.clone(),runtime.clone(),jobs.clone());
+    {
+        let p = plugins.clone();
+        let d = declarative.clone();
+        declarative.set_badge_listener(std::rc::Rc::new(move || {
+            p.update_background_badges(d.background_badges());
+        }));
+    }
+    {
+        let d = declarative.clone();
+        plugins.set_stop_hook(std::rc::Rc::new(move |id| {
+            d.stop_plugin(id);
+        }));
+    }
+    ui.on_decl_core_event({
+        let d = declarative.clone();
+        move |topic, payload| {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&payload) {
+                d.forward_core_event(&topic, &val);
+            }
+        }
+    });
     let logs = crate::workbench_logs::Controller::install(
         &ui,
         services.clone(),
@@ -604,6 +623,8 @@ pub fn run() -> Result<()> {
         move |accepted| {
             if let Some(ui) = weak.upgrade() {
                 let kind = ui.get_dialog_kind();
+                if kind==20{plugins.respond_import(accepted);return;}
+                if kind==19{ui.set_dialog_kind(0);return;}
                 if kind==18{plugins.respond(accepted);return;}
                 if kind==17{ui.set_dialog_kind(0);if accepted{let _=slint::quit_event_loop();}return;}
                 if kind==16{ui.invoke_terminal_program_response(accepted);return;}
@@ -908,8 +929,7 @@ pub fn run() -> Result<()> {
     files.shutdown();
     monitor.shutdown();
     plugins.shutdown();
-    arena.shutdown();
-    vision.shutdown();
+    declarative.shutdown();
     system.shutdown();
     updater.shutdown();
     glass.shutdown();
@@ -925,7 +945,7 @@ pub fn run() -> Result<()> {
         std::fs::write(
             path,
             serde_json::to_vec_pretty(
-                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"arena":arena.report(),"vision":vision.report(),"monitor":monitor.report(),"plugins":plugins.report(),"background":background.report(),"glass":glass.report(),"material":material.report(),"terminalVisible":ui.get_terminal_visible(),"system":system.report(),"migration":migration.report(),"ssh":services.devices.snapshot()["ssh"]}),
+                &serde_json::json!({"profiles":services.profiles.lock().unwrap().read()?.devices.len(),"language":ui.get_english(),"appearance":ui.get_appearance(),"theme":ui.get_theme(),"logs":logs.report(),"files":files.report(),"desktop":desktop.report(),"declarative":declarative.report(),"monitor":monitor.report(),"plugins":plugins.report(),"background":background.report(),"glass":glass.report(),"material":material.report(),"terminalVisible":ui.get_terminal_visible(),"system":system.report(),"migration":migration.report(),"ssh":services.devices.snapshot()["ssh"]}),
             )?,
         )?;
     }

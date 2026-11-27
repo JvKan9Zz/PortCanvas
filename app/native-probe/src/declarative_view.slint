@@ -1,0 +1,1074 @@
+import {ScrollView,VerticalBox,HorizontalBox,Palette} from "std-widgets.slint";
+import {ActionButton,ActivityIndicator,AppColors} from "action_button.slint";
+import {CheckBox} from "check_box.slint";
+import {DesktopTool} from "desktop_tool.slint";
+import {FormInput as LineEdit} from "form_input.slint";
+import {LiquidSlider} from "liquid_slider.slint";
+import {SelectBox as ComboBox} from "select_box.slint";
+import {SegmentedChoice} from "settings_controls.slint";
+
+export struct DeclButton {
+    id: string,
+    label: string,
+    action: string,
+    payload: string,
+    icon-kind: int,
+    primary: bool,
+    selected: bool,
+    danger: bool,
+    busy: bool,
+    enabled: bool,
+}
+
+export struct DeclControl {
+    id: string,
+    kind: string,
+    label: string,
+    state-key: string,
+    action: string,
+    secondary-action: string,
+    secondary-label: string,
+    secondary-danger: bool,
+    options: [string],
+    int-value: int,
+    float-value: float,
+    min-value: float,
+    max-value: float,
+    step-value: float,
+    unit: string,
+    bool-value: bool,
+    text-value: string,
+    placeholder: string,
+    icon-kind: int,
+    primary: bool,
+    danger: bool,
+    busy: bool,
+    enabled: bool,
+    tone: string,
+    buttons: [DeclButton],
+}
+
+export struct DeclKpi {
+    label: string,
+    value: string,
+    full-width: bool,
+}
+
+export struct DeclTaskAction {
+    id: string,
+    label: string,
+    primary: bool,
+    danger: bool,
+    enabled: bool,
+}
+
+export struct DeclTask {
+    id: string,
+    title: string,
+    subtitle: string,
+    badge: string,
+    badge-tone: int,
+    progress: float,
+    show-progress: bool,
+    actions: [DeclTaskAction],
+}
+
+export struct DeclBlock {
+    id: string,
+    kind: string,
+    title: string,
+    badge: string,
+    badge-phase: int,
+    summary: string,
+    empty-text: string,
+    columns: int,
+    controls: [DeclControl],
+    kpis: [DeclKpi],
+    tasks: [DeclTask],
+    active: bool,
+    loading: bool,
+    fit-mode: int,
+    capabilities: string,
+    show-snapshot: bool,
+    snapshot-action: string,
+    footer-status: string,
+    width-meters: float,
+    height-meters: float,
+    live: bool,
+    world-x: float,
+    world-y: float,
+    heading: float,
+    has-heading: bool,
+    coords: string,
+}
+
+component DeclPill inherits Rectangle {
+    in property <string> text;
+    in property <int> tone: 0;
+    property <color> fg: root.tone == 2 ? (AppColors.dark ? #a9dcc3 : #235d42)
+        : root.tone == 1 ? AppColors.accent-ink
+        : root.tone == 3 ? AppColors.danger
+        : AppColors.muted;
+    preferred-width: lbl.preferred-width + 16px;
+    height: 22px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    border-radius: 11px;
+    background: root.fg.with-alpha(0.12);
+    lbl:= Text {
+        x: 8px;
+        width: parent.width - 16px;
+        height: parent.height;
+        text: root.text;
+        font-size: 11px;
+        font-weight: 500;
+        color: root.fg;
+        vertical-alignment: center;
+    }
+}
+
+component DeclControlWidget inherits VerticalBox {
+    in property <DeclControl> ctrl;
+    in property <bool> english;
+    in property <bool> interactive;
+    pure callback tr(string, bool) -> string;
+    callback set-int(string, int);
+    callback set-float(string, float);
+    callback set-bool(string, bool);
+    callback set-string(string, string);
+    callback trigger-action(string, string, string);
+    callback pick-directory(string, string);
+    callback copy-text(string);
+
+    padding: 0px;
+    spacing: 6px;
+    vertical-stretch: 0;
+
+    if root.ctrl.kind == "segmented": VerticalBox {
+        padding: 0px;
+        spacing: 6px;
+        if root.ctrl.label != "": Text {
+            text: root.ctrl.label;
+            font-size: 12px;
+            font-weight: 500;
+            color: AppColors.muted;
+        }
+        SegmentedChoice {
+            horizontal-stretch: 1;
+            model: root.ctrl.options;
+            current-index: root.ctrl.int-value;
+            enabled: root.interactive && root.ctrl.enabled;
+            selected(idx) => { root.set-int(root.ctrl.state-key, idx); }
+        }
+    }
+
+    if root.ctrl.kind == "select": VerticalBox {
+        padding: 0px;
+        spacing: 5px;
+        if root.ctrl.label != "": Text {
+            text: root.ctrl.label;
+            font-size: 12px;
+            font-weight: 500;
+            color: AppColors.muted;
+        }
+        ComboBox {
+            horizontal-stretch: 1;
+            accessible-label: root.ctrl.label;
+            model: root.ctrl.options;
+            current-index: root.ctrl.int-value;
+            enabled: root.interactive && root.ctrl.enabled && root.ctrl.options.length > 0;
+            selected(idx) => { root.set-int(root.ctrl.state-key, idx); }
+        }
+    }
+
+    if root.ctrl.kind == "checkbox": CheckBox {
+        text: root.ctrl.label;
+        checked: root.ctrl.bool-value;
+        enabled: root.interactive && root.ctrl.enabled;
+        toggled => { root.set-bool(root.ctrl.state-key, !root.ctrl.bool-value); }
+    }
+
+    if root.ctrl.kind == "slider": VerticalBox {
+        padding: 0px;
+        spacing: 2px;
+        HorizontalBox {
+            padding: 0px;
+            spacing: 8px;
+            Text {
+                text: root.ctrl.label;
+                font-size: 12px;
+                color: AppColors.ink;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+            }
+            Text {
+                text: round(root.ctrl.float-value) + (root.ctrl.unit != "" ? " " + root.ctrl.unit : "");
+                font-size: 12px;
+                font-weight: 600;
+                color: AppColors.accent-ink;
+                vertical-alignment: center;
+            }
+        }
+        LiquidSlider {
+            minimum: root.ctrl.min-value;
+            maximum: root.ctrl.max-value;
+            step: root.ctrl.step-value;
+            value: root.ctrl.float-value;
+            enabled: root.interactive && root.ctrl.enabled;
+            changed(v) => { root.set-float(root.ctrl.state-key, v); }
+            released(v) => { root.set-float(root.ctrl.state-key, v); }
+        }
+    }
+
+    if root.ctrl.kind == "input": VerticalBox {
+        padding: 0px;
+        spacing: 6px;
+        if root.ctrl.label != "": Text {
+            text: root.ctrl.label;
+            font-size: 12px;
+            font-weight: 500;
+            color: AppColors.muted;
+        }
+        HorizontalBox {
+            padding: 0px;
+            spacing: 8px;
+            LineEdit {
+                horizontal-stretch: 1;
+                label: root.ctrl.label;
+                placeholder-text: root.ctrl.placeholder;
+                text: root.ctrl.text-value;
+                enabled: root.interactive && root.ctrl.enabled;
+                edited(val) => { root.set-string(root.ctrl.state-key, val); }
+                accepted => {
+                    if root.ctrl.action != "" {
+                        root.trigger-action(root.ctrl.action, "", "");
+                    }
+                }
+            }
+            if root.ctrl.action != "" && root.ctrl.secondary-label != "": ActionButton {
+                text: root.ctrl.secondary-label;
+                primary: true;
+                enabled: root.interactive && root.ctrl.enabled;
+                clicked => { root.trigger-action(root.ctrl.action, "", ""); }
+            }
+        }
+    }
+
+    if root.ctrl.kind == "dir-picker": VerticalBox {
+        padding: 0px;
+        spacing: 6px;
+        if root.ctrl.label != "": Text {
+            text: root.ctrl.label;
+            font-size: 12px;
+            font-weight: 500;
+            color: AppColors.muted;
+        }
+        Rectangle {
+            height: 44px;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: AppColors.edge;
+            background: AppColors.inset;
+            HorizontalBox {
+                padding-left: 12px;
+                padding-right: 6px;
+                spacing: 8px;
+                Text {
+                    text: root.ctrl.text-value != "" ? root.ctrl.text-value : root.tr("未设置目录", root.english);
+                    font-size: 12px;
+                    color: AppColors.ink;
+                    overflow: elide;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                ActionButton {
+                    text: root.tr("选择目录", root.english);
+                    enabled: root.interactive && root.ctrl.enabled;
+                    clicked => { root.pick-directory(root.ctrl.state-key, root.ctrl.action); }
+                }
+                if root.ctrl.secondary-action != "": ActionButton {
+                    text: root.tr("打开目录", root.english);
+                    enabled: root.interactive && root.ctrl.enabled && root.ctrl.text-value != "";
+                    clicked => { root.trigger-action(root.ctrl.secondary-action, "", root.ctrl.text-value); }
+                }
+            }
+        }
+    }
+
+    if root.ctrl.kind == "button": ActionButton {
+        text: root.ctrl.label;
+        primary: root.ctrl.primary;
+        danger: root.ctrl.danger;
+        busy: root.ctrl.busy;
+        has-icon: root.ctrl.icon-kind != 0;
+        icon: root.ctrl.icon-kind == 1 ? @image-url("icons/play.svg")
+            : root.ctrl.icon-kind == 2 ? @image-url("icons/restart.svg")
+            : root.ctrl.icon-kind == 3 ? @image-url("icons/copy.svg")
+            : root.ctrl.icon-kind == 4 ? @image-url("icons/download.svg")
+            : root.ctrl.icon-kind == 5 ? @image-url("icons/folder-add.svg")
+            : root.ctrl.icon-kind == 6 ? @image-url("icons/camera.svg")
+            : root.ctrl.icon-kind == 7 ? @image-url("icons/plus.svg")
+            : root.ctrl.icon-kind == 8 ? @image-url("icons/trash.svg")
+            : root.ctrl.icon-kind == 9 ? @image-url("icons/check.svg")
+            : @image-url("icons/fit.svg");
+        enabled: root.interactive && root.ctrl.enabled;
+        clicked => { root.trigger-action(root.ctrl.action, "", ""); }
+    }
+
+    if root.ctrl.kind == "button-row": HorizontalBox {
+        padding: 0px;
+        spacing: 8px;
+        for btn in root.ctrl.buttons: ActionButton {
+            horizontal-stretch: 1;
+            text: btn.label;
+            primary: btn.primary;
+            selected: btn.selected;
+            danger: btn.danger;
+            busy: btn.busy;
+            has-icon: btn.icon-kind != 0;
+            icon: btn.icon-kind == 1 ? @image-url("icons/play.svg")
+                : btn.icon-kind == 2 ? @image-url("icons/restart.svg")
+                : btn.icon-kind == 3 ? @image-url("icons/copy.svg")
+                : btn.icon-kind == 4 ? @image-url("icons/download.svg")
+                : btn.icon-kind == 5 ? @image-url("icons/folder-add.svg")
+                : btn.icon-kind == 6 ? @image-url("icons/camera.svg")
+                : btn.icon-kind == 7 ? @image-url("icons/plus.svg")
+                : btn.icon-kind == 8 ? @image-url("icons/trash.svg")
+                : btn.icon-kind == 9 ? @image-url("icons/check.svg")
+                : @image-url("icons/fit.svg");
+            enabled: root.interactive && btn.enabled;
+            clicked => { root.trigger-action(btn.action, "", btn.payload); }
+        }
+    }
+
+    if root.ctrl.kind == "code-snippet": VerticalBox {
+        padding: 0px;
+        spacing: 6px;
+        HorizontalBox {
+            padding: 0px;
+            spacing: 8px;
+            Text {
+                text: root.ctrl.label;
+                font-size: 12px;
+                font-weight: 500;
+                color: AppColors.muted;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+            }
+            ActionButton {
+                text: root.ctrl.secondary-label != "" ? root.ctrl.secondary-label : root.tr("复制代码", root.english);
+                has-icon: true;
+                icon: @image-url("icons/copy.svg");
+                enabled: root.interactive;
+                clicked => { root.copy-text(root.ctrl.text-value); }
+            }
+        }
+        Rectangle {
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: AppColors.edge;
+            background: AppColors.inset;
+            VerticalBox {
+                padding: 10px;
+                Text {
+                    text: root.ctrl.text-value;
+                    font-size: 11px;
+                    color: AppColors.ink;
+                    wrap: word-wrap;
+                }
+            }
+        }
+    }
+
+    if root.ctrl.kind == "notice" && root.ctrl.text-value != "": Rectangle {
+        border-radius: 10px;
+        border-width: 1px;
+        border-color: root.ctrl.tone == "danger" ? AppColors.danger.with-alpha(0.32) : AppColors.edge;
+        background: root.ctrl.tone == "danger" ? AppColors.danger.with-alpha(0.08) : AppColors.inset;
+        VerticalBox {
+            padding: 10px;
+            Text {
+                text: root.ctrl.text-value;
+                font-size: 12px;
+                color: root.ctrl.tone == "danger" ? AppColors.danger : AppColors.muted;
+                wrap: word-wrap;
+            }
+        }
+    }
+}
+
+component DeclBlockCard inherits Rectangle {
+    in property <DeclBlock> block;
+    in property <bool> english;
+    in property <bool> interactive;
+    in property <image> video-frame;
+    in property <bool> has-video-frame;
+    in property <image> arena-platform-image;
+    in property <bool> has-arena-platform-image;
+    pure callback tr(string, bool) -> string;
+    callback set-int(string, int);
+    callback set-float(string, float);
+    callback set-bool(string, bool);
+    callback set-string(string, string);
+    callback trigger-action(string, string, string);
+    callback pick-directory(string, string);
+    callback copy-text(string);
+
+    background: root.block.kind == "toolbar" ? transparent : AppColors.card;
+    border-radius: 16px;
+    border-width: root.block.kind == "toolbar" ? 0px : 1px;
+    border-color: AppColors.edge;
+    clip: root.block.kind != "toolbar";
+    vertical-stretch: 0;
+
+    VerticalLayout {
+        padding: 0px;
+        spacing: 0px;
+
+    // 1. Toolbar block
+    if root.block.kind == "toolbar": HorizontalBox {
+        padding: 0px;
+        spacing: 8px;
+        for ctrl in root.block.controls: DeclControlWidget {
+            horizontal-stretch: ctrl.kind == "select" || ctrl.kind == "input" ? 1 : 0;
+            ctrl: ctrl;
+            english: root.english;
+            interactive: root.interactive;
+            tr(s, e) => { return root.tr(s, e); }
+            set-int(k, v) => { root.set-int(k, v); }
+            set-float(k, v) => { root.set-float(k, v); }
+            set-bool(k, v) => { root.set-bool(k, v); }
+            set-string(k, v) => { root.set-string(k, v); }
+            trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
+            pick-directory(k, a) => { root.pick-directory(k, a); }
+            copy-text(t) => { root.copy-text(t); }
+        }
+    }
+
+    // 2. Video stage block
+    if root.block.kind == "video-stage": VerticalBox {
+        padding: 0px;
+        spacing: 0px;
+        if root.block.title != "" || root.block.controls.length > 0: VerticalBox {
+            padding: 14px;
+            spacing: 10px;
+            vertical-stretch: 0;
+            if root.block.title != "": HorizontalBox {
+                padding: 0px;
+                spacing: 8px;
+                Text {
+                    text: root.block.title;
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: AppColors.ink;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+                if root.block.badge != "": DeclPill {
+                    text: root.block.badge;
+                    tone: root.block.badge-phase;
+                }
+                if root.block.show-snapshot: ActionButton {
+                    text: root.tr("截图", root.english);
+                    has-icon: true;
+                    icon: @image-url("icons/camera.svg");
+                    enabled: root.interactive && root.has-video-frame;
+                    clicked => { root.trigger-action(root.block.snapshot-action != "" ? root.block.snapshot-action : "snapshot", "", ""); }
+                }
+            }
+            if root.block.controls.length > 0: HorizontalBox {
+                padding: 0px;
+                spacing: 8px;
+                for ctrl in root.block.controls: DeclControlWidget {
+                    horizontal-stretch: ctrl.kind == "select" ? 1 : 0;
+                    ctrl: ctrl;
+                    english: root.english;
+                    interactive: root.interactive;
+                    tr(s, e) => { return root.tr(s, e); }
+                    set-int(k, v) => { root.set-int(k, v); }
+                    set-float(k, v) => { root.set-float(k, v); }
+                    set-bool(k, v) => { root.set-bool(k, v); }
+                    set-string(k, v) => { root.set-string(k, v); }
+                    trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
+                    pick-directory(k, a) => { root.pick-directory(k, a); }
+                    copy-text(t) => { root.copy-text(t); }
+                }
+            }
+        }
+        Rectangle {
+            background: #141e2b;
+            min-height: 280px;
+            preferred-height: clamp(parent.width * 0.5625, 220px, 480px);
+            clip: true;
+            if root.has-video-frame: Image {
+                width: root.block.fit-mode == 2 ? self.source.width * 1px : parent.width;
+                height: root.block.fit-mode == 2 ? self.source.height * 1px : parent.height;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                source: root.video-frame;
+                image-fit: root.block.fit-mode == 1 ? cover : contain;
+            }
+            if !root.has-video-frame && !root.block.active && !root.block.loading: VerticalBox {
+                alignment: center;
+                spacing: 8px;
+                HorizontalBox {
+                    padding: 0px;
+                    Rectangle { background: transparent; horizontal-stretch: 1; }
+                    Image {
+                        width: 40px;
+                        height: 40px;
+                        source: @image-url("icons/camera.svg");
+                        colorize: #9fb3cc;
+                    }
+                    Rectangle { background: transparent; horizontal-stretch: 1; }
+                }
+                if root.block.empty-text != "": Text {
+                    text: root.block.empty-text;
+                    font-size: 12px;
+                    color: #9fb3cc;
+                    horizontal-alignment: center;
+                }
+            }
+            if !root.has-video-frame && (root.block.active || root.block.loading): ActivityIndicator {
+                x: (parent.width - 18px) / 2;
+                y: (parent.height - 18px) / 2;
+                active: true;
+            }
+            if root.block.capabilities != "": Rectangle {
+                x: 12px;
+                y: 12px;
+                width: cap-lbl.preferred-width + 16px;
+                height: 24px;
+                border-radius: 8px;
+                background: #101925c8;
+                border-width: 1px;
+                border-color: #ffffff26;
+                cap-lbl:= Text {
+                    x: 8px;
+                    width: parent.width - 16px;
+                    height: parent.height;
+                    text: root.block.capabilities;
+                    font-size: 11px;
+                    color: #e6eef8;
+                    vertical-alignment: center;
+                }
+            }
+        }
+        if root.block.footer-status != "": Rectangle {
+            height: 36px;
+            vertical-stretch: 0;
+            background: transparent;
+            Text {
+                x: 14px;
+                width: parent.width - 28px;
+                height: parent.height;
+                text: root.block.footer-status;
+                font-size: 12px;
+                color: AppColors.ink;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+    }
+
+    // 3. Arena map block
+    if root.block.kind == "arena-map": VerticalBox {
+        padding: 12px;
+        spacing: 8px;
+        HorizontalBox {
+            padding: 6px;
+            height: 36px;
+            vertical-stretch: 0;
+            spacing: 10px;
+            Text {
+                text: root.block.title != "" ? root.block.title : root.tr("台面 · 2.4 × 2.4 m", root.english);
+                font-size: 12px;
+                font-weight: 500;
+                color: AppColors.muted;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            Text {
+                text: root.block.coords;
+                font-size: 12px;
+                font-weight: 500;
+                color: AppColors.ink;
+                vertical-alignment: center;
+            }
+        }
+        stage:= Rectangle {
+            background: transparent;
+            min-height: 400px;
+            preferred-height: 460px;
+            property <float> wm: max(0.1, root.block.width-meters);
+            property <float> hm: max(0.1, root.block.height-meters);
+            property <length> side: max(0px, min(self.width - 72px, self.height - 72px));
+            property <length> axis-font: min(18px, max(12px, self.side / 46));
+            map-floor:= Rectangle {
+                x: (parent.width - self.width) / 2 + 12px;
+                y: 24px;
+                width: stage.side;
+                height: stage.side;
+                background: #30363a;
+                border-color: #c3423f;
+                border-width: 2px;
+                accessible-role: image;
+                accessible-label: root.tr("赛台坐标系，左下角为原点，X向右，Y向上，单位米", root.english);
+                if root.has-arena-platform-image: Image {
+                    x: parent.width * 700 / 3800;
+                    y: parent.height * 700 / 3800;
+                    width: parent.width * 2400 / 3800;
+                    height: parent.height * 2400 / 3800;
+                    source: root.arena-platform-image;
+                }
+                Rectangle {
+                    x: parent.width * 700 / 3800;
+                    y: parent.height * 700 / 3800;
+                    width: parent.width * 2400 / 3800;
+                    height: parent.height * 2400 / 3800;
+                    border-width: 1px;
+                    border-color: #ecf0f3;
+                    background: transparent;
+                }
+                Rectangle { x: 2px; y: parent.height * 700 / 3800; width: parent.width * 500 / 3800 - 2px; height: parent.height * 400 / 3800; background: #f6d627; }
+                Rectangle { x: parent.width * 3300 / 3800; y: parent.height * 2700 / 3800; width: parent.width * 500 / 3800 - 2px; height: parent.height * 400 / 3800; background: #2458ee; }
+                if root.block.live: Rectangle {
+                    x: parent.width * root.block.world-x / stage.wm + 11px;
+                    y: parent.height * (1 - root.block.world-y / stage.hm) - 22px;
+                    width: own-label.preferred-width + 12px;
+                    height: 20px;
+                    border-radius: 6px;
+                    background: #141c28d8;
+                    border-width: 1px;
+                    border-color: #ffffff30;
+                    own-label:= Text {
+                        x: 6px;
+                        width: parent.width - 12px;
+                        height: parent.height;
+                        text: root.tr("己方", root.english);
+                        color: #f8fafc;
+                        font-size: 11px;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                    }
+                }
+                if root.block.live: Rectangle {
+                    x: parent.width * root.block.world-x / stage.wm - 7px;
+                    y: parent.height * (1 - root.block.world-y / stage.hm) - 7px;
+                    width: 14px;
+                    height: 14px;
+                    border-radius: 7px;
+                    background: Palette.accent-background;
+                    border-width: 1px;
+                    border-color: white;
+                    if root.block.has-heading: Path {
+                        x: 2px;
+                        y: 2px;
+                        width: 10px;
+                        height: 10px;
+                        commands: "M1,2 L9,5 L1,8 Z";
+                        fill: white;
+                        transform-rotation: -root.block.heading * 1deg;
+                        transform-origin: { x: self.width / 2, y: self.height / 2 };
+                    }
+                }
+            }
+            Path { x: map-floor.x; y: map-floor.y + map-floor.height + 2px; width: map-floor.width + 18px; height: 8px; viewbox-width: self.width / 1px; viewbox-height: 8; commands: "M0,4 L" + (self.width / 1px) + ",4 M" + (self.width / 1px - 4) + ",0 L" + (self.width / 1px) + ",4 L" + (self.width / 1px - 4) + ",8"; stroke: AppColors.muted; stroke-width: 1px; fill: transparent; }
+            Path { x: map-floor.x - 8px; y: map-floor.y - 18px; width: 8px; height: map-floor.height + 18px; viewbox-width: 8; viewbox-height: self.height / 1px; commands: "M4," + (self.height / 1px) + " L4,0 M0,4 L4,0 L8,4"; stroke: AppColors.muted; stroke-width: 1px; fill: transparent; }
+            Rectangle { x: map-floor.x - 3px; y: map-floor.y + map-floor.height - 3px; width: 6px; height: 6px; border-radius: 3px; background: AppColors.accent; }
+            for value in [1, 2, 3, 3.8]: Rectangle { x: map-floor.x + map-floor.width * value / stage.wm; y: map-floor.y + map-floor.height + 2px; width: 1px; height: 7px; background: AppColors.muted; }
+            for value in [1, 2, 3, 3.8]: Rectangle { x: map-floor.x - 7px; y: map-floor.y + map-floor.height * (1 - value / stage.hm); width: 7px; height: 1px; background: AppColors.muted; }
+            for value in [1, 2, 3, 3.8]: Text { x: map-floor.x + map-floor.width * value / stage.wm - 20px; y: map-floor.y + map-floor.height + 7px; width: 40px; text: value; color: AppColors.muted; font-size: stage.axis-font; horizontal-alignment: center; }
+            for value in [1, 2, 3, 3.8]: Text { x: map-floor.x - 42px; y: map-floor.y + map-floor.height * (1 - value / stage.hm) - 8px; width: 32px; text: value; color: AppColors.muted; font-size: stage.axis-font; horizontal-alignment: right; }
+            Text { x: map-floor.x; y: map-floor.y + map-floor.height + 24px; text: "(0, 0)"; color: AppColors.muted; font-size: stage.axis-font; }
+            Text { x: map-floor.x + map-floor.width - 52px; y: map-floor.y + map-floor.height + 24px; text: "X (m)"; color: AppColors.muted; font-size: stage.axis-font; horizontal-alignment: right; }
+            Text { x: map-floor.x; y: 3px; text: "Y (m)"; color: AppColors.muted; font-size: stage.axis-font; }
+        }
+    }
+
+    // 4. KPI Grid block
+    if root.block.kind == "kpi-grid": VerticalBox {
+        padding: 16px;
+        spacing: 10px;
+        if root.block.title != "" || root.block.badge != "": HorizontalBox {
+            padding: 0px;
+            spacing: 8px;
+            Text {
+                text: root.block.title;
+                font-size: 13px;
+                font-weight: 600;
+                color: AppColors.ink;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+            }
+            if root.block.badge != "": DeclPill {
+                text: root.block.badge;
+                tone: root.block.badge-phase;
+            }
+        }
+        for item in root.block.kpis: Rectangle {
+            height: 52px;
+            border-radius: 11px;
+            background: AppColors.inset;
+            HorizontalBox {
+                padding-left: 12px;
+                padding-right: 12px;
+                spacing: 8px;
+                Text {
+                    text: item.label;
+                    font-size: 12px;
+                    color: AppColors.muted;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: item.value != "" ? item.value : "—";
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: AppColors.ink;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+
+    // 5. Control Card block
+    if root.block.kind == "control-card": VerticalBox {
+        padding: 16px;
+        spacing: 12px;
+        if root.block.title != "" || root.block.badge != "": HorizontalBox {
+            padding: 0px;
+            spacing: 8px;
+            Text {
+                text: root.block.title;
+                font-size: 13px;
+                font-weight: 600;
+                color: AppColors.ink;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+            }
+            if root.block.badge != "": DeclPill {
+                text: root.block.badge;
+                tone: root.block.badge-phase;
+            }
+        }
+        for ctrl in root.block.controls: DeclControlWidget {
+            ctrl: ctrl;
+            english: root.english;
+            interactive: root.interactive;
+            tr(s, e) => { return root.tr(s, e); }
+            set-int(k, v) => { root.set-int(k, v); }
+            set-float(k, v) => { root.set-float(k, v); }
+            set-bool(k, v) => { root.set-bool(k, v); }
+            set-string(k, v) => { root.set-string(k, v); }
+            trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
+            pick-directory(k, a) => { root.pick-directory(k, a); }
+            copy-text(t) => { root.copy-text(t); }
+        }
+    }
+
+    // 6. Task List block (download queue, board camera holders, etc.)
+    if root.block.kind == "task-list": VerticalBox {
+        padding: 16px;
+        spacing: 10px;
+        HorizontalBox {
+            padding: 0px;
+            spacing: 8px;
+            Text {
+                text: root.block.title;
+                font-size: 13px;
+                font-weight: 600;
+                color: AppColors.ink;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+            }
+            if root.block.summary != "": Text {
+                text: root.block.summary;
+                font-size: 11px;
+                color: AppColors.muted;
+                vertical-alignment: center;
+            }
+        }
+        if root.block.tasks.length == 0: Rectangle {
+            height: 60px;
+            border-radius: 11px;
+            background: AppColors.inset;
+            Text {
+                width: parent.width;
+                height: parent.height;
+                text: root.block.empty-text != "" ? root.block.empty-text : root.tr("暂无任务", root.english);
+                font-size: 12px;
+                color: AppColors.muted;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        for task in root.block.tasks: Rectangle {
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: AppColors.edge;
+            background: AppColors.inset;
+            VerticalBox {
+                padding: 12px;
+                spacing: 8px;
+                HorizontalBox {
+                    padding: 0px;
+                    spacing: 8px;
+                    VerticalBox {
+                        padding: 0px;
+                        spacing: 3px;
+                        horizontal-stretch: 1;
+                        HorizontalBox {
+                            padding: 0px;
+                            spacing: 8px;
+                            Text {
+                                text: task.title;
+                                font-size: 13px;
+                                font-weight: 600;
+                                color: AppColors.ink;
+                                overflow: elide;
+                                vertical-alignment: center;
+                            }
+                            if task.badge != "": DeclPill {
+                                text: task.badge;
+                                tone: task.badge-tone;
+                            }
+                            Rectangle { background: transparent; horizontal-stretch: 1; }
+                        }
+                        if task.subtitle != "": Text {
+                            text: task.subtitle;
+                            font-size: 11px;
+                            color: AppColors.muted;
+                            overflow: elide;
+                        }
+                    }
+                    for act in task.actions: ActionButton {
+                        text: act.label;
+                        primary: act.primary;
+                        danger: act.danger;
+                        enabled: root.interactive && act.enabled;
+                        clicked => { root.trigger-action(act.id, task.id, ""); }
+                    }
+                }
+                if task.show-progress: Rectangle {
+                    height: 5px;
+                    border-radius: 2.5px;
+                    background: AppColors.edge;
+                    clip: true;
+                    Rectangle {
+                        x: 0px;
+                        y: 0px;
+                        height: parent.height;
+                        width: parent.width * clamp(task.progress, 0, 1);
+                        border-radius: 2.5px;
+                        background: task.badge-tone == 2 ? (AppColors.dark ? #6bc49c : #2a8a5e)
+                            : task.badge-tone == 3 ? AppColors.danger
+                            : AppColors.accent;
+                        animate width { duration: AppColors.motion ? 140ms : 0ms; }
+                    }
+                }
+            }
+        }
+    }
+    }
+}
+
+export component DeclarativeView inherits VerticalBox {
+    in property <bool> english;
+    in property <bool> compact;
+    in property <bool> enabled;
+    in property <bool> connected;
+    in property <bool> requires-device: false;
+    in property <bool> layout-stack: false;
+    in property <float> primary-ratio: 0.62;
+    in property <string> error;
+    in property <image> video-frame;
+    in property <bool> has-video-frame: false;
+    in property <image> arena-platform-image;
+    in property <bool> has-arena-platform-image: false;
+    in property <[DeclBlock]> primary-blocks;
+    in property <[DeclBlock]> secondary-blocks;
+    pure callback tr(string, bool) -> string;
+    callback set-int(string, int);
+    callback set-float(string, float);
+    callback set-bool(string, bool);
+    callback set-string(string, string);
+    callback trigger-action(string, string, string);
+    callback pick-directory(string, string);
+    callback copy-text(string);
+    callback connect-device();
+
+    padding: 0px;
+    spacing: 12px;
+    min-width: 0px;
+
+    if root.error != "": Rectangle {
+        vertical-stretch: 0;
+        border-radius: 12px;
+        background: AppColors.danger.with-alpha(0.08);
+        border-width: 1px;
+        border-color: AppColors.danger.with-alpha(0.24);
+        HorizontalBox {
+            padding: 12px;
+            Text {
+                text: root.error;
+                font-size: 12px;
+                color: AppColors.danger;
+                wrap: word-wrap;
+            }
+        }
+    }
+
+    if root.requires-device && !root.connected: Rectangle {
+        background: AppColors.card;
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: AppColors.edge;
+        VerticalBox {
+            alignment: center;
+            spacing: 12px;
+            padding: 36px;
+            Text {
+                text: root.tr("请先连接控制器设备以使用此插件", root.english);
+                font-size: 14px;
+                font-weight: 500;
+                color: AppColors.muted;
+                horizontal-alignment: center;
+            }
+            HorizontalBox {
+                padding: 0px;
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+                ActionButton {
+                    text: root.tr("前往连接设备", root.english);
+                    primary: true;
+                    enabled: root.enabled;
+                    clicked => { root.connect-device(); }
+                }
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+            }
+        }
+    }
+
+    if !root.requires-device || root.connected: ScrollView {
+        vertical-stretch: 1;
+        viewport-width: self.visible-width;
+        viewport-height: max(self.visible-height, content-host.preferred-height);
+        vertical-scrollbar-policy: as-needed;
+        horizontal-scrollbar-policy: always-off;
+        min-height: 0px;
+
+        content-host:= Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            preferred-height: self.stacked
+                ? stack-box.preferred-height
+                : max(left-box.preferred-height, right-box.preferred-height);
+            height: self.preferred-height;
+            background: transparent;
+
+            property <bool> stacked: root.layout-stack || root.compact || self.width < 780px || root.secondary-blocks.length == 0;
+            property <length> split-gap: 16px;
+            property <length> left-w: (self.width - self.split-gap) * clamp(root.primary-ratio, 0.25, 0.78);
+
+            stack-box:= VerticalBox {
+                visible: content-host.stacked;
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: self.preferred-height;
+                padding: 0px;
+                spacing: 14px;
+                for block in root.primary-blocks: DeclBlockCard {
+                    block: block;
+                    english: root.english;
+                    interactive: root.enabled;
+                    video-frame: root.video-frame;
+                    has-video-frame: root.has-video-frame;
+                    arena-platform-image: root.arena-platform-image;
+                    has-arena-platform-image: root.has-arena-platform-image;
+                    tr(s, e) => { return root.tr(s, e); }
+                    set-int(k, v) => { root.set-int(k, v); }
+                    set-float(k, v) => { root.set-float(k, v); }
+                    set-bool(k, v) => { root.set-bool(k, v); }
+                    set-string(k, v) => { root.set-string(k, v); }
+                    trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
+                    pick-directory(k, a) => { root.pick-directory(k, a); }
+                    copy-text(t) => { root.copy-text(t); }
+                }
+                for block in root.secondary-blocks: DeclBlockCard {
+                    block: block;
+                    english: root.english;
+                    interactive: root.enabled;
+                    video-frame: root.video-frame;
+                    has-video-frame: root.has-video-frame;
+                    arena-platform-image: root.arena-platform-image;
+                    has-arena-platform-image: root.has-arena-platform-image;
+                    tr(s, e) => { return root.tr(s, e); }
+                    set-int(k, v) => { root.set-int(k, v); }
+                    set-float(k, v) => { root.set-float(k, v); }
+                    set-bool(k, v) => { root.set-bool(k, v); }
+                    set-string(k, v) => { root.set-string(k, v); }
+                    trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
+                    pick-directory(k, a) => { root.pick-directory(k, a); }
+                    copy-text(t) => { root.copy-text(t); }
+                }
+            }
+
+            left-box:= VerticalBox {
+                visible: !content-host.stacked;
+                x: 0px;
+                y: 0px;
+                width: content-host.left-w;
+                height: self.preferred-height;
+                padding: 0px;
+                spacing: 14px;
+                for block in root.primary-blocks: DeclBlockCard {
+                    block: block;
+                    english: root.english;
+                    interactive: root.enabled;
+                    video-frame: root.video-frame;
+                    has-video-frame: root.has-video-frame;
+                    arena-platform-image: root.arena-platform-image;
+                    has-arena-platform-image: root.has-arena-platform-image;
+                    tr(s, e) => { return root.tr(s, e); }
+                    set-int(k, v) => { root.set-int(k, v); }
+                    set-float(k, v) => { root.set-float(k, v); }
+                    set-bool(k, v) => { root.set-bool(k, v); }
+                    set-string(k, v) => { root.set-string(k, v); }
+                    trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
+                    pick-directory(k, a) => { root.pick-directory(k, a); }
+                    copy-text(t) => { root.copy-text(t); }
+                }
+            }
+
+            right-box:= VerticalBox {
+                visible: !content-host.stacked;
+                x: content-host.left-w + content-host.split-gap;
+                y: 0px;
+                width: parent.width - content-host.left-w - content-host.split-gap;
+                height: self.preferred-height;
+                padding: 0px;
+                spacing: 14px;
+                for block in root.secondary-blocks: DeclBlockCard {
+                    block: block;
+                    english: root.english;
+                    interactive: root.enabled;
+                    video-frame: root.video-frame;
+                    has-video-frame: root.has-video-frame;
+                    arena-platform-image: root.arena-platform-image;
+                    has-arena-platform-image: root.has-arena-platform-image;
+                    tr(s, e) => { return root.tr(s, e); }
+                    set-int(k, v) => { root.set-int(k, v); }
+                    set-float(k, v) => { root.set-float(k, v); }
+                    set-bool(k, v) => { root.set-bool(k, v); }
+                    set-string(k, v) => { root.set-string(k, v); }
+                    trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
+                    pick-directory(k, a) => { root.pick-directory(k, a); }
+                    copy-text(t) => { root.copy-text(t); }
+                }
+            }
+        }
+    }
+}

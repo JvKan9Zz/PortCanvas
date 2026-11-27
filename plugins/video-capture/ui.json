@@ -1,0 +1,159 @@
+{
+  "layout": "split",
+  "primaryWidthRatio": 0.68,
+  "headerBadge": {
+    "statusKey": "status",
+    "phaseKey": "statusPhase",
+    "defaultText": "未采集",
+    "defaultTextEn": "Idle"
+  },
+  "initialState": {
+    "status": "未采集",
+    "statusPhase": 0,
+    "active": false,
+    "loading": false,
+    "deviceIndex": 0,
+    "formatIndex": 0,
+    "deviceOptions": [],
+    "formatOptions": [],
+    "fitMode": 0,
+    "rotation": 0,
+    "flipH": false,
+    "flipV": false,
+    "modeSummary": "",
+    "footerStatus": "连接 USB/HDMI 采集卡后点击开启采集",
+    "resolutionText": "—",
+    "fpsText": "—",
+    "pixelFormatText": "—",
+    "transformText": "0°"
+  },
+  "primary": [
+    {
+      "type": "video-stage",
+      "id": "capture-stage",
+      "title": "视频采集画面",
+      "titleEn": "Video Capture Preview",
+      "activeKey": "active",
+      "loadingKey": "loading",
+      "fitModeKey": "fitMode",
+      "rotationKey": "rotation",
+      "flipHKey": "flipH",
+      "flipVKey": "flipV",
+      "capabilitiesKey": "modeSummary",
+      "footerStatusKey": "footerStatus",
+      "showSnapshot": true,
+      "snapshotAction": "snapshot",
+      "emptyText": "未开启采集预览",
+      "emptyTextEn": "Capture preview is stopped",
+      "controls": [
+        {
+          "type": "select",
+          "id": "device-select",
+          "stateKey": "deviceIndex",
+          "optionsKey": "deviceOptions",
+          "disabledWhen": { "key": "active", "truthy": true }
+        },
+        {
+          "type": "select",
+          "id": "format-select",
+          "stateKey": "formatIndex",
+          "optionsKey": "formatOptions",
+          "disabledWhen": { "key": "active", "truthy": true }
+        },
+        {
+          "type": "button",
+          "id": "refresh-devices",
+          "label": "刷新设备",
+          "labelEn": "Refresh",
+          "action": "refresh_devices",
+          "icon": "restart",
+          "disabledWhen": { "key": "active", "truthy": true }
+        },
+        {
+          "type": "button",
+          "id": "toggle-capture",
+          "label": "开启采集",
+          "labelEn": "Start",
+          "activeLabel": "停止采集",
+          "activeLabelEn": "Stop",
+          "activeKey": "active",
+          "busyKey": "loading",
+          "action": "toggle_capture",
+          "primary": true
+        }
+      ]
+    }
+  ],
+  "secondary": [
+    {
+      "type": "control-card",
+      "id": "display-card",
+      "title": "画面显示与变换",
+      "titleEn": "Display & Transform",
+      "controls": [
+        {
+          "type": "segmented",
+          "id": "fit-mode",
+          "label": "画面比例",
+          "labelEn": "Aspect Fit",
+          "stateKey": "fitMode",
+          "options": [
+            { "label": "适配", "labelEn": "Fit", "value": 0 },
+            { "label": "填充", "labelEn": "Fill", "value": 1 },
+            { "label": "1:1 原始", "labelEn": "1:1", "value": 2 }
+          ]
+        },
+        {
+          "type": "button-row",
+          "id": "transform-row",
+          "buttons": [
+            {
+              "type": "button",
+              "id": "rot-90",
+              "label": "旋转 90°",
+              "labelEn": "Rotate 90°",
+              "action": "rotate_cw",
+              "icon": "restart"
+            },
+            {
+              "type": "button",
+              "id": "flip-h",
+              "label": "水平翻转",
+              "labelEn": "Flip H",
+              "action": "toggle_flip_h",
+              "activeKey": "flipH"
+            },
+            {
+              "type": "button",
+              "id": "flip-v",
+              "label": "垂直翻转",
+              "labelEn": "Flip V",
+              "action": "toggle_flip_v",
+              "activeKey": "flipV"
+            }
+          ]
+        },
+        {
+          "type": "button",
+          "id": "reset-transform",
+          "label": "重置变换",
+          "labelEn": "Reset Transform",
+          "action": "reset_transform"
+        }
+      ]
+    },
+    {
+      "type": "kpi-grid",
+      "id": "capture-kpi",
+      "title": "采集状态",
+      "titleEn": "Capture Telemetry",
+      "columns": 2,
+      "items": [
+        { "label": "分辨率", "labelEn": "Resolution", "valueKey": "resolutionText", "defaultValue": "—" },
+        { "label": "实时帧率", "labelEn": "Live FPS", "valueKey": "fpsText", "defaultValue": "—" },
+        { "label": "原生格式", "labelEn": "Source Format", "valueKey": "pixelFormatText", "defaultValue": "—" },
+        { "label": "旋转/翻转", "labelEn": "Transform", "valueKey": "transformText", "defaultValue": "0°" }
+      ]
+    }
+  ]
+}

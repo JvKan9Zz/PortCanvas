@@ -1,0 +1,118 @@
+{
+  "layout": "split",
+  "primaryWidthRatio": 0.36,
+  "headerBadge": {
+    "statusKey": "poseStatus",
+    "phaseKey": "posePhase",
+    "defaultText": "等待定位数据",
+    "defaultTextEn": "Waiting for Pose"
+  },
+  "initialState": {
+    "cameraIndex": 0,
+    "rate": 2,
+    "cameraActive": false,
+    "cameraLoading": false,
+    "cameraStatus": "摄像头已关闭",
+    "cameraOptions": [],
+    "poseLive": false,
+    "posePhase": 0,
+    "poseStatus": "等待定位数据",
+    "poseX": 0.0,
+    "poseY": 0.0,
+    "poseHeading": 0.0,
+    "poseHasHeading": false,
+    "poseCoords": "—",
+    "poseHeadingText": "—",
+    "poseConfidenceText": "—",
+    "poseAgeText": "—"
+  },
+  "primary": [
+    {
+      "type": "video-stage",
+      "id": "arena-camera",
+      "title": "摄像头",
+      "titleEn": "Camera",
+      "activeKey": "cameraActive",
+      "loadingKey": "cameraLoading",
+      "footerStatusKey": "cameraStatus",
+      "showSnapshot": true,
+      "snapshotAction": "snapshot",
+      "emptyText": "未开启摄像头预览",
+      "emptyTextEn": "Camera preview is off",
+      "controls": [
+        {
+          "type": "select",
+          "id": "cam-select",
+          "stateKey": "cameraIndex",
+          "optionsKey": "cameraOptions",
+          "disabledWhen": { "key": "cameraActive", "truthy": true }
+        },
+        {
+          "type": "select",
+          "id": "rate-select",
+          "stateKey": "rate",
+          "options": [
+            { "label": "8 FPS", "value": 0 },
+            { "label": "15 FPS", "value": 1 },
+            { "label": "20 FPS", "value": 2 },
+            { "label": "30 FPS", "value": 3 }
+          ],
+          "disabledWhen": { "key": "cameraActive", "truthy": true }
+        },
+        {
+          "type": "button",
+          "id": "refresh-cam",
+          "label": "刷新",
+          "labelEn": "Refresh",
+          "action": "refresh_cameras",
+          "icon": "restart",
+          "disabledWhen": { "key": "cameraActive", "truthy": true }
+        },
+        {
+          "type": "button",
+          "id": "toggle-cam",
+          "label": "开启摄像头",
+          "labelEn": "Start Camera",
+          "activeLabel": "关闭摄像头",
+          "activeLabelEn": "Stop Camera",
+          "activeKey": "cameraActive",
+          "busyKey": "cameraLoading",
+          "action": "toggle_camera",
+          "primary": true
+        }
+      ]
+    },
+    {
+      "type": "kpi-grid",
+      "id": "pose-telemetry",
+      "title": "定位遥测",
+      "titleEn": "Pose Telemetry",
+      "badgeKey": "poseStatus",
+      "badgePhaseKey": "posePhase",
+      "columns": 2,
+      "items": [
+        { "label": "己方坐标", "labelEn": "Position", "valueKey": "poseCoords", "defaultValue": "—", "fullWidth": true },
+        { "label": "航向", "labelEn": "Heading", "valueKey": "poseHeadingText", "defaultValue": "—" },
+        { "label": "置信度", "labelEn": "Confidence", "valueKey": "poseConfidenceText", "defaultValue": "—" },
+        { "label": "数据延迟", "labelEn": "Latency", "valueKey": "poseAgeText", "defaultValue": "—" }
+      ]
+    }
+  ],
+  "secondary": [
+    {
+      "type": "arena-map",
+      "id": "arena-field",
+      "title": "台面 · 2.4 × 2.4 m",
+      "titleEn": "Arena · 2.4 × 2.4 m",
+      "widthMeters": 3.8,
+      "heightMeters": 3.8,
+      "platformAssetKey": "platformImage",
+      "liveKey": "poseLive",
+      "xKey": "poseX",
+      "yKey": "poseY",
+      "headingKey": "poseHeading",
+      "hasHeadingKey": "poseHasHeading",
+      "coordsKey": "poseCoords"
+    }
+  ]
+}

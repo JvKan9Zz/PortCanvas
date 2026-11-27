@@ -1,0 +1,70 @@
+{
+  "layout": "stack",
+  "headerBadge": {
+    "statusKey": "status",
+    "phaseKey": "statusPhase",
+    "defaultText": "就绪",
+    "defaultTextEn": "Ready"
+  },
+  "initialState": {
+    "status": "就绪",
+    "statusPhase": 2,
+    "message": "Hello PortCanvas",
+    "count": 0
+  },
+  "primary": [
+    {
+      "type": "control-card",
+      "id": "demo-card",
+      "title": "交互示例",
+      "titleEn": "Interactive Demo",
+      "controls": [
+        {
+          "type": "input",
+          "id": "msg",
+          "label": "测试文本",
+          "labelEn": "Message",
+          "placeholder": "输入任意内容后点击执行",
+          "placeholderEn": "Type anything and click Run",
+          "stateKey": "message",
+          "submitAction": "ping"
+        },
+        {
+          "type": "button-row",
+          "id": "actions",
+          "buttons": [
+            {
+              "type": "button",
+              "id": "run",
+              "label": "发送给 Worker",
+              "labelEn": "Send to Worker",
+              "action": "ping",
+              "primary": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "kpi-grid",
+      "id": "metrics",
+      "title": "状态指标",
+      "titleEn": "Metrics",
+      "columns": 2,
+      "items": [
+        {
+          "label": "响应次数",
+          "labelEn": "Responses",
+          "valueKey": "count",
+          "defaultValue": "0"
+        },
+        {
+          "label": "最近回显",
+          "labelEn": "Last Echo",
+          "valueKey": "lastEcho",
+          "defaultValue": "—"
+        }
+      ]
+    }
+  ]
+}

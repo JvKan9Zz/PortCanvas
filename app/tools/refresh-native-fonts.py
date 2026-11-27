@@ -13,6 +13,9 @@ source=app/'native-probe/src'
 characters=''.join(chr(c) for c in range(32,127))
 for path in source.iterdir():
     if path.suffix in ('.rs','.slint'):characters+=path.read_text(encoding='utf-8-sig')
+for pattern in ('plugins/*/manifest.json','plugins/*/ui.json','plugins/*/worker/src/*.rs'):
+    for path in sorted(app.parent.glob(pattern)):
+        characters+=path.read_text(encoding='utf-8-sig')
 characters+=(app/'core/resources/en.json').read_text(encoding='utf-8-sig')
 for face in ('regular','medium','semibold'):
     data=subprocess.check_output(['git','show',f'v0.5.95:app/ui/fonts/pingfang-{face}.woff2'],cwd=app.parent)

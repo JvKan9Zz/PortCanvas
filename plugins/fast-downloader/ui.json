@@ -1,0 +1,121 @@
+{
+  "layout": "stack",
+  "headerBadge": {
+    "statusKey": "status",
+    "phaseKey": "statusPhase",
+    "defaultText": "就绪",
+    "defaultTextEn": "Ready"
+  },
+  "initialState": {
+    "status": "就绪",
+    "statusPhase": 2,
+    "url": "",
+    "saveDir": "",
+    "threadsIndex": 3,
+    "totalSpeedText": "0 B/s",
+    "activeCountText": "0 个任务",
+    "engineText": "128 线程 · 已接管内置下载",
+    "queueSummary": "支持断点续传与切页后台下载",
+    "tasks": []
+  },
+  "primary": [
+    {
+      "type": "control-card",
+      "id": "new-download",
+      "title": "新建高速下载任务",
+      "titleEn": "New Fast Download",
+      "controls": [
+        {
+          "type": "input",
+          "id": "url-input",
+          "label": "下载链接",
+          "labelEn": "Download URL",
+          "placeholder": "粘贴 HTTP / HTTPS 下载链接，按回车或点击开始下载",
+          "placeholderEn": "Paste HTTP/HTTPS URL and press Enter or click Download",
+          "stateKey": "url",
+          "submitAction": "add_task"
+        },
+        {
+          "type": "dir-picker",
+          "id": "save-dir",
+          "label": "默认保存目录",
+          "labelEn": "Default Save Directory",
+          "stateKey": "saveDir",
+          "pickAction": "set_save_dir",
+          "openAction": "open_dir"
+        },
+        {
+          "type": "segmented",
+          "id": "threads-seg",
+          "label": "单任务并发线程数（不支持 Range 时自动回退单线程）",
+          "labelEn": "Concurrent Threads (auto single-thread fallback if Range unsupported)",
+          "stateKey": "threadsIndex",
+          "options": [
+            { "label": "8 线程", "labelEn": "8 Threads", "value": 0 },
+            { "label": "32 线程", "labelEn": "32 Threads", "value": 1 },
+            { "label": "64 线程", "labelEn": "64 Threads", "value": 2 },
+            { "label": "128 线程", "labelEn": "128 Threads", "value": 3 }
+          ]
+        },
+        {
+          "type": "button-row",
+          "id": "dl-actions",
+          "buttons": [
+            {
+              "type": "button",
+              "id": "btn-add",
+              "label": "开始下载",
+              "labelEn": "Download",
+              "action": "add_task",
+              "icon": "download",
+              "primary": true
+            },
+            {
+              "type": "button",
+              "id": "btn-pause-all",
+              "label": "全部暂停",
+              "labelEn": "Pause All",
+              "action": "pause_all"
+            },
+            {
+              "type": "button",
+              "id": "btn-resume-all",
+              "label": "全部继续",
+              "labelEn": "Resume All",
+              "action": "resume_all"
+            },
+            {
+              "type": "button",
+              "id": "btn-clear",
+              "label": "清理已完成",
+              "labelEn": "Clear Done",
+              "action": "clear_completed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "kpi-grid",
+      "id": "dl-overview",
+      "title": "运行概览",
+      "titleEn": "Download Overview",
+      "columns": 3,
+      "items": [
+        { "label": "实时总速率", "labelEn": "Total Speed", "valueKey": "totalSpeedText", "defaultValue": "0 B/s" },
+        { "label": "活跃任务", "labelEn": "Active Tasks", "valueKey": "activeCountText", "defaultValue": "0" },
+        { "label": "内置下载接管", "labelEn": "Host Engine", "valueKey": "engineText", "defaultValue": "128 线程" }
+      ]
+    },
+    {
+      "type": "task-list",
+      "id": "dl-queue",
+      "title": "下载队列",
+      "titleEn": "Download Queue",
+      "summaryKey": "queueSummary",
+      "itemsKey": "tasks",
+      "emptyText": "暂无下载任务，在上方粘贴链接即可开启 128 线程高速下载",
+      "emptyTextEn": "No download tasks yet. Paste a URL above to start."
+    }
+  ]
+}

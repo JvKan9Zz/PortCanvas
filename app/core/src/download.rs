@@ -4,9 +4,44 @@ use reqwest::{
     header::{ACCEPT_ENCODING, CONTENT_RANGE, ETAG, IF_RANGE, LAST_MODIFIED, RANGE},
     Client, StatusCode,
 };
+use std::{
+    path::PathBuf,
+    process::Stdio,
+    sync::{OnceLock, RwLock},
+};
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 const CONNECTIONS: usize = 32;
 const MAX_PACKAGE_BYTES: u64 = 256 * 1024 * 1024;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExternalDownloader {
+    pub plugin_id: String,
+    pub executable: PathBuf,
+    pub threads: usize,
+}
+
+fn provider_slot() -> &'static RwLock<Option<ExternalDownloader>> {
+    static SLOT: OnceLock<RwLock<Option<ExternalDownloader>>> = OnceLock::new();
+    SLOT.get_or_init(|| RwLock::new(None))
+}
+
+pub fn set_external_downloader(provider: Option<ExternalDownloader>) {
+    *provider_slot().write().unwrap() = provider;
+}
+
+pub fn external_downloader() -> Option<ExternalDownloader> {
+    provider_slot().read().unwrap().clone()
+}
+
+pub fn active_downloader_summary() -> &'static str {
+    if external_downloader().is_some() {
+        "plugin-128"
+    } else {
+        "builtin-32"
+    }
+}
+
 pub fn client_builder() -> reqwest::ClientBuilder {
     let _ = rustls::crypto::ring::default_provider().install_default();
     Client::builder().user_agent(concat!("PortCanvas/", env!("CARGO_PKG_VERSION")))
@@ -22,8 +57,110 @@ fn content_range(text: &str) -> Option<(u64, u64, u64)> {
     let (start, end) = range.split_once('-')?;
     Some((start.parse().ok()?, end.parse().ok()?, total.parse().ok()?))
 }
-// Shared range transport; each caller keeps its own package authentication.
+
+async fn fetch_via_external(
+    ext: &ExternalDownloader,
+    url: &reqwest::Url,
+    progress: &(impl Fn(usize, Option<u64>, usize) + Send + Sync),
+) -> Result<Vec<u8>> {
+    let temp = tempfile::NamedTempFile::new().context("无法创建插件下载临时文件。")?;
+    let output_path = temp.path().to_path_buf();
+    let mut cmd = tokio::process::Command::new(&ext.executable);
+    cmd.arg("--fetch")
+        .arg("--url")
+        .arg(url.as_str())
+        .arg("--output")
+        .arg(&output_path)
+        .arg("--threads")
+        .arg(ext.threads.max(1).to_string())
+        .arg("--max-bytes")
+        .arg(MAX_PACKAGE_BYTES.to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+    if url.scheme() == "https" {
+        cmd.arg("--https-only");
+    }
+    if url.host_str() == Some("127.0.0.1") {
+        cmd.arg("--no-proxy").arg("--no-redirect");
+    }
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let mut child = cmd
+        .spawn()
+        .with_context(|| format!("无法启动下载器插件 {}", ext.plugin_id))?;
+    let stdout = child.stdout.take().context("下载器插件缺少 stdout。")?;
+    let stderr = child.stderr.take().context("下载器插件缺少 stderr。")?;
+
+    let stderr_task = tokio::spawn(async move {
+        let mut reader = BufReader::new(stderr);
+        let mut text = String::new();
+        let mut line = String::new();
+        while let Ok(n) = reader.read_line(&mut line).await {
+            if n == 0 {
+                break;
+            }
+            if text.len() < 4096 {
+                text.push_str(&line);
+            }
+            line.clear();
+        }
+        text
+    });
+
+    let mut reader = BufReader::new(stdout);
+    let mut line = String::new();
+    while reader.read_line(&mut line).await? > 0 {
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) {
+            if value["type"] == "progress" {
+                let delta = value["delta"].as_u64().unwrap_or(0) as usize;
+                let total = value["total"].as_u64();
+                let connections = value["connections"].as_u64().unwrap_or(1) as usize;
+                progress(delta, total, connections);
+            }
+        }
+        line.clear();
+    }
+
+    let status = child.wait().await?;
+    let stderr_text = stderr_task.await.unwrap_or_default();
+    anyhow::ensure!(
+        status.success(),
+        "{}",
+        if stderr_text.trim().is_empty() {
+            "下载器插件执行失败。".to_owned()
+        } else {
+            stderr_text.trim().to_owned()
+        }
+    );
+    let bytes = tokio::fs::read(&output_path)
+        .await
+        .context("无法读取下载器插件输出文件。")?;
+    anyhow::ensure!(
+        bytes.len() as u64 <= MAX_PACKAGE_BYTES,
+        "更新包超过 256 MiB 限制。"
+    );
+    Ok(bytes)
+}
+
+// Shared range transport; automatically delegates to installed downloader plugin (128-thread) when active,
+// and reverts to built-in 32-thread transport when uninstalled or disabled.
 pub async fn fetch(
+    client: &Client,
+    url: &reqwest::Url,
+    progress: impl Fn(usize, Option<u64>, usize) + Send + Sync,
+) -> Result<Vec<u8>> {
+    if let Some(ext) = external_downloader().filter(|p| p.executable.is_file()) {
+        return fetch_via_external(&ext, url, &progress).await;
+    }
+    fetch_builtin(client, url, progress).await
+}
+
+pub async fn fetch_builtin(
     client: &Client,
     url: &reqwest::Url,
     progress: impl Fn(usize, Option<u64>, usize) + Send + Sync,
