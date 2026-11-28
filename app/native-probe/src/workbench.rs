@@ -730,12 +730,24 @@ pub fn run() -> Result<()> {
             }
         }
     });
+    ui.on_decl_toggle_fullscreen({
+        let weak = ui.as_weak();
+        move |enter| {
+            if let Some(ui) = weak.upgrade() {
+                ui.set_decl_video_fullscreen(enter);
+            }
+        }
+    });
     ui.on_fullscreen({
         let weak = ui.as_weak();
         let desktop = desktop.clone();
         move || {
             if let Some(ui) = weak.upgrade() {
                 if ui.get_dialog_kind() == 0 && !ui.get_migration_busy() {
+                    if ui.get_decl_video_fullscreen() {
+                        ui.invoke_decl_toggle_fullscreen(false);
+                        return;
+                    }
                     if ui.get_desktop_expanded() { desktop.expand(false); return; }
                     let full = !ui.window().is_fullscreen();
                     ui.window().set_fullscreen(full);
@@ -777,7 +789,7 @@ pub fn run() -> Result<()> {
                     {
                         if matches!(&event.logical_key, Key::Named(NamedKey::F11))
                             || (matches!(&event.logical_key, Key::Named(NamedKey::Escape))
-                                && (ui.get_desktop_expanded()||window.is_fullscreen())&&!ui.get_terminal_completion_active()&&!ui.get_desktop_tools_open())
+                                && (ui.get_desktop_expanded()||ui.get_decl_video_fullscreen()||window.is_fullscreen())&&!ui.get_terminal_completion_active()&&!ui.get_desktop_tools_open())
                         {
                             local_keys.borrow_mut().insert(event.physical_key);
                             ui.invoke_fullscreen();

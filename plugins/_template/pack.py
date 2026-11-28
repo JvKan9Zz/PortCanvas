@@ -13,6 +13,13 @@ def pack_plugin(source_dir: Path, output_file: Path) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema") != "portcanvas.plugin/1":
         raise ValueError("manifest.json must declare schema 'portcanvas.plugin/1'")
+    runtime = manifest.get("runtime") or {}
+    if runtime.get("kind") == "local-worker":
+        entry = runtime.get("entry", "")
+        if not entry or not (source_dir / entry).is_file():
+            raise FileNotFoundError(
+                f"manifest.json declares local-worker entry '{entry}', which is missing under {source_dir}"
+            )
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with output_file.open("wb") as out, gzip.GzipFile(
         filename="", mode="wb", fileobj=out, mtime=0

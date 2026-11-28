@@ -124,17 +124,19 @@ slint::slint! {
         callback window-toggle-maximize();
         callback window-close();
         property <WindowDragRegion> desktop-drag-region;
+        property <WindowDragRegion> decl-drag-region;
         property <length> body-top:header-panel.y+header-panel.height+12px;
         property <bool> window-drag-enabled:root.custom-caption&&root.can-interact&&!root.settings-open&&root.settings-progress==0&&root.quick-phase==0&&!root.desktop-tools-open;
         out property <WindowDragRegion> window-drag-region:
             !root.window-drag-enabled
                 ? {x:0,y:0,width:0,height:0}
+                : root.decl-expanded ? root.decl-drag-region
                 : root.desktop-expanded ? root.desktop-drag-region : {
                     x:header-drag.absolute-position.x/1px,y:header-drag.absolute-position.y/1px,
                     width:header-drag.width/1px,height:header-drag.height/1px
                 };
         out property <WindowDragRegion> brand-drag-region:
-            !root.window-drag-enabled||root.desktop-expanded
+            !root.window-drag-enabled||root.stage-expanded
                 ? {x:0,y:0,width:0,height:0}
                 : {
                     x:header-panel.absolute-position.x/1px,y:header-brand.absolute-position.y/1px,
@@ -172,20 +174,25 @@ slint::slint! {
         in property <string> plugin-status;in property <string> plugin-error;
         in property <[PluginCard]> plugin-items;
         in property <string> plugin-active-id;in property <string> plugin-active-title;in property <string> plugin-active-version;
-        changed plugin-active-id=>{root.page-entering=true;root.decl-sync();}
+        changed plugin-active-id=>{if root.plugin-active-id==""&&root.decl-video-fullscreen{root.decl-toggle-fullscreen(false);}root.page-entering=true;root.decl-sync();}
         callback plugin-refresh();callback plugin-import();callback plugin-upload-choice(int);callback plugin-filter-changed(int);
         callback plugin-action(string,string);callback plugin-close-active();callback plugin-state-changed();
         in property <bool> decl-requires-device:false;in property <bool> decl-layout-stack:false;in property <float> decl-primary-ratio:0.62;
+        in-out property <bool> decl-video-fullscreen:false;
+        out property <bool> decl-expanded:root.page==9&&root.plugin-active-id!=""&&root.decl-video-fullscreen;
+        out property <bool> stage-expanded:root.desktop-expanded||root.decl-expanded;
+        changed decl-expanded=>{root.bg-sync();root.material-controls();}
         in property <string> decl-error;in property <string> decl-header-status;in property <int> decl-header-phase:0;
         in property <image> decl-video-frame;in property <bool> decl-has-video-frame:false;
         in property <image> decl-arena-platform-image;in property <bool> decl-has-arena-platform-image:false;
         in property <[DeclBlock]> decl-primary-blocks;in property <[DeclBlock]> decl-secondary-blocks;
         callback decl-sync();callback decl-set-int(string,int);callback decl-set-float(string,float);callback decl-set-bool(string,bool);callback decl-set-string(string,string);
         callback decl-trigger-action(string,string,string);callback decl-pick-directory(string,string);callback decl-copy-text(string);
+        callback decl-toggle-fullscreen(bool);
         callback decl-ssh-event(string,string,string);callback decl-core-event(string,string);
         in-out property <bool> terminal-open:false;
-        out property <bool> terminal-visible:root.page!=0&&root.terminal-open&&!root.desktop-expanded;
-        changed terminal-visible=>{root.terminal-cancel-completion();if root.terminal-visible{root.terminal-reload();}else if !root.desktop-expanded{main-focus.focus();}}
+        out property <bool> terminal-visible:root.page!=0&&root.terminal-open&&!root.stage-expanded;
+        changed terminal-visible=>{root.terminal-cancel-completion();if root.terminal-visible{root.terminal-reload();}else if !root.stage-expanded{main-focus.focus();}}
         in property <bool> material-active:false;
         in property <bool> material-solid:false;
         in property <bool> high-contrast:false;changed high-contrast=>{AppColors.high-contrast=root.high-contrast;}
@@ -200,7 +207,7 @@ slint::slint! {
         in property <image> material-nav;in property <image> material-header;in property <image> material-terminal;in property <image> material-work;
         out property <color> material-tint:Palette.background;
         out property <MaterialRect> material-nav-rect:{x:nav-panel.x/1px,y:nav-panel.y/1px,width:nav-panel.width/1px,height:nav-panel.height/1px,radius:nav-panel.border-radius/1px};
-        out property <MaterialRect> material-header-rect:root.desktop-expanded?{x:(work-area.x+work-layout.padding-left)/1px,y:(work-area.y+work-layout.padding-top)/1px,width:(work-area.width - work-layout.padding-left - work-layout.padding-right)/1px,height:46,radius:14}:{x:header-panel.x/1px,y:header-panel.y/1px,width:header-panel.width/1px,height:header-panel.height/1px,radius:header-panel.border-radius/1px};
+        out property <MaterialRect> material-header-rect:root.stage-expanded?{x:(work-area.x+work-layout.padding-left)/1px,y:(work-area.y+work-layout.padding-top)/1px,width:(work-area.width - work-layout.padding-left - work-layout.padding-right)/1px,height:46,radius:14}:{x:header-panel.x/1px,y:header-panel.y/1px,width:header-panel.width/1px,height:header-panel.height/1px,radius:header-panel.border-radius/1px};
         out property <MaterialRect> desktop-work-rect:{x:work-area.x/1px,y:work-area.y/1px,width:work-area.width/1px,height:work-area.height/1px,radius:work-area.border-radius/1px};
         out property <MaterialRect> material-terminal-rect:{x:terminal-panel.x/1px,y:terminal-panel.y/1px,width:terminal-panel.width/1px,height:terminal-panel.height/1px,radius:terminal-panel.border-radius/1px};
         out property <ChromeLayout> chrome-layout:{nav:nav-pill.y/1px,drawer:root.drawer-space/1px,drawer-x:terminal-panel.x/1px,settings-y:settings-panel.y/1px,settings-opacity:root.settings-progress,settings-tab:settings-pill.y/1px,page:root.page-phase,dialog-y:modal-panel.y/1px,dialog-opacity:root.dialog-phase,advanced:root.observed-advanced,connection-height:root.observed-connection,busy-phase:root.observed-busy-phase,busy-wave:root.observed-busy-wave,busy:root.observed-busy?1:0,select-phase:select-host.phase,select-y:select-host.menu-top/1px,select-height:select-host.revealed-height/1px};
@@ -369,7 +376,7 @@ slint::slint! {
         // FORM: Code-led extension of the approved PortCanvas desktop structure; no new identity choice.
         // FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
         main-focus:=FocusScope {enabled:root.painted-dialog==0&&root.settings-progress==0&&root.quick-phase==0&&!root.system-busy&&!root.migration-busy;
-            nav-panel:=MaterialPanel {visible:!root.desktop-expanded;x:16px;y:root.body-top;width:84px;height:parent.height - root.body-top - 16px;material:root.material-nav;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
+            nav-panel:=MaterialPanel {visible:!root.stage-expanded;x:16px;y:root.body-top;width:84px;height:parent.height - root.body-top - 16px;material:root.material-nav;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
                 VerticalBox {padding-left:9px;padding-right:9px;padding-top:10px;padding-bottom:10px;spacing:12px;
                     Rectangle {height:424px;vertical-stretch:0;background:transparent;
                         nav-pill:=Rectangle {transform-origin:{x:self.width/2,y:self.height/2};transform-scale:root.nav-index==0?nav-devices.press-scale:root.nav-index==1?nav-desktop.press-scale:root.nav-index==2?nav-files.press-scale:root.nav-index==3?nav-logs.press-scale:root.nav-index==4?nav-monitor.press-scale:nav-plugins.press-scale;y:root.nav-index*72px;width:parent.width;height:64px;border-radius:17px;background:AppColors.soft;animate y {duration:AppColors.motion?220ms:0ms;easing:cubic-bezier(0.22,0.61,0.36,1);}}
@@ -386,7 +393,7 @@ slint::slint! {
                     settings-entry:=NavButton {text:root.english?"Settings":"设置";icon:@image-url("icons/settings.svg");selected:root.settings-open;enabled:root.can-interact;clicked=>{root.settings-open=true;}}
                 }
             }
-            header-panel:=MaterialPanel {visible:!root.desktop-expanded;x:16px;y:12px;width:parent.width - 32px;height:46px;border-radius:16px;material:root.material-header;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
+            header-panel:=MaterialPanel {visible:!root.stage-expanded;x:16px;y:12px;width:parent.width - 32px;height:46px;border-radius:16px;material:root.material-header;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
                 HorizontalBox {padding-left:14px;padding-right:root.custom-caption?8px:10px;padding-top:0px;padding-bottom:0px;spacing:10px;
                     header-brand:=Rectangle {width:174px;horizontal-stretch:0;background:transparent;
                         Image {x:0px;y:(parent.height - self.height)/2;source:@image-url("../assets/portcanvas.png");image-fit:contain;width:28px;height:28px;}
@@ -410,21 +417,21 @@ slint::slint! {
                     }
                 }
             }
-            work-area:=MaterialPanel {material:root.material-work;active:root.use-material-frame&&!root.desktop-expanded;strength:root.bg-material;solid:root.material-solid;x:116px;y:root.body-top;width:parent.width - 132px - root.drawer-space;height:parent.height - root.body-top - 16px;
-                flat:root.desktop-expanded;border-radius:24px;
-                states [expanded when root.desktop-expanded:{
+            work-area:=MaterialPanel {material:root.material-work;active:root.use-material-frame&&!root.stage-expanded;strength:root.bg-material;solid:root.material-solid;x:116px;y:root.body-top;width:parent.width - 132px - root.drawer-space;height:parent.height - root.body-top - 16px;
+                flat:root.stage-expanded;border-radius:24px;
+                states [expanded when root.stage-expanded:{
                     x:12px;y:12px;width:parent.width - 24px;height:parent.height - 24px;border-radius:14px;
                     work-layout.padding-left:0px;work-layout.padding-right:0px;work-layout.padding-top:0px;work-layout.padding-bottom:0px;
                     in {animate x,y,width,height,border-radius {duration:root.material-solid?0ms:240ms;easing:ease-out;}animate work-layout.padding-left,work-layout.padding-right,work-layout.padding-top,work-layout.padding-bottom {duration:root.material-solid?0ms:240ms;easing:ease-out;}}
                     out {animate x,y,width,height,border-radius {duration:root.material-solid?0ms:240ms;easing:ease-out;}animate work-layout.padding-left,work-layout.padding-right,work-layout.padding-top,work-layout.padding-bottom {duration:root.material-solid?0ms:240ms;easing:ease-out;}}
                 }]
                 work-layout:=VerticalBox {y:(1-root.page-phase)*5px;padding-left:root.width<1120px?22px:30px;padding-right:root.width<1120px?22px:30px;padding-top:26px;padding-bottom:24px;spacing:20px;
-            if !root.desktop-expanded&&root.system-error!="":Text {text:root.tr(root.system-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
-            if !root.desktop-expanded&&root.page!=1&&root.bg-error!="":Text {text:root.tr(root.bg-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
-            if !root.desktop-expanded&&root.migration-error!="":Text {text:root.tr(root.migration-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
+            if !root.stage-expanded&&root.system-error!="":Text {text:root.tr(root.system-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
+            if !root.stage-expanded&&root.page!=1&&root.bg-error!="":Text {text:root.tr(root.bg-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
+            if !root.stage-expanded&&root.migration-error!="":Text {text:root.tr(root.migration-error,root.english);color:#ce3535;wrap:word-wrap;vertical-stretch:0;}
             // DEVICE PATH: flat selectable list, scrollable credentials, always-reachable actions.
             // Preserve the existing profile, trust, cancellation and migration callbacks.
-            if !root.desktop-expanded&&root.page==9&&root.plugin-active-id!="":HorizontalBox {padding:0px;spacing:10px;vertical-stretch:0;height:42px;
+            if !root.stage-expanded&&root.page==9&&root.plugin-active-id!="":HorizontalBox {padding:0px;spacing:10px;vertical-stretch:0;height:42px;
                 VerticalLayout {alignment:center;horizontal-stretch:0;DesktopTool {surfaced:true;height:34px;border-radius:10px;text:root.tr("返回插件",root.english);icon:@image-url("icons/chevron-right.svg");icon-angle:180deg;enabled:root.can-interact;clicked=>{root.plugin-close-active();}}}
                 Text {text:root.plugin-active-title;font-size:22px;font-weight:600;color:AppColors.ink;vertical-alignment:center;}
                 if root.plugin-active-version!="":VerticalLayout {alignment:center;horizontal-stretch:0;Rectangle {preferred-width:active-ver.preferred-width+14px;height:24px;border-radius:8px;background:AppColors.soft;
@@ -433,9 +440,9 @@ slint::slint! {
                 Rectangle {background:transparent;horizontal-stretch:1;}
                 if root.decl-header-status!="":VerticalLayout {alignment:center;horizontal-stretch:0;ConnectionBadge {text:root.tr(root.decl-header-status,root.english);phase:root.decl-header-phase;}}
             }
-            if !root.desktop-expanded&&!(root.page==9&&root.plugin-active-id!=""):HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;height:(root.page==5||(root.page==8&&root.connected&&root.monitor-host-summary!=""))?60px:42px;
+            if !root.stage-expanded&&!(root.page==9&&root.plugin-active-id!=""):HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;height:(root.page==5||(root.page==8&&root.connected&&root.monitor-host-summary!=""))?60px:42px;
                 VerticalBox {padding:0px;spacing:4px;vertical-stretch:0;alignment:center;
-                    Text {text:root.tr(root.page==0?"设备连接与管理":root.page==5?"远程桌面":root.page==6?"文件管理与传输":root.page==3?"本地运行日志":root.page==8?"设备性能":"百宝工具箱",root.english);font-size:25px;font-weight:600;color:AppColors.ink;vertical-stretch:0;}
+                    Text {text:root.tr(root.page==0?"设备连接与管理":root.page==5?"远程桌面":root.page==6?"文件管理与传输":root.page==3?"本地运行日志":root.page==8?"设备性能":"插件",root.english);font-size:25px;font-weight:600;color:AppColors.ink;vertical-stretch:0;}
                     if root.page==5:Text {text:root.device-name+" · "+root.display;font-size:11px;color:AppColors.muted;vertical-stretch:0;}
                     if root.page==8&&root.connected&&root.monitor-host-summary!="":Text {text:root.device-name+" · "+root.monitor-host-summary;font-size:11px;color:AppColors.muted;vertical-stretch:0;}
                 }
@@ -492,6 +499,14 @@ slint::slint! {
             if root.page==9&&root.plugin-active-id!="":DeclarativeView {
                 english:root.english;compact:root.compact-content;enabled:root.can-interact;connected:root.connected;
                 requires-device:root.decl-requires-device;layout-stack:root.decl-layout-stack;primary-ratio:root.decl-primary-ratio;
+                video-fullscreen:root.decl-video-fullscreen;
+                active-title:root.plugin-active-title;
+                custom-caption:root.custom-caption&&!root.native-macos;window-restore:root.window-is-maximized||root.window-is-fullscreen;
+                window-minimize=>{root.window-minimize();}
+                window-toggle-maximize=>{root.window-toggle-maximize();}
+                window-close=>{root.window-close();}
+                window-drag-changed(region)=>{root.decl-drag-region=region;}
+                toolbar-material:root.material-header;material-active:root.use-material-frame;material-solid:root.material-solid;material-strength:root.bg-material;
                 error:root.decl-error;
                 video-frame:root.decl-video-frame;has-video-frame:root.decl-has-video-frame;
                 arena-platform-image:root.decl-arena-platform-image;has-arena-platform-image:root.decl-has-arena-platform-image;
@@ -504,6 +519,7 @@ slint::slint! {
                 trigger-action(a,i,p)=>{root.decl-trigger-action(a,i,p);}
                 pick-directory(k,a)=>{root.decl-pick-directory(k,a);}
                 copy-text(t)=>{root.decl-copy-text(t);}
+                toggle-fullscreen(full)=>{root.decl-toggle-fullscreen(full);}
                 connect-device=>{root.page=0;}
             }
             if root.page==6:FilesView {compact:root.compact-content;
@@ -549,7 +565,7 @@ slint::slint! {
                 resize-keys:=FocusScope {enabled:root.terminal-visible&&root.can-interact&&!root.settings-open;key-pressed(event)=>{if event.text==Key.LeftArrow{root.drawer-preferred=min(root.drawer-maximum,root.drawer-width+24px);return accept;}if event.text==Key.RightArrow{root.drawer-preferred=max(320px,root.drawer-width - 24px);return accept;}if event.text==Key.Home{root.drawer-preferred=320px;return accept;}if event.text==Key.End{root.drawer-preferred=root.drawer-maximum;return accept;}return reject;}}
                 resize-touch:=TouchArea {mouse-cursor:ew-resize;changed pressed=>{root.drawer-resizing=self.pressed;}pointer-event(event)=>{if event.kind==PointerEventKind.down&&event.button==PointerEventButton.left{resize-keys.focus();resize-handle.origin=self.absolute-position.x+self.mouse-x;resize-handle.original-width=root.drawer-width;}}moved=>{if self.pressed{root.drawer-preferred=min(root.drawer-maximum,max(320px,resize-handle.original-width + resize-handle.origin - self.absolute-position.x - self.mouse-x));}}double-clicked=>{root.drawer-preferred=-1px;}}
             }
-            terminal-panel:=MaterialPanel {visible:root.page!=0&&!root.desktop-expanded&&(root.terminal-open||root.drawer-space>0px);opacity:min(1,root.drawer-space/(root.drawer-width+14px));x:parent.width - root.drawer-space - 2px;y:root.body-top;width:root.drawer-width;height:parent.height - root.body-top - 16px;material:root.material-terminal;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
+            terminal-panel:=MaterialPanel {visible:root.page!=0&&!root.stage-expanded&&(root.terminal-open||root.drawer-space>0px);opacity:min(1,root.drawer-space/(root.drawer-width+14px));x:parent.width - root.drawer-space - 2px;y:root.body-top;width:root.drawer-width;height:parent.height - root.body-top - 16px;material:root.material-terminal;active:root.use-material-frame;strength:root.bg-material;solid:root.material-solid;
                 VerticalBox {padding:12px;spacing:8px;
                     TerminalView {
                 tabs:root.terminal-tabs;active:root.terminal-active;active-index:root.terminal-active-index;cells:root.terminal-cells;

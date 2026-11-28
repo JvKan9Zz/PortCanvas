@@ -14,7 +14,7 @@ from urllib.parse import quote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = 'portcanvas.plugin/1'
-RELEASE_URL = 'https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2'
+RELEASE_URL = 'https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3'
 
 
 def package(source: Path, target: Path) -> None:
@@ -179,7 +179,8 @@ def main() -> None:
                     packages[platform] = pkg_entry
                 catalog_manifest = json.loads(json.dumps(manifest))
                 catalog_manifest['platform'] = 'any' if len(packages) > 1 else next(iter(packages))
-                entry = dict(catalog_manifest, packages=packages)
+                primary_pkg = packages.get('windows-x86_64') or next(iter(packages.values()))
+                entry = dict(catalog_manifest, **primary_pkg, packages=packages)
                 entries.append(entry)
             else:
                 filename = f"{plugin_id}-{manifest['version']}.pcplugin"

@@ -6,6 +6,7 @@ import {FormInput as LineEdit} from "form_input.slint";
 import {LiquidSlider} from "liquid_slider.slint";
 import {SelectBox as ComboBox} from "select_box.slint";
 import {SegmentedChoice} from "settings_controls.slint";
+import {MaterialPanel,WindowControls,WindowDragRegion} from "workbench_chrome.slint";
 
 export struct DeclButton {
     id: string,
@@ -83,6 +84,7 @@ export struct DeclBlock {
     empty-text: string,
     columns: int,
     controls: [DeclControl],
+    action-controls: [DeclControl],
     kpis: [DeclKpi],
     tasks: [DeclTask],
     active: bool,
@@ -91,6 +93,7 @@ export struct DeclBlock {
     capabilities: string,
     show-snapshot: bool,
     snapshot-action: string,
+    show-fullscreen: bool,
     footer-status: string,
     width-meters: float,
     height-meters: float,
@@ -413,6 +416,7 @@ component DeclBlockCard inherits Rectangle {
     callback trigger-action(string, string, string);
     callback pick-directory(string, string);
     callback copy-text(string);
+    callback toggle-fullscreen(bool);
 
     background: root.block.kind == "toolbar" ? transparent : AppColors.card;
     border-radius: 16px;
@@ -449,7 +453,7 @@ component DeclBlockCard inherits Rectangle {
     if root.block.kind == "video-stage": VerticalBox {
         padding: 0px;
         spacing: 0px;
-        if root.block.title != "" || root.block.controls.length > 0: VerticalBox {
+        if root.block.title != "" || root.block.controls.length > 0 || root.block.action-controls.length > 0: VerticalBox {
             padding: 14px;
             spacing: 10px;
             vertical-stretch: 0;
@@ -468,6 +472,13 @@ component DeclBlockCard inherits Rectangle {
                     text: root.block.badge;
                     tone: root.block.badge-phase;
                 }
+                if root.block.show-fullscreen: ActionButton {
+                    text: root.tr("全屏", root.english);
+                    has-icon: true;
+                    icon: @image-url("icons/expand.svg");
+                    enabled: root.interactive;
+                    clicked => { root.toggle-fullscreen(true); }
+                }
                 if root.block.show-snapshot: ActionButton {
                     text: root.tr("截图", root.english);
                     has-icon: true;
@@ -480,7 +491,8 @@ component DeclBlockCard inherits Rectangle {
                 padding: 0px;
                 spacing: 8px;
                 for ctrl in root.block.controls: DeclControlWidget {
-                    horizontal-stretch: ctrl.kind == "select" ? 1 : 0;
+                    horizontal-stretch: ctrl.kind == "select" || ctrl.kind == "input" ? 1 : 0;
+                    min-width: ctrl.kind == "select" ? 104px : 0px;
                     ctrl: ctrl;
                     english: root.english;
                     interactive: root.interactive;
@@ -494,10 +506,29 @@ component DeclBlockCard inherits Rectangle {
                     copy-text(t) => { root.copy-text(t); }
                 }
             }
+            if root.block.action-controls.length > 0: HorizontalBox {
+                padding: 0px;
+                spacing: 8px;
+                for ctrl in root.block.action-controls: DeclControlWidget {
+                    horizontal-stretch: 0;
+                    ctrl: ctrl;
+                    english: root.english;
+                    interactive: root.interactive;
+                    tr(s, e) => { return root.tr(s, e); }
+                    set-int(k, v) => { root.set-int(k, v); }
+                    set-float(k, v) => { root.set-float(k, v); }
+                    set-bool(k, v) => { root.set-bool(k, v); }
+                    set-string(k, v) => { root.set-string(k, v); }
+                    trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
+                    pick-directory(k, a) => { root.pick-directory(k, a); }
+                    copy-text(t) => { root.copy-text(t); }
+                }
+                Rectangle { background: transparent; horizontal-stretch: 1; }
+            }
         }
         Rectangle {
             background: #141e2b;
-            min-height: 280px;
+            min-height: 240px;
             preferred-height: clamp(parent.width * 0.5625, 220px, 480px);
             clip: true;
             if root.has-video-frame: Image {
@@ -553,6 +584,10 @@ component DeclBlockCard inherits Rectangle {
                     vertical-alignment: center;
                 }
             }
+            if root.block.show-fullscreen: TouchArea {
+                enabled: root.interactive;
+                double-clicked => { root.toggle-fullscreen(true); }
+            }
         }
         if root.block.footer-status != "": Rectangle {
             height: 36px;
@@ -598,8 +633,8 @@ component DeclBlockCard inherits Rectangle {
         }
         stage:= Rectangle {
             background: transparent;
-            min-height: 400px;
-            preferred-height: 460px;
+            min-height: 440px;
+            preferred-height: 540px;
             property <float> wm: max(0.1, root.block.width-meters);
             property <float> hm: max(0.1, root.block.height-meters);
             property <length> side: max(0px, min(self.width - 72px, self.height - 72px));
@@ -688,8 +723,8 @@ component DeclBlockCard inherits Rectangle {
 
     // 4. KPI Grid block
     if root.block.kind == "kpi-grid": VerticalBox {
-        padding: 16px;
-        spacing: 10px;
+        padding: 14px;
+        spacing: 8px;
         if root.block.title != "" || root.block.badge != "": HorizontalBox {
             padding: 0px;
             spacing: 8px;
@@ -707,8 +742,8 @@ component DeclBlockCard inherits Rectangle {
             }
         }
         for item in root.block.kpis: Rectangle {
-            height: 52px;
-            border-radius: 11px;
+            height: 42px;
+            border-radius: 10px;
             background: AppColors.inset;
             HorizontalBox {
                 padding-left: 12px;
@@ -874,7 +909,7 @@ component DeclBlockCard inherits Rectangle {
     }
 }
 
-export component DeclarativeView inherits VerticalBox {
+export component DeclarativeView inherits Rectangle {
     in property <bool> english;
     in property <bool> compact;
     in property <bool> enabled;
@@ -882,6 +917,18 @@ export component DeclarativeView inherits VerticalBox {
     in property <bool> requires-device: false;
     in property <bool> layout-stack: false;
     in property <float> primary-ratio: 0.62;
+    in property <bool> video-fullscreen: false;
+    in property <string> active-title;
+    in property <bool> custom-caption: false;
+    in property <bool> window-restore: false;
+    in property <image> toolbar-material;
+    in property <bool> material-active: false;
+    in property <bool> material-solid: false;
+    in property <float> material-strength: 100;
+    callback window-minimize();
+    callback window-toggle-maximize();
+    callback window-close();
+    callback window-drag-changed(WindowDragRegion);
     in property <string> error;
     in property <image> video-frame;
     in property <bool> has-video-frame: false;
@@ -897,68 +944,229 @@ export component DeclarativeView inherits VerticalBox {
     callback trigger-action(string, string, string);
     callback pick-directory(string, string);
     callback copy-text(string);
+    callback toggle-fullscreen(bool);
     callback connect-device();
 
-    padding: 0px;
-    spacing: 12px;
+    property <DeclBlock> fs-stage: root.primary-blocks.length > 0 && root.primary-blocks[0].kind == "video-stage"
+        ? root.primary-blocks[0]
+        : (root.secondary-blocks.length > 0 && root.secondary-blocks[0].kind == "video-stage" ? root.secondary-blocks[0] : {});
+    property <bool> fs-compact: root.width < 650px;
+    property <WindowDragRegion> fs-drag-region: root.video-fullscreen ? {
+        x: fs-drag-spacer.absolute-position.x / 1px,
+        y: fs-drag-spacer.absolute-position.y / 1px,
+        width: fs-drag-spacer.width / 1px,
+        height: fs-drag-spacer.height / 1px
+    } : { x: 0, y: 0, width: 0, height: 0 };
+    changed fs-drag-region => { root.window-drag-changed(root.fs-drag-region); }
+
+    background: transparent;
     min-width: 0px;
+    vertical-stretch: 1;
 
-    if root.error != "": Rectangle {
-        vertical-stretch: 0;
-        border-radius: 12px;
-        background: AppColors.danger.with-alpha(0.08);
-        border-width: 1px;
-        border-color: AppColors.danger.with-alpha(0.24);
-        HorizontalBox {
-            padding: 12px;
-            Text {
-                text: root.error;
-                font-size: 12px;
-                color: AppColors.danger;
-                wrap: word-wrap;
-            }
-        }
-    }
+    // Expanded fullscreen video layer (matches Remote Desktop liquid-glass expand style)
+    VerticalBox {
+        visible: root.video-fullscreen;
+        x: 0px;
+        y: 0px;
+        width: 100%;
+        height: 100%;
+        padding: 0px;
+        spacing: 8px;
 
-    if root.requires-device && !root.connected: Rectangle {
-        background: AppColors.card;
-        border-radius: 16px;
-        border-width: 1px;
-        border-color: AppColors.edge;
-        VerticalBox {
-            alignment: center;
-            spacing: 12px;
-            padding: 36px;
-            Text {
-                text: root.tr("请先连接控制器设备以使用此插件", root.english);
-                font-size: 14px;
-                font-weight: 500;
-                color: AppColors.muted;
-                horizontal-alignment: center;
-            }
+        MaterialPanel {
+            height: 46px;
+            vertical-stretch: 0;
+            border-radius: 14px;
+            material: root.toolbar-material;
+            active: root.video-fullscreen && root.material-active;
+            solid: root.material-solid;
+            strength: root.material-strength;
             HorizontalBox {
-                padding: 0px;
-                Rectangle { background: transparent; horizontal-stretch: 1; }
-                ActionButton {
-                    text: root.tr("前往连接设备", root.english);
-                    primary: true;
-                    enabled: root.enabled;
-                    clicked => { root.connect-device(); }
+                padding: 8px;
+                spacing: 6px;
+                Text {
+                    text: root.fs-stage.title != "" ? root.fs-stage.title : root.active-title;
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: AppColors.ink;
+                    vertical-alignment: center;
                 }
-                Rectangle { background: transparent; horizontal-stretch: 1; }
+                if root.fs-stage.capabilities != "": VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 0;
+                    DeclPill {
+                        text: root.fs-stage.capabilities;
+                        tone: root.fs-stage.active ? 2 : 0;
+                    }
+                }
+                DesktopTool {
+                    text: root.tr("适配", root.english);
+                    label: root.tr("适应窗口", root.english);
+                    icon: @image-url("icons/fit.svg");
+                    show-text: !root.fs-compact;
+                    checkable: true;
+                    checked: root.fs-stage.fit-mode == 0;
+                    enabled: root.enabled;
+                    clicked => { root.set-int("fitMode", 0); }
+                }
+                DesktopTool {
+                    text: root.tr("填充", root.english);
+                    has-icon: false;
+                    checkable: true;
+                    checked: root.fs-stage.fit-mode == 1;
+                    enabled: root.enabled;
+                    clicked => { root.set-int("fitMode", 1); }
+                }
+                DesktopTool {
+                    text: "1:1";
+                    label: root.tr("原始尺寸", root.english);
+                    has-icon: false;
+                    checkable: true;
+                    checked: root.fs-stage.fit-mode == 2;
+                    enabled: root.enabled;
+                    clicked => { root.set-int("fitMode", 2); }
+                }
+                fs-drag-spacer:= Rectangle {
+                    horizontal-stretch: 1;
+                    background: transparent;
+                }
+                if root.fs-stage.show-snapshot: DesktopTool {
+                    text: root.tr("截图", root.english);
+                    icon: @image-url("icons/camera.svg");
+                    show-text: !root.fs-compact;
+                    enabled: root.enabled && root.has-video-frame;
+                    clicked => { root.trigger-action(root.fs-stage.snapshot-action != "" ? root.fs-stage.snapshot-action : "snapshot", "", ""); }
+                }
+                DesktopTool {
+                    label: root.tr("收起全屏画面", root.english);
+                    icon: @image-url("icons/collapse.svg");
+                    show-text: false;
+                    enabled: root.enabled;
+                    clicked => { root.toggle-fullscreen(false); }
+                }
+                if root.custom-caption: WindowControls {
+                    english: root.english;
+                    restore: root.window-restore;
+                    minimize => { root.window-minimize(); }
+                    toggle-maximize => { root.window-toggle-maximize(); }
+                    close => { root.window-close(); }
+                }
+            }
+        }
+
+        Rectangle {
+            vertical-stretch: 1;
+            min-height: 140px;
+            background: #181c24;
+            border-radius: 14px;
+            clip: true;
+
+            if root.has-video-frame: Image {
+                width: root.fs-stage.fit-mode == 2 ? self.source.width * 1px : parent.width;
+                height: root.fs-stage.fit-mode == 2 ? self.source.height * 1px : parent.height;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                source: root.video-frame;
+                image-fit: root.fs-stage.fit-mode == 1 ? cover : contain;
+            }
+            if !root.has-video-frame && !root.fs-stage.active && !root.fs-stage.loading: VerticalBox {
+                alignment: center;
+                spacing: 10px;
+                HorizontalBox {
+                    padding: 0px;
+                    Rectangle { background: transparent; horizontal-stretch: 1; }
+                    Image {
+                        width: 48px;
+                        height: 48px;
+                        source: @image-url("icons/camera.svg");
+                        colorize: #9fb3cc;
+                    }
+                    Rectangle { background: transparent; horizontal-stretch: 1; }
+                }
+                Text {
+                    text: root.fs-stage.empty-text != "" ? root.fs-stage.empty-text : root.tr("未开启采集预览", root.english);
+                    font-size: 13px;
+                    color: #9fb3cc;
+                    horizontal-alignment: center;
+                }
+            }
+            if !root.has-video-frame && (root.fs-stage.active || root.fs-stage.loading): ActivityIndicator {
+                x: (parent.width - 22px) / 2;
+                y: (parent.height - 22px) / 2;
+                active: true;
+            }
+            TouchArea {
+                double-clicked => { root.toggle-fullscreen(false); }
             }
         }
     }
 
-    if !root.requires-device || root.connected: ScrollView {
-        vertical-stretch: 1;
-        viewport-width: self.visible-width;
-        viewport-height: max(self.visible-height, content-host.preferred-height);
-        vertical-scrollbar-policy: as-needed;
-        horizontal-scrollbar-policy: always-off;
-        min-height: 0px;
+    // Normal declarative plugin workspace layer
+    VerticalBox {
+        visible: !root.video-fullscreen;
+        x: 0px;
+        y: 0px;
+        width: 100%;
+        height: 100%;
+        padding: 0px;
+        spacing: 12px;
 
-        content-host:= Rectangle {
+        if root.error != "": Rectangle {
+            vertical-stretch: 0;
+            border-radius: 12px;
+            background: AppColors.danger.with-alpha(0.08);
+            border-width: 1px;
+            border-color: AppColors.danger.with-alpha(0.24);
+            HorizontalBox {
+                padding: 12px;
+                Text {
+                    text: root.error;
+                    font-size: 12px;
+                    color: AppColors.danger;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        if root.requires-device && !root.connected: Rectangle {
+            background: AppColors.card;
+            border-radius: 16px;
+            border-width: 1px;
+            border-color: AppColors.edge;
+            VerticalBox {
+                alignment: center;
+                spacing: 12px;
+                padding: 36px;
+                Text {
+                    text: root.tr("请先连接控制器设备以使用此插件", root.english);
+                    font-size: 14px;
+                    font-weight: 500;
+                    color: AppColors.muted;
+                    horizontal-alignment: center;
+                }
+                HorizontalBox {
+                    padding: 0px;
+                    Rectangle { background: transparent; horizontal-stretch: 1; }
+                    ActionButton {
+                        text: root.tr("前往连接设备", root.english);
+                        primary: true;
+                        enabled: root.enabled;
+                        clicked => { root.connect-device(); }
+                    }
+                    Rectangle { background: transparent; horizontal-stretch: 1; }
+                }
+            }
+        }
+
+        if !root.requires-device || root.connected: ScrollView {
+            vertical-stretch: 1;
+            viewport-width: self.visible-width;
+            viewport-height: max(self.visible-height, content-host.preferred-height);
+            vertical-scrollbar-policy: as-needed;
+            horizontal-scrollbar-policy: always-off;
+            min-height: 0px;
+
+            content-host:= Rectangle {
             x: 0px;
             y: 0px;
             width: parent.width;
@@ -996,6 +1204,7 @@ export component DeclarativeView inherits VerticalBox {
                     trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
                     pick-directory(k, a) => { root.pick-directory(k, a); }
                     copy-text(t) => { root.copy-text(t); }
+                    toggle-fullscreen(full) => { root.toggle-fullscreen(full); }
                 }
                 for block in root.secondary-blocks: DeclBlockCard {
                     block: block;
@@ -1013,6 +1222,7 @@ export component DeclarativeView inherits VerticalBox {
                     trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
                     pick-directory(k, a) => { root.pick-directory(k, a); }
                     copy-text(t) => { root.copy-text(t); }
+                    toggle-fullscreen(full) => { root.toggle-fullscreen(full); }
                 }
             }
 
@@ -1040,6 +1250,7 @@ export component DeclarativeView inherits VerticalBox {
                     trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
                     pick-directory(k, a) => { root.pick-directory(k, a); }
                     copy-text(t) => { root.copy-text(t); }
+                    toggle-fullscreen(full) => { root.toggle-fullscreen(full); }
                 }
             }
 
@@ -1067,8 +1278,10 @@ export component DeclarativeView inherits VerticalBox {
                     trigger-action(a, i, p) => { root.trigger-action(a, i, p); }
                     pick-directory(k, a) => { root.pick-directory(k, a); }
                     copy-text(t) => { root.copy-text(t); }
+                    toggle-fullscreen(full) => { root.toggle-fullscreen(full); }
                 }
             }
         }
+    }
     }
 }

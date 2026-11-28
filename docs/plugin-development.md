@@ -121,7 +121,7 @@ my-tool-0.1.0.pcplugin
 ### 支持的 6 大通用区块（`BlockSpec`）
 
 1. **`toolbar`**：顶部控制条，包含 `items`（下拉、分段、按钮列表）。
-2. **`video-stage`**：低延迟原生视频舞台，自动接收 SSH JPEG 或本地 Worker 二进制帧流；支持 `fitModeKey`（`0=适配 / 1=填充 / 2=1:1`）、`rotationKey`（`0/90/180/270`）、`flipHKey`、`flipVKey`、`showSnapshot`（一键保存 PNG 快照）。
+2. **`video-stage`**：低延迟原生视频舞台，自动接收 SSH JPEG 或本地 Worker 二进制帧流；支持 `fitModeKey`（`0=适配 / 1=填充 / 2=1:1`）、`rotationKey`（`0/90/180/270`）、`flipHKey`、`flipVKey`、`showSnapshot`（一键保存 PNG 快照）以及 `allowFullscreen`（开启远程桌面同款窗口内液态玻璃展开全屏，支持 `Esc`/双击还原）。当 `runtime.entry` 指向 `.py` 脚本时，宿主会自动调用本机 Python（`-u` 无缓冲模式）启动，方便快速原型开发（如 `plugins/_template/bin/worker.py`）。
 3. **`arena-map`**：2D 坐标系平面地图画布，加载 `platformAssetKey` 底图并实时渲染位姿点与航向箭头。
 4. **`kpi-grid`**：2/3 列实时指标网格，支持静态 `items` 或动态 `dynamicItemsKey`（状态中数组 `[{"label":"FPS","value":"60.0"}]`）。
 5. **`control-card`**：参数配置卡片，可组合以下控件：

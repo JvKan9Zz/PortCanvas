@@ -255,3 +255,73 @@ fn declarative_local_worker_inspect_install_and_downloader_provider_toggle() -> 
     assert!(data_dir.join("prefs.json").is_file());
     Ok(())
 }
+
+#[test]
+fn developer_template_directory_imports_and_runs_python_worker() -> Result<()> {
+    let template_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../plugins/_template");
+    let manifest_bytes = fs::read(template_dir.join("manifest.json"))?;
+    let ui_bytes = fs::read(template_dir.join("ui.json"))?;
+    let worker_bytes = fs::read(template_dir.join("bin/worker.py"))?;
+
+    let bytes = archive(&[
+        ("manifest.json", tar::EntryType::Regular, manifest_bytes.as_slice()),
+        ("ui.json", tar::EntryType::Regular, ui_bytes.as_slice()),
+        ("bin/worker.py", tar::EntryType::Regular, worker_bytes.as_slice()),
+    ]);
+    let root = TempDir::new()?;
+    let pkg = root.path().join("hello-toolbox-0.1.0.pcplugin");
+    fs::write(&pkg, &bytes)?;
+
+    let store = PluginStore::new(root.path());
+    let preview = store.inspect_import(&pkg)?;
+    assert_eq!(preview.manifest.id, "hello-toolbox");
+    let installed = store.import(&pkg, &CancellationToken::new())?;
+    assert_eq!(installed.manifest.id, "hello-toolbox");
+    assert!(!installed.manifest.requires_device());
+    let (exe, args, frame_ch, cancel) = store.worker_executable("hello-toolbox")?;
+    assert!(exe.is_file());
+    assert!(exe.ends_with("bin/worker.py") || exe.ends_with(r"bin\worker.py"));
+    assert!(args.is_empty());
+    assert!(!frame_ch);
+
+    // Spawn the imported .py worker via LocalWorkerHandle and verify live ping round-trip
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let handle = crate::plugin_runtime::LocalWorkerHandle::spawn(
+            crate::plugin_runtime::WorkerInit {
+                plugin_id: "hello-toolbox".into(),
+                executable: exe,
+                args,
+                working_dir: store.plugin_dir("hello-toolbox")?,
+                data_dir: store.data_dir("hello-toolbox")?,
+                default_download_dir: root.path().to_path_buf(),
+                language: "zh".into(),
+                frame_channel: false,
+            },
+            cancel,
+            tx,
+        )
+        .await?;
+        handle.set_state("message", serde_json::json!("template-ok")).await?;
+        handle.send_action("ping", None, None).await?;
+        let mut echoed = false;
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+        while tokio::time::Instant::now() < deadline {
+            let Ok(Some(ev)) = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv()).await else {
+                break;
+            };
+            if let crate::plugin_runtime::WorkerEvent::StatePatch(patch) = ev {
+                if patch.get("lastEcho").and_then(|v| v.as_str()) == Some("template-ok") {
+                    echoed = true;
+                    break;
+                }
+            }
+        }
+        handle.shutdown().await;
+        assert!(echoed, "template Python worker did not echo ping action");
+        Ok::<(), anyhow::Error>(())
+    })?;
+    Ok(())
+}

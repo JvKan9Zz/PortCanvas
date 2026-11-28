@@ -9,7 +9,7 @@
   "category": "tools",
   "author": "Community",
   "official": false,
-  "minAppVersion": "0.7.2",
+  "minAppVersion": "0.7.3",
   "hostSurface": "declarative-v1",
   "platform": "any",
   "requiresDevice": false,
