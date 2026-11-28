@@ -4209,7 +4209,7 @@ dependencies = [
 
 [[package]]
 name = "portcanvas-core"
-version = "0.7.2"
+version = "0.7.3"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4243,7 +4243,7 @@ dependencies = [
 
 [[package]]
 name = "portcanvas-native-probe"
-version = "0.7.2"
+version = "0.7.3"
 dependencies = [
  "alacritty_terminal",
  "anyhow",

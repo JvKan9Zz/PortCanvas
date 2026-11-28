@@ -1,6 +1,6 @@
 {
   "layout": "split",
-  "primaryWidthRatio": 0.36,
+  "primaryWidthRatio": 0.46,
   "headerBadge": {
     "statusKey": "poseStatus",
     "phaseKey": "posePhase",
@@ -37,6 +37,7 @@
       "footerStatusKey": "cameraStatus",
       "showSnapshot": true,
       "snapshotAction": "snapshot",
+      "allowFullscreen": true,
       "emptyText": "未开启摄像头预览",
       "emptyTextEn": "Camera preview is off",
       "controls": [

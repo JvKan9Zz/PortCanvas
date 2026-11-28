@@ -12,6 +12,8 @@ __pycache__/
 *.py[cod]
 node_modules/
 bin/
+!plugins/_template/bin/
+!plugins/_template/bin/worker.py
 obj/
 build/
 dist/

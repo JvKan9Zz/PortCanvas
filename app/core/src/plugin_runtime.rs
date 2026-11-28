@@ -212,6 +212,8 @@ pub enum BlockSpec {
         show_snapshot: bool,
         #[serde(default, rename = "snapshotAction")]
         snapshot_action: Option<String>,
+        #[serde(default, rename = "allowFullscreen")]
+        allow_fullscreen: bool,
         #[serde(default, rename = "emptyText")]
         empty_text: String,
         #[serde(default, rename = "emptyTextEn")]
@@ -627,9 +629,8 @@ impl LocalWorkerHandle {
             (None, None)
         };
 
-        let mut command = Command::new(&init.executable);
+        let mut command = build_worker_command(&init.executable, &init.args);
         command
-            .args(&init.args)
             .current_dir(&init.working_dir)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -811,6 +812,56 @@ impl LocalWorkerHandle {
                 let _ = child.wait().await;
             }
         }
+    }
+}
+
+fn build_worker_command(executable: &Path, args: &[String]) -> Command {
+    let is_python = executable
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("py"));
+    if is_python {
+        let (program, prefix_args) = resolve_python_launcher();
+        let mut cmd = Command::new(program);
+        for arg in prefix_args {
+            cmd.arg(arg);
+        }
+        cmd.arg("-u")
+            .arg(executable)
+            .args(args)
+            .env("PYTHONIOENCODING", "utf-8");
+        return cmd;
+    }
+    let mut cmd = Command::new(executable);
+    cmd.args(args);
+    cmd
+}
+
+fn resolve_python_launcher() -> (PathBuf, &'static [&'static str]) {
+    let path_env = std::env::var_os("PATH").unwrap_or_default();
+    #[cfg(windows)]
+    let candidates: &[(&str, &[&str])] = &[
+        ("python.exe", &[]),
+        ("python3.exe", &[]),
+        ("py.exe", &["-3"]),
+    ];
+    #[cfg(not(windows))]
+    let candidates: &[(&str, &[&str])] = &[("python3", &[]), ("python", &[])];
+    for (name, prefix) in candidates {
+        for dir in std::env::split_paths(&path_env) {
+            let full = dir.join(name);
+            if full.is_file() {
+                return (full, prefix);
+            }
+        }
+    }
+    #[cfg(windows)]
+    {
+        (PathBuf::from("python"), &[])
+    }
+    #[cfg(not(windows))]
+    {
+        (PathBuf::from("python3"), &[])
     }
 }
 

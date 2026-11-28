@@ -23,7 +23,7 @@ use portcanvas_native_probe::{
 };
 use serde_json::{json, Map, Value};
 use slint::{
-    winit_030::WinitWindowAccessor, ComponentHandle, ModelRc, Rgb8Pixel, Rgba8Pixel,
+    winit_030::WinitWindowAccessor, ComponentHandle, Model, ModelRc, Rgb8Pixel, Rgba8Pixel,
     SharedPixelBuffer, SharedString, VecModel,
 };
 use std::{
@@ -114,6 +114,8 @@ pub struct Controller {
     background_badges: Arc<Mutex<BTreeMap<String, BackgroundBadge>>>,
     on_badges_changed: RefCell<Option<Rc<dyn Fn()>>>,
     epoch: Cell<u64>,
+    primary_model: Rc<VecModel<DeclBlock>>,
+    secondary_model: Rc<VecModel<DeclBlock>>,
 }
 
 impl Controller {
@@ -123,6 +125,10 @@ impl Controller {
         runtime: Arc<Runtime>,
         jobs: Arc<Mutex<Vec<JoinHandle<()>>>>,
     ) -> Rc<Self> {
+        let primary_model = Rc::new(VecModel::<DeclBlock>::default());
+        let secondary_model = Rc::new(VecModel::<DeclBlock>::default());
+        ui.set_decl_primary_blocks(ModelRc::from(primary_model.clone()));
+        ui.set_decl_secondary_blocks(ModelRc::from(secondary_model.clone()));
         let controller = Rc::new(Self {
             ui: ui.as_weak(),
             services,
@@ -134,6 +140,8 @@ impl Controller {
             background_badges: Arc::new(Mutex::new(BTreeMap::new())),
             on_badges_changed: RefCell::new(None),
             epoch: Cell::new(0),
+            primary_model,
+            secondary_model,
         });
 
         ui.on_decl_sync({
@@ -1473,11 +1481,14 @@ impl Controller {
 
     fn clear_ui(&self) {
         let Some(ui) = self.ui.upgrade() else { return };
+        if ui.get_decl_video_fullscreen() {
+            ui.invoke_decl_toggle_fullscreen(false);
+        }
         ui.set_decl_error("".into());
         ui.set_decl_has_video_frame(false);
         ui.set_decl_has_arena_platform_image(false);
-        ui.set_decl_primary_blocks(ModelRc::default());
-        ui.set_decl_secondary_blocks(ModelRc::default());
+        self.primary_model.set_vec(Vec::new());
+        self.secondary_model.set_vec(Vec::new());
         ui.set_decl_header_status("".into());
         ui.set_decl_header_phase(0);
     }
@@ -1544,9 +1555,243 @@ impl Controller {
             .iter()
             .filter_map(|b| build_block(b, &session.state, english))
             .collect();
-        ui.set_decl_primary_blocks(ModelRc::new(VecModel::from(primary)));
-        ui.set_decl_secondary_blocks(ModelRc::new(VecModel::from(secondary)));
+        sync_block_model(&self.primary_model, primary);
+        sync_block_model(&self.secondary_model, secondary);
         self.epoch.set(self.epoch.get().wrapping_add(1));
+    }
+}
+
+fn sync_string_model(dst_rc: &ModelRc<SharedString>, src_rc: &ModelRc<SharedString>) -> bool {
+    let Some(dst) = dst_rc.as_any().downcast_ref::<VecModel<SharedString>>() else {
+        return false;
+    };
+    let next: Vec<SharedString> = src_rc.iter().collect();
+    if dst.row_count() == next.len()
+        && next
+            .iter()
+            .enumerate()
+            .all(|(i, v)| dst.row_data(i).as_ref() == Some(v))
+    {
+        return true;
+    }
+    if dst.row_count() == next.len() {
+        for (i, v) in next.into_iter().enumerate() {
+            if dst.row_data(i).as_ref() != Some(&v) {
+                dst.set_row_data(i, v);
+            }
+        }
+    } else {
+        dst.set_vec(next);
+    }
+    true
+}
+
+fn sync_button_model(dst_rc: &ModelRc<DeclButton>, src_rc: &ModelRc<DeclButton>) -> bool {
+    let Some(dst) = dst_rc.as_any().downcast_ref::<VecModel<DeclButton>>() else {
+        return false;
+    };
+    let next: Vec<DeclButton> = src_rc.iter().collect();
+    if dst.row_count() == next.len() {
+        for (i, v) in next.into_iter().enumerate() {
+            if dst.row_data(i).as_ref() != Some(&v) {
+                dst.set_row_data(i, v);
+            }
+        }
+    } else {
+        dst.set_vec(next);
+    }
+    true
+}
+
+fn control_scalars_eq(a: &DeclControl, b: &DeclControl) -> bool {
+    a.id == b.id
+        && a.kind == b.kind
+        && a.label == b.label
+        && a.state_key == b.state_key
+        && a.action == b.action
+        && a.secondary_action == b.secondary_action
+        && a.secondary_label == b.secondary_label
+        && a.secondary_danger == b.secondary_danger
+        && a.int_value == b.int_value
+        && a.float_value.to_bits() == b.float_value.to_bits()
+        && a.min_value.to_bits() == b.min_value.to_bits()
+        && a.max_value.to_bits() == b.max_value.to_bits()
+        && a.step_value.to_bits() == b.step_value.to_bits()
+        && a.unit == b.unit
+        && a.bool_value == b.bool_value
+        && a.text_value == b.text_value
+        && a.placeholder == b.placeholder
+        && a.icon_kind == b.icon_kind
+        && a.primary == b.primary
+        && a.danger == b.danger
+        && a.busy == b.busy
+        && a.enabled == b.enabled
+        && a.tone == b.tone
+}
+
+fn sync_control_model(dst_rc: &ModelRc<DeclControl>, src_rc: &ModelRc<DeclControl>) -> bool {
+    let Some(dst) = dst_rc.as_any().downcast_ref::<VecModel<DeclControl>>() else {
+        return false;
+    };
+    let next: Vec<DeclControl> = src_rc.iter().collect();
+    let same_structure = dst.row_count() == next.len()
+        && next.iter().enumerate().all(|(i, c)| {
+            dst.row_data(i)
+                .is_some_and(|old| old.id == c.id && old.kind == c.kind)
+        });
+    if !same_structure {
+        dst.set_vec(next);
+        return true;
+    }
+    for (i, mut nc) in next.into_iter().enumerate() {
+        let Some(old) = dst.row_data(i) else { continue };
+        let reused_opts = sync_string_model(&old.options, &nc.options);
+        if reused_opts {
+            nc.options = old.options.clone();
+        }
+        let reused_btns = sync_button_model(&old.buttons, &nc.buttons);
+        if reused_btns {
+            nc.buttons = old.buttons.clone();
+        }
+        if !reused_opts || !reused_btns || !control_scalars_eq(&old, &nc) {
+            dst.set_row_data(i, nc);
+        }
+    }
+    true
+}
+
+fn sync_kpi_model(dst_rc: &ModelRc<DeclKpi>, src_rc: &ModelRc<DeclKpi>) -> bool {
+    let Some(dst) = dst_rc.as_any().downcast_ref::<VecModel<DeclKpi>>() else {
+        return false;
+    };
+    let next: Vec<DeclKpi> = src_rc.iter().collect();
+    if dst.row_count() == next.len() {
+        for (i, v) in next.into_iter().enumerate() {
+            if dst.row_data(i).as_ref() != Some(&v) {
+                dst.set_row_data(i, v);
+            }
+        }
+    } else {
+        dst.set_vec(next);
+    }
+    true
+}
+
+fn sync_task_action_model(
+    dst_rc: &ModelRc<DeclTaskAction>,
+    src_rc: &ModelRc<DeclTaskAction>,
+) -> bool {
+    let Some(dst) = dst_rc.as_any().downcast_ref::<VecModel<DeclTaskAction>>() else {
+        return false;
+    };
+    let next: Vec<DeclTaskAction> = src_rc.iter().collect();
+    if dst.row_count() == next.len() {
+        for (i, v) in next.into_iter().enumerate() {
+            if dst.row_data(i).as_ref() != Some(&v) {
+                dst.set_row_data(i, v);
+            }
+        }
+    } else {
+        dst.set_vec(next);
+    }
+    true
+}
+
+fn task_scalars_eq(a: &DeclTask, b: &DeclTask) -> bool {
+    a.id == b.id
+        && a.title == b.title
+        && a.subtitle == b.subtitle
+        && a.badge == b.badge
+        && a.badge_tone == b.badge_tone
+        && a.progress.to_bits() == b.progress.to_bits()
+        && a.show_progress == b.show_progress
+}
+
+fn sync_task_model(dst_rc: &ModelRc<DeclTask>, src_rc: &ModelRc<DeclTask>) -> bool {
+    let Some(dst) = dst_rc.as_any().downcast_ref::<VecModel<DeclTask>>() else {
+        return false;
+    };
+    let next: Vec<DeclTask> = src_rc.iter().collect();
+    let same_ids = dst.row_count() == next.len()
+        && next
+            .iter()
+            .enumerate()
+            .all(|(i, t)| dst.row_data(i).is_some_and(|old| old.id == t.id));
+    if !same_ids {
+        dst.set_vec(next);
+        return true;
+    }
+    for (i, mut nt) in next.into_iter().enumerate() {
+        let Some(old) = dst.row_data(i) else { continue };
+        let reused = sync_task_action_model(&old.actions, &nt.actions);
+        if reused {
+            nt.actions = old.actions.clone();
+        }
+        if !reused || !task_scalars_eq(&old, &nt) {
+            dst.set_row_data(i, nt);
+        }
+    }
+    true
+}
+
+fn block_scalars_eq(a: &DeclBlock, b: &DeclBlock) -> bool {
+    a.id == b.id
+        && a.kind == b.kind
+        && a.title == b.title
+        && a.badge == b.badge
+        && a.badge_phase == b.badge_phase
+        && a.summary == b.summary
+        && a.empty_text == b.empty_text
+        && a.columns == b.columns
+        && a.active == b.active
+        && a.loading == b.loading
+        && a.fit_mode == b.fit_mode
+        && a.capabilities == b.capabilities
+        && a.show_snapshot == b.show_snapshot
+        && a.snapshot_action == b.snapshot_action
+        && a.show_fullscreen == b.show_fullscreen
+        && a.footer_status == b.footer_status
+        && a.width_meters.to_bits() == b.width_meters.to_bits()
+        && a.height_meters.to_bits() == b.height_meters.to_bits()
+        && a.live == b.live
+        && a.world_x.to_bits() == b.world_x.to_bits()
+        && a.world_y.to_bits() == b.world_y.to_bits()
+        && a.heading.to_bits() == b.heading.to_bits()
+        && a.has_heading == b.has_heading
+        && a.coords == b.coords
+}
+
+fn sync_block_model(dst: &VecModel<DeclBlock>, next: Vec<DeclBlock>) {
+    let same_structure = dst.row_count() == next.len()
+        && next.iter().enumerate().all(|(i, b)| {
+            dst.row_data(i)
+                .is_some_and(|old| old.id == b.id && old.kind == b.kind)
+        });
+    if !same_structure {
+        dst.set_vec(next);
+        return;
+    }
+    for (i, mut nb) in next.into_iter().enumerate() {
+        let Some(old) = dst.row_data(i) else { continue };
+        let r_ctrl = sync_control_model(&old.controls, &nb.controls);
+        if r_ctrl {
+            nb.controls = old.controls.clone();
+        }
+        let r_act = sync_control_model(&old.action_controls, &nb.action_controls);
+        if r_act {
+            nb.action_controls = old.action_controls.clone();
+        }
+        let r_kpi = sync_kpi_model(&old.kpis, &nb.kpis);
+        if r_kpi {
+            nb.kpis = old.kpis.clone();
+        }
+        let r_task = sync_task_model(&old.tasks, &nb.tasks);
+        if r_task {
+            nb.tasks = old.tasks.clone();
+        }
+        if !r_ctrl || !r_act || !r_kpi || !r_task || !block_scalars_eq(&old, &nb) {
+            dst.set_row_data(i, nb);
+        }
     }
 }
 
@@ -1981,15 +2226,17 @@ fn build_block(block: &BlockSpec, state: &Map<String, Value>, english: bool) -> 
         summary: "".into(),
         empty_text: "".into(),
         columns: 2,
-        controls: ModelRc::default(),
-        kpis: ModelRc::default(),
-        tasks: ModelRc::default(),
+        controls: ModelRc::new(VecModel::<DeclControl>::default()),
+        action_controls: ModelRc::new(VecModel::<DeclControl>::default()),
+        kpis: ModelRc::new(VecModel::<DeclKpi>::default()),
+        tasks: ModelRc::new(VecModel::<DeclTask>::default()),
         active: false,
         loading: false,
         fit_mode: 0,
         capabilities: "".into(),
         show_snapshot: false,
         snapshot_action: "".into(),
+        show_fullscreen: false,
         footer_status: "".into(),
         width_meters: 3.8,
         height_meters: 3.8,
@@ -2032,6 +2279,7 @@ fn build_block(block: &BlockSpec, state: &Map<String, Value>, english: bool) -> 
             fit_mode_key,
             show_snapshot,
             snapshot_action,
+            allow_fullscreen,
             empty_text,
             empty_text_en,
             footer_status_key,
@@ -2042,10 +2290,28 @@ fn build_block(block: &BlockSpec, state: &Map<String, Value>, english: bool) -> 
             if !cond_ok(visible_when, state) {
                 return None;
             }
-            let ctrls: Vec<DeclControl> = controls
+            let all_ctrls: Vec<DeclControl> = controls
                 .iter()
                 .filter_map(|c| build_control(c, state, english))
                 .collect();
+            let has_select = all_ctrls.iter().any(|c| c.kind == "select" || c.kind == "input");
+            let has_button = all_ctrls
+                .iter()
+                .any(|c| c.kind == "button" || c.kind == "button-row");
+            let (primary_ctrls, action_ctrls) = if has_select && has_button {
+                let mut sels = Vec::new();
+                let mut acts = Vec::new();
+                for c in all_ctrls {
+                    if c.kind == "button" || c.kind == "button-row" {
+                        acts.push(c);
+                    } else {
+                        sels.push(c);
+                    }
+                }
+                (sels, acts)
+            } else {
+                (all_ctrls, Vec::new())
+            };
             let active = active_key
                 .as_ref()
                 .and_then(|k| state.get(k))
@@ -2085,13 +2351,15 @@ fn build_block(block: &BlockSpec, state: &Map<String, Value>, english: bool) -> 
                 title: loc(title, title_en, english).into(),
                 badge: badge.into(),
                 badge_phase: if active { 2 } else { 0 },
-                controls: ModelRc::new(VecModel::from(ctrls)),
+                controls: ModelRc::new(VecModel::from(primary_ctrls)),
+                action_controls: ModelRc::new(VecModel::from(action_ctrls)),
                 active,
                 loading,
                 fit_mode,
                 capabilities: caps.into(),
                 show_snapshot: *show_snapshot,
                 snapshot_action: snapshot_action.as_deref().unwrap_or("snapshot").into(),
+                show_fullscreen: *allow_fullscreen,
                 empty_text: loc(empty_text, empty_text_en, english).into(),
                 footer_status: footer.into(),
                 ..base

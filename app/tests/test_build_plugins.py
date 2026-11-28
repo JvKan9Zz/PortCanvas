@@ -41,3 +41,28 @@ class PluginPackagerTests(unittest.TestCase):
                         for name in expected_files:
                             with archive.extractfile(name) as content:
                                 self.assertEqual(content.read(), (ROOT / 'plugins' / entry['id'] / name).read_bytes())
+
+    def test_developer_template_packs_with_working_worker_script(self):
+        template_dir = ROOT / 'plugins/_template'
+        with tempfile.TemporaryDirectory() as scratch:
+            out_pkg = Path(scratch) / 'hello-toolbox-0.1.0.pcplugin'
+            subprocess.run(
+                [sys.executable, '-B', str(template_dir / 'pack.py'), str(template_dir), str(out_pkg)],
+                check=True,
+                capture_output=True,
+            )
+            with tarfile.open(out_pkg, 'r:gz') as archive:
+                names = set(archive.getnames())
+                self.assertIn('manifest.json', names)
+                self.assertIn('ui.json', names)
+                self.assertIn('bin/worker.py', names)
+            proc = subprocess.run(
+                [sys.executable, '-u', str(template_dir / 'bin/worker.py')],
+                input='{"type":"init"}\n{"type":"set_state","key":"message","value":"hi"}\n{"type":"action","action":"ping"}\n{"type":"shutdown"}\n',
+                text=True,
+                capture_output=True,
+                check=True,
+                timeout=10,
+            )
+            lines = [json.loads(line) for line in proc.stdout.splitlines() if line.strip()]
+            self.assertTrue(any(m.get('type') == 'state_patch' and m.get('patch', {}).get('count') == 1 and m.get('patch', {}).get('lastEcho') == 'hi' for m in lines))

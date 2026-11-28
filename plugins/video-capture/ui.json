@@ -13,8 +13,10 @@
     "active": false,
     "loading": false,
     "deviceIndex": 0,
+    "pixelFormatIndex": 0,
     "formatIndex": 0,
     "deviceOptions": [],
+    "pixelFormatOptions": [],
     "formatOptions": [],
     "fitMode": 0,
     "rotation": 0,
@@ -43,6 +45,7 @@
       "footerStatusKey": "footerStatus",
       "showSnapshot": true,
       "snapshotAction": "snapshot",
+      "allowFullscreen": true,
       "emptyText": "未开启采集预览",
       "emptyTextEn": "Capture preview is stopped",
       "controls": [
@@ -88,9 +91,18 @@
     {
       "type": "control-card",
       "id": "display-card",
-      "title": "画面显示与变换",
-      "titleEn": "Display & Transform",
+      "title": "采集参数与画面变换",
+      "titleEn": "Capture & Display",
       "controls": [
+        {
+          "type": "select",
+          "id": "pixel-format-select",
+          "label": "采集格式",
+          "labelEn": "Pixel Format",
+          "stateKey": "pixelFormatIndex",
+          "optionsKey": "pixelFormatOptions",
+          "disabledWhen": { "key": "active", "truthy": true }
+        },
         {
           "type": "segmented",
           "id": "fit-mode",
