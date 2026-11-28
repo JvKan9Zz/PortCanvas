@@ -57,7 +57,7 @@ export component DevicesView inherits Rectangle {
             editor:=VerticalBox {x:8px;y:8px;width:editor-scroll.visible-width - 16px;height:self.preferred-height;padding:0px;spacing:20px;
                 HorizontalBox {padding:0px;spacing:12px;vertical-stretch:0;
                     Rectangle {width:44px;height:44px;horizontal-stretch:0;border-radius:14px;background:AppColors.soft;border-width:1px;border-color:AppColors.edge;Image {x:12px;y:12px;width:20px;height:20px;source:@image-url("icons/about.svg");colorize:AppColors.accent;}}
-                    Text {text:root.name!=""?root.name:root.tr("添加一台设备",root.english);font-size:18px;font-weight:600;color:AppColors.ink;overflow:elide;vertical-alignment:center;}
+                    Text {text:root.name!=""?root.name:root.tr("添加一台设备",root.english);font-size:18px;font-weight:AppColors.bold-weight;color:AppColors.ink;overflow:elide;vertical-alignment:center;}
                 }
                 VerticalBox {padding:0px;spacing:root.height>850px?20px:14px;vertical-stretch:0;
                     VerticalBox {padding:0px;spacing:8px;Text {text:root.tr("设备名称",root.english);font-size:12px;color:AppColors.muted;}FormInput {text<=>root.name;label:root.tr("设备名称",root.english);placeholder-text:root.tr("例如：开发控制器",root.english);enabled:root.editable;}}
@@ -90,7 +90,7 @@ export component DevicesView inherits Rectangle {
                 if root.connected:ActionButton {text:root.tr("进入远程桌面",root.english);icon:@image-url("icons/go.svg");has-icon:true;enabled:root.enabled;clicked=>{root.desktop();}}
                 Rectangle {preferred-width:0px;min-width:root.busy||root.error!=""?96px:0px;horizontal-stretch:1;background:transparent;
                     if root.busy||root.error!="":VerticalBox {height:parent.height;padding:0px;spacing:3px;alignment:center;
-                        Text {text:root.stage>=0&&root.stage<root.steps.length?root.tr(root.steps[root.stage],root.english):root.tr(root.busy?"准备认证资料":"连接失败",root.english);font-size:12px;font-weight:500;color:root.error!=""?AppColors.danger:AppColors.ink;vertical-stretch:0;overflow:elide;}
+                        Text {text:root.stage>=0&&root.stage<root.steps.length?root.tr(root.steps[root.stage],root.english):root.tr(root.busy?"准备认证资料":"连接失败",root.english);font-size:12px;color:root.error!=""?AppColors.danger:AppColors.ink;vertical-stretch:0;overflow:elide;}
                         if root.busy:Text {text:root.detail;color:AppColors.muted;font-size:11px;vertical-stretch:0;overflow:elide;}
                     }
 

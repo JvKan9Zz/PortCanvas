@@ -864,6 +864,36 @@ mod mf {
     }
 }
 
+fn selected_format_name(
+    devices: &[CaptureDevice],
+    device_index: usize,
+    pixel_format_index: usize,
+) -> Option<String> {
+    if pixel_format_index == 0 {
+        return None;
+    }
+    let dev = devices.get(device_index)?;
+    distinct_formats(&dev.modes).get(pixel_format_index - 1).cloned()
+}
+
+fn resolve_pixel_format_index_for_device(
+    devices: &[CaptureDevice],
+    device_index: usize,
+    preferred_format: Option<&str>,
+) -> usize {
+    let Some(target) = preferred_format else {
+        return 0;
+    };
+    let Some(dev) = devices.get(device_index) else {
+        return 0;
+    };
+    distinct_formats(&dev.modes)
+        .iter()
+        .position(|f| f == target)
+        .map(|pos| pos + 1)
+        .unwrap_or(0)
+}
+
 fn transform_summary(rotation: i64, flip_h: bool, flip_v: bool) -> String {
     let mut parts = vec![format!("{rotation}°")];
     if flip_h {
@@ -1008,8 +1038,14 @@ fn main() {
                 let key = msg["key"].as_str().unwrap_or("");
                 match key {
                     "deviceIndex" => {
+                        let preferred =
+                            selected_format_name(&devices, device_index, pixel_format_index);
                         device_index = msg["value"].as_u64().unwrap_or(0) as usize;
-                        pixel_format_index = 0;
+                        pixel_format_index = resolve_pixel_format_index_for_device(
+                            &devices,
+                            device_index,
+                            preferred.as_deref(),
+                        );
                         format_index = 0;
                         push_devices(
                             &devices,
@@ -1041,9 +1077,20 @@ fn main() {
                 match act {
                     "refresh_devices" => {
                         if active_stop.is_none() {
+                            let preferred =
+                                selected_format_name(&devices, device_index, pixel_format_index);
                             match mf::list_devices() {
                                 Ok(list) => {
                                     devices = list;
+                                    if device_index >= devices.len() {
+                                        device_index = 0;
+                                    }
+                                    pixel_format_index = resolve_pixel_format_index_for_device(
+                                        &devices,
+                                        device_index,
+                                        preferred.as_deref(),
+                                    );
+                                    format_index = 0;
                                     push_devices(
                                         &devices,
                                         &mut device_index,
@@ -1284,5 +1331,47 @@ mod tests {
         assert_eq!(distinct_formats(&modes), vec!["NV12", "YUY2", "MJPEG"]);
         assert_eq!(filter_modes(&modes, None).len(), 3);
         assert_eq!(filter_modes(&modes, Some("YUY2")).len(), 1);
+    }
+
+    #[test]
+    fn device_switch_preserves_supported_format_name_and_falls_back_otherwise() {
+        let mode = |fmt: &str, idx: u32| CaptureMode {
+            width: 1920,
+            height: 1080,
+            fps_num: 60,
+            fps_den: 1,
+            format_name: fmt.into(),
+            native_index: idx,
+        };
+        let devices = vec![
+            CaptureDevice {
+                name: "Card A".into(),
+                symlink: "a".into(),
+                modes: vec![mode("NV12", 0), mode("RGB24", 1), mode("MJPEG", 2)],
+            },
+            CaptureDevice {
+                name: "Cam B".into(),
+                symlink: "b".into(),
+                modes: vec![mode("YUY2", 0), mode("MJPEG", 1)],
+            },
+        ];
+        // Card A distinct_formats: ["NV12", "RGB24", "MJPEG"] (1=NV12, 2=RGB24, 3=MJPEG)
+        // Cam B distinct_formats: ["YUY2", "MJPEG"] (1=YUY2, 2=MJPEG)
+        let pref_mjpeg = selected_format_name(&devices, 0, 3);
+        assert_eq!(pref_mjpeg.as_deref(), Some("MJPEG"));
+        assert_eq!(
+            resolve_pixel_format_index_for_device(&devices, 1, pref_mjpeg.as_deref()),
+            2
+        );
+
+        let pref_rgb24 = selected_format_name(&devices, 0, 2);
+        assert_eq!(pref_rgb24.as_deref(), Some("RGB24"));
+        assert_eq!(
+            resolve_pixel_format_index_for_device(&devices, 1, pref_rgb24.as_deref()),
+            0
+        );
+
+        assert_eq!(selected_format_name(&devices, 0, 0), None);
+        assert_eq!(resolve_pixel_format_index_for_device(&devices, 1, None), 0);
     }
 }

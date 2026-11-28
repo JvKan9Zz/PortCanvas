@@ -7,7 +7,7 @@ export component SettingsTab inherits Rectangle {
     Image {x:14px;y:11px;width:20px;height:20px;source:root.icon;colorize:root.selected?AppColors.accent-ink:AppColors.muted;
         transform-origin:{x:10px,y:10px};transform-scale:root.press-scale;
     }
-    Text {x:46px;width:parent.width - 58px;height:parent.height;text:root.text;color:root.selected?AppColors.accent-ink:AppColors.ink;font-size:13px;font-weight:root.selected?600:400;vertical-alignment:center;}
+    Text {x:46px;width:parent.width - 58px;height:parent.height;text:root.text;color:root.selected?AppColors.accent-ink:AppColors.ink;font-size:13px;font-weight:root.selected?AppColors.bold-weight:400;vertical-alignment:center;}
     forward-focus:keys;accessible-role:tab;accessible-label:root.text;accessible-checkable:true;accessible-checked:root.selected;accessible-action-default=>{if root.enabled{root.clicked();}}
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
     touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
@@ -29,7 +29,7 @@ export component EnvironmentOption inherits Rectangle {
     preferred-height:72px;min-height:72px;vertical-stretch:0;border-radius:12px;border-width:1px;border-color:AppColors.edge;background:root.selected?AppColors.soft:AppColors.field;
     animate background,border-color {duration:AppColors.motion?160ms:0ms;}
     Rectangle {x:16px;y:28px;width:15px;height:15px;border-radius:8px;border-width:1px;border-color:root.selected?AppColors.accent-ink:AppColors.muted;background:transparent;Rectangle {visible:root.selected;x:3px;y:3px;width:9px;height:9px;border-radius:5px;background:AppColors.accent;}}
-    VerticalBox {x:44px;y:14px;width:parent.width - 80px;height:parent.height - 28px;padding:0px;spacing:4px;Text {text:root.text;color:AppColors.ink;font-size:13px;font-weight:500;}Text {text:root.detail;color:AppColors.muted;font-size:11px;wrap:word-wrap;}}
+    VerticalBox {x:44px;y:14px;width:parent.width - 80px;height:parent.height - 28px;padding:0px;spacing:4px;Text {text:root.text;color:AppColors.ink;font-size:13px;}Text {text:root.detail;color:AppColors.muted;font-size:11px;wrap:word-wrap;}}
     Image {visible:root.selected;x:parent.width - 28px;y:28px;width:16px;height:16px;source:@image-url("icons/check.svg");colorize:AppColors.accent;}
     forward-focus:keys;accessible-role:radio-button;accessible-label:root.text+" "+root.detail;accessible-checkable:true;accessible-checked:root.selected;accessible-action-default=>{if root.enabled{root.clicked();}}
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}if event.text==Key.UpArrow||event.text==Key.DownArrow{root.move();return accept;}return reject;}}

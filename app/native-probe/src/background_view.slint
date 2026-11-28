@@ -12,7 +12,7 @@ export component BackgroundSettings inherits VerticalBox {
     pure callback tr(string,bool)->string;callback action(string);callback controls();callback picker-position(float,float);
     in property <int> focus-ticket;changed focus-ticket=>{color-trigger.focus();}
     padding:0px;spacing:12px;
-    Text {text:root.tr("背景",root.english);font-size:18px;font-weight:600;color:Palette.foreground;}
+    Text {text:root.tr("背景",root.english);font-size:18px;font-weight:AppColors.bold-weight;color:Palette.foreground;}
     Rectangle {height:78px;vertical-stretch:0;background:root.color;border-radius:12px;clip:true;
         if root.has-frame:Image {source:root.frame;width:parent.width;height:parent.height;image-fit:cover;source-clip-x:round(root.crop-x*root.source-width);source-clip-y:round(root.crop-y*root.source-height);source-clip-width:max(1,round(root.crop-width*root.source-width));source-clip-height:max(1,round(root.crop-height*root.source-height));}
     }
@@ -38,7 +38,7 @@ export component BackgroundSettings inherits VerticalBox {
         Text {text:round(root.volume)+"%";color:Palette.foreground;min-width:45px;horizontal-stretch:0;vertical-alignment:center;}
     }
     if root.status!="":HorizontalBox {padding:0px;vertical-stretch:0;ActivityIndicator {active:root.busy;}Text {text:root.status;color:Palette.foreground;wrap:word-wrap;}}
-    if root.error!="":Text {text:root.tr(root.error,root.english);color:Palette.foreground;font-weight:600;wrap:word-wrap;vertical-stretch:0;}
+    if root.error!="":Text {text:root.tr(root.error,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
 }
 export component BackgroundCropView inherits VerticalBox {
     in property <bool> english;in property <bool> busy;in property <image> frame;
@@ -48,7 +48,7 @@ export component BackgroundCropView inherits VerticalBox {
     pure callback tr(string,bool)->string;callback response(bool);callback reset();callback gesture(int,float,float);callback arrow(float,float,bool);
     public function focus-selection(){selection.focus();}
     padding:20px;spacing:12px;
-    Text {text:root.tr("裁剪背景",root.english);font-size:20px;font-weight:600;color:Palette.foreground;vertical-stretch:0;}
+    Text {text:root.tr("裁剪背景",root.english);font-size:20px;font-weight:AppColors.bold-weight;color:Palette.foreground;vertical-stretch:0;}
     Rectangle {background:#171c24;border-radius:14px;clip:true;
         property <float> scale:min(self.width/max(1,root.source-width)/1px,self.height/max(1,root.source-height)/1px);
         picture:=Rectangle {width:root.source-width*parent.scale*1px;height:root.source-height*parent.scale*1px;x:(parent.width - self.width)/2;y:(parent.height - self.height)/2;

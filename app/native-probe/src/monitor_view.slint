@@ -79,7 +79,6 @@ component KpiCard inherits Rectangle {
         Text {
             text: root.item.label;
             font-size: 11px;
-            font-weight: 500;
             color: AppColors.muted;
             vertical-stretch: 0;
             overflow: elide;
@@ -87,7 +86,7 @@ component KpiCard inherits Rectangle {
         Text {
             text: root.item.value;
             font-size: 23px;
-            font-weight: 600;
+            font-weight: AppColors.bold-weight;
             color: root.value-color;
             vertical-stretch: 0;
             overflow: elide;
@@ -132,7 +131,7 @@ component TrendCard inherits Rectangle {
             Text {
                 text: root.tr("实时趋势", root.english);
                 font-size: 14px;
-                font-weight: 600;
+                font-weight: AppColors.bold-weight;
                 color: AppColors.ink;
                 vertical-alignment: center;
                 horizontal-stretch: 0;
@@ -265,7 +264,6 @@ component TrendCard inherits Rectangle {
                 Text {
                     text: root.tr("单核负载", root.english);
                     font-size: 11px;
-                    font-weight: 500;
                     color: AppColors.muted;
                 }
                 Rectangle { background: transparent; horizontal-stretch: 1; }
@@ -298,7 +296,6 @@ component TrendCard inherits Rectangle {
                             Text {
                                 text: core.label;
                                 font-size: 10px;
-                                font-weight: 600;
                                 color: AppColors.muted;
                             }
                             Rectangle { background: transparent; horizontal-stretch: 1; }
@@ -338,7 +335,7 @@ component StorageCard inherits Rectangle {
             Text {
                 text: root.tr("板端存储空间", root.english);
                 font-size: 14px;
-                font-weight: 600;
+                font-weight: AppColors.bold-weight;
                 color: AppColors.ink;
                 vertical-alignment: center;
             }
@@ -378,7 +375,6 @@ component StorageCard inherits Rectangle {
                     Text {
                         text: disk.mount;
                         font-size: 13px;
-                        font-weight: 600;
                         color: AppColors.ink;
                         overflow: elide;
                         vertical-alignment: center;
@@ -396,7 +392,6 @@ component StorageCard inherits Rectangle {
                             height: parent.height;
                             text: disk.fs;
                             font-size: 10px;
-                            font-weight: 500;
                             color: AppColors.accent-ink;
                             vertical-alignment: center;
                         }
@@ -404,7 +399,7 @@ component StorageCard inherits Rectangle {
                     Text {
                         text: disk.percent;
                         font-size: 12px;
-                        font-weight: 600;
+                        font-weight: AppColors.bold-weight;
                         color: disk.tone == 3 ? AppColors.danger : disk.tone == 2 ? (AppColors.dark ? #f0c97d : #9c660e) : AppColors.ink;
                         vertical-alignment: center;
                         horizontal-stretch: 0;
@@ -457,7 +452,7 @@ component NetworkCard inherits Rectangle {
         Text {
             text: root.tr("网络与通信", root.english);
             font-size: 14px;
-            font-weight: 600;
+            font-weight: AppColors.bold-weight;
             color: AppColors.ink;
             vertical-stretch: 0;
         }
@@ -474,7 +469,7 @@ component NetworkCard inherits Rectangle {
                     padding: 10px;
                     spacing: 3px;
                     Text { text: root.tr("接收", root.english); font-size: 11px; color: AppColors.muted; }
-                    Text { text: root.rx-rate; font-size: 14px; font-weight: 600; color: AppColors.ink; overflow: elide; }
+                    Text { text: root.rx-rate; font-size: 14px; font-weight: AppColors.bold-weight; color: AppColors.ink; overflow: elide; }
                 }
             }
             Rectangle {
@@ -486,7 +481,7 @@ component NetworkCard inherits Rectangle {
                     padding: 10px;
                     spacing: 3px;
                     Text { text: root.tr("发送", root.english); font-size: 11px; color: AppColors.muted; }
-                    Text { text: root.tx-rate; font-size: 14px; font-weight: 600; color: AppColors.ink; overflow: elide; }
+                    Text { text: root.tx-rate; font-size: 14px; font-weight: AppColors.bold-weight; color: AppColors.ink; overflow: elide; }
                 }
             }
             Rectangle {
@@ -498,7 +493,7 @@ component NetworkCard inherits Rectangle {
                     padding: 10px;
                     spacing: 3px;
                     Text { text: root.tr("往返时间", root.english); font-size: 11px; color: AppColors.muted; }
-                    Text { text: root.rtt; font-size: 14px; font-weight: 600; color: AppColors.ink; overflow: elide; }
+                    Text { text: root.rtt; font-size: 14px; font-weight: AppColors.bold-weight; color: AppColors.ink; overflow: elide; }
                 }
             }
         }
@@ -510,11 +505,12 @@ component NetworkCard inherits Rectangle {
             HorizontalBox {
                 padding-left: 12px;
                 padding-right: 12px;
+                padding-top: 0px;
+                padding-bottom: 0px;
                 spacing: 10px;
                 Text {
                     text: iface.name;
                     font-size: 12px;
-                    font-weight: 600;
                     color: AppColors.ink;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
@@ -554,7 +550,7 @@ component SystemCard inherits Rectangle {
         Text {
             text: root.tr("系统概览", root.english);
             font-size: 14px;
-            font-weight: 600;
+            font-weight: AppColors.bold-weight;
             color: AppColors.ink;
             vertical-stretch: 0;
         }
@@ -580,7 +576,6 @@ component SystemCard inherits Rectangle {
                     Text {
                         text: fact.value;
                         font-size: 12px;
-                        font-weight: 500;
                         color: AppColors.ink;
                         overflow: elide;
                     }
@@ -651,7 +646,7 @@ export component MonitorView inherits Rectangle {
             Text {
                 text: root.tr("连接设备后查看实时性能", root.english);
                 font-size: 16px;
-                font-weight: 600;
+                font-weight: AppColors.bold-weight;
                 color: AppColors.ink;
                 horizontal-alignment: center;
             }

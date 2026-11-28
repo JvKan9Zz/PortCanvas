@@ -41,7 +41,6 @@ component BadgePill inherits Rectangle {
         height: parent.height;
         text: root.text;
         font-size: 11px;
-        font-weight: 500;
         color: root.tone;
         vertical-alignment: center;
     }
@@ -100,7 +99,7 @@ component PluginCardTile inherits Rectangle {
                     Text {
                         text: root.item.name;
                         font-size: 15px;
-                        font-weight: 600;
+                        font-weight: AppColors.bold-weight;
                         color: AppColors.ink;
                         overflow: elide;
                         vertical-alignment: center;
@@ -316,11 +315,6 @@ export component PluginsView inherits VerticalBox {
             }
         }
         Rectangle { background: transparent; horizontal-stretch: 1; }
-        VerticalLayout {
-            alignment: center;
-            horizontal-stretch: 0;
-            ActivityIndicator { active: root.loading; }
-        }
     }
 
     if root.error != "": Rectangle {
@@ -396,7 +390,6 @@ export component PluginsView inherits VerticalBox {
             Text {
                 text: root.tr(root.filter == 0 ? "尚未安装任何插件" : "暂无可下载的新插件", root.english);
                 font-size: 14px;
-                font-weight: 500;
                 color: AppColors.muted;
                 horizontal-alignment: center;
             }

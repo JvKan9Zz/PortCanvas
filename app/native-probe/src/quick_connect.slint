@@ -10,7 +10,7 @@ export component QuickConnect inherits VerticalBox {
     public function focus-first(){if root.busy{cancel-entry.focus();}else if root.name!=""&&root.username!=""{password-input.focus();}else{name-input.focus();}}
     changed busy=>{if root.busy{cancel-entry.focus();}}
     padding:26px;spacing:16px;
-    HorizontalBox {padding:0px;spacing:10px;vertical-stretch:0;Text {text:root.tr("连接设备",root.english);font-size:20px;font-weight:600;color:AppColors.ink;horizontal-stretch:1;}ActivityIndicator {active:root.busy;}}
+    HorizontalBox {padding:0px;spacing:10px;vertical-stretch:0;Text {text:root.tr("连接设备",root.english);font-size:20px;font-weight:AppColors.bold-weight;color:AppColors.ink;horizontal-stretch:1;}ActivityIndicator {active:root.busy;}}
     Text {text:root.target;color:AppColors.muted;font-size:12px;vertical-stretch:0;}
     VerticalBox {padding:0px;spacing:8px;vertical-stretch:0;Text {text:root.tr("设备名称",root.english);font-size:12px;color:AppColors.muted;}name-input:=FormInput {label:root.tr("设备名称",root.english);text<=>root.name;enabled:root.enabled&&!root.busy;}}
     VerticalBox {padding:0px;spacing:8px;vertical-stretch:0;Text {text:root.tr("用户名",root.english);font-size:12px;color:AppColors.muted;}FormInput {label:root.tr("用户名",root.english);text<=>root.username;enabled:root.enabled&&!root.busy;}}

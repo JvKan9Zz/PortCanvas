@@ -1,7 +1,4 @@
 slint::slint! {
-    import "../assets/ui-regular.ttf";
-    import "../assets/ui-medium.ttf";
-    import "../assets/ui-semibold.ttf";
     export {ActivityPattern} from "action_button.slint";
     import {CheckBox} from "check_box.slint";
     import {SelectBox as ComboBox} from "select_box.slint";
@@ -43,7 +40,7 @@ slint::slint! {
         title:"PortCanvas · v"+root.app-version;
         icon:@image-url("../assets/portcanvas.png");
         preferred-width:1200px;preferred-height:820px;min-width:1000px;min-height:700px;
-        default-font-family:"PortCanvas UI";default-font-size:14px;
+        default-font-family:root.native-macos?"PingFang SC":"Microsoft YaHei UI";default-font-size:14px;
         in property <bool> native-macos:false;changed native-macos=>{AppColors.macos=root.native-macos;}
         in property <bool> native-material:false;changed native-material=>{AppColors.native-material=root.native-material;}
         callback native-action(int);
@@ -433,16 +430,16 @@ slint::slint! {
             // Preserve the existing profile, trust, cancellation and migration callbacks.
             if !root.stage-expanded&&root.page==9&&root.plugin-active-id!="":HorizontalBox {padding:0px;spacing:10px;vertical-stretch:0;height:42px;
                 VerticalLayout {alignment:center;horizontal-stretch:0;DesktopTool {surfaced:true;height:34px;border-radius:10px;text:root.tr("返回插件",root.english);icon:@image-url("icons/chevron-right.svg");icon-angle:180deg;enabled:root.can-interact;clicked=>{root.plugin-close-active();}}}
-                Text {text:root.plugin-active-title;font-size:22px;font-weight:600;color:AppColors.ink;vertical-alignment:center;}
+                Text {text:root.plugin-active-title;font-size:22px;font-weight:AppColors.bold-weight;color:AppColors.ink;vertical-alignment:center;}
                 if root.plugin-active-version!="":VerticalLayout {alignment:center;horizontal-stretch:0;Rectangle {preferred-width:active-ver.preferred-width+14px;height:24px;border-radius:8px;background:AppColors.soft;
-                    active-ver:=Text {x:7px;width:parent.width - 14px;height:parent.height;text:"v"+root.plugin-active-version;font-size:11px;font-weight:500;color:AppColors.muted;vertical-alignment:center;}
+                    active-ver:=Text {x:7px;width:parent.width - 14px;height:parent.height;text:"v"+root.plugin-active-version;font-size:11px;color:AppColors.muted;vertical-alignment:center;}
                 }}
                 Rectangle {background:transparent;horizontal-stretch:1;}
                 if root.decl-header-status!="":VerticalLayout {alignment:center;horizontal-stretch:0;ConnectionBadge {text:root.tr(root.decl-header-status,root.english);phase:root.decl-header-phase;}}
             }
             if !root.stage-expanded&&!(root.page==9&&root.plugin-active-id!=""):HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;height:(root.page==5||(root.page==8&&root.connected&&root.monitor-host-summary!=""))?60px:42px;
                 VerticalBox {padding:0px;spacing:4px;vertical-stretch:0;alignment:center;
-                    Text {text:root.tr(root.page==0?"设备连接与管理":root.page==5?"远程桌面":root.page==6?"文件管理与传输":root.page==3?"本地运行日志":root.page==8?"设备性能":"插件",root.english);font-size:25px;font-weight:600;color:AppColors.ink;vertical-stretch:0;}
+                    Text {text:root.tr(root.page==0?"设备连接与管理":root.page==5?"远程桌面":root.page==6?"文件管理与传输":root.page==3?"本地运行日志":root.page==8?"设备性能":"插件",root.english);font-size:25px;font-weight:AppColors.bold-weight;color:AppColors.ink;vertical-stretch:0;}
                     if root.page==5:Text {text:root.device-name+" · "+root.display;font-size:11px;color:AppColors.muted;vertical-stretch:0;}
                     if root.page==8&&root.connected&&root.monitor-host-summary!="":Text {text:root.device-name+" · "+root.monitor-host-summary;font-size:11px;color:AppColors.muted;vertical-stretch:0;}
                 }
@@ -458,7 +455,7 @@ slint::slint! {
                 }
                 if root.page==9:HorizontalBox {padding:0px;spacing:8px;
                     VerticalLayout {alignment:center;horizontal-stretch:0;ActionButton {text:root.tr("上传插件",root.english);icon:@image-url("icons/upload.svg");has-icon:true;enabled:root.can-interact;clicked=>{root.plugin-import();}}}
-                    VerticalLayout {alignment:center;horizontal-stretch:0;ActionButton {text:root.tr("刷新目录",root.english);icon:@image-url("icons/restart.svg");has-icon:true;busy:root.plugin-loading;enabled:root.can-interact&&!root.plugin-loading;clicked=>{root.plugin-refresh();}}}
+                    VerticalLayout {alignment:center;horizontal-stretch:0;ActionButton {text:root.tr("刷新目录",root.english);icon:@image-url("icons/restart.svg");has-icon:true;busy:root.plugin-loading&&root.plugin-items.length>0;enabled:root.can-interact&&!root.plugin-loading;clicked=>{root.plugin-refresh();}}}
                 }
                 if root.page==0:HorizontalBox {padding:0px;spacing:8px;
                     VerticalLayout {alignment:center;horizontal-stretch:0;ActionButton {text:root.tr("导入数据",root.english);busy:root.migration-busy;enabled:root.can-edit;clicked=>{root.migration-action(false);}}}
@@ -603,7 +600,7 @@ slint::slint! {
                     HorizontalBox {padding:0px;spacing:0px;
                         Rectangle {width:174px;horizontal-stretch:0;background:transparent;
                             VerticalBox {padding-left:16px;padding-right:16px;padding-top:24px;padding-bottom:24px;spacing:16px;
-                                Text {text:root.tr("设置",root.english);font-size:20px;font-weight:600;color:AppColors.ink;height:44px;vertical-stretch:0;}
+                                Text {text:root.tr("设置",root.english);font-size:20px;font-weight:AppColors.bold-weight;color:AppColors.ink;height:44px;vertical-stretch:0;}
                                 Rectangle {height:142px;vertical-stretch:0;background:transparent;accessible-role:tab-list;
                                     settings-pill:=Rectangle {transform-origin:{x:self.width/2,y:self.height/2};transform-scale:root.settings-section==0?settings-general.press-scale:root.settings-section==1?settings-storage.press-scale:settings-about.press-scale;y:root.settings-section*50px;width:parent.width;height:42px;border-radius:12px;background:AppColors.field;animate y {duration:AppColors.motion?320ms:0ms;easing:cubic-bezier(0.16,1,0.3,1);}}
                                     settings-general:=SettingsTab {y:0px;width:parent.width;text:root.tr("通用",root.english);icon:@image-url("icons/general.svg");selected:root.settings-section==0;enabled:root.can-interact;clicked=>{root.settings-section=0;}}
@@ -615,19 +612,19 @@ slint::slint! {
                         }
                         VerticalBox {padding:24px;spacing:20px;
                             HorizontalBox {padding:0px;vertical-stretch:0;
-                                Text {text:root.tr(root.settings-section==0?"通用":root.settings-section==1?"存储":"关于",root.english);font-size:18px;font-weight:600;color:Palette.foreground;}
+                                Text {text:root.tr(root.settings-section==0?"通用":root.settings-section==1?"存储":"关于",root.english);font-size:18px;font-weight:AppColors.bold-weight;color:Palette.foreground;}
                                 Rectangle {background:transparent;horizontal-stretch:1;}
                             }
-                            if root.settings-error!="":Text {text:root.tr(root.settings-error,root.english);color:Palette.foreground;font-weight:600;wrap:word-wrap;vertical-stretch:0;}
+                            if root.settings-error!="":Text {text:root.tr(root.settings-error,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
                             if root.logs-error!=""&&root.settings-section==1:Text {text:root.tr(root.logs-error,root.english);color:Palette.foreground;wrap:word-wrap;vertical-stretch:0;}
                             ScrollView {viewport-width:self.visible-width;viewport-height:settings-content.preferred-height;vertical-scrollbar-policy:always-off;horizontal-scrollbar-policy:always-off;
                                 settings-content:=VerticalBox {y:(1-root.settings-content-phase)*5px;min-width:0px;padding:0px;spacing:18px;
                                     if root.settings-section==0:VerticalBox {padding:0px;spacing:18px;
-                    HorizontalBox {padding:0px;height:42px;vertical-stretch:0;Text {text:root.tr("语言",root.english);color:AppColors.ink;font-size:13px;vertical-alignment:center;}ComboBox {width:150px;horizontal-stretch:0;model:["简体中文","English"];current-index:root.english?1:0;enabled:root.can-interact&&root.settings-open;selected(index)=>{root.set-language(index);}}}
-                    HorizontalBox {padding:0px;height:42px;vertical-stretch:0;Text {text:root.tr("主题色彩",root.english);color:AppColors.ink;font-size:13px;vertical-alignment:center;}ComboBox {width:150px;horizontal-stretch:0;model:[root.tr("浅蓝",root.english),root.tr("绿色",root.english),root.tr("石墨",root.english)];current-index:root.theme;enabled:root.can-interact&&root.settings-open;selected(index)=>{root.set-theme(index);}}}
+                    HorizontalBox {padding:0px;height:42px;vertical-stretch:0;Text {text:root.tr("语言",root.english);color:AppColors.ink;font-size:13px;vertical-alignment:center;}ComboBox {controlled:true;width:150px;horizontal-stretch:0;model:["简体中文","English"];current-index:root.english?1:0;enabled:root.can-interact&&root.settings-open;selected(index)=>{root.set-language(index);}}}
+                    HorizontalBox {padding:0px;height:42px;vertical-stretch:0;Text {text:root.tr("主题色彩",root.english);color:AppColors.ink;font-size:13px;vertical-alignment:center;}ComboBox {controlled:true;width:150px;horizontal-stretch:0;model:[root.tr("浅蓝",root.english),root.tr("绿色",root.english),root.tr("石墨",root.english)];current-index:root.theme;enabled:root.can-interact&&root.settings-open;selected(index)=>{root.set-theme(index);}}}
                     HorizontalBox {padding:0px;height:42px;vertical-stretch:0;Text {text:root.tr("外观",root.english);color:AppColors.ink;font-size:13px;vertical-alignment:center;}SegmentedChoice {width:260px;model:[root.tr("浅色",root.english),root.tr("深色",root.english),root.tr("跟随系统",root.english)];current-index:root.appearance;enabled:root.can-interact&&root.settings-open;selected(index)=>{root.set-appearance(index);}}}
                     GlassSettings {english:root.english;enabled:root.glass-loaded&&root.can-interact&&!root.bg-busy;quality<=>root.glass-quality;material<=>root.bg-material;error:root.glass-error;notice:root.material-status;tr(s,e)=>{return root.tr(s,e);}update(finished)=>{root.glass-controls(finished);}}
-                    background-settings:=BackgroundSettings {focus-ticket:root.color-focus-ticket;compact:true;video:root.bg-video;english:root.english;enabled:root.can-interact&&!root.busy;busy:root.bg-busy;cancellable:root.bg-cancellable;
+                    background-settings:=BackgroundSettings {focus-ticket:root.color-focus-ticket;compact:true;video:root.bg-video;english:root.english;enabled:root.can-interact&&!root.busy;busy:root.bg-busy&&root.painted-dialog!=8;cancellable:root.bg-cancellable;
                         frame:root.bg-frame;has-frame:root.bg-has-frame&&!root.bg-color-preview;color:root.bg-color-preview?root.bg-picker-color:root.bg-color;source-width:root.bg-width;source-height:root.bg-height;
                         crop-x:root.bg-saved-crop-x;crop-y:root.bg-saved-crop-y;crop-width:root.bg-saved-crop-width;crop-height:root.bg-saved-crop-height;
                         hex<=>root.bg-hex;volume<=>root.bg-volume;status:root.bg-status;error:root.bg-error;
@@ -636,11 +633,11 @@ slint::slint! {
 
                                     }
                                     if root.settings-section==1:VerticalBox {padding:0px;spacing:12px;
-                        Text {text:root.tr("板端运行环境",root.english);font-size:14px;font-weight:600;color:AppColors.ink;}
+                        Text {text:root.tr("板端运行环境",root.english);font-size:14px;font-weight:AppColors.bold-weight;color:AppColors.ink;}
                         environment-computer:=EnvironmentOption {text:root.tr("电脑下载后传输",root.english);detail:root.tr("电脑联网下载并缓存，通过 SSH 传给设备",root.english);selected:root.environment-source==0;enabled:root.can-interact;clicked=>{root.set-environment(0);}move=>{root.set-environment(1);environment-board.focus();}}
                         environment-board:=EnvironmentOption {text:root.tr("板端自行下载",root.english);detail:root.tr("设备通过自己的网络访问软件源",root.english);selected:root.environment-source==1;enabled:root.can-interact;clicked=>{root.set-environment(1);}move=>{root.set-environment(0);environment-computer.focus();}}
                         Rectangle {height:1px;vertical-stretch:0;background:AppColors.edge;}
-                        Text {text:root.tr("运行日志",root.english);font-size:14px;font-weight:600;color:AppColors.ink;}
+                        Text {text:root.tr("运行日志",root.english);font-size:14px;font-weight:AppColors.bold-weight;color:AppColors.ink;}
                         Rectangle {height:106px;vertical-stretch:0;background:AppColors.inset;border-radius:12px;border-width:1px;border-color:AppColors.edge;
                             VerticalBox {padding:12px;spacing:8px;
                                 Text {text:root.tr("保存位置",root.english);font-size:11px;color:AppColors.muted;}
@@ -663,11 +660,11 @@ slint::slint! {
                                     if root.settings-section==2:VerticalBox {padding:0px;spacing:16px;
                         VerticalBox {padding-top:12px;padding-bottom:16px;padding-left:0px;padding-right:0px;spacing:12px;vertical-stretch:0;
                             HorizontalBox {padding:0px;Rectangle {background:transparent;horizontal-stretch:1;}Image {source:@image-url("../assets/portcanvas.png");width:76px;height:76px;horizontal-stretch:0;vertical-stretch:0;}Rectangle {background:transparent;horizontal-stretch:1;}}
-                            Text {text:"PortCanvas";font-size:24px;font-weight:600;color:AppColors.ink;horizontal-alignment:center;}
+                            Text {text:"PortCanvas";font-size:24px;font-weight:AppColors.bold-weight;color:AppColors.ink;horizontal-alignment:center;}
                             HorizontalBox {padding:0px;Rectangle {background:transparent;horizontal-stretch:1;}Rectangle {preferred-width:version-label.preferred-width+20px;height:28px;border-radius:14px;background:AppColors.soft;horizontal-stretch:0;version-label:=Text {x:10px;width:parent.width - 20px;height:parent.height;text:"v"+root.app-version;font-size:11px;color:AppColors.muted;vertical-alignment:center;}}Rectangle {background:transparent;horizontal-stretch:1;}}
                         }
                         Rectangle {height:1px;vertical-stretch:0;background:AppColors.edge;}
-                        Text {text:root.tr("GitHub 仓库",root.english);font-size:13px;font-weight:500;color:AppColors.ink;}
+                        Text {text:root.tr("GitHub 仓库",root.english);font-size:13px;color:AppColors.ink;}
                         Text {text:"JvKan9Zz/PortCanvas";font-size:12px;color:AppColors.muted;}
                         HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
                             ActionButton {text:root.tr("打开仓库",root.english);enabled:root.can-interact;clicked=>{root.system-action("repository");}}
@@ -719,21 +716,21 @@ slint::slint! {
                         tr(s,e)=>{return root.tr(s,e);}response(v)=>{root.bg-crop-response(v);}reset=>{root.bg-crop-reset();}gesture(k,x,y)=>{root.bg-crop-gesture(k,x,y);}arrow(x,y,r)=>{root.bg-crop-arrow(x,y,r);}
                     }
                     panel:=VerticalBox {visible:root.painted-dialog!=8&&root.painted-dialog!=14;width:parent.width;height:self.preferred-height;padding:24px;spacing:root.painted-dialog==16?0px:12px;
-                        Text {text:root.tr(root.dialog-title,root.english);font-size:20px;font-weight:600;color:AppColors.ink;vertical-stretch:0;}
+                        Text {text:root.tr(root.dialog-title,root.english);font-size:20px;font-weight:AppColors.bold-weight;color:AppColors.ink;vertical-stretch:0;}
                         if root.dialog-message!=""||root.migration-executing||root.system-executing:Text {text:root.migration-executing?root.tr("正在迁移资料…",root.english):root.system-executing?root.tr("正在提交重启请求…",root.english):root.dialog-message;wrap:word-wrap;color:AppColors.ink;vertical-stretch:0;min-height:24px;}
                         folder-name:=LineEdit {preferred-height:root.painted-dialog==15?42px:0px;min-height:0px;visible:root.painted-dialog==15;label:root.tr("文件夹名称",root.english);text<=>root.file-folder-name;enabled:root.dialog-kind==15&&!root.file-mutating;accepted=>{root.respond(true);}}
                         Rectangle {height:root.painted-dialog==16?program-fields.preferred-height:0px;vertical-stretch:0;visible:root.painted-dialog==16;clip:true;background:transparent;
                             program-fields:=VerticalBox {width:parent.width;height:self.preferred-height;padding:0px;padding-top:16px;spacing:16px;
                                 VerticalBox {padding:0px;spacing:6px;vertical-stretch:0;
-                                    Text {text:root.tr("板端程序路径",root.english);font-size:12px;font-weight:500;color:AppColors.ink;vertical-stretch:0;}
+                                    Text {text:root.tr("板端程序路径",root.english);font-size:12px;color:AppColors.ink;vertical-stretch:0;}
                                     LineEdit {text<=>root.program-path;label:root.tr("板端程序路径",root.english);placeholder-text:"/home/bcsh/.../main.py";}
                                 }
                                 VerticalBox {padding:0px;spacing:6px;vertical-stretch:0;
-                                    Text {text:root.tr("运行目录",root.english);font-size:12px;font-weight:500;color:AppColors.ink;vertical-stretch:0;}
+                                    Text {text:root.tr("运行目录",root.english);font-size:12px;color:AppColors.ink;vertical-stretch:0;}
                                     LineEdit {text<=>root.program-directory;label:root.tr("运行目录",root.english);placeholder-text:root.tr("留空使用程序所在目录",root.english);}
                                 }
                                 VerticalBox {padding:0px;spacing:6px;vertical-stretch:0;
-                                    Text {text:root.tr("运行方式",root.english);font-size:12px;font-weight:500;color:AppColors.ink;vertical-stretch:0;}
+                                    Text {text:root.tr("运行方式",root.english);font-size:12px;color:AppColors.ink;vertical-stretch:0;}
                                     HorizontalBox {padding:0px;spacing:16px;height:36px;
                                         ComboBox {width:220px;horizontal-stretch:0;model:[root.tr("自动识别",root.english),"Python 3","Shell",root.tr("可执行文件",root.english)];current-index<=>root.program-mode;}
                                         CheckBox {text:root.tr("使用 sudo 运行",root.english);checked<=>root.program-sudo;}
@@ -747,12 +744,12 @@ slint::slint! {
                             Rectangle {
                                 height:64px;border-radius:12px;border-width:1px;border-color:AppColors.accent.with-alpha(0.35);background:upload-opt-1.has-hover?AppColors.soft:AppColors.field;
                                 animate background {duration:AppColors.motion?140ms:0ms;}
-                                HorizontalBox {padding-left:14px;padding-right:14px;spacing:12px;
+                                HorizontalBox {padding-left:14px;padding-right:14px;padding-top:0px;padding-bottom:0px;spacing:12px;
                                     Rectangle {width:36px;height:36px;y:(parent.height - 36px)/2;horizontal-stretch:0;border-radius:10px;background:AppColors.accent.with-alpha(0.14);
                                         Image {x:9px;y:9px;width:18px;height:18px;source:@image-url("icons/upload.svg");colorize:AppColors.accent;}
                                     }
                                     VerticalBox {padding:0px;spacing:2px;alignment:center;horizontal-stretch:1;
-                                        Text {text:root.tr("导入本地插件",root.english);font-size:13px;font-weight:600;color:AppColors.ink;}
+                                        Text {text:root.tr("导入本地插件",root.english);font-size:13px;font-weight:AppColors.bold-weight;color:AppColors.ink;}
                                         Text {text:root.tr("选择本地 .pcplugin 安装包并核对权限后安装",root.english);font-size:11px;color:AppColors.muted;overflow:elide;}
                                     }
                                     Image {width:16px;height:16px;y:(parent.height - 16px)/2;horizontal-stretch:0;source:@image-url("icons/chevron-right.svg");colorize:AppColors.muted;}
@@ -762,12 +759,12 @@ slint::slint! {
                             Rectangle {
                                 height:64px;border-radius:12px;border-width:1px;border-color:AppColors.edge;background:upload-opt-2.has-hover?AppColors.soft:AppColors.field;
                                 animate background {duration:AppColors.motion?140ms:0ms;}
-                                HorizontalBox {padding-left:14px;padding-right:14px;spacing:12px;
+                                HorizontalBox {padding-left:14px;padding-right:14px;padding-top:0px;padding-bottom:0px;spacing:12px;
                                     Rectangle {width:36px;height:36px;y:(parent.height - 36px)/2;horizontal-stretch:0;border-radius:10px;background:AppColors.soft;
                                         Image {x:9px;y:9px;width:18px;height:18px;source:@image-url("icons/download.svg");colorize:AppColors.accent;}
                                     }
                                     VerticalBox {padding:0px;spacing:2px;alignment:center;horizontal-stretch:1;
-                                        Text {text:root.tr("下载插件开发规范文档",root.english);font-size:13px;font-weight:600;color:AppColors.ink;}
+                                        Text {text:root.tr("下载插件开发规范文档",root.english);font-size:13px;font-weight:AppColors.bold-weight;color:AppColors.ink;}
                                         Text {text:root.tr("保存 declarative-v1 与 pc-worker-v1 开发规范（Markdown）",root.english);font-size:11px;color:AppColors.muted;overflow:elide;}
                                     }
                                     Image {width:16px;height:16px;y:(parent.height - 16px)/2;horizontal-stretch:0;source:@image-url("icons/chevron-right.svg");colorize:AppColors.muted;}

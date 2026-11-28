@@ -4,16 +4,13 @@ use slint::ComponentHandle;
 use std::{path::PathBuf,cell::Cell,rc::Rc,time::Duration};
 use glow::HasContext;
 slint::slint! {
-    import "../assets/ui-regular.ttf";
-    import "../assets/ui-medium.ttf";
-    import "../assets/ui-semibold.ttf";
     export component FontProbe inherits Window {
         title:"PortCanvas font raster probe";width:680px;height:270px;
-        background:#ffffff;default-font-family:"PortCanvas UI";
+        background:#ffffff;default-font-family:"Microsoft YaHei UI";
         for offset[index] in [0.0,0.25,0.5,0.75]:Text {
             x:40px+offset*1phx;y:20px+index*60px;
             width:620px;height:48px;text:"设备连接与管理 1024 MiB";
-            color:#182333;font-size:31phx;font-weight:600;vertical-alignment:top;
+            color:#182333;font-size:31phx;font-weight:700;vertical-alignment:top;
         }
     }
 }
