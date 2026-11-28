@@ -41,16 +41,16 @@ export component FilePane inherits Rectangle {
     }
     Rectangle {height:1px;vertical-stretch:0;background:AppColors.edge;}
     HorizontalBox {height:32px;vertical-stretch:0;padding-left:12px;padding-right:12px;padding-top:0px;padding-bottom:0px;spacing:4px;
-        DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("上级",root.english);icon:@image-url("icons/up.svg");enabled:root.enabled&&root.loaded;clicked=>{root.action("up");}}
-        DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("主目录",root.english);icon:@image-url("icons/home.svg");enabled:root.enabled;clicked=>{root.action("home");}}
-        DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("刷新",root.english);icon:@image-url("icons/restart.svg");enabled:root.enabled;clicked=>{root.action("refresh");}}
+        VerticalLayout {alignment:center;horizontal-stretch:0;DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("上级",root.english);icon:@image-url("icons/up.svg");enabled:root.enabled&&root.loaded;clicked=>{root.action("up");}}}
+        VerticalLayout {alignment:center;horizontal-stretch:0;DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("主目录",root.english);icon:@image-url("icons/home.svg");enabled:root.enabled;clicked=>{root.action("home");}}}
+        VerticalLayout {alignment:center;horizontal-stretch:0;DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("刷新",root.english);icon:@image-url("icons/restart.svg");enabled:root.enabled;clicked=>{root.action("refresh");}}}
         Rectangle {horizontal-stretch:1;background:transparent;}
-        DesktopTool {height:30px;label:root.tr("新建文件夹",root.english);text:root.tr("新建文件夹",root.english);icon:@image-url("icons/plus.svg");enabled:root.enabled&&root.loaded;clicked=>{root.action("new-folder");}}
+        VerticalLayout {alignment:center;horizontal-stretch:0;DesktopTool {height:30px;label:root.tr("新建文件夹",root.english);text:root.tr("新建文件夹",root.english);icon:@image-url("icons/plus.svg");enabled:root.enabled&&root.loaded;clicked=>{root.action("new-folder");}}}
     }
     HorizontalBox {height:42px;vertical-stretch:0;padding-left:12px;padding-right:12px;padding-top:0px;padding-bottom:0px;spacing:4px;
-        if !root.remote:ComboBox {width:76px;horizontal-stretch:0;accessible-label:root.tr("本地磁盘",root.english);model:root.drives;current-index<=>root.drive-index;enabled:root.enabled;selected(index)=>{root.drive(index);}}
-        LineEdit {label:root.tr(root.remote?"远端目录":"本地目录",root.english);text<=>root.path;enabled:root.enabled;accepted=>{root.action("go");}}
-        DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("转到",root.english);icon:@image-url("icons/go.svg");enabled:root.enabled;clicked=>{root.action("go");}}
+        if !root.remote:VerticalLayout {alignment:center;horizontal-stretch:0;ComboBox {width:76px;horizontal-stretch:0;accessible-label:root.tr("本地磁盘",root.english);model:root.drives;current-index<=>root.drive-index;enabled:root.enabled;selected(index)=>{root.drive(index);}}}
+        VerticalLayout {alignment:center;horizontal-stretch:1;LineEdit {label:root.tr(root.remote?"远端目录":"本地目录",root.english);text<=>root.path;enabled:root.enabled;accepted=>{root.action("go");}}}
+        VerticalLayout {alignment:center;horizontal-stretch:0;DesktopTool {width:32px;height:32px;show-text:false;label:root.tr("转到",root.english);icon:@image-url("icons/go.svg");enabled:root.enabled;clicked=>{root.action("go");}}}
     }
     HorizontalBox {height:32px;vertical-stretch:0;padding-left:12px;padding-right:12px;padding-top:0px;padding-bottom:0px;spacing:6px;
         CheckBox {accessible-label:root.tr("全选",root.english);checked:root.rows.length>0&&root.selected-count==root.rows.length;indeterminate:root.selected-count>0&&root.selected-count<root.rows.length;enabled:root.enabled&&root.rows.length>0;toggled=>{root.all(self.checked);}width:28px;horizontal-stretch:0;}

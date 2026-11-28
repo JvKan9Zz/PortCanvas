@@ -25,6 +25,7 @@ jobs:
         shell: bash
     env:
       RUSTUP_TOOLCHAIN: '1.90.0'
+      CARGO_INCREMENTAL: '0'
       MACOSX_DEPLOYMENT_TARGET: '13.0'
       PORTCANVAS_TEST_KEYCHAIN_SERVICE: io.portcanvas.test.credentials.ci-${{ github.run_id }}-${{ github.run_attempt }}-universal
       PYTHONDONTWRITEBYTECODE: '1'
@@ -58,6 +59,7 @@ jobs:
         run: |
           python3 -B app/tools/macos_test_keychain.py test --manifest-path app/core/Cargo.toml --locked --features downloads
           python3 -B app/tools/macos_test_keychain.py test --manifest-path app/native-probe/Cargo.toml --locked
+          cargo test --manifest-path app/native-probe/Cargo.toml --locked --features gui --test macos_fonts -- --nocapture
           python3 -B -m unittest discover -s app/tests -p 'test_*.py'
       - name: Remove only exact test Keychain services recorded by this job
         if: always()
@@ -96,6 +98,7 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       RUSTUP_TOOLCHAIN: '1.90.0'
+      CARGO_INCREMENTAL: '0'
       MACOSX_DEPLOYMENT_TARGET: '13.0'
       PORTCANVAS_TEST_KEYCHAIN_SERVICE: io.portcanvas.test.credentials.ci-${{ github.run_id }}-${{ github.run_attempt }}-intel
       PYTHONDONTWRITEBYTECODE: '1'
@@ -127,6 +130,7 @@ jobs:
         run: |
           python3 -B app/tools/macos_test_keychain.py test --manifest-path app/core/Cargo.toml --locked --features downloads
           python3 -B app/tools/macos_test_keychain.py test --manifest-path app/native-probe/Cargo.toml --locked
+          cargo test --manifest-path app/native-probe/Cargo.toml --locked --features gui --test macos_fonts -- --nocapture
           cargo check --manifest-path app/native-probe/Cargo.toml --locked --features gui
           python3 -B -m unittest discover -s app/tests -p 'test_*.py'
       - name: Remove only exact test Keychain services recorded by this job
