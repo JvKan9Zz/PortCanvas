@@ -20,6 +20,9 @@ int main(void){@autoreleasepool {
     NSView *background=objc_getAssociatedObject(state,&pc_background_key);
     check(state.host.subviews.firstObject==background,"media stays below native material surfaces");
     check(window.contentView==original,"winit content view identity preserved");
+    check((window.styleMask&NSWindowStyleMaskFullSizeContentView)!=0,"macOS full-size content view enabled");
+    check(window.titleVisibility==NSWindowTitleHidden,"macOS native title text hidden");
+    check(window.toolbar!=nil&&window.toolbarStyle==NSWindowToolbarStyleUnified,"macOS unified titlebar aligns traffic lights");
     check(fabs(state.panels[0].alphaValue-.25)<.001,"normal surface opacity follows user setting");
     check(fabs(state.panels[1].alphaValue-1)<.001,"modal surface keeps thick opacity");
     check([NSApp.delegate respondsToSelector:@selector(applicationShouldTerminate:)],"Dock termination is intercepted");

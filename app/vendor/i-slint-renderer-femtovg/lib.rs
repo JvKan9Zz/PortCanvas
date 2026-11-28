@@ -51,10 +51,25 @@ pub fn blur_first_cached_layer(sigma: f32, source_revision: u64) {
 mod font_cache;
 mod images;
 mod itemrenderer;
+#[cfg(target_os = "macos")]
+mod macos_fonts;
 #[cfg(feature = "opengl")]
 pub mod opengl;
 #[cfg(feature = "wgpu-28")]
 pub mod wgpu;
+
+#[cfg(target_os = "macos")]
+pub use macos_fonts::{register_macos_system_cjk_fonts, verify_macos_cjk_glyphs};
+
+#[cfg(not(target_os = "macos"))]
+pub fn register_macos_system_cjk_fonts() -> Option<String> {
+    None
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn verify_macos_cjk_glyphs(_family: &str, _sample: &str) -> Result<(), String> {
+    Ok(())
+}
 
 pub trait WindowSurface<R: femtovg::Renderer> {
     fn render_surface(&self) -> &R::Surface;

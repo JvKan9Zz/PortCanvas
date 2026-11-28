@@ -173,7 +173,11 @@ pub fn run() -> Result<()> {
     #[cfg(target_os="macos")]
     let backend=backend.with_winit_window_attributes_hook(|attributes|{
         use slint::winit_030::winit::platform::macos::WindowAttributesExtMacOS;
-        attributes.with_transparent(true).with_titlebar_transparent(true)
+        attributes
+            .with_transparent(true)
+            .with_titlebar_transparent(true)
+            .with_fullsize_content_view(true)
+            .with_title_hidden(true)
     });
     backend.backend_name("winit".into())
         .renderer_name("femtovg".into())
@@ -184,9 +188,13 @@ pub fn run() -> Result<()> {
             .enable_all()
             .build()?,
     );
+    let macos_font = i_slint_renderer_femtovg::register_macos_system_cjk_fonts();
     let ui = Workbench::new()?;
     #[cfg(windows)]
     crate::windows_chrome::install(&ui)?;
+    if let Some(family) = macos_font {
+        ui.set_macos_font_family(family.into());
+    }
     ui.set_native_macos(cfg!(target_os="macos"));
     ui.set_app_version(env!("CARGO_PKG_VERSION").into());
     ui.on_tr(|source, english| text(&source, english).into());

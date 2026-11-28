@@ -20,4 +20,10 @@ layer through its revision. The layer releases its cached textures when the
 settings transition ends.
 
 The explicit font_probe example exercises fractional physical-pixel origins
-using the actual native GPU renderer. Source licenses remain under LICENSES/.
+using the actual native GPU renderer.
+
+On macOS 15+/26, Apple stores `PingFang.ttc` under `/System/Library/AssetsV2`,
+which `fontique` 0.7's `Library/Fonts` directory scan misses. `macos_fonts.rs`
+resolves the active system CJK font path via CoreText and registers it into
+Slint's shared `fontique` collection and CJK fallback maps before UI creation.
+Source licenses remain under LICENSES/.

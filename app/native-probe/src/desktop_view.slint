@@ -61,8 +61,8 @@ export component DesktopView inherits Rectangle {
 
     toolbar:=MaterialPanel {x:0px;y:0px;width:parent.width;height:46px;border-radius:14px;
         material:root.toolbar-material;active:root.expanded&&root.material-active;solid:root.material-solid;strength:root.material-strength;
-        HorizontalBox {padding:8px;spacing:6px;
-            quality-tool:=SelectBox {compact:true;width:root.english?112px:96px;horizontal-stretch:0;accessible-label:root.tr("桌面画质",root.english);model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.mode;enabled:root.enabled;selected(i)=>{root.quality(i);}popup-state(open)=>{root.quality-open=open;}}
+        HorizontalBox {padding-left:root.expanded&&AppColors.macos?84px:8px;padding-right:8px;padding-top:8px;padding-bottom:8px;spacing:6px;
+            quality-tool:=SelectBox {controlled:true;compact:true;width:root.english?112px:96px;horizontal-stretch:0;accessible-label:root.tr("桌面画质",root.english);model:[root.tr("流畅",root.english),root.tr("清晰",root.english),root.tr("省资源",root.english)];current-index:root.mode;enabled:root.enabled;selected(i)=>{root.quality(i);}popup-state(open)=>{root.quality-open=open;}}
             DesktopTool {text:root.tr("适配",root.english);label:root.tr("适应窗口",root.english);icon:@image-url("icons/fit.svg");show-text:!root.compact;checkable:true;checked:root.fit;enabled:root.enabled;clicked=>{root.fit=true;}}
             DesktopTool {text:"1:1";label:root.tr("原始尺寸",root.english);has-icon:false;checkable:true;checked:!root.fit;enabled:root.enabled;clicked=>{root.fit=false;}}
             drag-spacer:=Rectangle {horizontal-stretch:1;background:transparent;}

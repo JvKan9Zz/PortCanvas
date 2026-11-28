@@ -58,6 +58,7 @@ jobs:
         run: |
           python3 -B app/tools/macos_test_keychain.py test --manifest-path app/core/Cargo.toml --locked --features downloads
           python3 -B app/tools/macos_test_keychain.py test --manifest-path app/native-probe/Cargo.toml --locked
+          cargo test --manifest-path app/native-probe/Cargo.toml --locked --features gui --test macos_fonts -- --nocapture
           python3 -B -m unittest discover -s app/tests -p 'test_*.py'
       - name: Remove only exact test Keychain services recorded by this job
         if: always()
@@ -127,6 +128,7 @@ jobs:
         run: |
           python3 -B app/tools/macos_test_keychain.py test --manifest-path app/core/Cargo.toml --locked --features downloads
           python3 -B app/tools/macos_test_keychain.py test --manifest-path app/native-probe/Cargo.toml --locked
+          cargo test --manifest-path app/native-probe/Cargo.toml --locked --features gui --test macos_fonts -- --nocapture
           cargo check --manifest-path app/native-probe/Cargo.toml --locked --features gui
           python3 -B -m unittest discover -s app/tests -p 'test_*.py'
       - name: Remove only exact test Keychain services recorded by this job

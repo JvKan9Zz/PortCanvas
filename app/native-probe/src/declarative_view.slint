@@ -988,7 +988,10 @@ export component DeclarativeView inherits Rectangle {
             solid: root.material-solid;
             strength: root.material-strength;
             HorizontalBox {
-                padding: 8px;
+                padding-left: AppColors.macos ? 84px : 8px;
+                padding-right: 8px;
+                padding-top: 8px;
+                padding-bottom: 8px;
                 spacing: 6px;
                 Text {
                     text: root.fs-stage.title != "" ? root.fs-stage.title : root.active-title;

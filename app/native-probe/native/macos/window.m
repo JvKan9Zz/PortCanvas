@@ -58,6 +58,11 @@ void *pc_window_open(void *raw,void *context,void (*callback)(void*,int)) {@auto
     if(![NSThread isMainThread])return NULL;
     NSView *renderer=(__bridge NSView*)raw;NSWindow *window=renderer.window;if(!window)return NULL;
     PCChrome *state=[PCChrome new];state.window=window;state.renderer=renderer;state.context=context;state.callback=callback;state.panels=[NSMutableArray new];state.quality=-1;
+    window.styleMask|=NSWindowStyleMaskFullSizeContentView;
+    window.titleVisibility=NSWindowTitleHidden;
+    window.titlebarAppearsTransparent=YES;
+    if(!window.toolbar){NSToolbar *toolbar=[[NSToolbar alloc]initWithIdentifier:@"PortCanvasUnifiedTitlebar"];toolbar.showsBaselineSeparator=NO;window.toolbar=toolbar;}
+    window.toolbarStyle=NSWindowToolbarStyleUnified;
     NSView *content=window.contentView;
     PCMaterialHost *host=[[PCMaterialHost alloc]initWithFrame:content.frame];host.autoresizingMask=NSViewWidthSizable|NSViewHeightSizable;
     // winit's NSWindowDelegate assumes contentView is its own WinitView subclass.
@@ -65,7 +70,7 @@ void *pc_window_open(void *raw,void *context,void (*callback)(void*,int)) {@auto
     if(!content.superview)return NULL;
     [content.superview addSubview:host positioned:NSWindowBelow relativeTo:content];state.host=host;
     NSCAssert(window.contentView==content,@"System materials must preserve the winit content view");
-    window.opaque=NO;window.backgroundColor=NSColor.clearColor;window.titlebarAppearsTransparent=YES;pc_main_window=window;pc_main_chrome=state;
+    window.opaque=NO;window.backgroundColor=NSColor.clearColor;pc_main_window=window;pc_main_chrome=state;
     if(NSApp.delegate&&![(id)NSApp.delegate respondsToSelector:@selector(applicationShouldHandleReopen:hasVisibleWindows:)])class_addMethod(object_getClass(NSApp.delegate),@selector(applicationShouldHandleReopen:hasVisibleWindows:),(IMP)pc_reopen,"B@:@B");
     if(NSApp.delegate&&![(id)NSApp.delegate respondsToSelector:@selector(applicationShouldTerminate:)])class_addMethod(object_getClass(NSApp.delegate),@selector(applicationShouldTerminate:),(IMP)pc_should_terminate,"q@:@");
     NSMenu *bar=[NSMenu new],*app=[NSMenu new];NSMenuItem *appItem=[NSMenuItem new];appItem.submenu=app;[bar addItem:appItem];
