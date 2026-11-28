@@ -12,8 +12,8 @@
 </p>
 
 <p>
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.2"><img src="https://img.shields.io/badge/Windows-v0.7.2-2563eb?style=flat-square" alt="Windows v0.7.2"></a>
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.2"><img src="https://img.shields.io/badge/macOS_13+-v0.7.2_Universal-0f172a?style=flat-square" alt="macOS v0.7.2 Universal"></a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.3"><img src="https://img.shields.io/badge/Windows-v0.7.3-2563eb?style=flat-square" alt="Windows v0.7.3"></a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.3"><img src="https://img.shields.io/badge/macOS_13+-v0.7.3_Universal-0f172a?style=flat-square" alt="macOS v0.7.3 Universal"></a>
   <img src="https://img.shields.io/badge/Built_with-Rust_%2B_Slint-ea580c?style=flat-square" alt="Rust + Slint">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-16a34a?style=flat-square" alt="MIT License"></a>
 </p>
@@ -21,8 +21,8 @@
 <p>
   <strong>简体中文</strong> · <a href="README.en.md">English</a>
   &nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_x64-setup.exe"><strong>下载 Windows v0.7.2</strong></a>
-  · <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_universal.dmg">macOS v0.7.2 DMG</a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/PortCanvas_0.7.3_x64-setup.exe"><strong>下载 Windows v0.7.3</strong></a>
+  · <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/PortCanvas_0.7.3_universal.dmg">macOS v0.7.3 DMG</a>
   · <a href="docs/usage.md">使用说明</a>
   · <a href="docs/plugin-development.md">插件开发规范</a>
   · <a href="https://github.com/JvKan9Zz/PortCanvas/releases">更新日志</a>
@@ -30,7 +30,7 @@
 
 <br>
 
-<img src="assets/preview/workbench-light.png" width="100%" alt="PortCanvas v0.7.2 无边框液态玻璃工作台">
+<img src="assets/preview/workbench-light.png" width="100%" alt="PortCanvas v0.7.3 无边框液态玻璃工作台">
 
 </div>
 
@@ -55,20 +55,20 @@
 | **文件管理** | 可调双栏 SFTP，支持多选与拖拽传输、递归目录上传/下载、覆盖确认、限速、随时取消、远端删除，以及单文件完整路径一键复制 |
 | **终端与日志** | 多标签可滚动终端、持久 `tmux` 会话、中文输入法与命令草稿/历史/补全、按设备配置一键启动程序；本机运行日志支持项目/日期筛选、详情面板调节与自动上限清理 |
 | **设备性能** | 2 秒实时采样（离页、隐藏与断连自动停止），涵盖 4 格 KPI、60 秒双曲线趋势、分核 CPU 与频率、板端磁盘空间、多网卡吞吐与往返延迟、板端多路温度及系统信息 |
-| **百宝工具箱（插件）** | 纯原生声明式插件引擎，支持在线签名目录多插件并发下载、上传插件二级菜单（本地导入 + 离线开发文档下载）、后台常驻任务与权限确认；官方提供 **赛台监控 (`v0.8.0`)**、**视觉实验台 (`v0.2.0`)**、**视频采集 (`v0.1.0`)** 与 **128线程下载器 (`v0.1.0`)** |
+| **插件系统** | 纯原生声明式插件引擎，支持在线签名目录多插件并发下载、上传插件二级菜单（本地导入 + 离线开发文档下载）、后台常驻任务与权限确认；官方提供 **赛台监控 (`v0.8.1`)**、**视觉实验台 (`v0.2.0`)**、**视频采集 (`v0.2.0`)** 与 **128线程下载器 (`v0.1.0`)** |
 | **个性与外观** | 中英文实时切换、浅色 / 深色 / 跟随系统、多套主题强调色、纯色 / 图片裁剪 / 视频背景与音量调节，以及实时预览的玻璃材质参数 |
 
 ---
 
-## 官方插件生态（百宝工具箱）
+## 官方插件生态
 
-在工作台左侧进入 **百宝工具箱（插件）→ 可下载** 即可直接在线拉取经 Minisign 签名校验的官方插件，也可点击 **上传插件** 离线导入 `.pcplugin` 包或下载离线插件开发规范文档：
+在工作台左侧进入 **插件 → 可下载** 即可直接在线拉取经 Minisign 签名校验的官方插件，也可点击 **上传插件** 离线导入 `.pcplugin` 包或下载离线插件开发规范文档：
 
 | 插件 | 版本 | 平台 | 能力说明 |
 | --- | --- | --- | --- |
-| **赛台监控** (`arena-monitor`) | `v0.8.0` | 跨平台 | 3.8m 轮式格斗赛台坐标系底图、实时机器人定位遥测（坐标、航向、置信度、延迟，详见 [定位协议](docs/pose-protocol.md)）与远端摄像头实时预览 |
+| **赛台监控** (`arena-monitor`) | `v0.8.1` | 跨平台 | 3.8m 轮式格斗赛台坐标系底图、实时机器人定位遥测（坐标、航向、置信度、延迟，详见 [定位协议](docs/pose-protocol.md)）与支持窗口全屏的远端摄像头实时预览 |
 | **视觉实验台** (`vision-studio`) | `v0.2.0` | 跨平台 | 支持 7 种 OpenCV 实时算法实验与参数热更新，以及 **板端摄像头代码伴随监视**（自动检测占用 `/dev/video*` 的进程、X11 窗口与 `/dev/shm/portcanvas_cam.jpg` 共享帧） |
-| **视频采集** (`video-capture`) | `v0.1.0` | Windows x64 | 本机 USB / HDMI 采集卡与摄像头零延迟原生直采（MediaFoundation），支持分辨率与帧率切换、适配/填充/`1:1`、0°/90°/180°/270° 旋转、镜像翻转与 PNG 截图，免连接远端设备即可使用 |
+| **视频采集** (`video-capture`) | `v0.2.0` | Windows x64 | 本机 USB / HDMI 采集卡与摄像头零延迟原生直采（MediaFoundation），完整支持多像素格式采集与筛选（`NV12`/`YUY2`/`RGB24`/`I420`/`P010`/`MJPEG` 等）、远程桌面同款窗口内液态玻璃全屏、适配/填充/`1:1`、0°/90°/180°/270° 旋转、镜像翻转与 PNG 截图 |
 | **128线程下载器** (`fast-downloader`) | `v0.1.0` | Windows x64 · macOS Universal | 后台多任务并发下载与断点续传，支持 8/32/64/128 线程调节（默认 128 线程，不支持 Range 时自动回退单线程）、系统代理继承与默认保存目录设置；**安装启用后自动接管软件内置 32 线程下载器，卸载或停用自动恢复** |
 
 ---
@@ -104,8 +104,8 @@
 
 | 平台 | 最新版本 | 安装包 | 说明 |
 | --- | --- | --- | --- |
-| **Windows x64** | **v0.7.2** | [**PortCanvas_0.7.2_x64-setup.exe**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_x64-setup.exe) | 稳定通道，内置签名自动更新；新装资料保存在安装目录 `data/`，插件位于 `plugins/`，静默运行日志位于 `debuglogs/`（上限 10 MiB），原地升级沿用既有资料 |
-| **macOS 13.0+** | **v0.7.2** | [**PortCanvas_0.7.2_universal.dmg**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_universal.dmg) | Apple Silicon & Intel 通用包，采用 ad-hoc 签名手动安装（[SHA-256](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_universal.dmg.sha256)），详见 [Mac 安装说明](docs/macos.md) |
+| **Windows x64** | **v0.7.3** | [**PortCanvas_0.7.3_x64-setup.exe**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/PortCanvas_0.7.3_x64-setup.exe) | 稳定通道，内置签名自动更新；新装资料保存在安装目录 `data/`，插件位于 `plugins/`，静默运行日志位于 `debuglogs/`（上限 10 MiB），原地升级沿用既有资料 |
+| **macOS 13.0+** | **v0.7.3** | [**PortCanvas_0.7.3_universal.dmg**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/PortCanvas_0.7.3_universal.dmg) | Apple Silicon & Intel 通用包，采用 ad-hoc 签名手动安装（[SHA-256](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/PortCanvas_0.7.3_universal.dmg.sha256)），详见 [Mac 安装说明](docs/macos.md) |
 
 <details>
 <summary><strong>资料迁移、软件内更新与历史版本说明</strong></summary>
@@ -113,7 +113,7 @@
 - **配置迁移与备份**：在「设备」页点击「导入数据」，可预览并导入 `.portcanvas` 配置包或旧版资料，导入前自动创建备份。本机加密凭据采用 Windows DPAPI / macOS Keychain 保护，导出配置包时不会携带密码和私钥。
 - **自动更新与问题反馈**：Windows 正式版可在「设置 → 关于」检查并完成经 Minisign 签名校验的稳定通道更新，也可点击「反馈问题」导出最新运行日志协助排查；正式版插件目录仅允许 HTTPS 与 Minisign 签名校验。
 - **远端 Linux 依赖**：板端按需复用已有的 SSH、Python 3、`tmux`、SFTP、`x11vnc`、FFmpeg / OpenCV；缺失组件可由电脑下载并通过 SSH 放入用户隔离缓存（当前自动准备面向 Ubuntu 20.04 ARM64 控制器），不替换系统 SDK 或已有程序。
-- **历史归档**：[v0.7.1](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.1) · [v0.7.0](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0) · [v0.6.4](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.4) · [v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3) · [v0.6.2](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.2) · [全部 Releases](https://github.com/JvKan9Zz/PortCanvas/releases)
+- **历史归档**：[v0.7.2](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.2) · [v0.7.1](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.1) · [v0.7.0](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0) · [v0.6.4](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.4) · [v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3) · [全部 Releases](https://github.com/JvKan9Zz/PortCanvas/releases)
 
 </details>
 

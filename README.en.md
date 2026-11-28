@@ -12,8 +12,8 @@
 </p>
 
 <p>
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.2"><img src="https://img.shields.io/badge/Windows-v0.7.2-2563eb?style=flat-square" alt="Windows v0.7.2"></a>
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.2"><img src="https://img.shields.io/badge/macOS_13+-v0.7.2_Universal-0f172a?style=flat-square" alt="macOS v0.7.2 Universal"></a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.3"><img src="https://img.shields.io/badge/Windows-v0.7.3-2563eb?style=flat-square" alt="Windows v0.7.3"></a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.3"><img src="https://img.shields.io/badge/macOS_13+-v0.7.3_Universal-0f172a?style=flat-square" alt="macOS v0.7.3 Universal"></a>
   <img src="https://img.shields.io/badge/Built_with-Rust_%2B_Slint-ea580c?style=flat-square" alt="Rust + Slint">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-16a34a?style=flat-square" alt="MIT License"></a>
 </p>
@@ -21,8 +21,8 @@
 <p>
   <a href="README.md">简体中文</a> · <strong>English</strong>
   &nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_x64-setup.exe"><strong>Download Windows v0.7.2</strong></a>
-  · <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_universal.dmg">macOS v0.7.2 DMG</a>
+  <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/PortCanvas_0.7.3_x64-setup.exe"><strong>Download Windows v0.7.3</strong></a>
+  · <a href="https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/PortCanvas_0.7.3_universal.dmg">macOS v0.7.3 DMG</a>
   · <a href="docs/usage.md">Usage Guide</a>
   · <a href="docs/plugin-development.md">Plugin Dev Spec</a>
   · <a href="https://github.com/JvKan9Zz/PortCanvas/releases">Releases</a>
@@ -30,7 +30,7 @@
 
 <br>
 
-<img src="assets/preview/workbench-light.png" width="100%" alt="PortCanvas v0.7.2 Frameless Liquid Glass Workbench">
+<img src="assets/preview/workbench-light.png" width="100%" alt="PortCanvas v0.7.3 Frameless Liquid Glass Workbench">
 
 </div>
 
@@ -55,20 +55,20 @@
 | **Files (SFTP)** | Resizable dual-pane browser, multi-select drag-and-drop, recursive transfers, overwrite confirmation, bandwidth throttling, cancellation, and single-file full-path copy |
 | **Terminals & Logs** | Scrollable multi-tab persistent `tmux` terminals, IME support, command drafts/history/completion, per-device program launch presets, and filterable local run logs with storage caps |
 | **Device Monitor** | Live 2-second telemetry (auto-stopped on leave, hide, or disconnect): 4 KPI cards, 60s dual trend chart, per-core CPU & frequency, disk storage breakdown, per-NIC throughput & RTT, thermals, and OS/kernel facts |
-| **Toolbox (Plugins)** | Pure native declarative plugin engine with concurrent Minisign-verified downloads, Upload Plugin dialog (local `.pcplugin` import + offline spec download), background workers, and permission confirmation; ships with **Arena Monitor (`v0.8.0`)**, **Vision Studio (`v0.2.0`)**, **Video Capture (`v0.1.0`)**, and **128-Thread Downloader (`v0.1.0`)** |
+| **Plugins** | Pure native declarative plugin engine with concurrent Minisign-verified downloads, Upload Plugin dialog (local `.pcplugin` import + offline spec download), background workers, and permission confirmation; ships with **Arena Monitor (`v0.8.1`)**, **Vision Studio (`v0.2.0`)**, **Video Capture (`v0.2.0`)**, and **128-Thread Downloader (`v0.1.0`)** |
 | **Appearance** | Instant Chinese/English switching, Light / Dark / System themes, accent palettes, custom color/image/video backgrounds, and real-time Liquid Glass tuning |
 
 ---
 
-## Official Plugins (Toolbox)
+## Official Plugins
 
-Open **Toolbox (Plugins) → Available** inside PortCanvas to download signed official plugins directly, or click **Upload Plugin** to import `.pcplugin` bundles offline or save the offline plugin development guide:
+Open **Plugins → Available** inside PortCanvas to download signed official plugins directly, or click **Upload Plugin** to import `.pcplugin` bundles offline or save the offline plugin development guide:
 
 | Plugin | Version | Platforms | Description |
 | --- | --- | --- | --- |
-| **Arena Monitor** (`arena-monitor`) | `v0.8.0` | Cross-platform | 3.8m combat arena map, live robot pose telemetry (coordinates, heading, confidence, latency via [pose protocol](docs/pose-protocol.md)), and on-demand remote camera preview |
+| **Arena Monitor** (`arena-monitor`) | `v0.8.1` | Cross-platform | 3.8m combat arena map, live robot pose telemetry (coordinates, heading, confidence, latency via [pose protocol](docs/pose-protocol.md)), and expandable remote camera preview |
 | **Vision Studio** (`vision-studio`) | `v0.2.0` | Cross-platform | Live OpenCV camera lab with 7 hot-swappable pipelines and **board camera companion watch** (`/dev/video*` process inspection, X11 OpenCV window capture, and `/dev/shm/portcanvas_cam.jpg` shared-frame streaming) |
-| **Video Capture** (`video-capture`) | `v0.1.0` | Windows x64 | Zero-overhead native USB / HDMI capture card & webcam viewer (Windows MediaFoundation) with resolution/FPS switching, Fit/Fill/`1:1`, 0°/90°/180°/270° rotation, H/V flip, and PNG snapshots — works locally without a remote device |
+| **Video Capture** (`video-capture`) | `v0.2.0` | Windows x64 | Zero-overhead native USB / HDMI capture card & webcam viewer (Windows MediaFoundation) with full multi-format capture & filtering (`NV12`/`YUY2`/`RGB24`/`I420`/`P010`/`MJPEG`), Remote-Desktop-style liquid-glass fullscreen, Fit/Fill/`1:1`, 0°/90°/180°/270° rotation, H/V flip, and PNG snapshots |
 | **128-Thread Downloader** (`fast-downloader`) | `v0.1.0` | Windows x64 · macOS Universal | Background multi-task download queue with 8/32/64/128 threads (default 128, automatic single-thread fallback when Range is unsupported), pause/resume across restarts, system proxy inheritance, and custom save folder; **automatically replaces PortCanvas's built-in 32-thread downloader when enabled and reverts on uninstall/disable** |
 
 ---
@@ -104,8 +104,8 @@ Open **Toolbox (Plugins) → Available** inside PortCanvas to download signed of
 
 | Platform | Latest | Package | Notes |
 | --- | --- | --- | --- |
-| **Windows x64** | **v0.7.2** | [**PortCanvas_0.7.2_x64-setup.exe**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_x64-setup.exe) | Stable channel with signed in-app updates; fresh installs store data in `<install>/data/`, plugins in `<install>/plugins/`, and silent 10 MiB diagnostic logs in `<install>/debuglogs/`; upgrades keep existing data |
-| **macOS 13.0+** | **v0.7.2** | [**PortCanvas_0.7.2_universal.dmg**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_universal.dmg) | Apple Silicon &amp; Intel Universal build, ad-hoc signed for manual install ([SHA-256](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/PortCanvas_0.7.2_universal.dmg.sha256)); see [Mac guide](docs/macos.md) |
+| **Windows x64** | **v0.7.3** | [**PortCanvas_0.7.3_x64-setup.exe**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/PortCanvas_0.7.3_x64-setup.exe) | Stable channel with signed in-app updates; fresh installs store data in `<install>/data/`, plugins in `<install>/plugins/`, and silent 10 MiB diagnostic logs in `<install>/debuglogs/`; upgrades keep existing data |
+| **macOS 13.0+** | **v0.7.3** | [**PortCanvas_0.7.3_universal.dmg**](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/PortCanvas_0.7.3_universal.dmg) | Apple Silicon &amp; Intel Universal build, ad-hoc signed for manual install ([SHA-256](https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/PortCanvas_0.7.3_universal.dmg.sha256)); see [Mac guide](docs/macos.md) |
 
 <details>
 <summary><strong>Data migration, remote dependencies &amp; archive links</strong></summary>
@@ -113,7 +113,7 @@ Open **Toolbox (Plugins) → Available** inside PortCanvas to download signed of
 - **Credentials & Migration**: Saved credentials stay encrypted on the local machine via Windows DPAPI or macOS Keychain and are never exported inside `.portcanvas` bundles. Legacy data and `.portcanvas` bundles can be previewed and imported from the Devices page with automatic backup.
 - **Updates, Diagnostics & Plugin Trust**: Windows stable builds support Minisign-verified in-app updates and one-click debug log export ("Report Issue") via Settings → About. Production builds enforce HTTPS and Minisign verification for the plugin catalog.
 - **Remote Linux Tools**: Reuses existing SSH, Python 3, `tmux`, SFTP, `x11vnc`, and FFmpeg/OpenCV on the target device. Optional component preparation targets Ubuntu 20.04 ARM64 controllers inside an isolated user cache without modifying system SDKs.
-- **Previous Releases**: [v0.7.1](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.1) · [v0.7.0](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0) · [v0.6.4](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.4) · [v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3) · [v0.6.2](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.2) · [All Releases](https://github.com/JvKan9Zz/PortCanvas/releases)
+- **Previous Releases**: [v0.7.2](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.2) · [v0.7.1](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.1) · [v0.7.0](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.7.0) · [v0.6.4](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.4) · [v0.6.3](https://github.com/JvKan9Zz/PortCanvas/releases/tag/v0.6.3) · [All Releases](https://github.com/JvKan9Zz/PortCanvas/releases)
 
 </details>
 

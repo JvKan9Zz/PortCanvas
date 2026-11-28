@@ -6,13 +6,13 @@
       "id": "arena-monitor",
       "name": "赛台监控",
       "nameEn": "Arena Monitor",
-      "version": "0.8.0",
+      "version": "0.8.1",
       "summary": "轮式格斗 3.8m 赛台坐标系、实时定位接入与远端摄像头画面",
       "summaryEn": "3.8m combat arena map, live robot pose telemetry and remote camera feed",
       "category": "robotics",
       "author": "PortCanvas",
       "official": true,
-      "minAppVersion": "0.7.2",
+      "minAppVersion": "0.7.3",
       "hostSurface": "declarative-v1",
       "platform": "any",
       "requiresDevice": true,
@@ -37,16 +37,16 @@
         "cameraStream": "scripts/camera_stream.py",
         "poseStream": "scripts/pose_stream.py"
       },
-      "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/arena-monitor-0.8.0.pcplugin",
-      "sizeBytes": 192840,
-      "sha256": "baa20e77c2f9b6f5049121b50e71bd02cd0fa752ab8936e284cf644bff7c2cc2",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0d3TEQ1a1czdStPa3EvVWdVZDl6UXNwb0NkNk5SNGVOUWR1Snk3ZjY5UWsxTldjMGw2cDEweEtxaE0ycHBxVkFCOXFNNlFuN2hadmUwSllSbnM4ZDBnVT0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4MTc2MDAJZmlsZTphcmVuYS1tb25pdG9yLTAuOC4wLnBjcGx1Z2luCWhhc2hlZA0KeUZPTFFYZ3BhWHVYVFZlRTFvNm9wR2QzdWRZZ3BwOC85WHo2YzVtNjUwYnEwYkJEZC9NZkRtSWlOL3ZNdU9zT052NGFsZGE0MWpGTkVGb0ZjajJ1QUE9PQ0K",
+      "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/arena-monitor-0.8.1.pcplugin",
+      "sizeBytes": 192852,
+      "sha256": "5195fa455845509c53f0888dff34cc9e07103e4c20cafd511dfeaa174bb256af",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0d3eDhmUFVHR2VucmlyRWM3UkZxZ3lFc29HZFRsSEtBZDM3ekVCeU85VE5xUlpVaFJKMXFyRFJxZ3N2eDZsL2NIbENnQlZMWS9QaEE1bThUUUNVYmNRRT0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4NTEwMDIJZmlsZTphcmVuYS1tb25pdG9yLTAuOC4xLnBjcGx1Z2luCWhhc2hlZA0KbHRNY2NVMWF0UXRUc2M4aDNFR2RZMDdTTVhRQVI1K1JQRGFWWWVNbnV4QlNRY3dDWjY2VlhpdzlGc3M2QWZDYk56WDVYSGY4UU1tZCtGR0w3RDgwQ0E9PQ0K",
       "packages": {
         "any": {
-          "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/arena-monitor-0.8.0.pcplugin",
-          "sizeBytes": 192840,
-          "sha256": "baa20e77c2f9b6f5049121b50e71bd02cd0fa752ab8936e284cf644bff7c2cc2",
-          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0d3TEQ1a1czdStPa3EvVWdVZDl6UXNwb0NkNk5SNGVOUWR1Snk3ZjY5UWsxTldjMGw2cDEweEtxaE0ycHBxVkFCOXFNNlFuN2hadmUwSllSbnM4ZDBnVT0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4MTc2MDAJZmlsZTphcmVuYS1tb25pdG9yLTAuOC4wLnBjcGx1Z2luCWhhc2hlZA0KeUZPTFFYZ3BhWHVYVFZlRTFvNm9wR2QzdWRZZ3BwOC85WHo2YzVtNjUwYnEwYkJEZC9NZkRtSWlOL3ZNdU9zT052NGFsZGE0MWpGTkVGb0ZjajJ1QUE9PQ0K"
+          "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/arena-monitor-0.8.1.pcplugin",
+          "sizeBytes": 192852,
+          "sha256": "5195fa455845509c53f0888dff34cc9e07103e4c20cafd511dfeaa174bb256af",
+          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0d3eDhmUFVHR2VucmlyRWM3UkZxZ3lFc29HZFRsSEtBZDM3ekVCeU85VE5xUlpVaFJKMXFyRFJxZ3N2eDZsL2NIbENnQlZMWS9QaEE1bThUUUNVYmNRRT0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4NTEwMDIJZmlsZTphcmVuYS1tb25pdG9yLTAuOC4xLnBjcGx1Z2luCWhhc2hlZA0KbHRNY2NVMWF0UXRUc2M4aDNFR2RZMDdTTVhRQVI1K1JQRGFWWWVNbnV4QlNRY3dDWjY2VlhpdzlGc3M2QWZDYk56WDVYSGY4UU1tZCtGR0w3RDgwQ0E9PQ0K"
         }
       }
     },
@@ -84,37 +84,37 @@
         "local.network",
         "local.fs"
       ],
+      "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/fast-downloader-0.1.0-windows-x86_64.pcplugin",
+      "sizeBytes": 1346607,
+      "sha256": "8965ceca1ebedc25be072fb10e17527ed86c80e542f79b3caedccfc65ff6c137",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0c0OU03UmRLSDEvSStnL0llZml3ZWxCSVJXQm5uTHFDaFhjVFdkSTltbEVXMi81ZWlmZm4rcThHbGhQam13MkZhVk0xdEJBZzNGZnNLNEw5YVhjUVBBMD0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4NTEwMDMJZmlsZTpmYXN0LWRvd25sb2FkZXItMC4xLjAtd2luZG93cy14ODZfNjQucGNwbHVnaW4JaGFzaGVkDQpERG4vRDhvckRDNU9vNUdTRXBMYWtlQk9GekxNUStDOWpVL0lDMlNwQ2RXZ3YzSnVUbC94OUJVcC9jV1lLK1RLTHVBMHhHUjhmTU9qY1FVQW5GWmZCdz09DQo=",
       "packages": {
         "darwin-universal": {
-          "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/fast-downloader-0.1.0-darwin-universal.pcplugin",
+          "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/fast-downloader-0.1.0-darwin-universal.pcplugin",
           "sizeBytes": 2790973,
           "sha256": "d1ef565f3239793439a8c3911a635f897bbad413d620fd811a5d99e939446904",
-          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0d3WkdrT2Vqa0E1YXN5clVXcnVDSEY4R2xaR0JlQ0hqeGJ0alRDTVI1djREejRZR2E3SUhHcDlzU3JwN1dYNmJjQTBKZ3ozTGpXUWRNVUw0VkpRTmtnST0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4MTc2MDEJZmlsZTpmYXN0LWRvd25sb2FkZXItMC4xLjAtZGFyd2luLXVuaXZlcnNhbC5wY3BsdWdpbgloYXNoZWQNCnhHZm5veFFmVTJmQlEvdDNmTHkrd1N0VlZiKzRHcW1yWkYvL2FqVnJINWp4bXB5SVZublRCQ251RWZGZVN1NjVEVWl0YTV6M1p4YyswL2k1TW1pQUNRPT0NCg=="
+          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0d3WkdrT2Vqa0E1YXN5clVXcnVDSEY4R2xaR0JlQ0hqeGJ0alRDTVI1djREejRZR2E3SUhHcDlzU3JwN1dYNmJjQTBKZ3ozTGpXUWRNVUw0VkpRTmtnST0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4NTEwMDMJZmlsZTpmYXN0LWRvd25sb2FkZXItMC4xLjAtZGFyd2luLXVuaXZlcnNhbC5wY3BsdWdpbgloYXNoZWQNCjBHQUpiemlUNzdoZGY0UDV2eGdjdnRvZVlWNDZKWlZ6bVUxNXJjdWREY29Dc1FzbEZxVkRJaThRZmVEb0F4MGNCWmJ3emhKellkcytqQjNiRmZzWUJnPT0NCg=="
         },
         "windows-x86_64": {
-          "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/fast-downloader-0.1.0-windows-x86_64.pcplugin",
-          "sizeBytes": 1346606,
-          "sha256": "b74bb537fb9436ef3733444e28878eb22382dea344b79a009afe100f63ff7a4d",
-          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0cvQmdDT1hTa2V0cUFnSmdadjF3VFMzdjhRRXI4dDF1bi83WVVtOFl1YUQ2YkNuSm02M0YxYW9VdEZmMHNIM3hlaW5TTHFkajQ0UVc0NFNhME1sQ2lndz0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4MTc2MDEJZmlsZTpmYXN0LWRvd25sb2FkZXItMC4xLjAtd2luZG93cy14ODZfNjQucGNwbHVnaW4JaGFzaGVkDQpveDl0bEZ2RDdwcUdSQlNZTnZmNjR5RUZmNkZTSUVEeTlFY2JROFB1U2xTUi8yd2ptTEdzbFVFdHk3K1JhWUxKaUJpQzVOZFJYZlU1Zm5OWXZjbGJDUT09DQo="
+          "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/fast-downloader-0.1.0-windows-x86_64.pcplugin",
+          "sizeBytes": 1346607,
+          "sha256": "8965ceca1ebedc25be072fb10e17527ed86c80e542f79b3caedccfc65ff6c137",
+          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0c0OU03UmRLSDEvSStnL0llZml3ZWxCSVJXQm5uTHFDaFhjVFdkSTltbEVXMi81ZWlmZm4rcThHbGhQam13MkZhVk0xdEJBZzNGZnNLNEw5YVhjUVBBMD0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4NTEwMDMJZmlsZTpmYXN0LWRvd25sb2FkZXItMC4xLjAtd2luZG93cy14ODZfNjQucGNwbHVnaW4JaGFzaGVkDQpERG4vRDhvckRDNU9vNUdTRXBMYWtlQk9GekxNUStDOWpVL0lDMlNwQ2RXZ3YzSnVUbC94OUJVcC9jV1lLK1RLTHVBMHhHUjhmTU9qY1FVQW5GWmZCdz09DQo="
         }
-      },
-      "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/fast-downloader-0.1.0-windows-x86_64.pcplugin",
-      "sizeBytes": 1346606,
-      "sha256": "b74bb537fb9436ef3733444e28878eb22382dea344b79a009afe100f63ff7a4d",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0cvQmdDT1hTa2V0cUFnSmdadjF3VFMzdjhRRXI4dDF1bi83WVVtOFl1YUQ2YkNuSm02M0YxYW9VdEZmMHNIM3hlaW5TTHFkajQ0UVc0NFNhME1sQ2lndz0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4MTc2MDEJZmlsZTpmYXN0LWRvd25sb2FkZXItMC4xLjAtd2luZG93cy14ODZfNjQucGNwbHVnaW4JaGFzaGVkDQpveDl0bEZ2RDdwcUdSQlNZTnZmNjR5RUZmNkZTSUVEeTlFY2JROFB1U2xTUi8yd2ptTEdzbFVFdHk3K1JhWUxKaUJpQzVOZFJYZlU1Zm5OWXZjbGJDUT09DQo="
+      }
     },
     {
       "schema": "portcanvas.plugin/1",
       "id": "video-capture",
       "name": "视频采集",
       "nameEn": "Video Capture",
-      "version": "0.1.0",
-      "summary": "通过 USB/HDMI 采集卡或本机摄像头低延迟预览控制器画面，支持分辨率/帧率切换、比例适配与旋转翻转",
-      "summaryEn": "Low-latency local USB/HDMI capture card & camera preview with resolution/FPS switching, aspect fit, and rotate/flip",
+      "version": "0.2.0",
+      "summary": "通过 USB/HDMI 采集卡或本机摄像头低延迟预览控制器画面，支持多像素格式采集（YUY2/NV12/RGB/MJPEG 等）、窗口全屏与旋转翻转",
+      "summaryEn": "Low-latency local USB/HDMI capture card & camera preview with multi-format capture (YUY2/NV12/RGB/MJPEG), fullscreen view, and rotate/flip",
       "category": "tools",
       "author": "PortCanvas",
       "official": true,
-      "minAppVersion": "0.7.2",
+      "minAppVersion": "0.7.3",
       "hostSurface": "declarative-v1",
       "platform": "windows-x86_64",
       "requiresDevice": false,
@@ -133,18 +133,18 @@
         "local.exec",
         "local.capture"
       ],
+      "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/video-capture-0.2.0-windows-x86_64.pcplugin",
+      "sizeBytes": 219549,
+      "sha256": "078237cccabb6da623b5a234b22ceb1343970d5be8b4c6b7e7b2f62bf292074b",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0cvMGxJcVVqN0dyZzU0L3Q5NEJwUE4xR0VGb0U2OEdtekJkdE1Kd0V5SE5EN3ZVcTdHcUdRUEN6emJjOGQ5ajRUOUNHdkNoL0UwQzcvd1dBT3Zxbm9Rbz0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4NTEwMDMJZmlsZTp2aWRlby1jYXB0dXJlLTAuMi4wLXdpbmRvd3MteDg2XzY0LnBjcGx1Z2luCWhhc2hlZA0KRnlMNmd3WHY4OXpCSDFtWDlNNmw4NjhPRlVrcDFRRjZRYmkyWVV3ZTluWnhIVE5IWWFFQ0pwWWJnNlhMZjkreGR2aUppcDhSQzNBZGtCWHA1R0x0QlE9PQ0K",
       "packages": {
         "windows-x86_64": {
-          "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/video-capture-0.1.0-windows-x86_64.pcplugin",
-          "sizeBytes": 208258,
-          "sha256": "a970efea737e862b87c0f32439df497cedc0c5e1dc16597c5683a19991dcc52e",
-          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0d6TXdSQUZpLzJENzJ0TFJoNnJsd09UQ25lZkpkWG5SZ0syLzJiaGJJdVJJRHRtWC9wT0J0azBpREQrOS9IM1V5ZlNQNHlLRmtBSi9TVlRlOVZpWHJRWT0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4MTc2MDEJZmlsZTp2aWRlby1jYXB0dXJlLTAuMS4wLXdpbmRvd3MteDg2XzY0LnBjcGx1Z2luCWhhc2hlZA0KVXRhQVlGKy9PMU1hcXVMY3BCVmxhKzVVZjRnUWpzTkEzTVp2bFNmRHdPS1ZUbS9oWkFkNHFrZi9jTUIzL25IbjlDWVRxRDFsNE9PRzVLdzdLSU9jQ1E9PQ0K"
+          "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/video-capture-0.2.0-windows-x86_64.pcplugin",
+          "sizeBytes": 219549,
+          "sha256": "078237cccabb6da623b5a234b22ceb1343970d5be8b4c6b7e7b2f62bf292074b",
+          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0cvMGxJcVVqN0dyZzU0L3Q5NEJwUE4xR0VGb0U2OEdtekJkdE1Kd0V5SE5EN3ZVcTdHcUdRUEN6emJjOGQ5ajRUOUNHdkNoL0UwQzcvd1dBT3Zxbm9Rbz0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4NTEwMDMJZmlsZTp2aWRlby1jYXB0dXJlLTAuMi4wLXdpbmRvd3MteDg2XzY0LnBjcGx1Z2luCWhhc2hlZA0KRnlMNmd3WHY4OXpCSDFtWDlNNmw4NjhPRlVrcDFRRjZRYmkyWVV3ZTluWnhIVE5IWWFFQ0pwWWJnNlhMZjkreGR2aUppcDhSQzNBZGtCWHA1R0x0QlE9PQ0K"
         }
-      },
-      "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/video-capture-0.1.0-windows-x86_64.pcplugin",
-      "sizeBytes": 208258,
-      "sha256": "a970efea737e862b87c0f32439df497cedc0c5e1dc16597c5683a19991dcc52e",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0d6TXdSQUZpLzJENzJ0TFJoNnJsd09UQ25lZkpkWG5SZ0syLzJiaGJJdVJJRHRtWC9wT0J0azBpREQrOS9IM1V5ZlNQNHlLRmtBSi9TVlRlOVZpWHJRWT0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4MTc2MDEJZmlsZTp2aWRlby1jYXB0dXJlLTAuMS4wLXdpbmRvd3MteDg2XzY0LnBjcGx1Z2luCWhhc2hlZA0KVXRhQVlGKy9PMU1hcXVMY3BCVmxhKzVVZjRnUWpzTkEzTVp2bFNmRHdPS1ZUbS9oWkFkNHFrZi9jTUIzL25IbjlDWVRxRDFsNE9PRzVLdzdLSU9jQ1E9PQ0K"
+      }
     },
     {
       "schema": "portcanvas.plugin/1",
@@ -177,16 +177,16 @@
         "visionInspect": "scripts/vision_inspect.py",
         "visionStream": "scripts/vision_stream.py"
       },
-      "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/vision-studio-0.2.0.pcplugin",
+      "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/vision-studio-0.2.0.pcplugin",
       "sizeBytes": 14427,
       "sha256": "f2c5a747ec34e23139ec8baee6cb6613278358967fdb5b2638e96b5af1a545e4",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0czcHduMHIrYlkxajQzNHBJRHVsSVV3UXk2djgxN21Hblp2djhyVjJjVU1FaEhhcGtTVXJrcEJueGRBdngyU2Q5UVVtSytPWWc4M2V6OUpYZVZ4ZkVRdz0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4MTc2MDIJZmlsZTp2aXNpb24tc3R1ZGlvLTAuMi4wLnBjcGx1Z2luCWhhc2hlZA0KR3YvNGR6eEttSlIrOWRkTmNlR1NDbVEvWW5aTWlmNmVIbkp4bmpnNGo0NmRqZC9KUDRGazBVUFg0RHBwWDV0SG4xQk44RHVaek5yeFhhcUlQOEVtQ2c9PQ0K",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0czcHduMHIrYlkxajQzNHBJRHVsSVV3UXk2djgxN21Hblp2djhyVjJjVU1FaEhhcGtTVXJrcEJueGRBdngyU2Q5UVVtSytPWWc4M2V6OUpYZVZ4ZkVRdz0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4NTEwMDMJZmlsZTp2aXNpb24tc3R1ZGlvLTAuMi4wLnBjcGx1Z2luCWhhc2hlZA0KSlcrQmpOeEp3blFwMU5SV2Q3UUNEZFQwVDliN1cvT2t5Rkl3c1B0ZHR0Q3gvc1NKbkZEQ2xtQ2RVa2tWNFQyejU0UEgvckFPNEJoNTEzVVRxQ2cwRFE9PQ0K",
       "packages": {
         "any": {
-          "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.2/vision-studio-0.2.0.pcplugin",
+          "downloadUrl": "https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3/vision-studio-0.2.0.pcplugin",
           "sizeBytes": 14427,
           "sha256": "f2c5a747ec34e23139ec8baee6cb6613278358967fdb5b2638e96b5af1a545e4",
-          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0czcHduMHIrYlkxajQzNHBJRHVsSVV3UXk2djgxN21Hblp2djhyVjJjVU1FaEhhcGtTVXJrcEJueGRBdngyU2Q5UVVtSytPWWc4M2V6OUpYZVZ4ZkVRdz0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4MTc2MDIJZmlsZTp2aXNpb24tc3R1ZGlvLTAuMi4wLnBjcGx1Z2luCWhhc2hlZA0KR3YvNGR6eEttSlIrOWRkTmNlR1NDbVEvWW5aTWlmNmVIbkp4bmpnNGo0NmRqZC9KUDRGazBVUFg0RHBwWDV0SG4xQk44RHVaek5yeFhhcUlQOEVtQ2c9PQ0K"
+          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkNClJVUXE0QWxWSlhZM0czcHduMHIrYlkxajQzNHBJRHVsSVV3UXk2djgxN21Hblp2djhyVjJjVU1FaEhhcGtTVXJrcEJueGRBdngyU2Q5UVVtSytPWWc4M2V6OUpYZVZ4ZkVRdz0NCnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTU4NTEwMDMJZmlsZTp2aXNpb24tc3R1ZGlvLTAuMi4wLnBjcGx1Z2luCWhhc2hlZA0KSlcrQmpOeEp3blFwMU5SV2Q3UUNEZFQwVDliN1cvT2t5Rkl3c1B0ZHR0Q3gvc1NKbkZEQ2xtQ2RVa2tWNFQyejU0UEgvckFPNEJoNTEzVVRxQ2cwRFE9PQ0K"
         }
       }
     }
