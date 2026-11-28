@@ -14,6 +14,10 @@ def emit_patch(patch: dict) -> None:
 
 
 def main() -> None:
+    if hasattr(sys.stdin, "reconfigure"):
+        sys.stdin.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     message = "Hello PortCanvas"
     count = 0
 

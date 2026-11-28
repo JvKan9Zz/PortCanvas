@@ -60,6 +60,7 @@ class PluginPackagerTests(unittest.TestCase):
                 [sys.executable, '-u', str(template_dir / 'bin/worker.py')],
                 input='{"type":"init"}\n{"type":"set_state","key":"message","value":"hi"}\n{"type":"action","action":"ping"}\n{"type":"shutdown"}\n',
                 text=True,
+                encoding='utf-8',
                 capture_output=True,
                 check=True,
                 timeout=10,
