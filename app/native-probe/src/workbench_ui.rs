@@ -746,14 +746,18 @@ slint::slint! {
                                 height:64px;border-radius:12px;border-width:1px;border-color:AppColors.accent.with-alpha(0.35);background:upload-opt-1.has-hover?AppColors.soft:AppColors.field;
                                 animate background {duration:AppColors.motion?140ms:0ms;}
                                 HorizontalBox {padding-left:14px;padding-right:14px;padding-top:0px;padding-bottom:0px;spacing:12px;
-                                    Rectangle {width:36px;height:36px;y:(parent.height - 36px)/2;horizontal-stretch:0;border-radius:10px;background:AppColors.accent.with-alpha(0.14);
-                                        Image {x:9px;y:9px;width:18px;height:18px;source:@image-url("icons/upload.svg");colorize:AppColors.accent;}
+                                    VerticalLayout {alignment:center;horizontal-stretch:0;
+                                        Rectangle {width:36px;height:36px;border-radius:10px;background:AppColors.accent.with-alpha(0.14);
+                                            Image {x:9px;y:9px;width:18px;height:18px;source:@image-url("icons/upload.svg");colorize:AppColors.accent;}
+                                        }
                                     }
                                     VerticalBox {padding:0px;spacing:2px;alignment:center;horizontal-stretch:1;
                                         Text {text:root.tr("导入本地插件",root.english);font-size:13px;font-weight:AppColors.bold-weight;color:AppColors.ink;}
                                         Text {text:root.tr("选择本地 .pcplugin 安装包并核对权限后安装",root.english);font-size:11px;color:AppColors.muted;overflow:elide;}
                                     }
-                                    Image {width:16px;height:16px;y:(parent.height - 16px)/2;horizontal-stretch:0;source:@image-url("icons/chevron-right.svg");colorize:AppColors.muted;}
+                                    VerticalLayout {alignment:center;horizontal-stretch:0;
+                                        Image {width:16px;height:16px;source:@image-url("icons/chevron-right.svg");colorize:AppColors.muted;}
+                                    }
                                 }
                                 upload-opt-1:=TouchArea {accessible-role:button;accessible-label:root.tr("导入本地插件",root.english);clicked=>{root.plugin-upload-choice(0);}}
                             }
@@ -761,14 +765,18 @@ slint::slint! {
                                 height:64px;border-radius:12px;border-width:1px;border-color:AppColors.edge;background:upload-opt-2.has-hover?AppColors.soft:AppColors.field;
                                 animate background {duration:AppColors.motion?140ms:0ms;}
                                 HorizontalBox {padding-left:14px;padding-right:14px;padding-top:0px;padding-bottom:0px;spacing:12px;
-                                    Rectangle {width:36px;height:36px;y:(parent.height - 36px)/2;horizontal-stretch:0;border-radius:10px;background:AppColors.soft;
-                                        Image {x:9px;y:9px;width:18px;height:18px;source:@image-url("icons/download.svg");colorize:AppColors.accent;}
+                                    VerticalLayout {alignment:center;horizontal-stretch:0;
+                                        Rectangle {width:36px;height:36px;border-radius:10px;background:AppColors.soft;
+                                            Image {x:9px;y:9px;width:18px;height:18px;source:@image-url("icons/download.svg");colorize:AppColors.accent;}
+                                        }
                                     }
                                     VerticalBox {padding:0px;spacing:2px;alignment:center;horizontal-stretch:1;
                                         Text {text:root.tr("下载插件开发规范文档",root.english);font-size:13px;font-weight:AppColors.bold-weight;color:AppColors.ink;}
                                         Text {text:root.tr("保存 declarative-v1 与 pc-worker-v1 开发规范（Markdown）",root.english);font-size:11px;color:AppColors.muted;overflow:elide;}
                                     }
-                                    Image {width:16px;height:16px;y:(parent.height - 16px)/2;horizontal-stretch:0;source:@image-url("icons/chevron-right.svg");colorize:AppColors.muted;}
+                                    VerticalLayout {alignment:center;horizontal-stretch:0;
+                                        Image {width:16px;height:16px;source:@image-url("icons/chevron-right.svg");colorize:AppColors.muted;}
+                                    }
                                 }
                                 upload-opt-2:=TouchArea {accessible-role:button;accessible-label:root.tr("下载插件开发规范文档",root.english);clicked=>{root.plugin-upload-choice(1);}}
                             }
