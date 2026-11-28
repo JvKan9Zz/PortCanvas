@@ -67,7 +67,7 @@ export component NavButton inherits Rectangle {
     forward-focus:keys;
     VerticalBox {padding:6px;spacing:3px;alignment:center;
         Image {source:root.icon;image-fit:contain;preferred-width:22px;preferred-height:22px;horizontal-stretch:0;vertical-stretch:0;colorize:!root.enabled?AppColors.muted.with-alpha(0.45):root.selected&&!AppColors.dark?AppColors.accent:Palette.foreground;}
-        Text {text:root.text;color:!root.enabled?AppColors.muted.with-alpha(0.6):root.selected?AppColors.accent-ink:AppColors.muted;font-size:11px;font-weight:500;horizontal-alignment:center;vertical-stretch:0;}
+        Text {text:root.text;color:!root.enabled?AppColors.muted.with-alpha(0.6):root.selected?AppColors.accent-ink:AppColors.muted;font-size:11px;horizontal-alignment:center;vertical-stretch:0;}
     }
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
     touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
@@ -90,7 +90,7 @@ export component DeviceListItem inherits Rectangle {
     Rectangle {x:12px;y:12px;width:28px;height:28px;border-radius:9px;background:AppColors.accent.with-alpha(0.08);
         Image {x:6px;y:6px;width:16px;height:16px;source:@image-url("icons/devices.svg");colorize:AppColors.accent;}
     }
-    Text {x:50px;y:12px;width:parent.width - 64px;height:28px;text:root.name;color:root.selected?AppColors.accent-ink:AppColors.ink;font-size:14px;font-weight:500;vertical-alignment:center;overflow:elide;}
+    Text {x:50px;y:12px;width:parent.width - 64px;height:28px;text:root.name;color:root.selected?AppColors.accent-ink:AppColors.ink;font-size:14px;vertical-alignment:center;overflow:elide;}
     Text {x:12px;y:47px;width:parent.width - 24px;height:20px;text:root.address;color:AppColors.muted;overflow:elide;font-size:12px;vertical-alignment:center;}
     keys:=FocusScope {enabled:root.enabled;key-pressed(event)=>{if event.text==Key.Return||event.text==" "{root.clicked();return accept;}return reject;}}
     touch:=TouchArea {enabled:root.enabled;clicked=>{keys.focus();root.clicked();}}
@@ -101,5 +101,5 @@ export component ConnectionBadge inherits Rectangle {
     preferred-width:caption.preferred-width + 30px;height:28px;preferred-height:28px;horizontal-stretch:0;vertical-stretch:0;
     border-radius:14px;border-width:1px;border-color:root.tone.with-alpha(0.12);background:root.tone.with-alpha(0.06);
     Rectangle {x:10px;y:(parent.height - 5px)/2;width:5px;height:5px;border-radius:3px;background:root.tone;}
-    caption:=Text {x:21px;width:parent.width - 29px;height:parent.height;text:root.text;font-size:12px;font-weight:500;color:root.tone;vertical-alignment:center;}
+    caption:=Text {x:21px;width:parent.width - 29px;height:parent.height;text:root.text;font-size:12px;color:root.tone;vertical-alignment:center;}
 }

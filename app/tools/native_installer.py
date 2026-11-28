@@ -6,7 +6,7 @@ app = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser()
 p.add_argument('--binary', type=Path, required=True)
 p.add_argument('--output', type=Path, required=True)
-p.add_argument('--version', default='0.7.3')
+p.add_argument('--version', default='0.7.4')
 p.add_argument('--version-quad')
 p.add_argument('--product')
 p.add_argument('--registry')

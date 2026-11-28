@@ -14,7 +14,7 @@ from urllib.parse import quote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = 'portcanvas.plugin/1'
-RELEASE_URL = 'https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.3'
+RELEASE_URL = 'https://github.com/JvKan9Zz/PortCanvas/releases/download/v0.7.4'
 
 
 def package(source: Path, target: Path) -> None:

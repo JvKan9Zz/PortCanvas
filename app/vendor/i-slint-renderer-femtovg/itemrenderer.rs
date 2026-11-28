@@ -986,7 +986,7 @@ impl<'a, R: femtovg::Renderer + TextureImporter> GlyphRenderer for GLItemRendere
 
         let glyphs_it = glyphs_it.map(|glyph| femtovg::PositionedGlyph {
             x: glyph.x,
-            y: glyph.y + y_offset.get(),
+            y: (glyph.y + y_offset.get()).round(),
             glyph_id: glyph.id as u16,
         });
 

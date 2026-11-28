@@ -56,7 +56,7 @@ export component LogsView inherits VerticalBox {
                     for record in root.rows:Rectangle {height:98px;background:record.selected?AppColors.soft:row-touch.has-hover?AppColors.field:transparent;animate background {duration:AppColors.motion?150ms:0ms;}
                         LogSelectionBox {x:12px;y:10px;width:24px;selected:record.checked;enabled:root.enabled&&record.removable;accessible-label:root.tr("选择日志 "+record.command,root.english);toggled=>{root.toggle(record.id,self.checked);}}
                         VerticalBox {x:42px;y:12px;width:parent.width - 58px;height:parent.height - 24px;padding:0px;spacing:6px;
-                            Text {text:record.command;color:AppColors.ink;font-size:13px;font-weight:500;overflow:elide;vertical-stretch:0;}
+                            Text {text:record.command;color:AppColors.ink;font-size:13px;overflow:elide;vertical-stretch:0;}
                             Text {text:record.context;color:AppColors.muted;font-size:11px;overflow:elide;vertical-stretch:0;}
                             Rectangle {property <color> tone:record.tone==1?(AppColors.dark?#a9dcc3:#35745b):record.tone==2?AppColors.danger:record.tone==3?(AppColors.dark?#f0d49a:#89651f):AppColors.muted;width:status-label.preferred-width+12px;horizontal-stretch:0;height:20px;vertical-stretch:0;border-radius:5px;background:self.tone.with-alpha(0.08);
                                 status-label:=Text {x:6px;width:parent.width - 12px;height:parent.height;text:record.status;font-size:11px;color:parent.tone;vertical-alignment:center;}
@@ -79,7 +79,7 @@ export component LogsView inherits VerticalBox {
         details-panel:=Rectangle {x:root.compact?0px:parent.width*root.split+7px;y:root.compact?parent.height*root.split+7px:0px;width:root.compact?parent.width:parent.width*(1-root.split) - 7px;height:root.compact?parent.height*(1-root.split) - 7px:parent.height;background:AppColors.card;border-radius:16px;
             VerticalBox {padding:18px;spacing:12px;
                 HorizontalBox {padding:0px;spacing:8px;vertical-stretch:0;
-                    Text {text:root.tr("运行详情",root.english);font-size:16px;font-weight:600;color:AppColors.ink;}
+                    Text {text:root.tr("运行详情",root.english);font-size:16px;font-weight:AppColors.bold-weight;color:AppColors.ink;}
                     Rectangle {background:transparent;horizontal-stretch:1;}
                     ActionButton {visible:root.selected;text:root.tr("打开所在目录",root.english);enabled:root.enabled&&root.selected;clicked=>{root.open();}}
                     ActivityIndicator {active:root.reading&&root.output=="";}

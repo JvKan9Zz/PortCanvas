@@ -23,7 +23,7 @@ export component ColorPicker inherits Rectangle {
     content:=VerticalBox {
     padding:14px;spacing:10px;
     HorizontalBox {padding:0px;vertical-stretch:0;
-        Text {text:root.tr("选择颜色",root.english);font-size:13px;font-weight:600;color:AppColors.ink;horizontal-stretch:1;}
+        Text {text:root.tr("选择颜色",root.english);font-size:13px;font-weight:AppColors.bold-weight;color:AppColors.ink;horizontal-stretch:1;}
         Rectangle {background:root.selected-color;width:24px;height:24px;border-radius:7px;border-width:1px;border-color:AppColors.edge;horizontal-stretch:0;}
     }
     plane:=Rectangle {height:133px;border-radius:8px;vertical-stretch:0;clip:true;background:@linear-gradient(90deg,#ffffff,root.hue-color);

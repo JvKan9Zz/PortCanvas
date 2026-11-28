@@ -7,8 +7,10 @@ Original source and license texts are retained. Local renderer changes are in
 Backported [Slint PR #11335](https://github.com/slint-ui/slint/pull/11335),
 commit 120159a0dad0addabb2018cca68cbff7557fb53e, to the 1.15.1 glyph API.
 Align translation-only canvas origins to physical pixels for text and its
-decorations, then restore the original transform. Rotations and scaling retain
-their existing behavior. This avoids half-pixel nearest-neighbor text tearing.
+decorations, then restore the original transform, and round per-glyph baseline
+`y` positions (`glyph.y + y_offset`) to physical pixel rows so vertically
+centered small UI text does not blur across half-pixel rows. Rotations and
+scaling retain their existing behavior.
 No framework or renderer version is upgraded.
 
 The Windows settings sheet asks the renderer to blur the workbench layer for
